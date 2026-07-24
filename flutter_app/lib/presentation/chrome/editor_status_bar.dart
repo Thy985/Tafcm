@@ -7,11 +7,11 @@
 /// - 显示当前块数
 /// - **Phase 3.3**：显示字数统计（coordinator.wordCount）
 /// - 显示聚焦块 ID（调试用,Phase 3.4+ 移除）
+/// - **Phase 3.3 §3.3.2**：字号缩放控件（缩小 / 百分比 / 放大 / 重置,见 `_buildZoomControls`）
 ///
 /// **不实现**（Phase 3.4+）：
 /// - 光标位置（行 : 列）
 /// - 主题切换控件
-/// - 字号缩放控件
 ///
 /// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,
 /// 不 import blocks/ / panels/。

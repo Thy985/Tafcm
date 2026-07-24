@@ -59,7 +59,7 @@ class EditorShell extends StatefulWidget {
 
 class _EditorShellState extends State<EditorShell> {
   static const double _kMinScale = 0.8;
-  static const double _kMaxScale = 1.5;
+  static const double _kMaxScale = 1.25;
   static const double _kZoomStep = 0.1;
 
   double _zoomScale = 1.0;
@@ -92,8 +92,11 @@ class _EditorShellState extends State<EditorShell> {
       body: Column(
         children: [
           Expanded(
-            // 编辑区：双指缩放（onScaleUpdate）+ 双击切换焦点（onDoubleTap）
+            // 编辑区：双指缩放（onScaleUpdate）
             // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
+            // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
+            // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
+            // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
             child: GestureDetector(
               onScaleStart: (_) => _scaleStart = _zoomScale,
               onScaleUpdate: (details) {
@@ -103,7 +106,7 @@ class _EditorShellState extends State<EditorShell> {
                   });
                 }
               },
-              onDoubleTap: _toggleFocus,
+              onDoubleTap: _focusMode ? _toggleFocus : null,
               child: MediaQuery(
                 data: MediaQuery.of(context)
                     .copyWith(textScaler: TextScaler.linear(_zoomScale)),
