@@ -2,25 +2,32 @@
 ///
 /// 落地 Phase 3.0 Task Contract §3.2 + ADR-0009 §3（Editor Shell Architecture）。
 /// Phase 3.3 PR #2B：新增 MarkdownToolbar（§2.1 位置 A+B 混合布局）。
+/// Phase 3.3 PR #4：字号缩放（§3.3.2）+ 焦点模式（§3.3.3）。
 ///
 /// **布局**（v2.1 修订：新增 MarkdownToolbar）：
 /// ```
 /// ┌──────────────────────────────────────┐
-/// │ AppBar（title + modified indicator） │ ← chrome/editor_app_bar.dart
+/// │ AppBar（title + modified + Undo/Redo + 焦点） │ ← chrome/editor_app_bar.dart
 /// ├────────────┬─────────────────────────┤
 /// │            │                         │
 /// │ SidePanel  │     EditorViewport      │ ← blocks/block_renderer.dart
 /// │ （占位）   │  （Block 渲染列表）     │
-/// │            │                         │
 /// ├────────────┴─────────────────────────┤
 /// │ MarkdownToolbar（11 按钮 + 横向滚动） │ ← chrome/markdown_toolbar.dart
 /// ├──────────────────────────────────────┤
-/// │ StatusBar（块数 / 字数 / Undo 状态） │ ← chrome/editor_status_bar.dart
+/// │ StatusBar（块数 / 字数 / 缩放控制）   │ ← chrome/editor_status_bar.dart
 /// └──────────────────────────────────────┘
 /// ```
 ///
-/// **职责**：仅布局 + 传递 [EditorCoordinator]（不持有业务状态）。
-/// **不实现**（Phase 3.1+）：TOC / 文件树 / 主题切换 / 快捷键 / 修改状态指示。
+/// **状态（PR #4）**：
+/// - `_zoomScale`：字号缩放因子（§9.1 方案 B `MediaQuery.textScaler`）。
+///   纯 UI 状态，**不进 CoordinatorState**——避免污染文档 dirty 标记与持久化链（§12.3 豁免）。
+///   默认 1.0，范围 `[_kMinScale, _kMaxScale]` = `[0.8, 1.5]`。
+/// - `_focusMode`：焦点模式（§3.3.3，隐藏 chrome）。
+///   纯 UI 状态，同上不入 CoordinatorState。
+///
+/// **职责**：仅布局 + 持有 UI 状态 + 传递 [EditorCoordinator]。
+/// **不实现**（Phase 3.1+）：TOC / 文件树 / 主题切换 / 快捷键 / 修改状态指示持久化。
 library;
 
 import 'package:flutter/material.dart';
@@ -36,7 +43,8 @@ import 'editor_coordinator.dart';
 /// EditorShell：组合 chrome + workspace + status 的布局壳。
 ///
 /// 由 [EditorPage] 挂载，接收 [EditorCoordinator] 并通过 [EditorScope] 注入。
-class EditorShell extends StatelessWidget {
+/// Phase 3.3 PR #4 起为 [StatefulWidget]，持有缩放 / 焦点等纯 UI 状态。
+class EditorShell extends StatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
@@ -46,21 +54,77 @@ class EditorShell extends StatelessWidget {
   });
 
   @override
+  State<EditorShell> createState() => _EditorShellState();
+}
+
+class _EditorShellState extends State<EditorShell> {
+  static const double _kMinScale = 0.8;
+  static const double _kMaxScale = 1.5;
+  static const double _kZoomStep = 0.1;
+
+  double _zoomScale = 1.0;
+  bool _focusMode = false;
+
+  /// 双指缩放基线：onScaleStart 时记录当前缩放，onScaleUpdate 乘手势 scale。
+  double _scaleStart = 1.0;
+
+  void _zoomIn() =>
+      setState(() => _zoomScale = (_zoomScale + _kZoomStep).clamp(_kMinScale, _kMaxScale));
+  void _zoomOut() =>
+      setState(() => _zoomScale = (_zoomScale - _kZoomStep).clamp(_kMinScale, _kMaxScale));
+  void _zoomReset() => setState(() => _zoomScale = 1.0);
+  void _toggleFocus() => setState(() => _focusMode = !_focusMode);
+
+  @override
   Widget build(BuildContext context) {
+    final coordinator = widget.coordinator;
     return Scaffold(
-      appBar: EditorAppBar(
-        coordinator: coordinator,
-        title: coordinator.title,
-        isModified: coordinator.isDirty,
-      ),
-      // Phase 3.3 PR #2B §2.1：Toolbar 在 Workspace 与 StatusBar 之间（位置 A）
+      // 焦点模式：隐藏 AppBar（§3.3.3）
+      appBar: _focusMode
+          ? null
+          : EditorAppBar(
+              coordinator: coordinator,
+              title: coordinator.title,
+              isModified: coordinator.isDirty,
+              focusMode: _focusMode,
+              onToggleFocus: _toggleFocus,
+            ),
       body: Column(
         children: [
-          Expanded(child: Workspace(coordinator: coordinator)),
-          MarkdownToolbar(coordinator: coordinator),
+          Expanded(
+            // 编辑区：双指缩放（onScaleUpdate）+ 双击切换焦点（onDoubleTap）
+            // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
+            child: GestureDetector(
+              onScaleStart: (_) => _scaleStart = _zoomScale,
+              onScaleUpdate: (details) {
+                if (details.scale != 1.0) {
+                  setState(() {
+                    _zoomScale = (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
+                  });
+                }
+              },
+              onDoubleTap: _toggleFocus,
+              child: MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(_zoomScale)),
+                child: Workspace(coordinator: coordinator),
+              ),
+            ),
+          ),
+          // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
+          if (!_focusMode) MarkdownToolbar(coordinator: coordinator),
         ],
       ),
-      bottomNavigationBar: EditorStatusBar(coordinator: coordinator),
+      // 焦点模式：隐藏 StatusBar（§3.3.3）
+      bottomNavigationBar: _focusMode
+          ? null
+          : EditorStatusBar(
+              coordinator: coordinator,
+              zoomScale: _zoomScale,
+              onZoomIn: _zoomIn,
+              onZoomOut: _zoomOut,
+              onZoomReset: _zoomReset,
+            ),
     );
   }
 }
