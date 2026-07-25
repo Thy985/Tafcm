@@ -76,6 +76,7 @@ abstract interface class DirtyStateSource {
 }
 
 // class EditorCoordinator implements DirtyStateSource { ... }
+```
 
 ### dirtyChanges 构造来源与背压（评审补充）
 
@@ -91,7 +92,6 @@ Stream<bool> get dirtyChanges => _dirtyNotifier.stream; // 或 .asBroadcastStrea
 即 Stream 的「源」只有一处（Coordinator 的 dirty notifier），而非任意编辑事件流，构造关系清晰、无多源竞态。
 
 **背压 / 合并策略**：`dirtyChanges` 由单一 `ValueNotifier<bool>` 转换而来，**每次 isDirty 翻转最多发射一次事件**（不是每次按键一次），本身无高频喷射；其上 `AutosaveService` 再经 debounce(1.5s) 合并连续 dirty 窗口，故无背压/内存风险。若未来需更细信号（如「具体哪块脏」），应另开 `Stream<Set<BlockId>>`，不混用 `dirtyChanges`。
-```
 
 ### 职责边界
 
