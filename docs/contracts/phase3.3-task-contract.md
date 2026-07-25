@@ -7,8 +7,10 @@
 > **v1.3 修订日期**：2026-07-22（架构评审 R2：① Toolbar 提升为核心任务 ② 选区菜单 Overlay 降级为可选项 ③ 自动配对缩减范围）
 > **v1.4 R3 修订日期**：2026-07-22（架构评审 R3 9.0/10：① 字号缩放 P1 确认（v1.3 已落实）② §3.3.9 选区菜单整体延期 Phase 3.4 ③ 新增 §3.3.10 Markdown 模板插入菜单 P1,释放 Phase 3.2 TableBlock/MermaidBlock 成果）
 > **v1.4 R4 细化日期**：2026-07-22（架构决策细化 9-10/10 评分后 Accepted：① 优先级统计修正 6P0+3P1 ② PR #4 拆分（模板菜单移至 PR #2,Toolbar → Template Menu 架构耦合）③ 验证计划同步（删 selection_format_test.dart,新增 template_menu_test.dart）④ 自动配对测试同步 4 种 ⑤ §9.1 TextSpan 缩放边界 ⑥ §9.2 PairInsertCommand 路径 ⑦ §9.3 A+B 混合 Toolbar ⑧ §9.4 Dirty 文档状态归属 ⑨ 新增 §9.5 Toolbar 状态来源）
+> **v1.5 修订日期**：2026-07-24（Human Owner 指令：新增 §12 阶段级 E2E Exit Gate —— 每个子任务（3.3.x）须通过 E2E 验证（含 §12.3 三条链）方可进入下一阶段 / 合入,禁止全部 P0 堆积后才补 integration_test；新增 §12.2 E2E 测试目录规划 + §12.4 子任务级验收模型,替代 §6.1 末端统一验证模型）
+> **v1.6 修订日期**：2026-07-25（Human Owner 执行决策：本阶段采用「先连续完成全部 3.3.x 开发任务,再逐节补 E2E + 集成测试」顺序。即 §12.1 规则 #2 的「进入下一子任务前须过 E2E Gate」**本次执行放宽**——开发期允许连续推进所有子任务,但每个子任务的 E2E Gate（§12.2 目录 / §12.3 三条链）仍是**合入前必过门禁**,开发全部完成后按 §12.2 逐文件补 `phase33_*.dart` 的真实断言并去掉 `skip:true`）
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Accepted（v1.4,架构评审 R3 9.0/10 + R4 架构决策细化 9-10/10 评分后 Accepted,可启动 PR #1 实施）
+> **状态**：Accepted（v1.4 + v1.5 E2E Gate 增补 + v1.6 执行时序调整。v1.6 仅放宽「开发期进入下一子任务的 E2E 前置」为「开发全部完成后逐节补 E2E」,不改变每个子任务 E2E Gate 仍是合入门禁的本质要求,可继续按 PR #1~#4 实施）
 > **前置阶段**：Phase 3.2 Block Runtime Expansion（✅ Conditionally Complete,Closure PR #56 已合并）
 > **后继阶段**：Phase 3.4+ Advanced Capabilities（TOC / 文件树 / 主题 / 导出 / 选区菜单）
 >
@@ -115,6 +117,29 @@ Phase 3.3 解决上述 9 项,聚焦移动端 Markdown 输入体验。
 | 3.3.7 | **Markdown 工具栏（核心任务）**：11 按钮 + 选区包裹模式（替代独立 §3.3.9） | **P0 核心** | 新增 `chrome/markdown_toolbar.dart` | EditorShell 布局可扩展（新增 BottomBar slot） |
 | 3.3.8 | 自动续列表 / 引用 / 代码块（回车自动续行） | P0 | BaseBlockState onSubmitted 回调 | CommandHandler 路径不变 |
 | 3.3.10 | **Markdown 模板插入菜单（v1.4 新增 P1）**：`+` 按钮弹出菜单,一键插入表格/Mermaid/代码块/任务列表模板 | P1 | chrome/markdown_toolbar.dart 扩展（同 §3.3.7 组件） | CommandHandler 路径不变 |
+
+#### 1.2.1 子任务 E2E 验证矩阵（v1.5 新增,对应 §12 Gate）
+
+> 状态列 `⏳` 表示「E2E Gate 未通过」。每条 E2E 须覆盖 §12.3 三条链（用户操作链 / 状态同步链 / 持久化链）。
+
+| 编号 | 功能 | 优先级 | 状态 | 阶段 E2E 验证 |
+| ------ | ------------------------------------------ | ---------------- | -- | --------------------------------------------------------------------------------- |
+| 3.3.1 | AppBar 显示文档标题 + 修改状态（•） | P0 | ✅开发完/E2E待补 | ✅ E2E：启动 App → 打开文档 → AppBar 显示标题 → 修改内容 → 出现修改状态 → 保存后状态消失 |
+| 3.3.2 | 字号缩放（双指缩放 + 按钮 + 重置） | P1（v1.3 降级,R3确认） | ✅开发完/E2E待补 | ✅ E2E：打开文档 → 点击放大 → 文本字号变化 → 点击重置 → 恢复默认字号；移动端双指缩放手势验证 |
+| 3.3.3 | 焦点模式（隐藏 chrome,AppBar 全屏图标进入 / 双击退出） | P1 | ✅开发完/E2E待补 | ✅ E2E：点击 AppBar 全屏图标进入焦点模式 → AppBar/Toolbar/StatusBar 隐藏 → 双击编辑区退出 → Chrome 恢复 |
+| 3.3.4 | 实时字数统计（底部状态栏） | P0 | ✅开发完/E2E待补 | ✅ E2E：输入文本 → StatusBar 字数实时增加 → 删除文本 → 数量减少 → 切换 Block 后统计一致 |
+| 3.3.5 | 撤销 / 重做按钮接入 UI（HistoryManager 已实现） | P0 | ✅开发完/E2E待补 | ✅ E2E：输入文本 → 点击 Undo → 内容恢复 → 点击 Redo → 内容重新出现 → History 状态同步 |
+| 3.3.6 | 自动配对（仅 ( / [ / { / `） | P0 | ✅已合7f53eec/E2E待补 | ✅ E2E：输入 "(" → 自动生成 ")" → 光标位于中间 → Undo 恢复 → CodeBlock 输入 "(" 不触发 |
+| 3.3.7 | Markdown 工具栏（核心任务）：11 按钮 + 选区包裹模式 | P0 核心 | ✅开发完/E2E待补 | ✅ E2E：打开文档 → 点击 B/I/H1/Code 等按钮 → Markdown 插入正确 → 选择文本 → 点击 B → 生成包裹格式 |
+| 3.3.8 | 自动续列表 / 引用 / 代码块（回车自动续行） | P0 | ✅已合7f53eec/E2E待补 | ✅ E2E：输入 "- item" → 回车 → 自动生成 "- "；输入 "1. item" → 回车 → 自动生成 "2."；CodeBlock 内回车不续行 |
+| 3.3.10 | Markdown 模板插入菜单（+按钮,表格/Mermaid/代码块/任务列表模板） | P1 | ✅开发完/E2E待补 | ✅ E2E：点击 + → 选择模板 → 插入对应 Markdown → Parser 转换 Block → 保存后重新打开保持一致 |
+
+**矩阵注记**：
+
+- **v1.6 状态盘点（2026-07-25 代码核对 + PR #4 实现）**：9 个子任务开发代码全部已实现并接线（flutter analyze 0 error）：3.3.1/3.3.4/3.3.5（PR #1 chrome,`kEnableNewEditor=true` 已激活）+ 3.3.7/3.3.10（PR #2 工具栏+模板 dispatch）+ 3.3.6/3.3.8（PR #3 已合 `7f53eec`）+ 3.3.2 字号缩放 + 3.3.3 焦点模式（PR #4 已实现,`feat/phase3.3-ux-enhancement`,PR #64）。**Phase 3.3 开发阶段完成**,剩余为按 §12.2 逐文件补 E2E（去 `skip:true`）后标记整体通过；契约表 `⏳` 已校正为上述状态。
+- 3.3.9 选区格式化菜单已于 v1.4 整体延期至 Phase 3.4,不在本表。
+- 链 3（持久化链）强制范围：Toolbar（§3.3.7）/ Template（§3.3.10）/ Auto Continue（§3.3.8）/ Undo-Redo（§3.3.5）。Zoom（§3.3.2）/ Focus（§3.3.3）属纯 UI 状态,豁免链 3（详见 §12.3）。
+- **PR #4 二次修订（2026-07-25,commit `6b8c82b`,stacked on PR #64）**：① `editor_status_bar.dart` 注释矛盾修复（「字号缩放控件」从「不实现」区移至「职责」区）；② `editor_shell.dart` 双击手势竞争修复——`onDoubleTap` 仅在焦点模式绑定（`_focusMode ? _toggleFocus : null`）,消除非焦点模式下 GestureDetector 注册双击导致的编辑区单击 ~300ms 延迟；进入焦点模式改走 AppBar 全屏图标,退出走双击编辑区（设计选择与已知限制已写入文档注释）。③ 采纳非阻塞建议：缩放上限 `_kMaxScale` 1.5→1.25（与下限 0.8 更接近对称）。受此影响的 widget 测试暂缺,按用户建议于 **Phase 3.4 初始 sprint** 在 `editor_shell_test.dart` 补（覆盖：缩放按钮→zoomScale 变化 / 重置在 zoomScale=1.0 时 disabled / 焦点切换→AppBar/Toolbar/StatusBar 隐藏 / 双指缩放→gesture 更新 zoomScale）。
 
 ### 1.3 不在 Phase 3.3 范围内（明确边界）
 
@@ -460,6 +485,20 @@ CodeBlock 不应用自动配对（§3.6）、自动续列表（§3.8）、选区
 - EditorTokens 向后兼容（现有引用不变）
 - CodeBlock 例外守门（CodeBlock 不应用 Markdown 输入辅助）
 
+### 4.4 阶段级 E2E Gate 强制（v1.5 新增）
+
+> **流程变更（Human Owner 2026-07-24 指令）**：Phase 3.3 验收从「全部功能实现后统一补 integration_test」改为 **「每个子任务（3.3.x）单独 Gate」**。这是对 §6 末端统一验证模型的修正,旨在避免多个 P0 堆积实现后才暴露状态流 / UI 接线 / Command 链路问题。
+
+**单个子任务的完成标准**：
+
+```
+功能实现 → Unit Test Pass → Architecture Gate Pass → E2E（integration_test）Pass → 才进入下一阶段 / 才允许合入
+```
+
+- §4.1 的 Unit Test 与 §4.2 的功能验证 **不再单独构成完成标准**,必须叠加对应 `integration_test/phase33_*.dart` 的 E2E 通过（详见 §12）。
+- E2E 文件须随功能 PR 一起提交（同一 PR 内含 feature + unit + arch + e2e）,而非留到阶段末尾。
+- 禁止在 6 个 P0 全部堆积实现后,才统一补 `integration_test/`。
+
 ---
 
 ## 5. 风险评估
@@ -513,6 +552,14 @@ CodeBlock 不应用自动配对（§3.6）、自动续列表（§3.8）、选区
 - [ ] ROADMAP.md Phase 3.3 状态更新
 - [ ] ui-spec.md §7 Phase 3.3 checkbox 同步
 - [ ] Phase 3.3 Verification Report 完成
+
+### 6.5 子任务级 E2E Gate（v1.5 新增,替代 §6.1 末端统一验证）
+
+> Phase 3.3 整体 Exit Gate（§6.1-§6.4）的通过前提：**每个子任务（3.3.x）的 E2E Gate 已先行通过**（见 §12）。
+>
+> - §6.1 UI 验证清单中的每一项,必须对应一个 `integration_test/phase33_*.dart` 的 E2E 用例（而非仅手动点测）。
+> - §6.3 工程验证的 `flutter test 0 regression` 包含 `flutter test integration_test/` 的 E2E 用例。
+> - 任何子任务未通过 §12 E2E Gate,即使其余功能正常,Phase 3.3 整体 Gate 不得标记通过。
 
 ---
 
@@ -809,4 +856,123 @@ Human Owner 对 §9.1-9.5 架构决策给出最终评分：
 
 ---
 
-**本文件由 AI Agent 起草,版本 v1.4（Accepted,架构评审 R3 9.0/10 + R4 架构决策细化 9-10/10 评分后 Accepted + R4 改进补充：TextSpan 用户可见影响 / onChanged 时序 / 续列表范围 / 回滚范围描述 / Command 子类集中声明 / ui-spec §7 验证清单）。**
+## 12. 阶段级 E2E Exit Gate（v1.5 新增,Human Owner 2026-07-24 指令）
+
+> **核心变更**：Phase 3.3 验收从「全部功能实现后统一补 integration_test」改为 **「每个子任务（3.3.x）单独 Gate」**。这是对 §6 末端统一验证模型的修正——避免多个 P0 堆积实现后才暴露状态流 / UI 接线 / Command 链路问题。
+
+> **v1.6 执行时序决策（Human Owner 2026-07-25）**：§12.1 规则 #2（进入下一子任务前须过 E2E Gate）**本次执行放宽**。本阶段改为 **「先连续完成所有 3.3.x 开发任务,再逐节补 E2E + 集成测试」**。理由：减少跨特性上下文切换,先快速跑通完整功能面。注意——放宽的是**开发时序**,不是**门禁本身**：每个子任务的 E2E Gate（§12.2 目录 / §12.3 三条链）仍是**合入前必过**;开发全部完成后,须按 §12.2 逐文件补 `phase33_*.dart` 的真实断言（去掉 `skip:true`
+
+### 12.1 流程约束
+
+单个子任务（3.3.x）的完成标准：
+
+```
+功能实现
+   ↓
+Unit Test Pass            （§4.1 自动化验证）
+   ↓
+Architecture Gate Pass   （§4.3 架构验证 + TC-ARCH-* 守门）
+   ↓
+E2E（integration_test）Pass  （§12.2 目录 + §12.3 三条链）
+   ↓
+Human Review
+   ↓
+Merge
+```
+
+**强制规则**：
+
+1. ❌ 禁止在 6 个 P0 全部堆积实现后,才统一补 `integration_test/`。
+2. ✅ 每个子任务 **合入 PR 前** 必须通过自身 E2E Gate（§12.2 / §12.3）。（v1.6 执行放宽：开发期允许连续推进所有子任务,不强制「进入下一子任务前」逐个过 Gate;但提交 / 合入前必须补齐对应 E2E）
+3. ✅ E2E 文件随功能 PR 一起提交（同一 PR 内含 feature + unit + arch + e2e）,而非留到阶段末尾。
+
+### 12.2 E2E 测试目录规划
+
+> 所有 E2E 用例通过 [helpers/test_fixture.dart](../../flutter_app/integration_test/helpers/test_fixture.dart) 的 `pumpEditorApp()` 启动 App（禁止直接 `pumpWidget(FormulaFixApp())` / 依赖真实存储,见该文件 Hard Rule）。
+
+| 子任务 | E2E 文件 | 优先级 |
+|--------|-----------|--------|
+| 3.3.1 AppBar 标题 + 修改状态 | `integration_test/phase33_appbar_test.dart` | P0 |
+| 3.3.2 字号缩放 | `integration_test/phase33_zoom_test.dart` | P1 |
+| 3.3.3 焦点模式 | `integration_test/phase33_focus_mode_test.dart` | P1 |
+| 3.3.4 实时字数统计 | `integration_test/phase33_word_count_test.dart` | P0 |
+| 3.3.5 撤销 / 重做按钮 | `integration_test/phase33_undo_redo_test.dart` | P0 |
+| 3.3.6 自动配对 | `integration_test/phase33_auto_pair_test.dart` | P0 |
+| 3.3.7 Markdown 工具栏 | `integration_test/phase33_toolbar_test.dart` | P0 核心 |
+| 3.3.8 自动续列表 / 引用 / 代码块 | `integration_test/phase33_auto_continue_test.dart` | P0 |
+| 3.3.10 模板插入菜单 | `integration_test/phase33_template_menu_test.dart` | P1 |
+
+> **命名漂移说明（v1.5 备注）**：现有 `app_startup_test.dart` / `editor_shell_layout_test.dart` 文件头引用「PR #1.5 Task Contract v2.1」,与本文档版本号（v1.4 / v1.5）不一致。该引用为早期 E2E 试点时遗留,不影响本 Gate 执行；后续 E2E 文件统一以本文档 §12 为准。
+
+### 12.3 每条 E2E 必须验证三条链
+
+仅验证 UI 表象不够。每个 `phase33_*.dart` 至少覆盖以下三条链（缺链视为 Gate 未通过）：
+
+**链 1 — 用户操作链（UI → Command → Document）**
+
+```
+Tap Button / 输入字符
+   ↓
+Widget Event（onPressed / onChanged）
+   ↓
+Command（InsertTextCommand / WrapSelectionCommand / PairInsertCommand / InsertNewLineWithPrefixCommand / InsertTemplateCommand）
+   ↓
+CommandHandler
+   ↓
+Document Mutation（CoordinatorState 变更）
+```
+
+**链 2 — 状态同步链（Document → UI 重渲染）**
+
+```
+Document Change（CoordinatorState 变更）
+   ↓
+notifyListeners
+   ↓
+Widget rebuild
+   ↓
+UI 更新（AppBar / StatusBar / Toolbar 文本 / 光标位置）
+```
+
+**链 3 — 持久化链（仅涉及文档修改的功能强制）**
+
+```
+操作
+   ↓
+Save（持久化到 .md 单一真相源）
+   ↓
+Reload App
+   ↓
+Document 恢复（重新打开文档内容一致）
+```
+
+**链 3 强制范围**（这些功能最易出现「当前 UI 正确,但重新打开文档丢失」）：
+
+- ✅ Toolbar（§3.3.7）：插入 / 选区包裹后 Save + Reload 必须一致
+- ✅ Template（§3.3.10）：模板插入后 Save + Reload 必须一致
+- ✅ Auto Continue（§3.3.8）：续列表 / 引用 / 代码块续行后 Save + Reload 必须一致
+- ✅ Undo / Redo（§3.3.5）：撤销 / 重做后 Save + Reload 必须一致
+
+> 不强制链 3 的功能（如 3.3.2 字号缩放、3.3.3 焦点模式属于纯 UI 状态,不涉及文档持久化）可豁免链 3,但仍须覆盖链 1 + 链 2。
+
+### 12.4 调整后的 Phase 3.3 验收模型
+
+```
+Phase 3.3
+
+3.3.1 AppBar              ─┐
+3.3.4 Word Count         ─┤
+3.3.5 Undo/Redo          ─┤
+3.3.6 Auto Pair           ─┼── 每个子任务独立完成
+3.3.7 Toolbar            ─┤    Unit → Arch → E2E Gate
+3.3.8 Auto Continue      ─┤    通过后才进入下一子任务
+3.3.10 Template          ─┘
+                             ↓
+                   Phase 3.3 Complete（全子任务 E2E Gate 通过）
+```
+
+**与 §6 的关系**：§6 仍是 Phase 3.3 整体 Exit Gate（UI / 架构 / 工程 / 文档四维）。§12 将其下沉为 **子任务级**：整体 Gate 通过的前提是 **每个子任务的 E2E Gate（§12.1）已先行通过**。即 §6.3 的 `flutter test 0 regression` 必须包含对应 `integration_test/phase33_*.dart` 的 E2E 用例。
+
+---
+
+**本文件由 AI Agent 起草,版本 v1.6（v1.4 Accepted + v1.5 新增 §12 阶段级 E2E Exit Gate + v1.6 执行时序调整：开发全部完成后逐节补 E2E/集成,放宽开发期逐特性 Gate 前置,但合入前每子任务 E2E Gate 仍必过）。**
