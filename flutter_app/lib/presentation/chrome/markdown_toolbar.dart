@@ -7,9 +7,7 @@
 /// - §2.7.1 selection 强一致读取（onPressed 中重新读取）
 /// - §2.8 CodeBlock 工具栏行为（全部禁用 + 提示）
 /// - §6.3 `+` 模板菜单按钮（8 模板：表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
-///
-/// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,
-/// 不 import blocks/ / panels/。
+/// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,不 import blocks/ / panels/。
 library;
 
 import 'package:flutter/material.dart';
@@ -79,10 +77,16 @@ class MarkdownToolbar extends StatelessWidget {
       return const _DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled);
     }
 
-    // 无聚焦块：工具栏整体禁用（按钮 onPressed = null,Flutter 自动应用 disabled 样式）
+    // ADR-0012 §Editor Context Preservation：模板菜单以「最后聚焦块」为目标，
+    // 即使编辑器焦点已被弹层/工具栏抢走仍可用（templateEnabled）。
+    // 格式按钮（B/I/H…）仍需当前实时焦点（enabled）。
+    final hasTemplateTarget = coordinator.lastFocusedId != null;
+
+    // 无聚焦块：格式按钮整体禁用（onPressed = null,Flutter 自动应用 disabled 样式）
     return _ToolbarButtons(
       coordinator: coordinator,
       enabled: hasFocused,
+      templateEnabled: hasTemplateTarget,
     );
   }
 }
@@ -92,9 +96,13 @@ class _ToolbarButtons extends StatelessWidget {
   final EditorCoordinator coordinator;
   final bool enabled;
 
+  /// 模板菜单是否可用（ADR-0012：基于 lastFocusedId,失焦后仍可插入到最后编辑块）。
+  final bool templateEnabled;
+
   const _ToolbarButtons({
     required this.coordinator,
     required this.enabled,
+    required this.templateEnabled,
   });
 
   @override
@@ -206,9 +214,10 @@ class _ToolbarButtons extends StatelessWidget {
         onPressed: enabled ? () => _handleInsert('- [ ] ') : null,
       ),
       // §6.3：`+` 模板菜单按钮（PopupMenu,8 模板）
+      // ADR-0012：以 templateEnabled（lastFocusedId）为准,失焦后仍可插入。
       _TemplateMenuButton(
-        enabled: enabled,
-        onSelected: enabled ? _handleTemplateSelect : null,
+        enabled: templateEnabled,
+        onSelected: templateEnabled ? _handleTemplateSelect : null,
       ),
     ];
   }
@@ -276,7 +285,10 @@ class _ToolbarButtons extends StatelessWidget {
   /// **§2.5.1 Hard Rule**：不解析模板字符串内容,直接使用常量。
   /// **§2.7.1**：强一致读取 selection（仅 insert 模式使用）。
   void _handleTemplateSelect(_TemplateMenuItem item) {
-    final blockId = coordinator.focusedId;
+    // ADR-0012 §Editor Context Preservation：打开模板弹层会抢走编辑器焦点,
+    // 用 coordinator.lastFocusedId（不被 clearFocus 清空）作为插入目标,
+    // 而非实时的（可能已丢失的）focusedId。
+    final blockId = coordinator.lastFocusedId;
     if (blockId == null) return;
     final config = _kTemplateConfigs.firstWhere((c) => c.item == item);
     // §2.7.1：强一致读取 selection（insert 模式用于计算插入位置）

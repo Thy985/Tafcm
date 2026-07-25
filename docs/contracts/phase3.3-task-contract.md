@@ -563,6 +563,25 @@ CodeBlock 不应用自动配对（§3.6）、自动续列表（§3.8）、选区
 
 ---
 
+### 6.6 E2E 测试平台约束（owner 提案「§12.5 E2E Gate」落地,ADR-0012 关联）
+
+> **背景**：owner 在 2026-07-24 提出 E2E 两级 Gate：
+> - **Level 1 Framework E2E**：每 PR 必过（原设计目标平台 Windows + Web）。
+> - **Level 2 Platform Sanity**：阶段里程碑跑一次（Android Emulator）。
+> 实际执行约束如下（2026-07-24 验证）：
+
+**本地可跑 `flutter test integration_test` 的平台（仅 Android）**：
+- ✅ **Android Emulator**（emulator-5554,Android 16 / API 36）：本仓库 `.metadata` 启用 `android`,且 embedder 支持 integration_test → **唯一可用的本地 E2E 平台**。
+- ❌ **Windows 桌面**：`.metadata` 仅启用 `android / ios / web`,**未启用 windows**（无 windows runner）→ `flutter test -d windows` 无法运行 integration_test。
+- ❌ **Web（Edge）**：Flutter 3.44 明确「Web devices are not supported for integration tests yet」→ 不支持 integration_test。
+
+**结论（临时,Phase 3.3 收尾）**：
+- Level 1 Framework E2E 的「每 PR」门槛,当前在 **Android Emulator** 上执行（唯一可行本地平台）,而非原设计的 Windows / Web。
+- 两级 Gate 的设计意图不变（每 PR 轻量 E2E + 阶段里程碑 Android Sanity）;平台前提随工具链能力更新。
+- 未来若启用 Windows 桌面（`flutter create . --platforms=windows`）或 Flutter 支持 Web integration_test,再把 Level 1 迁回对应平台。
+
+**ADR-0012 关联**：本次 E2E 全量重跑（Android Emulator）暴露「§3.3.4 实时字数 vs 产品失焦才提交」冲突,沉淀为 [ADR-0012](../ADR/0012-live-editing-state.md),并在本 PR 落地 Live / Committed 双状态（实时 wordCount / dirty;canUndo 仍仅 Transaction Commit 后）。
+
 ## 7. 回滚计划
 
 ### 7.1 回滚触发条件

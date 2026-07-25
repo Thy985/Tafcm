@@ -199,37 +199,53 @@ void main() {
       expect(coordinator.blockCount, equals(1));
     });
 
-    // R2 Prototype 限制（见 editor_coordinator.dart:153-156 doc + 
-    // command_handler_test.dart:201-239 同类测试）：
-    // `currentState` 使用空 Transaction，redo 栈中保存的是空 Transaction，
-    // redo() 返回非 null 但 ops 为空，不会实际恢复 editor 状态。
-    // Phase 3.0+ 需 state snapshot 机制修复。
-    test('R2 Prototype 限制：redo 不实际恢复 editor 状态（已知 tech debt）', () {
+    // Phase 3.3 修复（原 R2 Prototype 限制 tech debt）：
+    // 旧实现 undo/redo 传入空占位 Transaction 作 currentState,导致 redo 栈中
+    // 保存的是空 Transaction,redo() 返回非空但 ops 为空,不恢复 editor 状态。
+    // 现改为把「将被撤销/重做的真实事务」作为 currentState 回环,redo 正确重放 ops。
+    // 见 editor_coordinator.dart undo()/redo() + history_manager.dart redoLastOrNull。
+    test('redo 重放真实事务 ops → 恢复 editor 状态（tech debt 已修复）', () {
       final id = editor.addParagraph('hello');
       coordinator.handle(InsertBlockAfterCommand(
         blockId: id,
         element: const ParagraphElement(children: [TextElement('x')]),
         origin: CommandOrigin.keyboard,
       ));
-      final countBeforeUndo = coordinator.blockCount; // 2
+      final countAfterInsert = coordinator.blockCount; // 2
       coordinator.undo();
-      expect(coordinator.blockCount, equals(countBeforeUndo - 1),
+      expect(coordinator.blockCount, equals(countAfterInsert - 1),
           reason: 'undo 应移除插入的块');
       expect(coordinator.canRedo, isTrue);
 
       final redoneTx = coordinator.redo();
-      // redo 返回非 null（栈非空），但实际是空 Transaction
-      expect(redoneTx, isNotNull,
-          reason: 'redo 栈非空应返回 Transaction');
-      expect(redoneTx!.ops, isEmpty,
-          reason: 'R2 限制：redo 栈中是空 Transaction（currentState 被推入）');
-      // 关键验证：redo 没有实际恢复 editor 状态（blockCount 仍是 undo 后的值）
-      expect(coordinator.blockCount, equals(countBeforeUndo - 1),
-          reason: 'R2 限制：redo 未恢复块数（已知 tech debt，Phase 3.0+ 修复）');
-      // 但 canUndo/canRedo 标志本身正确（栈管理无误）
+      // redo 返回被重做的真实事务（携带可重放的 ops）
+      expect(redoneTx, isNotNull, reason: 'redo 栈非空应返回 Transaction');
+      expect(redoneTx!.ops, isNotEmpty,
+          reason: '修复后：redo 返回真实事务,ops 非空');
+      // 关键验证：redo 实际恢复了 editor 状态（块数回到插入后的值）
+      expect(coordinator.blockCount, equals(countAfterInsert),
+          reason: '修复后：redo 重放 ops,块数恢复');
+      // 栈管理：redo 后可再次 undo,不可再 redo
       expect(coordinator.canUndo, isTrue,
-          reason: '空 Tx 已被推入 undo 栈（栈管理正确）');
+          reason: 'redo 后真实事务回到 undo 栈');
       expect(coordinator.canRedo, isFalse);
+    });
+
+    test('undo → redo → undo 往返：editor 状态一致', () {
+      final id = editor.addParagraph('hello');
+      coordinator.handle(InsertBlockAfterCommand(
+        blockId: id,
+        element: const ParagraphElement(children: [TextElement('x')]),
+        origin: CommandOrigin.keyboard,
+      ));
+      expect(coordinator.blockCount, equals(2));
+
+      coordinator.undo();
+      expect(coordinator.blockCount, equals(1), reason: 'undo → 1 块');
+      coordinator.redo();
+      expect(coordinator.blockCount, equals(2), reason: 'redo → 2 块');
+      coordinator.undo();
+      expect(coordinator.blockCount, equals(1), reason: '再 undo → 1 块（往返一致）');
     });
 
     test('UpdateBlockSourceCommand 走 handle 后可 undo 还原 source', () {

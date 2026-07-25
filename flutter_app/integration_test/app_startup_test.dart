@@ -15,6 +15,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/presentation/editor/editor_shell.dart';
+import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
 import 'helpers/test_fixture.dart';
 
 void main() {
@@ -23,8 +24,16 @@ void main() {
       await pumpEditorApp(tester, seedSelector: 0);
 
       // AppBar 标题应显示 SeedDocuments demo1 的 title（"FormulaFix Demo"）
-      expect(find.text('FormulaFix Demo'), findsOneWidget,
-          reason: 'AppBar 应显示 SeedDocuments demo1 的 title');
+      // 仅限定 AppBar 子树：正文首块（Heading）也渲染同名文本,
+      // 不限定会命中 2 个 widget（§12.5 E2E 收敛修复）。
+      expect(
+        find.descendant(
+          of: find.byType(EditorAppBar),
+          matching: find.text('FormulaFix Demo'),
+        ),
+        findsOneWidget,
+        reason: 'AppBar 应显示 SeedDocuments demo1 的 title',
+      );
     });
 
     testWidgets('EditorShell 挂载成功（AppBar + Viewport + StatusBar）', (tester) async {

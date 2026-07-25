@@ -70,6 +70,12 @@ class EditorHistory {
   /// 栈顶 Transaction（用于检查 coalescing，不弹出）。
   Transaction? get lastOrNull => _history.lastOrNull;
 
+  /// Redo 栈顶 Transaction（下一个将被 redo 的条目，不弹出）。
+  ///
+  /// Phase 3.3：coordinator 在 redo 前用它取得「将被重做的事务」，
+  /// 回环压回 undo 栈，修复 op-delta 模型下 redo 重放空事务的缺陷。
+  Transaction? get redoLastOrNull => _history.redoLastOrNull;
+
   /// Coalescing 判定（可注入，默认 [_defaultCanCoalesce]）。
   ///
   /// 调用方式：`history.canCoalesce(prev, next)` 或作为 tear-off 传递。

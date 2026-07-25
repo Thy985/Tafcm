@@ -28,6 +28,13 @@ class HistoryManager<T> {
   /// 栈为空时返回 null。
   T? get lastOrNull => _undoStack.isEmpty ? null : _undoStack.last;
 
+  /// Redo 栈顶状态（下一个将被 redo 的条目）。
+  ///
+  /// Phase 3.3：op-delta 模型下，coordinator 需在 redo 前取得「将被重做的
+  /// Transaction」，以便把同一条目回环压入对应栈（快照交换模型要求 currentState
+  /// 携带可重放的 ops，而非空占位）。栈为空时返回 null。
+  T? get redoLastOrNull => _redoStack.isEmpty ? null : _redoStack.last;
+
   /// 替换栈顶状态（用于 coalescing 合并）。
   ///
   /// Phase 2.6 新增：EditorHistory.pushOperation 检测到可合并 op 时，

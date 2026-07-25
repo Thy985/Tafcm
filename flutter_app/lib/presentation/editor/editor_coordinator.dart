@@ -1,9 +1,6 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
-///
-/// 落地 ADR-0009 §3.5 + Phase 3.0 §3.4 + §2.4（避免 God Object）+
-/// Phase 3.1-A §3.1.A.3（弱化版 R1：CoordinatorState 单字段）。
-/// **职责**：持有 editor / history / handler,管理 [CoordinatorState]。
-/// 只协调,不持有业务状态。Hard Rule 1/4/8（AST 零污染 / 不持领域 / 单向依赖）。
+/// 落地 ADR-0009 §3.5 + Phase 3.0 §2.4（避免 God Object）+ ADR-0012（Live State）。
+/// 职责：持有 editor / history / handler，管理 [CoordinatorState]，只协调不持有业务状态。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -16,7 +13,9 @@ import '../commands/command_handler.dart';
 import '../commands/editor_command.dart';
 import '../states/block_view_state.dart';
 import '../states/coordinator_state.dart';
+import 'command_selection_sync.dart';
 import 'in_memory_document_editor.dart';
+import 'live_editing_state.dart';
 
 /// UI 层对编辑内核的协调器。Widget 通过 [EditorScope] 获取实例。
 class EditorCoordinator extends ChangeNotifier {
@@ -25,11 +24,19 @@ class EditorCoordinator extends ChangeNotifier {
   late final CommandHandler handler;
   CoordinatorState _state;
 
+  /// ADR-0012：Live Editing State（实时文本 / 字数 / 脏标记）。抽出独立类避免膨胀。
+  late final LiveEditingState _live;
+
+  /// ADR-0012 §Editor Context Preservation：最后聚焦的编辑块。不随 [clearFocus] 清空，
+  /// chrome 层（模板菜单等）以它为编辑目标，避免焦点被弹层抢走后目标为 null。
+  BlockId? _lastFocusedId;
+
   EditorCoordinator({
     required this.editor,
     required this.history,
   }) : _state = const CoordinatorState.empty() {
     handler = CommandHandler(editor: editor, history: history);
+    _live = LiveEditingState(editor);
     _state = CoordinatorState.initial({
       for (final id in editor.allIds) id: BlockViewState(id: id),
     });
@@ -51,58 +58,15 @@ class EditorCoordinator extends ChangeNotifier {
     };
     final ok = handler.handle(command);
     if (ok) {
-      _syncSelectionAfterCommand(command, oldSource, oldIds);
+      // 命令后 selection / focus 计算委托 [CommandSelectionSync]（R1+R2 + PR #2C）。
+      final result = CommandSelectionSync.apply(_state, command,
+          editor: editor, oldSource: oldSource, oldIds: oldIds);
+      _state = result.state;
+      if (result.newFocus != null) _lastFocusedId = result.newFocus;
+      _live.reconcile(result.affectedIds); // 受影响块对齐到 committed
       notifyListeners();
     }
     return ok;
-  }
-
-  /// 命令后同步 selection（R1+R2 + PR #2C 模板）。
-  void _syncSelectionAfterCommand(
-      EditorCommand command, String? oldSource, Set<BlockId>? oldIds) {
-    switch (command) {
-      case InsertTextCommand c:
-        _setCollapsedCursor(c.blockId, c.selection, oldSource,
-            c.text.length, c.cursorOffset);
-      case WrapSelectionCommand c:
-        final start = c.selection.start;
-        final len = c.selection.end - start;
-        _updateSelectionInternal(c.blockId, TextSelection(
-          baseOffset: start + c.prefix.length,
-          extentOffset: start + c.prefix.length + len,
-        ));
-      case InsertTemplateCommand c when c.mode == TemplateInsertMode.insert:
-        _setCollapsedCursor(c.blockId, c.selection, oldSource,
-            c.template.length, c.cursorOffset);
-      case InsertTemplateCommand c when c.mode == TemplateInsertMode.newBlock:
-        // newBlock 模式：焦点转移到新块,光标在 offset 0
-        final newId = editor.allIds.firstWhere(
-          (id) => !(oldIds?.contains(id) ?? false),
-          orElse: () => editor.allIds.last);
-        _state = _state.focusOn(newId);
-        _updateSelectionInternal(newId, const TextSelection.collapsed(offset: 0));
-      case PairInsertCommand c:
-        _setCollapsedCursor(c.blockId, TextSelection.collapsed(offset: c.insertOffset),
-            null, c.suffixChar.length, c.cursorOffset);
-      case InsertNewLineWithPrefixCommand c:
-        _updateSelectionInternal(c.blockId,
-            TextSelection.collapsed(offset: editor.sourceOf(c.blockId).length));
-      default:
-        break;
-    }
-  }
-
-  /// 计算单光标位置并更新 viewState（InsertText / InsertTemplate(insert) 共用）。
-  void _setCollapsedCursor(BlockId id, TextSelection? sel, String? oldSource,
-      int textLen, int cursorOffset) {
-    final insertOffset = sel?.baseOffset ?? (oldSource?.length ?? 0);
-    _updateSelectionInternal(
-        id, TextSelection.collapsed(offset: insertOffset + textLen + cursorOffset));
-  }
-
-  void _updateSelectionInternal(BlockId id, TextSelection selection) {
-    final cur = _state.viewStateOf(id) ?? BlockViewState(id: id);
-    _state = _state.updateViewState(id, cur.copyWith(selection: selection));
   }
 
   // ============ 查询接口（转发到 editor） ============
@@ -112,12 +76,30 @@ class EditorCoordinator extends ChangeNotifier {
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
 
-  // ============ Phase 3.3 chrome 接线 ============
+  // ============ Phase 3.3 chrome 接线（ADR-0012：Live / Committed 双状态）============
 
   String get title => editor.title;
-  int get wordCount => editor.wordCount;
-  bool get isDirty => editor.isDirty;
-  void markSaved() => editor.markSaved();
+
+  /// 实时字数 / 脏标记（ADR-0012 Live Editing State，委托 [LiveEditingState]）。
+  int get wordCount => _live.wordCount;
+  bool get isDirty => _live.isDirty;
+
+  void markSaved() {
+    editor.markSaved();
+    _live.clear(); // ADR-0012：保存即已提交,清除 live 漂移,dirty 归 false。
+    notifyListeners();
+  }
+
+  // ============ ADR-0012：Live Editing State 接口（委托）============
+
+  /// 推入某 block 的实时编辑文本（由 `BaseBlockState._onTextChanged` 高频调用）。
+  void updateLiveSource(BlockId id, String source) {
+    _live.update(id, source);
+    notifyListeners();
+  }
+
+  /// 读取某 block 的实时文本（live 优先,fallback 到已提交 source）。
+  String liveSourceOf(BlockId id) => _live.sourceOf(id);
 
   // ============ Phase 3.3 PR #2B: Toolbar 便捷查询 ============
 
@@ -147,10 +129,15 @@ class EditorCoordinator extends ChangeNotifier {
 
   BlockId? get focusedId => _state.focusedId;
 
+  /// 最后聚焦的编辑块（ADR-0012 §Editor Context Preservation）：实时聚焦优先，
+  /// 失焦后回退到 [_lastFocusedId]（不被 [clearFocus] 清空）。chrome 层以此为编辑目标。
+  BlockId? get lastFocusedId => _state.focusedId ?? _lastFocusedId;
+
   /// 聚焦指定块。旧块切回渲染态,新块切到编辑态。
   void setFocus(BlockId id) {
     if (_state.focusedId == id) return;
     _state = _state.focusOn(id);
+    _lastFocusedId = id;
     notifyListeners();
   }
 
@@ -162,14 +149,20 @@ class EditorCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============ Undo / Redo（Prototype 限制：currentState 空 Transaction） ============
+  // ============ Undo / Redo ============
+  // 修复（Phase 3.3）：[HistoryManager] 为快照交换模型，旧实现传空占位事务导致
+  // redo 重放空 ops 无效。现回环真实事务（lastOrNull / redoLastOrNull）携带可重放 ops。
 
   bool get canUndo => history.canUndo;
   bool get canRedo => history.canRedo;
 
+  /// Undo：回滚栈顶事务的 ops，并把同一事务回环压入 redo 栈。
   Transaction? undo() {
-    final tx = history.undo(_emptyCurrentState(TransactionOrigin.undo));
+    final target = history.lastOrNull;
+    if (target == null) return null;
+    final tx = history.undo(target);
     if (tx == null) return null;
+    _live.clear();
     for (final op in tx.ops.reversed) {
       op.revert(editor);
     }
@@ -178,9 +171,13 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
+  /// Redo：重放 redo 栈顶事务的 ops，并把同一事务回环压回 undo 栈。
   Transaction? redo() {
-    final tx = history.redo(_emptyCurrentState(TransactionOrigin.redo));
+    final target = history.redoLastOrNull;
+    if (target == null) return null;
+    final tx = history.redo(target);
     if (tx == null) return null;
+    _live.clear();
     for (final op in tx.ops) {
       op.apply(editor);
     }
@@ -188,10 +185,6 @@ class EditorCoordinator extends ChangeNotifier {
     notifyListeners();
     return tx;
   }
-
-  Transaction _emptyCurrentState(TransactionOrigin o) => Transaction(
-      id: TransactionId.next(), ops: const [],
-      metadata: TransactionMetadata(timestamp: DateTime.now()), origin: o);
 
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
 

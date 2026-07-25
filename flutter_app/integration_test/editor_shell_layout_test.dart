@@ -30,7 +30,14 @@ void main() {
       expect(find.byType(EditorAppBar), findsOneWidget,
           reason: 'EditorAppBar 应挂载');
       // AppBar 应包含标题文本（demo1 的 "FormulaFix Demo"）
-      expect(find.text('FormulaFix Demo'), findsOneWidget);
+      // 仅限定 AppBar 子树：正文首块（Heading）也渲染同名文本。
+      expect(
+        find.descendant(
+          of: find.byType(EditorAppBar),
+          matching: find.text('FormulaFix Demo'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('StatusBar 挂载并显示块数 + 字数', (tester) async {
