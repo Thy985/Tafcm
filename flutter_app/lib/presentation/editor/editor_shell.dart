@@ -232,6 +232,13 @@ class EditorViewport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ids = coordinator.allIds;
+    // 修剪已删除块的孤儿 GlobalKey（Level 1 评审发现 3：原为只读 TOC 未触发，
+    // 但编辑操作落地前须消除 —— 否则 _blockKeys 随块增删无限膨胀）。
+    // 仅移除当前不再存在的 id，putIfAbsent 会在下次渲染时按需重建。
+    if (blockKeys.isNotEmpty) {
+      final liveIds = ids.toSet();
+      blockKeys.removeWhere((id, _) => !liveIds.contains(id));
+    }
     if (ids.isEmpty) {
       return const Center(
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
