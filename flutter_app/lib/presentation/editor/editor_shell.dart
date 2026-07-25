@@ -32,11 +32,13 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/editing/block_types.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../chrome/editor_status_bar.dart';
 import '../chrome/markdown_toolbar.dart';
 import '../panels/side_panel_host.dart';
+import '../panels/toc_panel.dart';
 import '../states/block_view_state.dart';
 import 'editor_coordinator.dart';
 
@@ -65,6 +67,15 @@ class _EditorShellState extends State<EditorShell> {
   double _zoomScale = 1.0;
   bool _focusMode = false;
 
+  /// TOC 抽屉 / 滚动定位所需的 Scaffold 句柄（Phase 3.4.1）。
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// 编辑区滚动控制器（Phase 3.4.1：TOC 点击跳转到块）。
+  final ScrollController _scrollController = ScrollController();
+
+  /// 每个块的稳定 GlobalKey（Phase 3.4.1：Scrollable.ensureVisible 定位）。
+  final Map<BlockId, GlobalKey> _blockKeys = {};
+
   /// 双指缩放基线：onScaleStart 时记录当前缩放，onScaleUpdate 乘手势 scale。
   double _scaleStart = 1.0;
 
@@ -75,10 +86,39 @@ class _EditorShellState extends State<EditorShell> {
   void _zoomReset() => setState(() => _zoomScale = 1.0);
   void _toggleFocus() => setState(() => _focusMode = !_focusMode);
 
+  /// TOC 点击条目：聚焦块 + 滚动到可视区 + 关闭抽屉（Phase 3.4.1）。
+  void _jumpToBlock(BlockId id) {
+    widget.coordinator.setFocus(id);
+    final key = _blockKeys[id];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        alignment: 0.1,
+        duration: const Duration(milliseconds: 300),
+      );
+    }
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final coordinator = widget.coordinator;
     return Scaffold(
+      key: _scaffoldKey,
+      // Phase 3.4.1：目录（大纲）抽屉
+      drawer: TocPanel(
+        coordinator: coordinator,
+        onJump: _jumpToBlock,
+      ),
+      drawerEnableOpenDragGesture: false,
       // 焦点模式：隐藏 AppBar（§3.3.3）
       appBar: _focusMode
           ? null
@@ -88,6 +128,7 @@ class _EditorShellState extends State<EditorShell> {
               isModified: coordinator.isDirty,
               focusMode: _focusMode,
               onToggleFocus: _toggleFocus,
+              onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
             ),
       body: Column(
         children: [
@@ -110,7 +151,11 @@ class _EditorShellState extends State<EditorShell> {
               child: MediaQuery(
                 data: MediaQuery.of(context)
                     .copyWith(textScaler: TextScaler.linear(_zoomScale)),
-                child: Workspace(coordinator: coordinator),
+                child: Workspace(
+              coordinator: coordinator,
+              scrollController: _scrollController,
+              blockKeys: _blockKeys,
+            ),
               ),
             ),
           ),
@@ -139,8 +184,15 @@ class _EditorShellState extends State<EditorShell> {
 /// Phase 3.8+：侧栏接入文件树（左侧滑出）。
 class Workspace extends StatelessWidget {
   final EditorCoordinator coordinator;
+  final ScrollController? scrollController;
+  final Map<BlockId, GlobalKey> blockKeys;
 
-  const Workspace({super.key, required this.coordinator});
+  const Workspace({
+    super.key,
+    required this.coordinator,
+    this.scrollController,
+    required this.blockKeys,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +203,11 @@ class Workspace extends StatelessWidget {
           SidePanelHost(coordinator: coordinator),
         // 编辑视口（BlockRenderer 渲染所有块）
         Expanded(
-          child: EditorViewport(coordinator: coordinator),
+          child: EditorViewport(
+            coordinator: coordinator,
+            controller: scrollController,
+            blockKeys: blockKeys,
+          ),
         ),
       ],
     );
@@ -163,21 +219,33 @@ class Workspace extends StatelessWidget {
 /// 遍历 [coordinator.allIds]，为每个 Block 构造 [BlockRenderer]。
 class EditorViewport extends StatelessWidget {
   final EditorCoordinator coordinator;
+  final ScrollController? controller;
+  final Map<BlockId, GlobalKey> blockKeys;
 
   const EditorViewport({
     super.key,
     required this.coordinator,
+    this.controller,
+    required this.blockKeys,
   });
 
   @override
   Widget build(BuildContext context) {
     final ids = coordinator.allIds;
+    // 修剪已删除块的孤儿 GlobalKey（Level 1 评审发现 3：原为只读 TOC 未触发，
+    // 但编辑操作落地前须消除 —— 否则 _blockKeys 随块增删无限膨胀）。
+    // 仅移除当前不再存在的 id，putIfAbsent 会在下次渲染时按需重建。
+    if (blockKeys.isNotEmpty) {
+      final liveIds = ids.toSet();
+      blockKeys.removeWhere((id, _) => !liveIds.contains(id));
+    }
     if (ids.isEmpty) {
       return const Center(
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
       );
     }
     return ListView.builder(
+      controller: controller,
       padding: const EdgeInsets.all(16),
       itemCount: ids.length,
       itemBuilder: (context, index) {
@@ -190,6 +258,7 @@ class EditorViewport extends StatelessWidget {
           return const SizedBox.shrink();
         }
         return Padding(
+          key: blockKeys.putIfAbsent(id, () => GlobalKey()),
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: BlockRenderer(
             element: element,
