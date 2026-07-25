@@ -1,9 +1,9 @@
 # Phase 3.4 Task Contract: Advanced Capabilities（高级能力）
 
-> **版本**：v1.1（v0.1 评审升 v1.0 定三 ADR + 平台矩阵 + 演进 Gate；v1.1 据第二轮评审补 DirtyStateSource 抽象 / 资产命名冻结 / 删除仅引用 / ADR-0015 措辞修正 / ADR-0016，待签字定稿）
+> **版本**：v1.2（v1.1 据第三轮评审补：① ADR-0014 验证计划 `image001.png`→`img_<uuid>.png` 统一 + UUID 去重措辞一致；② ADR-0013 `dirtyChanges` 构造来源与背压；③ ADR-0014/0016 两级删除（块级 reference removal vs 文档级物理 delete）澄清；④ 契约 §2.4 与 ADR-0015 对齐（语义兼容/API 迁移）；⑤ §3.2 主题迁移辅助；⑥ §10 Slice4 依赖标注；⑦ 四份 ADR 补版本修订记录。待签字定稿）
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent
-> **状态**：Draft（未在 git 提交；架构决策类文件按 AGENTS.md 需 Human Owner 授权后提交）
+> **状态**：Draft（已随 ADR-0013/0014/0015/0016 提交 PR #68 待 Human Owner review/签字；架构决策类文件按 AGENTS.md 需授权后合入 main）
 > **前置阶段**：Phase 3.3 Mobile Markdown Editing Experience（✅ 已合并 PR #67，main 当前 tip `fcb6c15`）
 > **后继阶段**：Phase 3.5 Deferred Block Runtime Items / Phase 4 多平台与高级功能
 >
@@ -18,7 +18,7 @@
 > - [ADR-0015 Theme Architecture Migration](../ADR/0015-theme-architecture-migration.md)（**新增**，3.4.3 主题迁移定案）
 > - [ADR-0016 Document Repository Boundary](../ADR/0016-document-repository-boundary.md)（**新增**，FileTree/Autosave/Export 共用的仓储边界）
 >
-> **设计评审纪要（2026-07-26，Human Owner）**：整体可作为实施级 RFC，评分 架构设计 9/10、任务拆解 9/10、风险控制 8.5/10、实施可执行性 8/10、长期演进价值 9/10。要求签字前补三份 ADR（自动保存 / 图片资源 / 主题迁移）+ E2E 平台矩阵 + 架构演进 Exit Gate，已在本版落实。**第二轮评审将 v1.0 提升至 ~9.2/10**，并追加：AutosaveService 依赖 `DirtyStateSource` 抽象（去 Coordinator 耦合）、资产命名冻结 `img_<uuid>.png`、删除仅 reference removal（GC 留 Phase 4）、ADR-0015 措辞由「向后兼容」改为「语义兼容 / API 迁移」、新增 ADR-0016 Document Repository Boundary。均已落实于 v1.1。本版可作为 **v1.1 正式签署版本**。
+> **设计评审纪要（2026-07-26，Human Owner）**：整体可作为实施级 RFC，评分 架构设计 9/10、任务拆解 9/10、风险控制 8.5/10、实施可执行性 8/10、长期演进价值 9/10。要求签字前补三份 ADR（自动保存 / 图片资源 / 主题迁移）+ E2E 平台矩阵 + 架构演进 Exit Gate，已在本版落实。**第二轮评审将 v1.0 提升至 ~9.2/10**，并追加：AutosaveService 依赖 `DirtyStateSource` 抽象（去 Coordinator 耦合）、资产命名冻结 `img_<uuid>.png`、删除仅 reference removal（GC 留 Phase 4）、ADR-0015 措辞由「向后兼容」改为「语义兼容 / API 迁移」、新增 ADR-0016 Document Repository Boundary。均已落实于 v1.1。**第三轮评审（2026-07-26）聚焦模块边界 / 数据所有权 / 扩展性 / ADR 质量 / 变更影响分析**，评分模块边界 9、数据所有权 9、扩展性 9、ADR 质量 8.5，并给出高/中/低优先级修正清单（命名统一、两级删除澄清、`dirtyChanges` 构造与背压、Slice4 依赖标注、版本修订记录），均已落实于 v1.2。本版可作为 **v1.2 正式签署版本**。
 
 ---
 
@@ -49,7 +49,7 @@ ROADMAP §Phase 3.4+ 列出 10 个候选任务。它们**并非同一优先级�
 | # | 任务 | 优先级（草案） | 扩展点 | 不破坏的契约 |
 |---|------|----------|--------|-------------|
 | 3.4.1 | TOC 大纲侧滑面板（点击标题跳转） | **P0** | `panels/side_panel_host.dart` → `TocPanel` | EditorShell 布局不变（侧栏为 overlay/drawer） |
-| 3.4.3 | 主题切换（Night / Sepia / GitHub） | **P0** | `EditorTokens` → `ThemeExtension<EditorTokens>` | 所有 `EditorTokens.xxx` 引用不变（向后兼容） |
+| 3.4.3 | 主题切换（Night / Sepia / GitHub） | **P0** | `EditorTokens` → `ThemeExtension<EditorTokens>` | token 常量名不变（语义兼容）；调用方式改为 `EditorTokens.of(context).xxx` 迁移（API 不保证兼容，见 ADR-0015） |
 | 3.4.7 | 自动保存（dirty 定时落盘） | **P0** | 独立 `AutosaveService`（见 ADR-0013） | `CoordinatorState` 不变 |
 | 3.4.9 | Markdown 图片插入（从相册选图） | **P0** | `file_picker` + `ImageElement` + `assets/img_<uuid>.png` 副本 | BlockRenderer 不变 |
 | 3.4.8 | 页面宽度控制（max-width 720px） | P1 | `ConstrainedBox` 包裹 EditorViewport | EditorViewport 布局不变 |
@@ -85,8 +85,8 @@ ROADMAP §Phase 3.4+ 列出 10 个候选任务。它们**并非同一优先级�
 `panels/` 可 import `editor/editor_coordinator.dart`，禁止 import `editor/` 下其他文件、`blocks/`、`chrome/`。
 `chrome/` 仍禁止 import `blocks/` / `panels/`（TOC 面板属于 `panels/`，AppBar 通过 Coordinator 间接驱动面板开关）。
 
-### 2.4 主题向后兼容（新增，对应 3.4.3 / ADR-0015）
-`EditorTokens.xxx` 的所有现有调用方必须继续工作。主题切换通过 `ThemeExtension<EditorTokens>` 注入，不改变 token 常量名；迁移逐步进行，守门测试全跑。
+### 2.4 主题语义兼容 / API 迁移（新增，对应 3.4.3 / ADR-0015）
+`EditorTokens` 的 token **常量名保持不变（语义兼容）**，视觉契约不破；但调用方式由 `static const`（`EditorTokens.textPrimary`）迁移为 `ThemeExtension`（`EditorTokens.of(context).textPrimary`），**API 不保证兼容，需逐文件改造**（ADR-0015 §语义兼容/API 迁移守门）。迁移逐步进行，守门 grep `EditorTokens\.` 静态调用零残留，守门测试全跑。
 
 ### 2.5 避免 God Object（沿用 Phase 3.0 + ADR-0013）
 TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保存落在独立 `AutosaveService`（**已定案，不再留 Coordinator 二选一**，见 ADR-0013）。`EditorCoordinator` 只协调，不持有 autosave timer / debounce 等业务状态。
@@ -109,6 +109,7 @@ TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保�
 - **inline 颜色边界**：`linkColor` 等 `TextSpan` 硬编码常量问题（见 `editor_tokens.dart` 注释）——TextSpan 不支持运行时 `Theme.of`。**本阶段边界**：仅保证 `Text` Widget 主题生效；inline 颜色一致性（同 Phase 3.3 §9.1 TextSpan 缩放边界）留后续 `Typography Refactor`，Issue 标 `wontfix` + `phase-3.4-typography`。不在本期顺手解决，否则切片膨胀。
 - **主题清单**：`light`（默认）/ `dark`（Night）/ `sepia`。`Night` 对移动端阅读价值最高。
 - **持久化**：用户主题偏好存 `SharedPreferences`（经 `sharedPreferencesProvider`，注意 AGENTS.md §3.2 同名 Provider 重复定义 bug 待处理）。
+- **迁移辅助（建议，降低人工遗漏风险）**：`EditorTokens.xxx` 静态调用散布广，Slice 3 实施前先产出迁移辅助——① 用 `ripgrep`/`grep` 列全 `EditorTokens\.` 站点（与 CI 守门同款）作为改造清单；② 提供一次性 codemod 脚本（基于 `dart fix` / AST 或 `sed`）批量改写为 `EditorTokens.of(context).xxx`，无法取 context 的 `TextSpan`/Paint 站点由脚本标记 `# TODO(phase-3.4-typography)` 留给 Typography Refactor；③ 每 PR 合入后重跑 grep 守门确保零残留。脚本随 Slice 3 一并提交。
 
 ### 3.3 3.4.7 自动保存（P0，对应 ADR-0013）
 - **机制（已定案）**：独立 `AutosaveService` 持有 debounce（dirty 后 1.5s），消费 `coordinator.isDirty`，触发**与手动保存共用**的 save 路径；`markSaved()` 后重置 timer。详见 ADR-0013。
@@ -118,7 +119,7 @@ TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保�
 ### 3.4 3.4.9 图片插入（P0，对应 ADR-0014）
 - **流程**：工具栏 / `+` 菜单新增「图片」→ `file_picker` 选图 → **复制到文档目录 `assets/`** → **命名冻结为 `img_<uuid>.png`**（UUID，避免同步冲突）→ 插入 `![alt](assets/img_<uuid>.png)` 经 `InsertTextCommand` / `InsertTemplateCommand`。文档自包含，相对路径引用（见 ADR-0014）。
 - **渲染**：`ImageElement` 已在 Phase 3.2 inline rendering 支持占位；本任务确保插入后落盘 + 重开一致（链 3 强制）。
-- **删除语义（关键）**：块删除时**仅移除 Markdown 引用，不删 `assets/` 物理文件**（用户可立即 undo 恢复）；物理文件清理推迟到 Phase 4 的 Asset Garbage Collector（ADR-0014）。
+- **删除语义（关键）**：块删除时**仅移除 Markdown 引用，不删 `assets/` 物理文件**（用户可立即 undo 恢复）；物理文件清理推迟到 Phase 4 的 Asset Garbage Collector（ADR-0014）。注意：此为**块级** reference removal；**文档级**物理删除（整目录含 `assets/`）由 `DocumentRepository.delete(path)`（ADR-0016）负责，二者级别不同，详见 ADR-0014 §操作级别澄清。
 - **完成判据（强制）**：不仅「插入成功」，必须 `关 App → 重开` 后三项同时成立——① markdown source 含 `![](assets/img_<uuid>.png)`；② 文件系统 `assets/img_<uuid>.png` 存在；③ 渲染出该图片。
 
 ### 3.5 3.4.8 页面宽度控制（P1，极简）
@@ -158,7 +159,7 @@ TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保�
 ### 4.2 架构验证
 - 依赖方向守门（Hard Rule 8 / TC-ARCH-UI-5~7）
 - AST 零污染守门（grep `DocumentElement` 无 UI 字段）
-- 主题向后兼容守门（`EditorTokens.xxx` 引用不破）
+- 主题语义兼容守门（token 常量名不破；调用方式迁移为 `EditorTokens.of(context).xxx`，见 ADR-0015）
 - God Object 守门（`editor_coordinator.dart` 不含 `Timer` / debounce；行数 ≤200）
 - 无新增全局静态状态
 
@@ -214,7 +215,7 @@ TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保�
 ### 6.2 架构验证
 - [ ] 依赖方向守门通过
 - [ ] AST 零污染
-- [ ] 主题向后兼容（现有 `EditorTokens` 引用不破）
+- [ ] 主题语义兼容（token 常量名不破；调用方式迁移为 `EditorTokens.of(context).xxx`，ADR-0015）
 - [ ] 无新增全局静态状态
 - [ ] God Object 守门：`editor_coordinator.dart` 不含 autosave timer / debounce，行数 ≤200
 
@@ -228,7 +229,7 @@ TOC / 文件树逻辑落在 `panels/`，主题逻辑落在 `theme/`，自动保�
 - [ ] ROADMAP.md Phase 3.4 状态更新
 - [ ] ui-spec.md §7 Phase 3.4 checkbox 同步
 - [ ] Phase 3.4 Verification Report 完成
-- [ ] 本契约 + ADR-0013/0014/0015/0016 签字后提交（需 Human Owner 授权）
+- [ ] 本契约 + ADR-0013/0014/0015/0016 已提交 PR #68 待签字（Human Owner 授权后合入 main）
 
 ### 6.5 架构演进 Exit Gate（新增，防架构漂移）
 Phase 3.4 最大风险不是 bug 而是架构腐化，额外增加三项硬性守门（CI / 守门脚本执行）：
@@ -304,7 +305,7 @@ Phase 3.4 最大风险不是 bug 而是架构腐化，额外增加三项硬性�
 | **Slice 1** | 3.4.1 TOC 面板 | P0 | 无 | 脚手架就绪，低风险，第一个真功能；验证 block 遍历 / 滚动 / focus 联动 |
 | **Slice 2** | 3.4.7 自动保存 | P0 | 无 | **先于主题**：基础文档生命周期能力（ADR-0013） |
 | **Slice 3** | 3.4.3 主题切换 | P0 | 无 | 高风险 Presentation 重构，独立排期（需 §9.2 决策，ADR-0015） |
-| **Slice 4** | 3.4.9 图片插入 | P0 | 无 | `file_picker` + `assets/` 副本（ADR-0014），中等 |
+| **Slice 4** | 3.4.9 图片插入 | P0 | 依赖 Slice 2 共用的 `DocumentRepository.save` 路径（ADR-0013/0016 已冻结 save 抽象；Slice 4 仅消费，不阻塞，可并行） | `file_picker` + `assets/` 副本（ADR-0014），中等 |
 | **Slice 5** | 3.4.8 页面宽度 | P1 | 无 | 极简布局 |
 | **Slice 6** | 3.4.2 文件树 | P1 | 无 | 较大，需 §9.3 决策 |
 | **Slice 7** | 3.4.4 导出进度 | P1 | 无 | 依赖导出服务 |
@@ -325,4 +326,4 @@ Phase 3.4 最大风险不是 bug 而是架构腐化，额外增加三项硬性�
 
 ---
 
-**本文件为 v1.0（评审稿 v0.1 经 Human Owner 设计评审后升版），待 Human Owner 签字定稿并提交（架构决策类文件需授权）。关联 ADR-0013 / ADR-0014 / ADR-0015 同批提交。**
+**本文件为 v1.2（v0.1→v1.0→v1.1→v1.2，经 Human Owner 三轮设计评审升版），已随 ADR-0013/0014/0015/0016 提交 PR #68 待签字；签字后由 Human Owner 合入 main（架构决策类文件需授权）。**

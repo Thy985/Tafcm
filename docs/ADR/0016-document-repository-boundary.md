@@ -1,7 +1,7 @@
 # ADR-0016：文档仓储边界（Document Repository Boundary）
 
 > **状态**：Proposed（随 Phase 3.4 Task Contract v1.1 提交，Human Owner 签字即 Accepted）
-> **版本**：v1.0
+> **版本**：v1.1
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent 起草，Human Owner 评审建议新增
 > **关联文档**：
@@ -13,6 +13,11 @@
 > **审批路径**：Human Owner 在第二轮评审中指出「谁负责打开 / 创建 / 删除 / 移动 / 加载 assets 尚未冻结，FileTree（3.4.2）会碰到」，建议新增本 ADR 定义仓储边界，供 FileTree / Autosave / Export 共用。
 
 ---
+
+## 版本修订记录
+
+- **v1.0（2026-07-26）**：初版，冻结 `DocumentRepository` 为文档生命周期唯一边界（load/save/create/delete/move/resolveAsset）。
+- **v1.1（2026-07-26，评审补充）**：① `delete(path)` 行注明其为文档级物理删除，与 ADR-0014 块级 reference removal 区分；② §与 ADR-0013/0014 关系补充两级删除说明；③ 补 版本修订记录。随 PR #68 合并后 Proposed→Accepted。
 
 ## 背景
 
@@ -39,7 +44,7 @@
 | `load(path)` | 读取 `.md` → Document Model |
 | `save(doc)` | Document Model → `.md`（Autosave / 手动保存共用，幂等） |
 | `create(path)` | 新建文档 |
-| `delete(path)` | 删除文档（含其 `assets/` 目录） |
+| `delete(path)` | 删除**整个文档目录**（含其 `assets/` 子目录）——文档级物理删除，由 `DocumentRepository` 统一负责。注意：这与 ADR-0014 的**块级删除（仅 reference removal，不删物理文件）**是不同操作者/级别，详见 ADR-0014 §操作级别澄清 |
 | `move(src, dst)` | 移动 / 重命名文档（整目录，`assets/` 随行，相对路径不变） |
 | `resolveAsset(docPath, assetName)` | 文档路径 → `assets/<name>` 文件 |
 
@@ -62,6 +67,7 @@ services/ (Autosave) ─┘
 
 - ADR-0013 的 `DocumentRepository.save()` 即本 ADR 的 `save`。
 - ADR-0014 的 `assets/` 布局由本 ADR 的 `resolveAsset` / `move` / `delete` 统一管理。
+- ADR-0014 的**块级 reference removal** 与本文档的**文档级物理 `delete(path)`** 是两个级别（前者编辑态内轻量、保证 undo 可恢复；后者资源回收），互不冲突；块删除产生的孤立 asset 由 Phase 4 的 Asset GC 清理（见 ADR-0014 删除策略）。
 - 三者共同构成「文档运行时（Document Runtime）」基础设施闭环：
 
 ```

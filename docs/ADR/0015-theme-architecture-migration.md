@@ -1,7 +1,7 @@
 # ADR-0015：主题架构迁移（Theme Architecture Migration）
 
 > **状态**：Proposed（随 Phase 3.4 Task Contract v1.0 提交，Human Owner 签字即 Accepted）
-> **版本**：v1.0
+> **版本**：v1.1
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent 起草，Human Owner 评审决策
 > **关联文档**：
@@ -12,6 +12,11 @@
 > **审批路径**：Human Owner 在 Phase 3.4 契约评审中确认「ThemeExtension 方向正确，但迁移成本可能比预估高（TextSpan / CustomPainter / RenderObject 拿不到 context），故 inline 颜色边界留 Typography Refactor，不在本期顺手解决」。
 
 ---
+
+## 版本修订记录
+
+- **v1.0（2026-07-26）**：初版，冻结 `EditorTokens` → `ThemeExtension<EditorTokens>` 迁移；语义兼容 / API 迁移措辞（评审修正）。
+- **v1.1（2026-07-26，评审补充）**：补 版本修订记录（与既有 ADR-0011/0012 格式对齐）；状态随 PR #68 合并后由 Proposed 转 Accepted（ADR-0011 审批模型）。
 
 ## 背景
 

@@ -1,7 +1,7 @@
 # ADR-0013：自动保存架构（Autosave Architecture）
 
 > **状态**：Proposed（随 Phase 3.4 Task Contract v1.0 提交，Human Owner 签字即 Accepted）
-> **版本**：v1.0
+> **版本**：v1.1
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent 起草，Human Owner 评审决策
 > **关联文档**：
@@ -13,6 +13,11 @@
 > **审批路径**：Human Owner 在 Phase 3.4 契约评审中指出「自动保存必须定案，不能留 Coordinator 或 Service 二选一」，故独立成 ADR 冻结，避免 Coordinator 膨胀为 God Object。
 
 ---
+
+## 版本修订记录
+
+- **v1.0（2026-07-26）**：初版，冻结独立 `AutosaveService` + `DirtyStateSource` 抽象（去 Coordinator 耦合）。
+- **v1.1（2026-07-26，评审补充）**：补 `dirtyChanges` Stream 构造来源（基于 ADR-0012 `LiveEditingState` 的 `ValueNotifier<bool>`）与背压/合并说明；明确并发保存竞态验证点（`markSaved` 异步打断后的状态一致性）。随 PR #68 提交，合并后状态由 Proposed 转 Accepted（ADR-0011 审批模型）。
 
 ## 背景
 
@@ -71,6 +76,21 @@ abstract interface class DirtyStateSource {
 }
 
 // class EditorCoordinator implements DirtyStateSource { ... }
+
+### dirtyChanges 构造来源与背压（评审补充）
+
+**构造来源（与 ADR-0012 联动）**：`EditorCoordinator` 实现 `DirtyStateSource`，其 `isDirty` / `dirtyChanges` 复用 ADR-0012 的脏状态来源——底层是单一的 `ValueNotifier<bool> dirtyNotifier`（`true` = 当前 live 与 committed 任一不一致）。`dirtyChanges` 由该 notifier 派生：
+
+```dart
+// 在 EditorCoordinator 内
+final ValueNotifier<bool> _dirtyNotifier = ValueNotifier(false);
+// isDirty getter 计算见 ADR-0012（editor.isDirty || 任意 live ≠ committed）
+Stream<bool> get dirtyChanges => _dirtyNotifier.stream; // 或 .asBroadcastStream()
+```
+
+即 Stream 的「源」只有一处（Coordinator 的 dirty notifier），而非任意编辑事件流，构造关系清晰、无多源竞态。
+
+**背压 / 合并策略**：`dirtyChanges` 由单一 `ValueNotifier<bool>` 转换而来，**每次 isDirty 翻转最多发射一次事件**（不是每次按键一次），本身无高频喷射；其上 `AutosaveService` 再经 debounce(1.5s) 合并连续 dirty 窗口，故无背压/内存风险。若未来需更细信号（如「具体哪块脏」），应另开 `Stream<Set<BlockId>>`，不混用 `dirtyChanges`。
 ```
 
 ### 职责边界
@@ -135,6 +155,7 @@ provider 持有 `AutosaveService` 实例并管理其生命周期，业务逻辑�
 - [ ] `markSaved()` 后 timer 重置，不再重复 save
 - [ ] `save` 失败不崩溃，下次 dirty 重新触发（重试）
 - [ ] **并发保存保护（`autosave_concurrency_test`）**：`t0` 修改 → `t1` debounce 触发 save A（进行中）→ `t2` 用户继续输入 → `t3` 第二次 debounce 触发 save B 时，必须**串行化**（B 等 A 完成，或 A 完成后基于最新 source 保存），禁止 A 与 B 交错导致 `A 覆盖 B` 把旧内容回写。
+- [ ] **保存中 `markSaved` 异步打断的状态一致性（`autosave_concurrency_test` 扩展）**：save A 进行中、`markSaved()` 尚未回调时用户继续输入使 dirty 再次变 true，必须保证——① 新 dirty 触发新的 debounce（不被 A 的 `markSaved` 误清）；② A 落盘的是「触发 A 时的 source 快照」，而非进行中的实时 live（避免回退/未完成内容写盘）；③ A 与 B 各自基于「触发时刻的 source 快照」独立保存，最终落盘内容 = 最后一次成功 save 的 source。
 
 ### 架构守门
 - [ ] `editor_coordinator.dart` 不含 `Timer` / debounce 逻辑（grep 守门）
