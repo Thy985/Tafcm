@@ -41,6 +41,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 切换焦点模式的回调（Phase 3.3 §3.3.3）。
   final VoidCallback? onToggleFocus;
 
+  /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
+  final VoidCallback? onOpenToc;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -48,6 +51,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isModified = false,
     this.focusMode = false,
     this.onToggleFocus,
+    this.onOpenToc,
   });
 
   @override
@@ -80,6 +84,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => _onBack(context),
       ),
       actions: [
+        // Phase 3.4.1：目录（大纲）抽屉开关
+        IconButton(
+          icon: const Icon(Icons.list_alt),
+          tooltip: '目录',
+          onPressed: onOpenToc,
+        ),
         // Phase 3.3 §3.3.5：Undo 按钮（基于 coordinator.canUndo 启用/禁用）
         IconButton(
           icon: const Icon(Icons.undo),
