@@ -247,6 +247,11 @@ class CommandHandler {
           c.blockId,
           ParagraphElement(children: [TextElement(c.template)]),
         );
+        if (newId != null) {
+          // Phase 2.7：自动转换（表格→TableBlock / Mermaid→MermaidBlock / 任务列表→TaskListItem…）
+          // 修复：原 insertAfter 不触发 transform，导致 newBlock 模板停留在 ParagraphElement。
+          ops.tryTransform(newId);
+        }
         return newId != null;
     }
   }

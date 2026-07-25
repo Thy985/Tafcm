@@ -166,7 +166,13 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   void _syncSelectionFromViewState() {
     final sel = _coordinator.viewStateOf(blockId)?.selection;
     if (sel != null) {
-      textController.selection = sel;
+      // 外部 source 变化（如 undo/redo 回滚）后,旧 selection 可能越界 → 钳制到新文本长度,
+      // 避免 TextSelection.collapsed(offset:N) 在更短文本上抛 invalid text selection。
+      final len = textController.text.length;
+      final base = sel.baseOffset.clamp(0, len);
+      final extent = sel.extentOffset.clamp(0, len);
+      textController.selection =
+          TextSelection(baseOffset: base, extentOffset: extent);
     }
   }
 
@@ -354,6 +360,9 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     // §2.1.1 Hard Rule：composing region 检查
     final value = textController.value;
     if (value.composing != TextRange.empty) return; // IME 组合输入态,跳过
+
+    // ADR-0012：Live Editing State 实时上报（含 CodeBlock,规则委托才跳过 CodeBlock）
+    coordinator.updateLiveSource(blockId, text);
 
     // §2.5 CodeBlock 例外：不应用自动配对 / 自动续列表
     if (coordinator.isFocusedOnCodeBlock) return;
