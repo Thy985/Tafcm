@@ -126,7 +126,7 @@ Phase 3.3 解决上述 9 项,聚焦移动端 Markdown 输入体验。
 | ------ | ------------------------------------------ | ---------------- | -- | --------------------------------------------------------------------------------- |
 | 3.3.1 | AppBar 显示文档标题 + 修改状态（•） | P0 | ✅开发完/E2E待补 | ✅ E2E：启动 App → 打开文档 → AppBar 显示标题 → 修改内容 → 出现修改状态 → 保存后状态消失 |
 | 3.3.2 | 字号缩放（双指缩放 + 按钮 + 重置） | P1（v1.3 降级,R3确认） | ✅开发完/E2E待补 | ✅ E2E：打开文档 → 点击放大 → 文本字号变化 → 点击重置 → 恢复默认字号；移动端双指缩放手势验证 |
-| 3.3.3 | 焦点模式（隐藏 chrome,双击退出） | P1 | ✅开发完/E2E待补 | ✅ E2E：进入编辑 → 双击进入焦点模式 → AppBar/Toolbar/StatusBar 隐藏 → 双击退出 → Chrome 恢复 |
+| 3.3.3 | 焦点模式（隐藏 chrome,AppBar 全屏图标进入 / 双击退出） | P1 | ✅开发完/E2E待补 | ✅ E2E：点击 AppBar 全屏图标进入焦点模式 → AppBar/Toolbar/StatusBar 隐藏 → 双击编辑区退出 → Chrome 恢复 |
 | 3.3.4 | 实时字数统计（底部状态栏） | P0 | ✅开发完/E2E待补 | ✅ E2E：输入文本 → StatusBar 字数实时增加 → 删除文本 → 数量减少 → 切换 Block 后统计一致 |
 | 3.3.5 | 撤销 / 重做按钮接入 UI（HistoryManager 已实现） | P0 | ✅开发完/E2E待补 | ✅ E2E：输入文本 → 点击 Undo → 内容恢复 → 点击 Redo → 内容重新出现 → History 状态同步 |
 | 3.3.6 | 自动配对（仅 ( / [ / { / `） | P0 | ✅已合7f53eec/E2E待补 | ✅ E2E：输入 "(" → 自动生成 ")" → 光标位于中间 → Undo 恢复 → CodeBlock 输入 "(" 不触发 |
@@ -139,6 +139,7 @@ Phase 3.3 解决上述 9 项,聚焦移动端 Markdown 输入体验。
 - **v1.6 状态盘点（2026-07-25 代码核对 + PR #4 实现）**：9 个子任务开发代码全部已实现并接线（flutter analyze 0 error）：3.3.1/3.3.4/3.3.5（PR #1 chrome,`kEnableNewEditor=true` 已激活）+ 3.3.7/3.3.10（PR #2 工具栏+模板 dispatch）+ 3.3.6/3.3.8（PR #3 已合 `7f53eec`）+ 3.3.2 字号缩放 + 3.3.3 焦点模式（PR #4 已实现,`feat/phase3.3-ux-enhancement`,PR #64）。**Phase 3.3 开发阶段完成**,剩余为按 §12.2 逐文件补 E2E（去 `skip:true`）后标记整体通过；契约表 `⏳` 已校正为上述状态。
 - 3.3.9 选区格式化菜单已于 v1.4 整体延期至 Phase 3.4,不在本表。
 - 链 3（持久化链）强制范围：Toolbar（§3.3.7）/ Template（§3.3.10）/ Auto Continue（§3.3.8）/ Undo-Redo（§3.3.5）。Zoom（§3.3.2）/ Focus（§3.3.3）属纯 UI 状态,豁免链 3（详见 §12.3）。
+- **PR #4 二次修订（2026-07-25,commit `6b8c82b`,stacked on PR #64）**：① `editor_status_bar.dart` 注释矛盾修复（「字号缩放控件」从「不实现」区移至「职责」区）；② `editor_shell.dart` 双击手势竞争修复——`onDoubleTap` 仅在焦点模式绑定（`_focusMode ? _toggleFocus : null`）,消除非焦点模式下 GestureDetector 注册双击导致的编辑区单击 ~300ms 延迟；进入焦点模式改走 AppBar 全屏图标,退出走双击编辑区（设计选择与已知限制已写入文档注释）。③ 采纳非阻塞建议：缩放上限 `_kMaxScale` 1.5→1.25（与下限 0.8 更接近对称）。受此影响的 widget 测试暂缺,按用户建议于 **Phase 3.4 初始 sprint** 在 `editor_shell_test.dart` 补（覆盖：缩放按钮→zoomScale 变化 / 重置在 zoomScale=1.0 时 disabled / 焦点切换→AppBar/Toolbar/StatusBar 隐藏 / 双指缩放→gesture 更新 zoomScale）。
 
 ### 1.3 不在 Phase 3.3 范围内（明确边界）
 
