@@ -35,11 +35,19 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 是否有未保存修改（Phase 3.3：从 coordinator.isDirty 透传）。
   final bool isModified;
 
+  /// 是否处于焦点模式（Phase 3.3 §3.3.3：隐藏 chrome）。
+  final bool focusMode;
+
+  /// 切换焦点模式的回调（Phase 3.3 §3.3.3）。
+  final VoidCallback? onToggleFocus;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
     this.title = '未命名',
     this.isModified = false,
+    this.focusMode = false,
+    this.onToggleFocus,
   });
 
   @override
@@ -83,6 +91,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.redo),
           tooltip: '重做',
           onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
+        ),
+        // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
+        IconButton(
+          icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
+          tooltip: focusMode ? '退出焦点模式' : '焦点模式',
+          onPressed: onToggleFocus,
         ),
         // Phase 3.1-A PR #2：more_vert 菜单含"切换到旧版编辑器"隐藏入口。
         // 入口不直接暴露在 AppBar 主操作区，需要点开 more_vert 才能看到，

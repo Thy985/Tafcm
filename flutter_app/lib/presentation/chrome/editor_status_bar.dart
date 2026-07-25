@@ -7,11 +7,11 @@
 /// - 显示当前块数
 /// - **Phase 3.3**：显示字数统计（coordinator.wordCount）
 /// - 显示聚焦块 ID（调试用,Phase 3.4+ 移除）
+/// - **Phase 3.3 §3.3.2**：字号缩放控件（缩小 / 百分比 / 放大 / 重置,见 `_buildZoomControls`）
 ///
 /// **不实现**（Phase 3.4+）：
 /// - 光标位置（行 : 列）
 /// - 主题切换控件
-/// - 字号缩放控件
 ///
 /// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,
 /// 不 import blocks/ / panels/。
@@ -26,9 +26,21 @@ class EditorStatusBar extends StatelessWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
+  /// 当前字号缩放因子（Phase 3.3 §3.3.2，1.0 = 默认）。
+  final double zoomScale;
+
+  /// 放大 / 缩小 / 重置回调（Phase 3.3 §3.3.2）。
+  final VoidCallback? onZoomIn;
+  final VoidCallback? onZoomOut;
+  final VoidCallback? onZoomReset;
+
   const EditorStatusBar({
     super.key,
     required this.coordinator,
+    this.zoomScale = 1.0,
+    this.onZoomIn,
+    this.onZoomOut,
+    this.onZoomReset,
   });
 
   @override
@@ -49,9 +61,47 @@ class EditorStatusBar extends StatelessWidget {
           const SizedBox(width: 8),
           _buildItem(coordinator.canRedo ? '可重做' : '—'),
           const Spacer(),
-          _buildItem('聚焦: ${coordinator.focusedId ?? '—'}'),
+          // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
+          _buildZoomControls(),
         ],
       ),
+    );
+  }
+
+  /// 字号缩放控制簇（Phase 3.3 §3.3.2）：缩小 / 百分比 / 放大 / 重置。
+  Widget _buildZoomControls() {
+    final percent = (zoomScale * 100).round();
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.remove),
+          iconSize: 16,
+          tooltip: '缩小',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+          onPressed: onZoomOut,
+        ),
+        Text(
+          '$percent%',
+          style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add),
+          iconSize: 16,
+          tooltip: '放大',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+          onPressed: onZoomIn,
+        ),
+        IconButton(
+          icon: const Icon(Icons.restart_alt),
+          iconSize: 16,
+          tooltip: '重置字号',
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+          onPressed: zoomScale != 1.0 ? onZoomReset : null,
+        ),
+      ],
     );
   }
 
