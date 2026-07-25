@@ -22,7 +22,7 @@
 /// **状态（PR #4）**：
 /// - `_zoomScale`：字号缩放因子（§9.1 方案 B `MediaQuery.textScaler`）。
 ///   纯 UI 状态，**不进 CoordinatorState**——避免污染文档 dirty 标记与持久化链（§12.3 豁免）。
-///   默认 1.0，范围 `[_kMinScale, _kMaxScale]` = `[0.8, 1.5]`。
+///   默认 1.0，范围 `[_kMinScale, _kMaxScale]` = `[0.8, 1.25]`。
 /// - `_focusMode`：焦点模式（§3.3.3，隐藏 chrome）。
 ///   纯 UI 状态，同上不入 CoordinatorState。
 ///
