@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/presentation/editor/autosave_service.dart';
-import 'package:formula_fix/presentation/editor/dirty_state_source.dart';
 import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
 import 'package:formula_fix/presentation/editor/seed_documents.dart';
 
