@@ -52,6 +52,11 @@ class LiveEditingState {
   }
 
   /// 实时 dirty：已提交脏标记 **或** 任意 live source 与 committed 不一致。
+  ///
+  /// 复杂度：O(n)（n = block 数），每次 [EditorCoordinator.notifyListeners] 翻转时遍历。
+  /// 该路径由 `BaseBlockState._onTextChanged` 在每次按键触发，故为高频路径。
+  /// 预期文档规模下开销可忽略（ADR-0013 评审·代码 #4）；若未来出现大文档 TTI 退化，
+  /// 可优化为「脏 block 集合」仅增量维护差异，而非全量比较。
   bool get isDirty {
     if (_editor.isDirty) return true;
     for (final id in _editor.allIds) {
