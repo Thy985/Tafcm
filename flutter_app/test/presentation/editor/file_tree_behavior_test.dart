@@ -22,6 +22,7 @@ import 'package:formula_fix/presentation/editor/editor_shell.dart';
 import 'package:formula_fix/presentation/editor/editor_scope.dart';
 import 'package:formula_fix/presentation/editor/seed_documents.dart';
 import 'package:formula_fix/presentation/panels/file_tree_panel.dart';
+import 'package:formula_fix/presentation/theme/app_theme.dart';
 import 'package:formula_fix/providers/file_repository_provider.dart';
 import 'package:formula_fix/providers/last_opened_path_provider.dart';
 
@@ -82,8 +83,11 @@ void main() {
           overrides: [
             fileRepositoryProvider.overrideWithValue(_ThrowingFileRepository()),
           ],
-          child: const MaterialApp(
-            home: EditorPage(filePath: '/nonexistent.md', seedSelector: 0),
+          // Phase 3.4.3 / ADR-0015：EditorTokens 需通过 ThemeData.extensions 注入，
+          // 否则 CodeBlock 等使用 EditorTokens.of(context) 的块会抛"未注入"。
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const EditorPage(filePath: '/nonexistent.md', seedSelector: 0),
           ),
         ),
       );
@@ -146,7 +150,10 @@ void main() {
             fileRepositoryProvider
                 .overrideWithValue(_FixedListFileRepository(docs)),
           ],
+          // Phase 3.4.3 / ADR-0015：EditorTokens 需通过 ThemeData.extensions 注入，
+          // 否则种子文档中的 CodeBlock 等使用 EditorTokens.of(context) 的块会抛"未注入"。
           child: MaterialApp(
+            theme: AppTheme.lightTheme,
             home: EditorScope(
               coordinator: coordinator,
               child: EditorShell(coordinator: coordinator),
