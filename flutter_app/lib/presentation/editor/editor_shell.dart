@@ -38,6 +38,7 @@ import '../../providers/file_repository_provider.dart';
 import '../../providers/providers.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
+import '../theme/app_theme.dart';
 import '../chrome/editor_status_bar.dart';
 import '../chrome/markdown_toolbar.dart';
 import '../panels/file_tree_panel.dart';
@@ -45,6 +46,12 @@ import '../panels/side_panel_host.dart';
 import '../panels/toc_panel.dart';
 import '../states/block_view_state.dart';
 import 'editor_coordinator.dart';
+
+/// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
+///
+/// 编辑视口在宽屏（> 720）下约束于此值并居中；窄屏（< 720）不受影响。
+/// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
+const double kMaxPageWidth = 720.0;
 
 /// EditorShell：组合 chrome + workspace + status 的布局壳。
 ///
@@ -209,7 +216,11 @@ class _EditorShellState extends ConsumerState<EditorShell> {
             ),
           ),
           // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
-          if (!_focusMode) MarkdownToolbar(coordinator: coordinator),
+          if (!_focusMode)
+            MarkdownToolbar(
+              coordinator: coordinator,
+              pickImage: widget.pickImage,
+            ),
         ],
       ),
       // 焦点模式：隐藏 StatusBar（§3.3.3）
@@ -236,11 +247,15 @@ class Workspace extends StatelessWidget {
   final ScrollController? scrollController;
   final Map<BlockId, GlobalKey> blockKeys;
 
+  /// 文档存储基目录（ADR-0014）。
+  final String? baseDir;
+
   const Workspace({
     super.key,
     required this.coordinator,
     this.scrollController,
     required this.blockKeys,
+    this.baseDir,
   });
 
   @override
@@ -252,10 +267,15 @@ class Workspace extends StatelessWidget {
           SidePanelHost(coordinator: coordinator),
         // 编辑视口（BlockRenderer 渲染所有块）
         Expanded(
-          child: EditorViewport(
-            coordinator: coordinator,
-            controller: scrollController,
-            blockKeys: blockKeys,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
+              child: EditorViewport(
+                coordinator: coordinator,
+                controller: scrollController,
+                blockKeys: blockKeys,
+              ),
+            ),
           ),
         ),
       ],
@@ -271,11 +291,15 @@ class EditorViewport extends StatelessWidget {
   final ScrollController? controller;
   final Map<BlockId, GlobalKey> blockKeys;
 
+  /// 文档存储基目录（ADR-0014）。
+  final String? baseDir;
+
   const EditorViewport({
     super.key,
     required this.coordinator,
     this.controller,
     required this.blockKeys,
+    this.baseDir,
   });
 
   @override
@@ -313,6 +337,7 @@ class EditorViewport extends StatelessWidget {
             element: element,
             state: state,
             coordinator: coordinator,
+            baseDir: baseDir,
           ),
         );
       },

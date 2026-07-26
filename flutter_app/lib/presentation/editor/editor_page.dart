@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/parser/markdown_parser.dart';
 import '../../providers/current_path_provider.dart';
+import '../../providers/editor_providers.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/last_opened_path_provider.dart';
 import 'autosave_service.dart';

@@ -32,10 +32,11 @@ void main() {
 
       // 必须使用 EditorTokens.quoteBorderColor（不硬编码 Color(0xFFC0C0C0)）
       expect(
-        content.contains('EditorTokens.quoteBorderColor'),
+        content.contains('EditorTokens.of(context).quoteBorderColor'),
         isTrue,
-        reason: 'Phase 3.2 PR #2：QuoteBlock 左侧竖线颜色必须使用 '
-            'EditorTokens.quoteBorderColor（Token 先行,ui-spec.md §1.1 R1）',
+        reason: 'QuoteBlock 左侧竖线颜色必须使用 '
+            'EditorTokens.of(context).quoteBorderColor'
+            '（ADR-0015：主题色改为 ThemeExtension 运行时取值）',
       );
       // 不应硬编码 Color(0xFFC0C0C0)
       expect(

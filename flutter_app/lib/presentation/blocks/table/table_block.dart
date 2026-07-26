@@ -99,15 +99,15 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
           child: Table(
             defaultColumnWidth: const IntrinsicColumnWidth(),
             border: TableBorder.all(
-              color: EditorTokens.tableBorderColor,
+              color: EditorTokens.of(context).tableBorderColor,
               width: 1,
             ),
             children: [
               // 表头行
               if (headers.isNotEmpty)
                 TableRow(
-                  decoration: const BoxDecoration(
-                    color: EditorTokens.tableHeaderBackground,
+                  decoration: BoxDecoration(
+                    color: EditorTokens.of(context).tableHeaderBackground,
                   ),
                   children: headers
                       .map(

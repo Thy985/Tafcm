@@ -424,12 +424,16 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | 3.4.2 | 文件树侧栏（EditorShell 内嵌 ☰，与 /files 共存共享 DocumentRepository，不复制逻辑） | Phase 3.1 原 3.8 | ✅ (#77) |
 | 3.4.3 | 多套主题（GitHub / Night / Sepia / Newsprint） | Phase 3.1 原 3.9 | ⏳ |
 | 3.4.4 | 导出进度反馈（百分比 + 当前公式计数） | Phase 3.1 原 3.17 | ⏳ |
-| 3.4.5 | 快捷键支持（Android 物理键盘 + Web,Phase 3.3 v1.0 延期项） | Phase 3.3 v1.0 原 3.3.7 | ⏳ |
-| 3.4.6 | 打字机模式（光标行居中,Phase 3.3 v1.0 延期项） | Phase 3.3 v1.0 原 3.3.3 打字机部分 | ⏳ |
-| 3.4.7 | 自动保存（dirty tracking 只做状态,自动保存逻辑留 Phase 3.4+） | Phase 3.3 v1.2 边界 | ⏳ |
+| 3.4.5 | 快捷键支持（Android 物理键盘 + Web） | Phase 3.3 v1.0 原 3.3.7 | ⏳（按 Task Contract 决策移 Phase 4 Desktop Enhancement） |
+| 3.4.6 | 打字机模式（光标行居中） | Phase 3.3 v1.0 原 3.3.3 打字机部分 | ⏳（按 Task Contract 决策移 Phase 4 Desktop Enhancement） |
+| 3.4.7 | 自动保存（独立 AutosaveService,debounce 1.5s + 失败退避重试） | Phase 3.3 v1.2 边界 | ✅ 已合入 main（PR #70） |
 | 3.4.8 | 页面宽度控制（max-width 720px） | Phase 3.3 v1.2 边界 | ⏳ |
-| 3.4.9 | Markdown 图片插入（从相册选图） | Phase 3.3 v1.2 边界 | ⏳ |
-| 3.4.10 | 选区格式化菜单（Overlay 浮动菜单,Phase 3.3 v1.4 延期项,选区包裹已作为 §3.3.7 工具栏内置模式） | Phase 3.3 v1.2 原 3.3.9 | ⏳ |
+| 3.4.9 | Markdown 图片插入（从相册选图,assets/ 副本） | Phase 3.3 v1.2 边界 | ⏳ |
+| 3.4.10 | 选区格式化菜单（Overlay 浮动菜单,选区包裹已作为 §3.3.7 工具栏内置模式） | Phase 3.3 v1.2 原 3.3.9 | ⏳ |
+
+> **状态图例**：✅ 已合入 main ／ 🔶 已实现·PR 评审中（未合入 main）／ ⏳ 未启动。
+> **进度同步自** [Phase 3.4 Task Contract v1.2](../contracts/phase3.4-task-contract.md)（PR #68 已合入 main）；切片 1/2/3 分别对应 PR #69 / #70 / #71。
+> 3.4.5 / 3.4.6 快捷键 / 打字机按 Task Contract §9.5 决策整体移入 Phase 4 Desktop Enhancement 子阶段,本阶段不再跟踪。
 
 ### 退出条件（Phase 3.1+ 整体）
 
