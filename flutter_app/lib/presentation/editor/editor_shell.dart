@@ -33,6 +33,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../core/editing/block_types.dart';
+import '../../domain/services/export_service.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../chrome/editor_status_bar.dart';
@@ -46,13 +47,22 @@ import 'editor_coordinator.dart';
 ///
 /// 由 [EditorPage] 挂载，接收 [EditorCoordinator] 并通过 [EditorScope] 注入。
 /// Phase 3.3 PR #4 起为 [StatefulWidget]，持有缩放 / 焦点等纯 UI 状态。
+/// **Phase 3.4 Slice 7**：新增 `onExportTo` 透传给 EditorAppBar 导出按钮。
 class EditorShell extends StatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
+  /// 导出动作回调（Phase 3.4 Slice 7 / 3.4.4）。
+  ///
+  /// EditorAppBar 的导出 PopupMenu 选中目标格式后调用该回调；EditorShell
+  /// 不持业务逻辑、不引 Riverpod，由 EditorPage 实现（参见 _handleExport）。
+  /// `null` 时 EditorAppBar 不渲染导出按钮。
+  final ValueChanged<ExportFormat>? onExportTo;
+
   const EditorShell({
     super.key,
     required this.coordinator,
+    this.onExportTo,
   });
 
   @override
@@ -129,6 +139,7 @@ class _EditorShellState extends State<EditorShell> {
               focusMode: _focusMode,
               onToggleFocus: _toggleFocus,
               onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
+              onExportTo: widget.onExportTo,
             ),
       body: Column(
         children: [

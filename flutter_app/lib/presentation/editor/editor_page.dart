@@ -8,6 +8,9 @@
 /// - 挂载 [EditorShell]（布局壳）
 /// - **Phase 3.4 Slice2（ADR-0013）**：持有并驱动 [AutosaveService]（显式 DI，
 ///   无全局单例）；save 回调与手动保存共用同一落盘路径
+/// - **Phase 3.4 Slice 7 / §3.7**：响应 [EditorAppBar] 的导出 PopupMenu，调用
+///   [MarkdownExporter.exportToXxx] 并通过 [exportProgressProvider] 透出进度，
+///   完成后调起系统分享
 /// - dispose 时释放 Coordinator + 停止 AutosaveService
 ///
 /// **Feature Flag**（§2.5 旧 UI 并存）：
@@ -16,12 +19,20 @@
 /// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/editing/editor_history.dart';
+import '../../domain/providers/export_progress_provider.dart';
+import '../../domain/services/export_service.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/file_repository_provider.dart';
+import '../widgets/export_progress_overlay.dart';
 import 'autosave_service.dart';
 import 'editor_coordinator.dart';
 import 'editor_scope.dart';
@@ -110,6 +121,103 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     }
   }
 
+  /// 导出动作回调（Phase 3.4 Slice 7 / §3.7）。
+  ///
+  /// 由 [EditorAppBar] 的导出 PopupMenu 选中目标格式时调用。
+  ///
+  /// 流程：
+  ///   1. 验证文档非空 → [exportProgressProvider] 进入 InProgress
+  ///   2. 拼装 markdown + title，调用对应 [MarkdownExporter] 方法，
+  ///      `onProgress` 把每个阶段的进度推到 provider（per-formula + per-block）
+  ///   3. 成功 → `complete(format, bytes)`，由 [ExportProgressOverlay] 显示成功 SnackBar
+  ///   4. 成功后调起系统分享（写临时文件 → `Share.shareXFiles`）
+  ///   5. 任意阶段异常 → [classifyError] → `fail(format, kind)`；用户消息由
+  ///      ExportProgressOverlay 渲染（friendly message，不暴露 stack，
+  ///      AGENTS.md §4.4 守门）。
+  ///
+  /// **唯一持有 ref 的层**（AGENTS.md §6.5 依赖图单向）：
+  /// - chrome/blocks 不直接读写 exportProgressProvider；
+  /// - 由 EditorPage（ref 持有者）负责 state 推进；
+  /// - [ExportProgressOverlay] 仅以 ConsumerWidget 身份 ref.listen 消费。
+  Future<void> _handleExport(ExportFormat format) async {
+    final notifier = ref.read(exportProgressProvider.notifier);
+
+    // 1. 空文档检查（避免无意义的 export 启动）。
+    if (_coordinator.editor.allSources.isEmpty) {
+      notifier.fail(format, ExportFailure.emptyDocument);
+      return;
+    }
+
+    notifier.start(format);
+
+    final markdown = _coordinator.editor.allSources.join('\n');
+    final title = _coordinator.title;
+
+    try {
+      // 2. 调用 exporter，`onProgress` 桥接到 notifier.report。
+      final bytes = switch (format) {
+        ExportFormat.pdf => await MarkdownExporter.exportToPdf(
+            markdown,
+            title: title,
+            onProgress: notifier.report,
+          ),
+        ExportFormat.docx => await MarkdownExporter.exportToWord(
+            markdown,
+            title: title,
+            onProgress: notifier.report,
+          ),
+        ExportFormat.txt => await MarkdownExporter.exportToTxt(
+            markdown,
+            onProgress: notifier.report,
+          ),
+      };
+
+      // 3. 成功：进入 ExportCompletedState。Overlay 显示"已导出 PDF"等。
+      notifier.complete(format, bytes);
+
+      // 4. 分享：写临时文件 + 系统 share sheet。
+      await _shareBytes(bytes, format, title);
+    } catch (e) {
+      // 5. 失败：分类 → ExportFailedState。Overlay 显示分类友好文案。
+      final info = classifyError(e);
+      notifier.fail(format, info.kind);
+    }
+  }
+
+  /// 把导出的字节写入临时文件并调起系统分享。
+  ///
+  /// 与旧 `ExportService.exportAndShare` 行为兼容（同样写 temp + share），
+  /// 但只接受已渲染的字节（避免在 Slice 7 的进度反馈场景下重复调用 exporter）。
+  ///
+  /// 注：当前 share_plus 7.x API 为 `Share.shareXFiles([XFile(path)])`；
+  /// v10+ 才有 `SharePlus.instance.share(ShareParams(...))`。
+  Future<void> _shareBytes(
+    Uint8List bytes,
+    ExportFormat format,
+    String? title,
+  ) async {
+    final ext = switch (format) {
+      ExportFormat.pdf => 'pdf',
+      ExportFormat.docx => 'docx',
+      ExportFormat.txt => 'txt',
+    };
+    final fileName = '${title ?? 'FormulaFix 文档'}.$ext';
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: _mimeFor(format))],
+      subject: fileName,
+    );
+  }
+
+  static String _mimeFor(ExportFormat format) => switch (format) {
+        ExportFormat.pdf => 'application/pdf',
+        ExportFormat.docx =>
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ExportFormat.txt => 'text/plain',
+      };
+
   @override
   void dispose() {
     _autosave?.stop();
@@ -125,11 +233,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // 用 AnimatedBuilder 监听 ChangeNotifier（_coordinator）变化，
     // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
     // notifyListeners() 时，触发 EditorShell 重建。
-    return EditorScope(
-      coordinator: _coordinator,
-      child: AnimatedBuilder(
-        animation: _coordinator,
-        builder: (context, _) => EditorShell(coordinator: _coordinator),
+    //
+    // 顶层 ExportProgressOverlay（Phase 3.4 Slice 7 / §3.7）监听
+    // exportProgressProvider，渲染 SnackBar；保持 chrome/widgets/blocks
+    // 各层 Riverpod-free（AGENTS.md §6.5 依赖图单向）。
+    return ExportProgressOverlay(
+      child: EditorScope(
+        coordinator: _coordinator,
+        child: AnimatedBuilder(
+          animation: _coordinator,
+          builder: (context, _) => EditorShell(
+            coordinator: _coordinator,
+            onExportTo: _handleExport,
+          ),
+        ),
       ),
     );
   }

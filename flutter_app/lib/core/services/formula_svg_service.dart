@@ -94,15 +94,30 @@ class FormulaSvgService {
 
   /// 预渲染一组 LaTeX。失败的项目会跳过（不抛错），调用方需检查 [cachedSvg]。
   /// 并发执行以提高性能。
+  ///
+  /// [onEachCompleted]（3.4.4 Slice 7）：每个公式完成渲染（含缓存命中）后回调，
+  /// 参数为 `(completed, total)`。`total` 是入参公式集合的大小（含缓存命中）。
+  /// UI 层据此更新 LinearProgressIndicator，实现"当前公式计数"进度可视化。
   static Future<void> preRenderAll(
     Iterable<String> formulas, {
     bool displayMode = false,
+    void Function(int completed, int total)? onEachCompleted,
   }) async {
+    final list = formulas.toList();
+    final total = list.length;
+    var completed = 0;
     final futures = <Future>[];
-    for (final latex in formulas) {
+    for (final latex in list) {
       final key = _cacheKey(latex, displayMode);
-      if (_cache.containsKey(key)) continue;
-      futures.add(_preRenderOne(latex, displayMode: displayMode));
+      if (_cache.containsKey(key)) {
+        completed++;
+        onEachCompleted?.call(completed, total);
+        continue;
+      }
+      futures.add(_preRenderOne(latex, displayMode: displayMode).then((_) {
+        completed++;
+        onEachCompleted?.call(completed, total);
+      }));
     }
     // 并发等待所有任务，允许部分失败
     await Future.wait(futures, eagerError: false);

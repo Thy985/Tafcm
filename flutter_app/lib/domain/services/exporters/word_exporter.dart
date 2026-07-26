@@ -16,7 +16,7 @@ import '../../../core/parser/markdown_parser.dart';
 import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
-import '../export_service.dart' show ExportException;
+import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 import 'pdf_exporter.dart';
 import 'word_ooxml_builder.dart';
 import '../word_ooxml_templates.dart';
@@ -25,14 +25,24 @@ class WordExporter {
   WordExporter._();
 
   /// 入口：把 Markdown 文本导出为 docx 字节流。
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：阶段切换 + 公式/图片资源预渲染每项完成时回调。
   static Future<Uint8List> export(
     String markdown, {
     String? title,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+
+    // Phase 1: 解析 + 收集公式 / Mermaid 集合。
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.collectingFormulas,
+      completed: 0,
+      total: 1,
+    ));
 
     final elements = MarkdownParser.parse(markdown);
 
@@ -62,6 +72,15 @@ class WordExporter {
       }
     }
 
+    // 报告 Phase 2 开始；total = 公式数 + Mermaid 数。
+    final phase2Total = allFormulas.length + allMermaids.length;
+    var phase2Done = 0;
+    onProgress?.call(ExportProgress(
+      stage: ExportStage.preRenderingFormulaSvg,
+      completed: phase2Done,
+      total: phase2Total,
+    ));
+
     if (allFormulas.isNotEmpty) {
       // Word 导出走独立的 cache key 维度，避免与 PDF 像素密度不同导致的互相覆盖
       await FormulaPdfRenderer.preRenderAll(
@@ -69,6 +88,15 @@ class WordExporter {
         fontSize: 16,
         isDark: isDark,
         format: FormulaPdfRenderer.formatWord,
+        // 3.4.4 Slice 7：逐公式完成回调，更新 Pre-render 进度。
+        onEachCompleted: (completed, total) {
+          phase2Done = completed;
+          onProgress?.call(ExportProgress(
+            stage: ExportStage.preRenderingFormulaSvg,
+            completed: phase2Done,
+            total: phase2Total,
+          ));
+        },
       );
     }
 
@@ -88,10 +116,22 @@ class WordExporter {
         } catch (e) {
           debugPrint('Mermaid SVG render failed for Word: $e');
         }
+        phase2Done++;
+        onProgress?.call(ExportProgress(
+          stage: ExportStage.preRenderingFormulaSvg,
+          completed: phase2Done,
+          total: phase2Total,
+        ));
       }
     }
 
-    // 计算每个公式图片的实际尺寸并更新 formulaRels
+    // Phase 3: 计算每个公式图片的实际尺寸并更新 formulaRels —— 仍归入
+    // renderingBlocks（Word 不便按 block 颗粒度报告，归为"块后处理"）。
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.renderingBlocks,
+      completed: 0,
+      total: 1,
+    ));
     for (final latex in allFormulas) {
       final bytes = FormulaPdfRenderer.cachedBytes(
         latex,
@@ -113,6 +153,11 @@ class WordExporter {
         }
       }
     }
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.renderingBlocks,
+      completed: 1,
+      total: 1,
+    ));
 
     final docXml = WordOoxmlBuilder.buildDocumentXml(
       elements, title, formulaRels, mermaidRels);
@@ -124,6 +169,12 @@ class WordExporter {
     const contentTypesXml = WordOoxmlTemplates.contentTypesXml;
     const rootRelsXml = WordOoxmlTemplates.rootRelsXml;
 
+    // Phase 4: 拼装/归档为 zip 字节流。
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.assembling,
+      completed: 0,
+      total: 1,
+    ));
     final archive = Archive();
 
     // 注意：ArchiveFile 写入 String content 时实际产生的是 utf8 字节流，
@@ -196,6 +247,11 @@ class WordExporter {
     }
     // 不在导出末尾清理缓存——重复导出同一文档应能命中缓存。
     // 缓存在 editor_screen 退出 / app pause 时由调用方清理。
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.assembling,
+      completed: 1,
+      total: 1,
+    ));
     return Uint8List.fromList(encoded);
   }
 

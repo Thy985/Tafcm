@@ -3,6 +3,10 @@
 /// 落地 Phase 3.0 Task Contract §3.1（v1.1 新增 chrome/ 目录）+ ADR-0009 §3。
 /// Phase 3.1-A PR #2：新增"切换到旧版"隐藏入口（§3.4）。
 /// **Phase 3.3 PR #1**：接入 dirty tracking（§3.3.1）+ Undo/Redo 按钮（§3.3.5）。
+/// **Phase 3.4 Slice 7**：新增导出 PopupMenu（§3.7，3.4.4 导出进度反馈），
+///   选中目标格式后回调 `onExportTo(format)`，具体导出动作与进度展示由
+///   EditorPage / ExportProgressOverlay 接管（chrome/ 保持 Riverpod-free，
+///   AGENTS.md §6.1 + §6.5 守门）。
 ///
 /// **职责**：
 /// - 显示当前文档标题（Phase 3.3：从 coordinator.title 透传）
@@ -10,6 +14,7 @@
 /// - 提供返回按钮（返回到文件管理页）
 /// - **Phase 3.3**：提供 Undo / Redo IconButton（基于 coordinator.canUndo / canRedo）
 /// - **Phase 3.1-A PR #2**：more_vert 菜单含"切换到旧版编辑器"入口（跳 `/editor-legacy`）
+/// - **Phase 3.4 Slice 7**：导出 PopupMenu 触发 [EditorCoordinator] 内容导出
 ///
 /// **不实现**（Phase 3.4+）：
 /// - 自动保存指示
@@ -22,6 +27,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/services/export_service.dart';
 import '../editor/editor_coordinator.dart';
 
 /// 编辑器顶部 AppBar（chrome 组件）。
@@ -44,6 +50,13 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
   final VoidCallback? onOpenToc;
 
+  /// 触发导出动作的回调（Phase 3.4 Slice 7 / 3.4.4）。
+  ///
+  /// 接到 [EditorPage] 时由该回调驱动 MarkdownExporter.exportToXxx 调用，
+  /// 并把进度通过 `exportProgressProvider` 暴露给 ExportProgressOverlay。
+  /// `null` 时不显示导出按钮。
+  final ValueChanged<ExportFormat>? onExportTo;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -52,6 +65,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.focusMode = false,
     this.onToggleFocus,
     this.onOpenToc,
+    this.onExportTo,
   });
 
   @override
@@ -102,6 +116,43 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: '重做',
           onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
         ),
+        // Phase 3.4 Slice 7 / §3.7：导出 PopupMenu（PDF / Word / TXT）。
+        // 仅在 EditorPage 注入了 onExportTo 时显示。
+        if (onExportTo != null)
+          PopupMenuButton<ExportFormat>(
+            icon: const Icon(Icons.ios_share),
+            tooltip: '导出',
+            onSelected: onExportTo!,
+            itemBuilder: (context) => const [
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.pdf,
+                child: ListTile(
+                  leading: Icon(Icons.picture_as_pdf),
+                  title: Text('导出为 PDF'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.docx,
+                child: ListTile(
+                  leading: Icon(Icons.description),
+                  title: Text('导出为 Word（.docx）'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.txt,
+                child: ListTile(
+                  leading: Icon(Icons.text_snippet_outlined),
+                  title: Text('导出为 TXT'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
         IconButton(
           icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
