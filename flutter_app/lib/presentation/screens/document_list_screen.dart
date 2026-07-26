@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
-import '../../core/services/file_repository.dart';
+import '../../providers/file_repository_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../data/models/document.dart';
 import '../components/loading.dart';

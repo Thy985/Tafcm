@@ -1,7 +1,9 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
-/// 落地 ADR-0009 §3.5 + Phase 3.0 §2.4（避免 God Object）+ ADR-0012（Live State）。
-/// 职责：持有 editor / history / handler，管理 [CoordinatorState]，只协调不持有业务状态。
+/// 落地 ADR-0009 §3.5 + Phase 3.0 §2.4（避免 God Object）+ ADR-0012（Live State）
+/// + ADR-0013（实现 DirtyStateSource，委托 DirtyStateTracker）。只协调不持有业务状态。
 library;
+
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show TextSelection;
@@ -14,22 +16,26 @@ import '../commands/editor_command.dart';
 import '../states/block_view_state.dart';
 import '../states/coordinator_state.dart';
 import 'command_selection_sync.dart';
+import 'dirty_state_source.dart';
 import 'in_memory_document_editor.dart';
 import 'live_editing_state.dart';
 
 /// UI 层对编辑内核的协调器。Widget 通过 [EditorScope] 获取实例。
-class EditorCoordinator extends ChangeNotifier {
+class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
   final InMemoryDocumentEditor editor;
   final EditorHistory history;
   late final CommandHandler handler;
   CoordinatorState _state;
 
-  /// ADR-0012：Live Editing State（实时文本 / 字数 / 脏标记）。抽出独立类避免膨胀。
+  /// ADR-0012：Live Editing State（实时文本 / 字数 / 脏标记），抽出独立类避免膨胀。
   late final LiveEditingState _live;
 
-  /// ADR-0012 §Editor Context Preservation：最后聚焦的编辑块。不随 [clearFocus] 清空，
-  /// chrome 层（模板菜单等）以它为编辑目标，避免焦点被弹层抢走后目标为 null。
+  /// ADR-0012 §Editor Context Preservation：最后聚焦的编辑块，不随 [clearFocus] 清空。
   BlockId? _lastFocusedId;
+
+  /// ADR-0013：脏状态跟踪器。[isDirty] 实时反射 [_live.isDirty]（含 editor.isDirty，
+  /// 故 editor 直接变更也即时可见）；[dirtyChanges] 仅在翻转时发射。
+  late final DirtyStateTracker _dirty;
 
   EditorCoordinator({
     required this.editor,
@@ -37,15 +43,12 @@ class EditorCoordinator extends ChangeNotifier {
   }) : _state = const CoordinatorState.empty() {
     handler = CommandHandler(editor: editor, history: history);
     _live = LiveEditingState(editor);
+    _dirty = DirtyStateTracker(() => _live.isDirty);
     _state = CoordinatorState.initial({
       for (final id in editor.allIds) id: BlockViewState(id: id),
     });
   }
 
-  // ============ Command 入口 ============
-
-  /// 处理 [EditorCommand]（成功后同步 selection 到 [BlockViewState]）。
-  /// oldSource 捕获：cursorOffset 计算需要插入前的 source 长度（tryTransform 可能改变序列化结果）。
   bool handle(EditorCommand command) {
     final (oldSource, oldIds) = switch (command) {
       InsertTextCommand c => (editor.sourceOf(c.blockId), null),
@@ -58,7 +61,6 @@ class EditorCoordinator extends ChangeNotifier {
     };
     final ok = handler.handle(command);
     if (ok) {
-      // 命令后 selection / focus 计算委托 [CommandSelectionSync]（R1+R2 + PR #2C）。
       final result = CommandSelectionSync.apply(_state, command,
           editor: editor, oldSource: oldSource, oldIds: oldIds);
       _state = result.state;
@@ -69,28 +71,30 @@ class EditorCoordinator extends ChangeNotifier {
     return ok;
   }
 
-  // ============ 查询接口（转发到 editor） ============
-
   int get blockCount => editor.blockCount;
   List<BlockId> get allIds => editor.allIds;
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
 
-  // ============ Phase 3.3 chrome 接线（ADR-0012：Live / Committed 双状态）============
-
   String get title => editor.title;
 
-  /// 实时字数 / 脏标记（ADR-0012 Live Editing State，委托 [LiveEditingState]）。
+  /// 实时字数（ADR-0012 Live Editing State，委托 [LiveEditingState]）。
   int get wordCount => _live.wordCount;
-  bool get isDirty => _live.isDirty;
 
+  /// ADR-0013：[DirtyStateSource.isDirty] —— 实时反射 [_live.isDirty]（含 editor.isDirty）。
+  @override
+  bool get isDirty => _dirty.isDirty;
+
+  /// ADR-0013：[DirtyStateSource.dirtyChanges] —— [_dirty.sync] 在翻转时发射。
+  @override
+  Stream<bool> get dirtyChanges => _dirty.dirtyChanges;
+
+  @override
   void markSaved() {
     editor.markSaved();
-    _live.clear(); // ADR-0012：保存即已提交,清除 live 漂移,dirty 归 false。
+    _live.clear(); // ADR-0012：保存即已提交，清除 live 漂移，dirty 归 false。
     notifyListeners();
   }
-
-  // ============ ADR-0012：Live Editing State 接口（委托）============
 
   /// 推入某 block 的实时编辑文本（由 `BaseBlockState._onTextChanged` 高频调用）。
   void updateLiveSource(BlockId id, String source) {
@@ -98,12 +102,10 @@ class EditorCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 读取某 block 的实时文本（live 优先,fallback 到已提交 source）。
+  /// 读取某 block 的实时文本（live 优先，fallback 到已提交 source）。
   String liveSourceOf(BlockId id) => _live.sourceOf(id);
 
-  // ============ Phase 3.3 PR #2B: Toolbar 便捷查询 ============
-
-  /// 聚焦块的 [BlockType]（null = 无聚焦,§2.8 CodeBlock 禁用工具栏）。
+  /// 聚焦块的 [BlockType]（null = 无聚焦，§2.8 CodeBlock 禁用工具栏）。
   BlockType? get focusedBlockType {
     final id = _state.focusedId;
     if (id == null) return null;
@@ -113,15 +115,13 @@ class EditorCoordinator extends ChangeNotifier {
 
   /// 聚焦块是否为 CodeBlock（消除 Toolbar 对 core/editing/ 的依赖）。
   bool get isFocusedOnCodeBlock => focusedBlockType == BlockType.code;
-  /// 聚焦块的 selection（§2.7.1 强一致读取,Toolbar 用此值）。
+  /// 聚焦块的 selection（§2.7.1 强一致读取，Toolbar 用此值）。
   TextSelection? get focusedSelection => _state.focusedSelection;
   bool get hasSelection => _state.hasSelection;
 
-  // ============ UI 视图状态（Hard Rule 1：AST 零污染）============
-
   BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
 
-  /// 更新指定块的 [BlockViewState],触发 [notifyListeners]。
+  /// 更新指定块的 [BlockViewState]，触发 [notifyListeners]。
   void updateViewState(BlockId id, BlockViewState state) {
     _state = _state.updateViewState(id, state);
     notifyListeners();
@@ -129,11 +129,10 @@ class EditorCoordinator extends ChangeNotifier {
 
   BlockId? get focusedId => _state.focusedId;
 
-  /// 最后聚焦的编辑块（ADR-0012 §Editor Context Preservation）：实时聚焦优先，
-  /// 失焦后回退到 [_lastFocusedId]（不被 [clearFocus] 清空）。chrome 层以此为编辑目标。
+  /// 最后聚焦的编辑块（ADR-0012 §Editor Context Preservation）：实时聚焦优先，失焦后回退到 [_lastFocusedId]，chrome 层以此为编辑目标。
   BlockId? get lastFocusedId => _state.focusedId ?? _lastFocusedId;
 
-  /// 聚焦指定块。旧块切回渲染态,新块切到编辑态。
+  /// 聚焦指定块。旧块切回渲染态，新块切到编辑态。
   void setFocus(BlockId id) {
     if (_state.focusedId == id) return;
     _state = _state.focusOn(id);
@@ -149,14 +148,10 @@ class EditorCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============ Undo / Redo ============
-  // 修复（Phase 3.3）：[HistoryManager] 为快照交换模型，旧实现传空占位事务导致
-  // redo 重放空 ops 无效。现回环真实事务（lastOrNull / redoLastOrNull）携带可重放 ops。
-
   bool get canUndo => history.canUndo;
   bool get canRedo => history.canRedo;
 
-  /// Undo：回滚栈顶事务的 ops，并把同一事务回环压入 redo 栈。
+  /// Undo/Redo：回环真实事务（lastOrNull / redoLastOrNull）携带可重放 ops（修复 Phase 3.3 空 ops 问题）。
   Transaction? undo() {
     final target = history.lastOrNull;
     if (target == null) return null;
@@ -171,7 +166,6 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
-  /// Redo：重放 redo 栈顶事务的 ops，并把同一事务回环压回 undo 栈。
   Transaction? redo() {
     final target = history.redoLastOrNull;
     if (target == null) return null;
@@ -187,6 +181,19 @@ class EditorCoordinator extends ChangeNotifier {
   }
 
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
+
+  /// ADR-0013：每次 [notifyListeners] 同步脏状态到 [_dirty]，保持 coordinator 精简（God Object 闸门）。
+  @override
+  void notifyListeners() {
+    _dirty.sync();
+    super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _dirty.dispose();
+    super.dispose();
+  }
 
   @override
   String toString() => 'EditorCoordinator(blocks=$blockCount, focused=${_state.focusedId})';
