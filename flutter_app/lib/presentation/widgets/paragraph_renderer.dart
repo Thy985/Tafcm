@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/asset_image_resolver.dart';
 import '../../core/parser/formula_extractor.dart';
 import '../../data/models/document.dart';
 
@@ -8,10 +9,16 @@ class ParagraphRenderer extends StatelessWidget {
   final List<InlineElement> children;
   final bool isDark;
 
+  /// 文档存储基目录（ADR-0014）。非空时，相对资源路径（如 `assets/img_xxx.png`）
+  /// 解析为绝对路径并以 [Image.file] 渲染；网络地址仍用 [Image.network]。
+  /// 为 null 时本地图片回退为占位文本（老行为）。
+  final String? baseDir;
+
   const ParagraphRenderer({
     super.key,
     required this.children,
     required this.isDark,
+    this.baseDir,
   });
 
   @override
@@ -113,8 +120,8 @@ class ParagraphRenderer extends StatelessWidget {
     return [];
   }
 
-  /// 渲染行内图片：网络地址用 [Image.network]，其余（asset / data uri 等）
-  /// 回退为 alt 文本，避免抛异常。
+  /// 渲染行内图片：网络地址用 [Image.network]；本地相对路径（[baseDir] 非空时）
+  /// 解析为绝对路径用 [Image.file] 渲染（ADR-0014 资源副本）；其余回退为 alt 文本。
   Widget _buildImage(String url, String alt) {
     final placeholder = Text(
       alt.isNotEmpty ? alt : '[图片]',
@@ -131,6 +138,17 @@ class ParagraphRenderer extends StatelessWidget {
         errorBuilder: (_, __, ___) => placeholder,
         loadingBuilder: (_, child, progress) =>
             progress == null ? child : placeholder,
+      );
+    }
+    // 本地相对路径：assets/img_xxx.png → <baseDir>/assets/img_xxx.png
+    // TC-ARCH-1：presentation 不直接 File()，经 core/utils 解析。
+    final file = resolveLocalImageFile(baseDir, url);
+    if (file != null) {
+      return Image.file(
+        file,
+        height: 120,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => placeholder,
       );
     }
     return placeholder;

@@ -92,9 +92,10 @@ void main() {
       // 必须使用 EditorTokens.textSecondary
       // （注：InlineCodeElement 仍用 Colors.grey.shade200,是 pre-existing,不在本测试范围）
       expect(
-        content.contains('EditorTokens.textSecondary'),
+        content.contains('EditorTokens.of(context).textSecondary'),
         isTrue,
-        reason: 'ImageElement 占位颜色必须使用 EditorTokens.textSecondary',
+        reason: 'ImageElement 占位颜色必须使用 EditorTokens.of(context).textSecondary'
+            '（ADR-0015：主题色改为 ThemeExtension 运行时取值）',
       );
       // 必须有斜体
       expect(

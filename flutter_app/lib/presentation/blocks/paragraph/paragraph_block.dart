@@ -23,6 +23,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../core/editing/block_types.dart';
+import '../../../core/utils/asset_image_resolver.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
@@ -40,11 +41,15 @@ class ParagraphBlock extends StatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
+  /// 文档存储基目录（ADR-0014）。非空时本地相对图片路径用 [Image.file] 渲染。
+  final String? baseDir;
+
   const ParagraphBlock({
     super.key,
     required this.state,
     required this.element,
     required this.coordinator,
+    this.baseDir,
   });
 
   @override
@@ -86,7 +91,7 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           ),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: _buildInlineSpans(widget.element.children),
+        child: _buildInlineSpans(widget.element.children, context),
       ),
     );
   }
@@ -94,33 +99,36 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   /// 把 [InlineElement] 列表渲染为 [Text.rich]，支持 bold / italic / code / formula。
   ///
   /// **Phase 3.0 简化实现**：仅渲染基本 inline 类型，复杂嵌套留到 Phase 3.2+。
-  Widget _buildInlineSpans(List<InlineElement> children) {
-    final span = _buildInlineList(children, const TextStyle(fontSize: 16));
+  Widget _buildInlineSpans(List<InlineElement> children, BuildContext context) {
+    final span = _buildInlineList(children, const TextStyle(fontSize: 16), context);
     return Text.rich(span);
   }
 
   InlineSpan _buildInlineList(
-      List<InlineElement> children, TextStyle baseStyle) {
+      List<InlineElement> children, TextStyle baseStyle, BuildContext context) {
     return TextSpan(
       style: baseStyle,
-      children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+      children: children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
     );
   }
 
-  InlineSpan _buildInlineSpan(InlineElement element, TextStyle baseStyle) {
+  InlineSpan _buildInlineSpan(InlineElement element, TextStyle baseStyle, BuildContext context) {
     return switch (element) {
       TextElement(:final text) => TextSpan(text: text, style: baseStyle),
       BoldElement(:final children) => TextSpan(
           style: baseStyle.copyWith(fontWeight: FontWeight.bold),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       ItalicElement(:final children) => TextSpan(
           style: baseStyle.copyWith(fontStyle: FontStyle.italic),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       StrikethroughElement(:final children) => TextSpan(
           style: baseStyle.copyWith(decoration: TextDecoration.lineThrough),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       InlineCodeElement(:final code) => TextSpan(
           text: code,
@@ -142,15 +150,42 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
             decoration: TextDecoration.underline,
           ),
         ),
-      // Phase 3.2 §3.6：Image inline rendering（占位 + alt 文本）
-      // 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
-      ImageElement(:final alt) => TextSpan(
-          text: '[图片: $alt]',
-          style: baseStyle.copyWith(
-            color: EditorTokens.textSecondary,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
+      // ADR-0014：本地相对图片路径（assets/img_xxx.png）用 [Image.file] 渲染；
+      // 网络地址仍占位文本（WebView 网络图留 Phase 3.5）。
+      // [baseDir] 为空或文件不存在时回退占位文本（保持可读）。
+      ImageElement(:final alt, :final url) =>
+          _buildImageInline(url, alt, baseStyle, context),
     };
+  }
+
+  /// 渲染 [ImageElement] 为 [InlineSpan]。
+  ///
+  /// 本地相对路径（[baseDir] 非空且文件存在）→ [WidgetSpan] + [Image.file]；
+  /// 否则回退占位文本（网络地址 / data uri / 缺基目录 / 文件缺失）。
+  InlineSpan _buildImageInline(
+    String url,
+    String alt,
+    TextStyle baseStyle,
+    BuildContext context,
+  ) {
+    final placeholder = TextSpan(
+      text: alt.isNotEmpty ? '[图片: $alt]' : '[图片]',
+      style: baseStyle.copyWith(
+        color: EditorTokens.of(context).textSecondary,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+    // TC-ARCH-1：presentation 不直接 File()，经 core/utils 解析。
+    final file = resolveLocalImageFile(widget.baseDir, url);
+    if (file == null) return placeholder;
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: Image.file(
+        file,
+        height: 120,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Text(alt.isNotEmpty ? alt : '[图片]'),
+      ),
+    );
   }
 }

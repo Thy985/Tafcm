@@ -28,14 +28,12 @@ class FormulaFixApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = ref.watch(darkModeProvider);
+    final mode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'FormulaFix',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      theme: AppTheme.themeFor(mode),
       routerConfig: appRouter,
       builder: (context, child) {
         return FormulaRenderHost(

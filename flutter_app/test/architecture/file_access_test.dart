@@ -53,12 +53,16 @@ void main() {
       //   - core/services/storage_migration.dart  (迁移)
       //   - core/services/document_service.dart   (历史遗留，AGENTS.md §10 "三套存储并存"，Phase 1 1.2 修复)
       //   - domain/services/export_service.dart   (临时导出文件写入，非用户文档)
+      //   - core/services/asset_service.dart       (ADR-0014 资产 IO 唯一入口：
+      //     图片复制到 documents/assets/，writeAsBytes 仅此一处；与
+      //     FileRepository（文档 IO）平行，Phase 3.4 Slice 4 登记)
       final allowedRoots = [
         'lib/core/services/file_repository.dart',
         'lib/core/services/file_service.dart',
         'lib/core/services/storage_migration.dart',
         'lib/core/services/document_service.dart',
         'lib/domain/services/export_service.dart',
+        'lib/core/services/asset_service.dart',
       ];
       final hits = <String>[];
       final libDir = Directory('lib');

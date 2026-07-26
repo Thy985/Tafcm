@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
+import '../../providers/editor_providers.dart' show themeModeProvider;
+import '../../presentation/theme/app_theme.dart';
+import '../../presentation/themes/editor_tokens.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../data/models/document.dart';
@@ -27,10 +30,9 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
   @override
   Widget build(BuildContext context) {
     final docsAsync = ref.watch(documentsProvider);
-    final isDark = ref.watch(darkModeProvider);
 
     return Scaffold(
-      appBar: _buildAppBar(isDark),
+      appBar: _buildAppBar(),
       body: docsAsync.when(
         loading: () => const LoadingIndicator(message: '加载中...'),
         error: (e, _) => ErrorDisplay(
@@ -50,7 +52,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
             return _buildEmptyState(query.isNotEmpty);
           }
 
-          return _buildDocList(filtered, isDark);
+          return _buildDocList(filtered);
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -60,7 +62,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(bool isDark) {
+  PreferredSizeWidget _buildAppBar() {
     if (_isSearching) {
       return AppBar(
         leading: IconButton(
@@ -100,18 +102,30 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
           icon: const Icon(Icons.search),
           onPressed: () => setState(() => _isSearching = true),
         ),
-        IconButton(
-          icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-          onPressed: () => ref.read(darkModeProvider.notifier).toggle(),
-        ),
+        _buildThemeToggle(),
       ],
     );
   }
 
+  /// 3-way theme toggle (light → dark → sepia → light).
+  /// Icon reflects the *current* mode so the affordance stays discoverable.
+  Widget _buildThemeToggle() {
+    final mode = ref.watch(themeModeProvider);
+    final (icon, tooltip) = switch (mode) {
+      AppThemeMode.light => (Icons.light_mode, '主题：明亮（点击切换到夜间）'),
+      AppThemeMode.dark => (Icons.dark_mode, '主题：夜间（点击切换到护眼）'),
+      AppThemeMode.sepia => (Icons.brightness_medium, '主题：护眼（点击切换到明亮）'),
+    };
+    return IconButton(
+      icon: Icon(icon),
+      tooltip: tooltip,
+      onPressed: () => ref.read(themeModeProvider.notifier).cycle(),
+    );
+  }
+
   Widget _buildEmptyState(bool isFiltered) {
-    final isDark = ref.watch(darkModeProvider);
-    final iconColor = isDark ? Colors.grey[600] : Colors.grey[400];
-    final textColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final tokens = EditorTokens.of(context);
+    final outline = Theme.of(context).colorScheme.outline;
 
     return Center(
       child: Column(
@@ -120,18 +134,22 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
           Icon(
             isFiltered ? Icons.search_off : Icons.description_outlined,
             size: 64,
-            color: iconColor,
+            color: outline,
           ),
           const SizedBox(height: 16),
           Text(
             isFiltered ? '未找到匹配的文档' : '还没有文档',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: textColor),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: tokens.textSecondary,
+            ),
           ),
           if (!isFiltered) ...[
             const SizedBox(height: 8),
             Text(
               '点击 + 按钮创建第一个文档',
-              style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[500] : Colors.grey[500]),
+              style: TextStyle(fontSize: 14, color: tokens.textSecondary),
             ),
           ],
         ],
@@ -139,13 +157,12 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
     );
   }
 
-  Widget _buildDocList(List<Document> docs, bool isDark) {
+  Widget _buildDocList(List<Document> docs) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: docs.length,
       itemBuilder: (context, i) => _DocCard(
         doc: docs[i],
-        isDark: isDark,
         onTap: () => _openDoc(docs[i]),
         onDelete: () => _deleteDoc(docs[i]),
         onRename: () => _renameDoc(docs[i]),
@@ -245,14 +262,12 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
 
 class _DocCard extends StatelessWidget {
   final Document doc;
-  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onRename;
 
   const _DocCard({
     required this.doc,
-    required this.isDark,
     required this.onTap,
     required this.onDelete,
     required this.onRename,
@@ -260,6 +275,7 @@ class _DocCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = EditorTokens.of(context);
     final preview = doc.content.isEmpty
         ? '空文档'
         : doc.content.length > 80
@@ -284,7 +300,7 @@ class _DocCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: tokens.textPrimary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -324,7 +340,7 @@ class _DocCard extends StatelessWidget {
                 preview,
                 style: TextStyle(
                   fontSize: 14,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: tokens.textSecondary,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -334,12 +350,12 @@ class _DocCard extends StatelessWidget {
                 children: [
                   Text(
                     _formatDate(doc.updatedAt),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 12, color: tokens.textSecondary),
                   ),
                   const SizedBox(width: 16),
                   Text(
                     '${_countChars()} 字',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 12, color: tokens.textSecondary),
                   ),
                 ],
               ),

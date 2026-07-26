@@ -54,11 +54,15 @@ class BlockRenderer extends StatelessWidget {
   /// 当前页面绑定的 [EditorCoordinator]（用于提交 Command）。
   final EditorCoordinator coordinator;
 
+  /// 文档存储基目录（ADR-0014）。非空时本地图片用 [Image.file] 渲染。
+  final String? baseDir;
+
   const BlockRenderer({
     super.key,
     required this.state,
     required this.element,
     required this.coordinator,
+    this.baseDir,
   });
 
   @override
@@ -71,6 +75,7 @@ class BlockRenderer extends StatelessWidget {
           state: state,
           element: pe,
           coordinator: coordinator,
+          baseDir: baseDir,
         ),
       HeadingElement he => HeadingBlock(
           state: state,
