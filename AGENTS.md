@@ -238,7 +238,7 @@ PR 描述必须包含：
 - [ ] 测试方式（手动 / 自动）
 - [ ] 是否影响公共 API
 - [ ] 是否更新文档
-- [ ] 自测：`flutter analyze` 无 error
+- [ ] 自测：`flutter analyze --no-fatal-infos --fatal-warnings` 无 error / 无 warning（与 CI [Analyze 步骤](file:///d:/Projects/Active/math/.github/workflows/ci.yml) 一致；裸 `flutter analyze` 只把 warning 当 info 显示，本地可能漏检）
 - [ ] 自测：`flutter test` 全部通过
 - [ ] 自测：`flutter build apk --debug` 成功（Android 构建）
 - [ ] 自测：`flutter build web` 成功
@@ -352,7 +352,7 @@ docs/
 **PR 合并必须满足**：
 
 1. `flutter pub get` 成功
-2. `flutter analyze` 无 error（warning 允许，但应尽量消除）
+2. `flutter analyze --no-fatal-infos --fatal-warnings` 无 error / 无 warning
 3. `flutter test` 全部通过
 4. `flutter build` 成功（apk + web 两平台）
 
