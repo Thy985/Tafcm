@@ -421,8 +421,8 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
 | 3.4.1 | 大纲 / TOC 侧滑面板，点击跳转标题 | Phase 3.1 原 3.7 | ✅ 已合入 main（PR #69） |
-| 3.4.2 | 文件树侧滑（替代文件管理独立屏幕） | Phase 3.1 原 3.8 | ⏳ |
-| 3.4.3 | 多套主题（light / dark / sepia 三值,ThemeExtension 迁移） | Phase 3.1 原 3.9 | 🔶 已实现·PR #71 评审中 |
+| 3.4.2 | 文件树侧栏（EditorShell 内嵌 ☰，与 /files 共存共享 DocumentRepository，不复制逻辑） | Phase 3.1 原 3.8 | ✅ (#77) |
+| 3.4.3 | 多套主题（GitHub / Night / Sepia / Newsprint） | Phase 3.1 原 3.9 | ⏳ |
 | 3.4.4 | 导出进度反馈（百分比 + 当前公式计数） | Phase 3.1 原 3.17 | ⏳ |
 | 3.4.5 | 快捷键支持（Android 物理键盘 + Web） | Phase 3.3 v1.0 原 3.3.7 | ⏳（按 Task Contract 决策移 Phase 4 Desktop Enhancement） |
 | 3.4.6 | 打字机模式（光标行居中） | Phase 3.3 v1.0 原 3.3.3 打字机部分 | ⏳（按 Task Contract 决策移 Phase 4 Desktop Enhancement） |

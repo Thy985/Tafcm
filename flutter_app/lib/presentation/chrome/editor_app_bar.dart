@@ -45,6 +45,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
   final VoidCallback? onOpenToc;
 
+  /// 打开文件树侧栏的回调（Phase 3.4.2）。
+  final VoidCallback? onOpenFileTree;
+
   /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
   ///
   /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
@@ -62,6 +65,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.focusMode = false,
     this.onToggleFocus,
     this.onOpenToc,
+    this.onOpenFileTree,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
   });
@@ -96,6 +100,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => _onBack(context),
       ),
       actions: [
+        // Phase 3.4.2：文件树侧栏开关（VS Code Mobile 风格：默认隐藏，☰ 触发）
+        IconButton(
+          icon: const Icon(Icons.folder_open),
+          tooltip: '文件树',
+          onPressed: onOpenFileTree,
+        ),
         // Phase 3.4.1：目录（大纲）抽屉开关
         IconButton(
           icon: const Icon(Icons.list_alt),

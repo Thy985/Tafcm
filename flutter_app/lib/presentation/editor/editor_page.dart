@@ -18,12 +18,15 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/editing/editor_history.dart';
+import '../../core/parser/markdown_parser.dart';
 import '../../providers/asset_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../../providers/file_repository_provider.dart';
+import '../../providers/last_opened_path_provider.dart';
 import 'autosave_service.dart';
 import 'editor_coordinator.dart';
 import 'editor_scope.dart';
@@ -33,15 +36,19 @@ import 'seed_documents.dart';
 
 /// Phase 3.0 顶层编辑器页面（Route 入口）。
 ///
-/// 通过 [seedSelector] 选择种子文档（0/1/2 对应 demo1/demo2/demo3）。
+/// - [filePath]：打开的真实 .md 文件路径（Phase 3.4.2 文件树）。非空时加载该文件；
+///   为空时回退 [seedSelector] 演示文档。
+/// - [seedSelector]：种子文档（0 = demo1, 1 = demo2, 2 = demo3），仅当 [filePath] 为 null 时生效。
 class EditorPage extends ConsumerStatefulWidget {
+  /// 打开的真实 .md 文件路径（文件树 / 重启恢复传入）。null = 演示文档。
+  final String? filePath;
+
   /// 选择种子文档（0 = demo1, 1 = demo2, 2 = demo3）。
-  ///
-  /// 默认 0。Phase 3.1+ 接入真实 .md 文件时，此参数替换为文件路径。
   final int seedSelector;
 
   const EditorPage({
     super.key,
+    this.filePath,
     this.seedSelector = 0,
   });
 
@@ -53,15 +60,61 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late final EditorCoordinator _coordinator;
   AutosaveService? _autosave;
 
+  /// 文档是否就绪（文件异步加载完成前显示加载态）。
+  bool _ready = false;
+
+  /// [_coordinator] 是否已初始化（异步加载完成前可能尚未赋值，dispose 时需守卫，
+  /// 避免 LateInitializationError：用户在加载完成前导航离开）。
+  bool _coordinatorReady = false;
+
   @override
   void initState() {
     super.initState();
-    final editor = _buildSeedEditor(widget.seedSelector);
+    if (widget.filePath != null) {
+      // Phase 3.4.2：接入真实 .md 路径（ADR-0016 / Slice6），激活自动保存落盘。
+      _loadFromFile(widget.filePath!);
+    } else {
+      _initSeed(widget.seedSelector);
+      _ready = true;
+    }
+  }
+
+  /// 构造种子 [InMemoryDocumentEditor] 并启动自动保存（演示 / 回退路径）。
+  void _initSeed(int selector) {
+    final editor = _buildSeedEditor(selector);
     final history = EditorHistory(maxHistorySize: 200);
     _coordinator = EditorCoordinator(editor: editor, history: history);
+    _coordinatorReady = true;
+    _startAutosave();
+  }
 
-    // ADR-0013：自动保存服务（显式 DI，无全局单例）。
-    // source = Coordinator（实现 DirtyStateSource）；save = 落盘回调（仅当存在可写路径）。
+  /// 异步加载真实 .md 文件（Phase 3.4.2）。
+  ///
+  /// 经 [DocumentRepository.readDocument] 读取 → [MarkdownParser.parse] 解析为块 →
+  /// 构造 [InMemoryDocumentEditor]。失败则回退种子文档（不阻断编辑器）。
+  Future<void> _loadFromFile(String path) async {
+    try {
+      final repo = ref.read(fileRepositoryProvider);
+      final doc = await repo.readDocument(path);
+      // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改 provider）。
+      ref.read(currentPathProvider.notifier).state = path;
+      final elements = MarkdownParser.parse(doc.content);
+      final editor = InMemoryDocumentEditor(title: doc.title);
+      for (final element in elements) {
+        editor.insertBlock(editor.blockCount, element);
+      }
+      _coordinator = EditorCoordinator(editor: editor, history: EditorHistory(maxHistorySize: 200));
+      _coordinatorReady = true;
+      _startAutosave();
+    } catch (_) {
+      _initSeed(widget.seedSelector);
+    } finally {
+      if (mounted) setState(() => _ready = true);
+    }
+  }
+
+  /// 启动自动保存（ADR-0013：显式 DI，无全局单例）。
+  void _startAutosave() {
     _autosave = AutosaveService(
       source: _coordinator,
       save: _saveDocument,
@@ -116,7 +169,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   void dispose() {
     _autosave?.stop();
     // ADR-0013：释放 DirtyStateTracker 的 StreamController（Level 3 评审 R1）。
-    _coordinator.dispose();
+    // [_coordinator] 可能尚未初始化（异步加载完成前已 dispose），需守卫避免
+    // LateInitializationError。
+    if (_coordinatorReady) _coordinator.dispose();
     // Phase 3.0：InMemoryDocumentEditor / EditorHistory 持有的是纯内存数据，
     // 无需显式释放。Phase 3.1+ 接入真实 .md 文件时需补充资源清理。
     super.dispose();
@@ -124,6 +179,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    // 用 AnimatedBuilder 监听 ChangeNotifier（_coordinator）变化，
+    // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
+    // notifyListeners() 时，触发 EditorShell 重建。
+    final currentPath = ref.watch(currentPathProvider);
     // Phase 3.4.3 / ADR-0015：主题模式从 provider 读取，透传给 EditorShell → EditorAppBar。
     // chrome/ 保持 Riverpod-free，主题状态在此（唯一持 ref 的层）解析后向下传递。
     // 主题切换会由 main.dart（watch themeModeProvider）触发整个 MaterialApp 重建，
@@ -132,15 +194,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    // 用 AnimatedBuilder 监听 ChangeNotifier（_coordinator）变化，
-    // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
-    // notifyListeners() 时，触发 EditorShell 重建。
     return EditorScope(
       coordinator: _coordinator,
       child: AnimatedBuilder(
         animation: _coordinator,
         builder: (context, _) => EditorShell(
           coordinator: _coordinator,
+          currentPath: currentPath,
+          onOpenFile: _openFile,
           themeMode: mode,
           onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
           baseDir: baseDir,
@@ -150,5 +211,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         ),
       ),
     );
+  }
+
+  /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
+  /// 并导航到该文件（替换当前编辑器路由，FileTreePanel 随旧 EditorPage 一并销毁）。
+  void _openFile(String path) {
+    ref.read(lastOpenedPathProvider.notifier).set(path);
+    context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 }

@@ -31,13 +31,17 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/editing/block_types.dart';
+import '../../providers/file_repository_provider.dart';
+import '../../providers/providers.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../theme/app_theme.dart';
 import '../chrome/editor_status_bar.dart';
 import '../chrome/markdown_toolbar.dart';
+import '../panels/file_tree_panel.dart';
 import '../panels/side_panel_host.dart';
 import '../panels/toc_panel.dart';
 import '../states/block_view_state.dart';
@@ -52,10 +56,16 @@ const double kMaxPageWidth = 720.0;
 /// EditorShell：组合 chrome + workspace + status 的布局壳。
 ///
 /// 由 [EditorPage] 挂载，接收 [EditorCoordinator] 并通过 [EditorScope] 注入。
-/// Phase 3.3 PR #4 起为 [StatefulWidget]，持有缩放 / 焦点等纯 UI 状态。
-class EditorShell extends StatefulWidget {
+/// Phase 3.3 PR #4 起为 [ConsumerStatefulWidget]，持有缩放 / 焦点 / 文件树等纯 UI 状态。
+class EditorShell extends ConsumerStatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
+
+  /// 当前打开文档的路径（用于文件树高亮）；为 null 表示未打开具体文件。
+  final String? currentPath;
+
+  /// 点击文件树某文档的回调（参数为该文档路径），由 EditorPage 负责打开 / 持久化。
+  final ValueChanged<String>? onOpenFile;
 
   /// 当前主题模式（Phase 3.4.3：由 [EditorPage] 从 provider 透传给 AppBar 切换按钮）。
   final AppThemeMode themeMode;
@@ -72,6 +82,8 @@ class EditorShell extends StatefulWidget {
   const EditorShell({
     super.key,
     required this.coordinator,
+    this.currentPath,
+    this.onOpenFile,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
     this.baseDir,
@@ -79,16 +91,19 @@ class EditorShell extends StatefulWidget {
   });
 
   @override
-  State<EditorShell> createState() => _EditorShellState();
+  ConsumerState<EditorShell> createState() => _EditorShellState();
 }
 
-class _EditorShellState extends State<EditorShell> {
+class _EditorShellState extends ConsumerState<EditorShell> {
   static const double _kMinScale = 0.8;
   static const double _kMaxScale = 1.25;
   static const double _kZoomStep = 0.1;
 
   double _zoomScale = 1.0;
   bool _focusMode = false;
+
+  /// 文件树侧栏是否展开（Phase 3.4.2，VS Code Mobile 风格：默认隐藏）。
+  bool _showFileTree = false;
 
   /// TOC 抽屉 / 滚动定位所需的 Scaffold 句柄（Phase 3.4.1）。
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -108,6 +123,26 @@ class _EditorShellState extends State<EditorShell> {
       setState(() => _zoomScale = (_zoomScale - _kZoomStep).clamp(_kMinScale, _kMaxScale));
   void _zoomReset() => setState(() => _zoomScale = 1.0);
   void _toggleFocus() => setState(() => _focusMode = !_focusMode);
+
+  /// 切换文件树侧栏（Phase 3.4.2）。
+  void _toggleFileTree() => setState(() => _showFileTree = !_showFileTree);
+
+  /// 文件树点击：由文档 id 解析路径，转交 [widget.onOpenFile]（EditorPage 负责打开 + 持久化）。
+  ///
+  /// [documentPathFor] 当前实现（[FileRepository]）不抛异常，但 [DocumentRepository]
+  /// 接口未约束"不抛异常"，未来实现（远程仓储等）可能抛。此处兜底，避免点击文件树时
+  /// 因未捕获异常导致整树崩溃。失败时提示用户，不改写 [widget.onOpenFile]。
+  Future<void> _openDoc(String id) async {
+    try {
+      final path = await ref.read(fileRepositoryProvider).documentPathFor(id);
+      widget.onOpenFile?.call(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开文件失败：$e')),
+      );
+    }
+  }
 
   /// TOC 点击条目：聚焦块 + 滚动到可视区 + 关闭抽屉（Phase 3.4.1）。
   void _jumpToBlock(BlockId id) {
@@ -145,44 +180,69 @@ class _EditorShellState extends State<EditorShell> {
       // 焦点模式：隐藏 AppBar（§3.3.3）
       appBar: _focusMode
           ? null
-          : EditorAppBar(
+          :             EditorAppBar(
               coordinator: coordinator,
               title: coordinator.title,
               isModified: coordinator.isDirty,
               focusMode: _focusMode,
               onToggleFocus: _toggleFocus,
               onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
+              onOpenFileTree: _toggleFileTree,
               themeMode: widget.themeMode,
               onCycleTheme: widget.onCycleTheme,
             ),
       body: Column(
         children: [
           Expanded(
-            // 编辑区：双指缩放（onScaleUpdate）
-            // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
-            // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
-            // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
-            // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
-            child: GestureDetector(
-              onScaleStart: (_) => _scaleStart = _zoomScale,
-              onScaleUpdate: (details) {
-                if (details.scale != 1.0) {
-                  setState(() {
-                    _zoomScale = (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
-                  });
-                }
-              },
-              onDoubleTap: _focusMode ? _toggleFocus : null,
-              child: MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(textScaler: TextScaler.linear(_zoomScale)),
-                child: Workspace(
-              coordinator: coordinator,
-              scrollController: _scrollController,
-              blockKeys: _blockKeys,
-              baseDir: widget.baseDir,
-            ),
-              ),
+            // 编辑区 + 文件树侧栏（Phase 3.4.2）：默认仅编辑区占满；
+            // 点 AppBar「文件树」按钮后，左侧嵌入 FileTreePanel（VS Code Mobile 风格）。
+            child: Row(
+              children: [
+                if (_showFileTree)
+                  SizedBox(
+                    width: 260,
+                    child: ref.watch(documentsProvider).when(
+                      data: (docs) => FileTreePanel(
+                        documents: docs,
+                        currentPath: widget.currentPath,
+                        onOpenFile: _openDoc,
+                      ),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (_, __) =>
+                          const Center(child: Text('加载失败')),
+                    ),
+                  ),
+                Expanded(
+                  // 编辑区：双指缩放（onScaleUpdate）
+                  // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
+                  // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
+                  // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
+                  // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
+                  child: GestureDetector(
+                    onScaleStart: (_) => _scaleStart = _zoomScale,
+                    onScaleUpdate: (details) {
+                      if (details.scale != 1.0) {
+                        setState(() {
+                          _zoomScale =
+                              (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
+                        });
+                      }
+                    },
+                    onDoubleTap: _focusMode ? _toggleFocus : null,
+                    child: MediaQuery(
+                      data: MediaQuery.of(context)
+                          .copyWith(textScaler: TextScaler.linear(_zoomScale)),
+                      child: Workspace(
+                        coordinator: coordinator,
+                        scrollController: _scrollController,
+                        blockKeys: _blockKeys,
+                        baseDir: widget.baseDir,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
