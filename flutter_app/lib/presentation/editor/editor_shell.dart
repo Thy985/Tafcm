@@ -57,11 +57,15 @@ class EditorShell extends StatefulWidget {
   /// 循环切换主题的回调（Phase 3.4.3：light → dark → sepia → light）。
   final VoidCallback? onCycleTheme;
 
+  /// 文档存储基目录（ADR-0014）。非空时本地图片用 [Image.file] 渲染。
+  final String? baseDir;
+
   const EditorShell({
     super.key,
     required this.coordinator,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
+    this.baseDir,
   });
 
   @override
@@ -166,6 +170,7 @@ class _EditorShellState extends State<EditorShell> {
               coordinator: coordinator,
               scrollController: _scrollController,
               blockKeys: _blockKeys,
+              baseDir: widget.baseDir,
             ),
               ),
             ),
@@ -198,11 +203,15 @@ class Workspace extends StatelessWidget {
   final ScrollController? scrollController;
   final Map<BlockId, GlobalKey> blockKeys;
 
+  /// 文档存储基目录（ADR-0014）。
+  final String? baseDir;
+
   const Workspace({
     super.key,
     required this.coordinator,
     this.scrollController,
     required this.blockKeys,
+    this.baseDir,
   });
 
   @override
@@ -218,6 +227,7 @@ class Workspace extends StatelessWidget {
             coordinator: coordinator,
             controller: scrollController,
             blockKeys: blockKeys,
+            baseDir: baseDir,
           ),
         ),
       ],
@@ -233,11 +243,15 @@ class EditorViewport extends StatelessWidget {
   final ScrollController? controller;
   final Map<BlockId, GlobalKey> blockKeys;
 
+  /// 文档存储基目录（ADR-0014）。
+  final String? baseDir;
+
   const EditorViewport({
     super.key,
     required this.coordinator,
     this.controller,
     required this.blockKeys,
+    this.baseDir,
   });
 
   @override
@@ -275,6 +289,7 @@ class EditorViewport extends StatelessWidget {
             element: element,
             state: state,
             coordinator: coordinator,
+            baseDir: baseDir,
           ),
         );
       },

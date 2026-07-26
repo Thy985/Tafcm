@@ -20,7 +20,10 @@
 /// 4. `coordinator.notifyListeners()` → `AnimatedBuilder` 重建
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
@@ -40,11 +43,15 @@ class ParagraphBlock extends StatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
+  /// 文档存储基目录（ADR-0014）。非空时本地相对图片路径用 [Image.file] 渲染。
+  final String? baseDir;
+
   const ParagraphBlock({
     super.key,
     required this.state,
     required this.element,
     required this.coordinator,
+    this.baseDir,
   });
 
   @override
@@ -145,15 +152,46 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
             decoration: TextDecoration.underline,
           ),
         ),
-      // Phase 3.2 §3.6：Image inline rendering（占位 + alt 文本）
-      // 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
-      ImageElement(:final alt) => TextSpan(
-          text: '[图片: $alt]',
-          style: baseStyle.copyWith(
-            color: EditorTokens.of(context).textSecondary,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
+      // ADR-0014：本地相对图片路径（assets/img_xxx.png）用 [Image.file] 渲染；
+      // 网络地址仍占位文本（WebView 网络图留 Phase 3.5）。
+      // [baseDir] 为空或文件不存在时回退占位文本（保持可读）。
+      ImageElement(:final alt, :final url) =>
+          _buildImageInline(url, alt, baseStyle, context),
     };
+  }
+
+  /// 渲染 [ImageElement] 为 [InlineSpan]。
+  ///
+  /// 本地相对路径（[baseDir] 非空且文件存在）→ [WidgetSpan] + [Image.file]；
+  /// 否则回退占位文本（网络地址 / data uri / 缺基目录 / 文件缺失）。
+  InlineSpan _buildImageInline(
+    String url,
+    String alt,
+    TextStyle baseStyle,
+    BuildContext context,
+  ) {
+    final placeholder = TextSpan(
+      text: alt.isNotEmpty ? alt : '[图片]',
+      style: baseStyle.copyWith(
+        color: EditorTokens.of(context).textSecondary,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+    if (widget.baseDir == null ||
+        url.startsWith('http') ||
+        url.startsWith('data:')) {
+      return placeholder;
+    }
+    final file = File(p.join(widget.baseDir!, url));
+    if (!file.existsSync()) return placeholder;
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: Image.file(
+        file,
+        height: 120,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Text(alt.isNotEmpty ? alt : '[图片]'),
+      ),
+    );
   }
 }

@@ -10,8 +10,11 @@
 /// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,不 import blocks/ / panels/。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/services/asset_service.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import 'editor_strings.dart';
@@ -284,7 +287,16 @@ class _ToolbarButtons extends StatelessWidget {
   /// 从 [_kTemplateConfigs] 查找配置,构造 [InsertTemplateCommand]。
   /// **§2.5.1 Hard Rule**：不解析模板字符串内容,直接使用常量。
   /// **§2.7.1**：强一致读取 selection（仅 insert 模式使用）。
+  ///
+  /// 图片项（[Templates.imageDefault]）走异步资源导入流程（[AssetService] +
+  /// [InsertTemplateCommand]），见 [_handleInsertImage]。
   void _handleTemplateSelect(_TemplateMenuItem item) {
+    if (item == _TemplateMenuItem.image) {
+      // 异步：选图 → 复制到 assets/ → 插入相对路径块。
+      // 不 await（onSelected 为 void 回调），用 unawaited 抑制 lint。
+      unawaited(_handleInsertImage());
+      return;
+    }
     // ADR-0012 §Editor Context Preservation：打开模板弹层会抢走编辑器焦点,
     // 用 coordinator.lastFocusedId（不被 clearFocus 清空）作为插入目标,
     // 而非实时的（可能已丢失的）focusedId。
@@ -299,6 +311,33 @@ class _ToolbarButtons extends StatelessWidget {
       mode: config.mode,
       selection: config.mode == TemplateInsertMode.insert ? selection : null,
       cursorOffset: config.cursorOffset,
+    ));
+  }
+
+  /// 图片插入（ADR-0014）：从相册 / 文件选择图片 → 复制到文档 assets/ →
+  /// 在当前聚焦块光标处插入 inline 图片 `![](assets/img_<hash>.<ext>)`。
+  ///
+  /// **为何用 [TemplateInsertMode.insert] 而非 newBlock**：
+  /// newBlock 模式把模板包成单个 [TextElement] 再走 tryTransform，
+  /// 而图片语法是 inline（无对应 BlockType），tryTransform 不会转换，
+  /// 导致 Markdown 源以纯文本残留、渲染不出图片。insert 模式改走
+  /// [BlockOperations.updateSource] → [TextOperation] → [toElement] →
+  /// [MarkdownParser.parseInline]，把 `![...](...)` 正确解析为 [ImageElement]，
+  /// 渲染层（ParagraphBlock）即可用 [Image.file] 画出本地图片。
+  ///
+  /// 用户取消选择时静默返回（不插入）。文件 IO 在 [AssetService] 内完成，
+  /// 本方法仅负责编排 Command。
+  Future<void> _handleInsertImage() async {
+    final blockId = coordinator.lastFocusedId;
+    if (blockId == null) return;
+    final relative = await AssetService.pickAndImportImage();
+    if (relative == null) return;
+    coordinator.handle(InsertTemplateCommand(
+      blockId: blockId,
+      template: '![]($relative)',
+      mode: TemplateInsertMode.insert,
+      selection: coordinator.focusedSelection,
+      cursorOffset: 0,
     ));
   }
 }

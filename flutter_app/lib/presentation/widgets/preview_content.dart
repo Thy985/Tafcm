@@ -16,10 +16,14 @@ class PreviewContent extends StatelessWidget {
   final String content;
   final bool isDark;
 
+  /// 文档存储基目录（ADR-0014）。非空时本地相对图片路径用 [Image.file] 渲染。
+  final String? baseDir;
+
   const PreviewContent({
     super.key,
     required this.content,
     required this.isDark,
+    this.baseDir,
   });
 
   @override
@@ -82,12 +86,13 @@ class PreviewContent extends StatelessWidget {
       HeadingElement(:final level, :final text) => HeadingRenderer(
           level: level, text: text, isDark: isDark),
       ParagraphElement(:final children) => ParagraphRenderer(
-          children: children, isDark: isDark),
+          children: children, isDark: isDark, baseDir: baseDir),
       ListElement(:final children, :final ordered) => ListRenderer(
           children: children,
           ordered: ordered,
           index: indexProvider(),
           isDark: isDark,
+          baseDir: baseDir,
         ),
       CodeElement(:final code) => CodeRenderer(code: code, isDark: isDark),
       BlockquoteElement(:final text) => BlockquoteRenderer(
