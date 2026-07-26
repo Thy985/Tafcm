@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
+import '../../providers/editor_providers.dart' show darkModeProvider, themeModeProvider;
+import '../../presentation/theme/app_theme.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../data/models/document.dart';
@@ -100,11 +102,24 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
           icon: const Icon(Icons.search),
           onPressed: () => setState(() => _isSearching = true),
         ),
-        IconButton(
-          icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-          onPressed: () => ref.read(darkModeProvider.notifier).toggle(),
-        ),
+        _buildThemeToggle(),
       ],
+    );
+  }
+
+  /// 3-way theme toggle (light → dark → sepia → light).
+  /// Icon reflects the *current* mode so the affordance stays discoverable.
+  Widget _buildThemeToggle() {
+    final mode = ref.watch(themeModeProvider);
+    final (icon, tooltip) = switch (mode) {
+      AppThemeMode.light => (Icons.light_mode, '主题：明亮（点击切换到夜间）'),
+      AppThemeMode.dark => (Icons.dark_mode, '主题：夜间（点击切换到护眼）'),
+      AppThemeMode.sepia => (Icons.brightness_medium, '主题：护眼（点击切换到明亮）'),
+    };
+    return IconButton(
+      icon: Icon(icon),
+      tooltip: tooltip,
+      onPressed: () => ref.read(themeModeProvider.notifier).cycle(),
     );
   }
 

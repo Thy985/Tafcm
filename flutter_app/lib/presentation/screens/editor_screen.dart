@@ -415,7 +415,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 _saveToFile();
                 break;
               case 'theme':
-                ref.read(darkModeProvider.notifier).toggle();
+                ref.read(themeModeProvider.notifier).cycle();
                 break;
             }
           },

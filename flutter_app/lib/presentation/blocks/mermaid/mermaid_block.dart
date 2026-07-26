@@ -95,12 +95,12 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: EditorTokens.codeBackground,
+          color: EditorTokens.of(context).codeBackground,
           borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
           border: Border.all(
             color: widget.state.isFocused
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
-                : EditorTokens.borderDefault,
+                : EditorTokens.of(context).borderDefault,
           ),
         ),
         child: _buildMermaidContent(),
@@ -126,15 +126,15 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.sync, size: 14, color: EditorTokens.textSecondary),
-            SizedBox(width: 6),
+            Icon(Icons.sync, size: 14, color: EditorTokens.of(context).textSecondary),
+            const SizedBox(width: 6),
             Text(
               'WebView 预热中（Mermaid 图表将在就绪后渲染）',
               style: TextStyle(
                 fontSize: EditorTokens.statusBarFontSize,
-                color: EditorTokens.textSecondary,
+                color: EditorTokens.of(context).textSecondary,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -145,17 +145,17 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: EditorTokens.tableHeaderBackground,
+            color: EditorTokens.of(context).tableHeaderBackground,
             borderRadius: BorderRadius.circular(EditorTokens.chipRadius),
           ),
           child: Text(
             widget.element.code,
             maxLines: 8,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'monospace',
               fontSize: EditorTokens.codeFontSize,
-              color: EditorTokens.textPrimary,
+              color: EditorTokens.of(context).textPrimary,
             ),
           ),
         ),

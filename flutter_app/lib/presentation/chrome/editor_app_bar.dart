@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../editor/editor_coordinator.dart';
+import '../theme/app_theme.dart';
 
 /// 编辑器顶部 AppBar（chrome 组件）。
 class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -44,6 +45,15 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
   final VoidCallback? onOpenToc;
 
+  /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
+  ///
+  /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
+  /// chrome/ 保持 Riverpod-free，主题状态由 [EditorPage] 从 provider 透传。
+  final AppThemeMode themeMode;
+
+  /// 循环切换主题的回调（Phase 3.4.3：light → dark → sepia → light）。
+  final VoidCallback? onCycleTheme;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -52,6 +62,8 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.focusMode = false,
     this.onToggleFocus,
     this.onOpenToc,
+    this.themeMode = AppThemeMode.light,
+    this.onCycleTheme,
   });
 
   @override
@@ -102,6 +114,14 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: '重做',
           onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
         ),
+        // Phase 3.4.3 / ADR-0015：3 值主题切换（明亮 → 夜间 → 护眼 → 明亮）。
+        // 图标反映**当前**主题，保持切换入口可发现；主题状态由 EditorPage 透传，
+        // chrome/ 不直接依赖 Riverpod（与 onToggleFocus / onOpenToc 一致的回调模式）。
+        IconButton(
+          icon: Icon(_themeIcon(themeMode)),
+          tooltip: _themeTooltip(themeMode),
+          onPressed: onCycleTheme,
+        ),
         // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
         IconButton(
           icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
@@ -140,6 +160,20 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
     );
   }
+
+  /// 当前主题模式对应的图标（反映当前状态，而非"点击后"的状态）。
+  static IconData _themeIcon(AppThemeMode mode) => switch (mode) {
+        AppThemeMode.light => Icons.light_mode,
+        AppThemeMode.dark => Icons.dark_mode,
+        AppThemeMode.sepia => Icons.brightness_medium,
+      };
+
+  /// 当前主题模式对应的 tooltip（含"点击切换到下一主题"提示）。
+  static String _themeTooltip(AppThemeMode mode) => switch (mode) {
+        AppThemeMode.light => '主题：明亮（点击切换到夜间）',
+        AppThemeMode.dark => '主题：夜间（点击切换到护眼）',
+        AppThemeMode.sepia => '主题：护眼（点击切换到明亮）',
+      };
 
   void _onBack(BuildContext context) {
     // Phase 3.0：返回到文件管理页（路由由 main.dart 配置）
