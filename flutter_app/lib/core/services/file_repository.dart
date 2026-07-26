@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
+import '../document_repository.dart';
 import 'file_service.dart' show decodeBytesAuto;
 import 'front_matter_parser.dart';
 
@@ -30,37 +30,16 @@ class DocMetadata {
 ///
 /// 所有文档 I/O 必须经过本 Repository；业务层禁止直写 [File]。
 /// 内部统一使用 [atomicWrite]（tmp → 删除旧目标 → rename）保证原子性。
-final fileRepositoryProvider = Provider<FileRepository>((ref) => FileRepository());
-
-/// 原子写：先写 `<path>.tmp`，落盘后（删除旧目标）rename 到最终路径。
-///
-/// 避免进程崩溃 / 写入中断时留下半截 `.md`。Windows 上 `rename`
-/// 不能直接覆盖已存在文件，故先删除旧目标再 rename。
-Future<void> atomicWrite(File file, String content) async {
-  final dir = file.parent;
-  await dir.create(recursive: true);
-  final tmp = File('${file.path}.tmp');
-  try {
-    await tmp.writeAsString(content, flush: true);
-    if (await file.exists()) {
-      await file.delete();
-    }
-    await tmp.rename(file.path);
-  } catch (e) {
-    try {
-      if (await tmp.exists()) await tmp.delete();
-    } catch (_) {}
-    rethrow;
-  }
-}
-
-class FileRepository {
+/// 以 [DocumentRepository] 端口类型实现，[fileRepositoryProvider] 位于 providers/
+/// （presentation 经其访问，不直连本文件）。
+class FileRepository implements DocumentRepository {
   Future<String> _docsDirPath() async {
     final dir = await getApplicationDocumentsDirectory();
     return '${dir.path}${Platform.pathSeparator}documents';
   }
 
   /// 由文档 id（= .md 文件名 stem）推导规范化路径。
+  @override
   Future<String> documentPathFor(String id) async =>
       '${await _docsDirPath()}${Platform.pathSeparator}$id.md';
 
@@ -115,9 +94,11 @@ class FileRepository {
 
   // ---- CRUD ----
 
+  @override
   Future<List<Document>> listDocuments() async =>
       (await _readAll()).map((e) => e.doc).toList();
 
+  @override
   Future<Document> readDocument(String path) async {
     final file = File(path);
     final raw = decodeBytesAuto(await file.readAsBytes());
@@ -126,6 +107,7 @@ class FileRepository {
   }
 
   /// 新建文档：生成 uuid 文件名，写入带 front matter 的 .md，返回路径。
+  @override
   Future<String> createDocument(String title, String content) async {
     final id = const Uuid().v4();
     final now = DateTime.now();
@@ -143,6 +125,7 @@ class FileRepository {
 
   /// 写入（upsert）：保留已有 id / createdAt，刷新 updatedAt。
   /// 正文原样透传（含用户写入的 `# H1`），不重复注入标题。
+  @override
   Future<void> writeDocument(
     String path, {
     required String title,
@@ -171,12 +154,14 @@ class FileRepository {
     await atomicWrite(File(path), md);
   }
 
+  @override
   Future<void> deleteDocument(String path) async {
     final file = File(path);
     if (await file.exists()) await file.delete();
   }
 
   /// 重命名：仅替换正文首个 `# H1`，路径（uuid）不变。
+  @override
   Future<void> renameDocument(String path, String newTitle) async {
     final file = File(path);
     final raw = decodeBytesAuto(await file.readAsBytes());
@@ -265,5 +250,27 @@ class FileRepository {
       }
     }
     return '# $newTitle\n\n$body';
+  }
+}
+
+/// 原子写：先写 `<path>.tmp`，落盘后（删除旧目标）rename 到最终路径。
+///
+/// 避免进程崩溃 / 写入中断时留下半截 `.md`。Windows 上 `rename`
+/// 不能直接覆盖已存在文件，故先删除旧目标再 rename。
+Future<void> atomicWrite(File file, String content) async {
+  final dir = file.parent;
+  await dir.create(recursive: true);
+  final tmp = File('${file.path}.tmp');
+  try {
+    await tmp.writeAsString(content, flush: true);
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await tmp.rename(file.path);
+  } catch (e) {
+    try {
+      if (await tmp.exists()) await tmp.delete();
+    } catch (_) {}
+    rethrow;
   }
 }

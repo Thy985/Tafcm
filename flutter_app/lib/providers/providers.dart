@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/document.dart';
-import '../../core/services/file_repository.dart';
+import 'file_repository_provider.dart';
 
 // ============ SharedPreferences ============
 
@@ -36,7 +36,7 @@ final documentsProvider = StateNotifierProvider<DocumentsNotifier, AsyncValue<Li
 });
 
 class DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>> {
-  final FileRepository _repo;
+  final DocumentRepository _repo;
 
   DocumentsNotifier(this._repo) : super(const AsyncValue.loading()) {
     loadDocuments();
