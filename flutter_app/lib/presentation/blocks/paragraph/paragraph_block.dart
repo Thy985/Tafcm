@@ -86,7 +86,7 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           ),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: _buildInlineSpans(widget.element.children),
+        child: _buildInlineSpans(widget.element.children, context),
       ),
     );
   }
@@ -94,33 +94,36 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   /// 把 [InlineElement] 列表渲染为 [Text.rich]，支持 bold / italic / code / formula。
   ///
   /// **Phase 3.0 简化实现**：仅渲染基本 inline 类型，复杂嵌套留到 Phase 3.2+。
-  Widget _buildInlineSpans(List<InlineElement> children) {
-    final span = _buildInlineList(children, const TextStyle(fontSize: 16));
+  Widget _buildInlineSpans(List<InlineElement> children, BuildContext context) {
+    final span = _buildInlineList(children, const TextStyle(fontSize: 16), context);
     return Text.rich(span);
   }
 
   InlineSpan _buildInlineList(
-      List<InlineElement> children, TextStyle baseStyle) {
+      List<InlineElement> children, TextStyle baseStyle, BuildContext context) {
     return TextSpan(
       style: baseStyle,
-      children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+      children: children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
     );
   }
 
-  InlineSpan _buildInlineSpan(InlineElement element, TextStyle baseStyle) {
+  InlineSpan _buildInlineSpan(InlineElement element, TextStyle baseStyle, BuildContext context) {
     return switch (element) {
       TextElement(:final text) => TextSpan(text: text, style: baseStyle),
       BoldElement(:final children) => TextSpan(
           style: baseStyle.copyWith(fontWeight: FontWeight.bold),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       ItalicElement(:final children) => TextSpan(
           style: baseStyle.copyWith(fontStyle: FontStyle.italic),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       StrikethroughElement(:final children) => TextSpan(
           style: baseStyle.copyWith(decoration: TextDecoration.lineThrough),
-          children: children.map((e) => _buildInlineSpan(e, baseStyle)).toList(),
+          children:
+              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
         ),
       InlineCodeElement(:final code) => TextSpan(
           text: code,
@@ -147,7 +150,7 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
       ImageElement(:final alt) => TextSpan(
           text: '[图片: $alt]',
           style: baseStyle.copyWith(
-            color: EditorTokens.textSecondary,
+            color: EditorTokens.of(context).textSecondary,
             fontStyle: FontStyle.italic,
           ),
         ),

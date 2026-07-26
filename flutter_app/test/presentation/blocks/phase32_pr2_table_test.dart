@@ -67,9 +67,10 @@ void main() {
 
       // 边框颜色
       expect(
-        content.contains('EditorTokens.tableBorderColor'),
+        content.contains('EditorTokens.of(context).tableBorderColor'),
         isTrue,
-        reason: 'TableBlock 边框颜色必须使用 EditorTokens.tableBorderColor',
+        reason: 'TableBlock 边框颜色必须使用 EditorTokens.of(context).tableBorderColor'
+            '（ADR-0015）',
       );
       expect(
         content.contains('Colors.grey.shade300'),
@@ -78,9 +79,10 @@ void main() {
       );
       // 表头背景
       expect(
-        content.contains('EditorTokens.tableHeaderBackground'),
+        content.contains('EditorTokens.of(context).tableHeaderBackground'),
         isTrue,
-        reason: 'TableBlock 表头背景必须使用 EditorTokens.tableHeaderBackground',
+        reason: 'TableBlock 表头背景必须使用 EditorTokens.of(context).tableHeaderBackground'
+            '（ADR-0015）',
       );
       expect(
         content.contains('Colors.grey.shade100'),

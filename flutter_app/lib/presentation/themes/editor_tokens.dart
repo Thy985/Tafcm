@@ -1,63 +1,180 @@
-/// EditorTokens：主题 token（Phase 3.0 仅占位，不实现切换）。
+/// EditorTokens：主题 token（Phase 3.4 Slice 3 / ADR-0015 ThemeExtension 迁移）。
 ///
-/// 落地 Phase 3.0 Task Contract §3.1（themes/ 目录）+ §3.5（UI Design Reference）。
+/// 落地 ADR-0015：颜色 token 随主题变化，作为 [ThemeExtension] 实例字段，
+/// 经 [EditorTokens.of] 在运行时按当前 [ThemeData] 注入的实例取值
+/// （light / dark / sepia 三套，见 [AppTheme]）。
 ///
-/// **Phase 3.0 职责**：
-/// - 提供颜色 / 间距 / 字号 / 圆角等常量 token
-/// - 供 chrome/ / blocks/ / panels/ 引用，避免硬编码 magic number
-///
-/// **不实现**（Phase 3.9+）：
-/// - 主题切换（light / dark / sepia）
-/// - 用户字号缩放（0.8x / 1.0x / 1.2x）
-/// - 自定义 accent color
-///
-/// **设计参考**：Material Design 3 type scale + Apple HIG spacing。
+/// **两类 token**：
+/// - 主题相关颜色：实例字段（textPrimary / codeBackground / …），必须经由
+///   [EditorTokens.of] 取，禁止静态访问（架构守门 TC-THEME）。
+/// - 主题无关常量：保持 `static const`（布局间距 / 字号 / 圆角 / 状态栏）。
+/// - 行内 [TextSpan] 的 [linkColor]：TextSpan 无法运行时取 BuildContext，
+///   按 ADR-0015 留作已知边界（Issue `wontfix` + `phase-3.4-typography`），
+///   保持 `static const`。
 library;
 
 import 'package:flutter/material.dart';
 
-/// 编辑器主题 token（Phase 3.0 仅占位常量）。
+/// 编辑器主题 token（Phase 3.4 Slice 3 / ADR-0015）。
 ///
-/// 所有 UI 组件应优先使用 [EditorTokens] 而非硬编码值，
-/// 便于 Phase 3.9+ 接入主题切换。
-class EditorTokens {
-  const EditorTokens._();
+/// 所有 UI 组件应优先使用 [EditorTokens.of] 而非硬编码值，便于主题切换。
+class EditorTokens extends ThemeExtension<EditorTokens> {
+  const EditorTokens({
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.borderFocused,
+    required this.borderDefault,
+    required this.codeBackground,
+    required this.codeLanguageChip,
+    required this.quoteBorderColor,
+    required this.tableBorderColor,
+    required this.tableHeaderBackground,
+  });
 
-  // ============ 颜色（Phase 3.0 占位，Phase 3.9+ 接入主题） ============
+  // ============ 主题相关颜色（实例字段，经 of(context) 取值） ============
 
-  /// 主文本颜色（light 模式）。
-  static const Color textPrimary = Color(0xFF1A1A1A);
+  /// 主文本颜色。
+  final Color textPrimary;
 
   /// 次要文本颜色（标注、占位）。
-  static const Color textSecondary = Color(0xFF6B6B6B);
+  final Color textSecondary;
 
   /// 编辑态边框颜色（聚焦时）。
-  static const Color borderFocused = Color(0xFF2196F3);
+  final Color borderFocused;
 
-  /// 渲染态边框颜色（hover / 默认）。
-  static const Color borderDefault = Color(0xFFE0E0E0);
+  /// 渲染态边框颜色（默认）。
+  final Color borderDefault;
 
   /// 代码块背景色。
-  static const Color codeBackground = Color(0xFFF5F5F5);
+  final Color codeBackground;
 
   /// 代码块 language chip 颜色。
-  static const Color codeLanguageChip = Color(0xFFE0E0E0);
+  final Color codeLanguageChip;
 
-  /// 引用块左侧竖线颜色（Phase 3.2 §3.4 QuoteBlock）。
-  static const Color quoteBorderColor = Color(0xFFC0C0C0);
+  /// 引用块左侧竖线颜色。
+  final Color quoteBorderColor;
 
-  /// 表格边框颜色（Phase 3.2 §3.5 TableBlock）。
-  static const Color tableBorderColor = Color(0xFFE0E0E0);
+  /// 表格边框颜色。
+  final Color tableBorderColor;
 
-  /// 表格表头背景色（Phase 3.2 §3.5 TableBlock）。
-  static const Color tableHeaderBackground = Color(0xFFF5F5F5);
+  /// 表格表头背景色。
+  final Color tableHeaderBackground;
+
+  /// 浅色主题实例。
+  static const EditorTokens light = EditorTokens(
+    textPrimary: Color(0xFF1A1A1A),
+    textSecondary: Color(0xFF6B6B6B),
+    borderFocused: Color(0xFF2196F3),
+    borderDefault: Color(0xFFE0E0E0),
+    codeBackground: Color(0xFFF5F5F5),
+    codeLanguageChip: Color(0xFFE0E0E0),
+    quoteBorderColor: Color(0xFFC0C0C0),
+    tableBorderColor: Color(0xFFE0E0E0),
+    tableHeaderBackground: Color(0xFFF5F5F5),
+  );
+
+  /// 夜间主题实例。
+  static const EditorTokens dark = EditorTokens(
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFFB0B0B0),
+    borderFocused: Color(0xFF4080FF),
+    borderDefault: Color(0xFF3A3A3A),
+    codeBackground: Color(0xFF2A2A2A),
+    codeLanguageChip: Color(0xFF3A3A3A),
+    quoteBorderColor: Color(0xFF555555),
+    tableBorderColor: Color(0xFF3A3A3A),
+    tableHeaderBackground: Color(0xFF2A2A2A),
+  );
+
+  /// 护眼(sepia)主题实例。
+  static const EditorTokens sepia = EditorTokens(
+    textPrimary: Color(0xFF403020),
+    textSecondary: Color(0xFF7A6A55),
+    borderFocused: Color(0xFF9C7A4D),
+    borderDefault: Color(0xFFD8C9B0),
+    codeBackground: Color(0xFFEDE3D0),
+    codeLanguageChip: Color(0xFFD8C9B0),
+    quoteBorderColor: Color(0xFFBBA583),
+    tableBorderColor: Color(0xFFD8C9B0),
+    tableHeaderBackground: Color(0xFFEDE3D0),
+  );
+
+  /// 运行时按当前 [ThemeData] 注入的实例取值。
+  ///
+  /// 要求当前 [ThemeData] 已通过 `extensions: [EditorTokens.xxx]` 注入
+  /// （见 [AppTheme]），否则抛 [FlutterError] 并给出明确修复指引
+  /// （而非泛化的 "Null check operator used on a null value"）。
+  static EditorTokens of(BuildContext context) {
+    final tokens = Theme.of(context).extension<EditorTokens>();
+    assert(() {
+      if (tokens == null) {
+        throw FlutterError(
+          'EditorTokens 未注入当前 ThemeData。\n'
+          '请在 ThemeData(extensions: [EditorTokens.xxx]) 中注入（见 AppTheme）。',
+        );
+      }
+      return true;
+    }());
+    return tokens!;
+  }
+
+  @override
+  EditorTokens copyWith({
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? borderFocused,
+    Color? borderDefault,
+    Color? codeBackground,
+    Color? codeLanguageChip,
+    Color? quoteBorderColor,
+    Color? tableBorderColor,
+    Color? tableHeaderBackground,
+  }) {
+    return EditorTokens(
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      borderFocused: borderFocused ?? this.borderFocused,
+      borderDefault: borderDefault ?? this.borderDefault,
+      codeBackground: codeBackground ?? this.codeBackground,
+      codeLanguageChip: codeLanguageChip ?? this.codeLanguageChip,
+      quoteBorderColor: quoteBorderColor ?? this.quoteBorderColor,
+      tableBorderColor: tableBorderColor ?? this.tableBorderColor,
+      tableHeaderBackground: tableHeaderBackground ?? this.tableHeaderBackground,
+    );
+  }
+
+  @override
+  EditorTokens lerp(ThemeExtension<EditorTokens>? other, double t) {
+    if (other is! EditorTokens) return this;
+    return EditorTokens(
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t) ?? textPrimary,
+      textSecondary:
+          Color.lerp(textSecondary, other.textSecondary, t) ?? textSecondary,
+      borderFocused:
+          Color.lerp(borderFocused, other.borderFocused, t) ?? borderFocused,
+      borderDefault:
+          Color.lerp(borderDefault, other.borderDefault, t) ?? borderDefault,
+      codeBackground:
+          Color.lerp(codeBackground, other.codeBackground, t) ?? codeBackground,
+      codeLanguageChip: Color.lerp(codeLanguageChip, other.codeLanguageChip, t) ??
+          codeLanguageChip,
+      quoteBorderColor: Color.lerp(quoteBorderColor, other.quoteBorderColor, t) ??
+          quoteBorderColor,
+      tableBorderColor: Color.lerp(tableBorderColor, other.tableBorderColor, t) ??
+          tableBorderColor,
+      tableHeaderBackground:
+          Color.lerp(tableHeaderBackground, other.tableHeaderBackground, t) ??
+              tableHeaderBackground,
+    );
+  }
+
+  // ============ 主题无关常量（保持 static const，ADR-0015 边界） ============
 
   /// 行内链接颜色（Phase 3.2 §3.7 LinkElement inline rendering）。
   ///
-  /// 注：与 [ThemeData.colorScheme.primary] 的关系——
-  /// 此 token 用于 ParagraphBlock 的 inline TextSpan（TextSpan 不支持
-  /// 运行时 Theme.of(context) 查找,需要编译时常量）。
-  /// Phase 3.9+ 主题切换时此 token 将改为 Theme 驱动。
+  /// 注：用于 ParagraphBlock 的 inline [TextSpan]，TextSpan 不支持运行时
+  /// [Theme.of] 查找，需编译时常量。按 ADR-0015 留作已知边界
+  /// （Issue `wontfix` + `phase-3.4-typography`），不随主题切换。
   static const Color linkColor = Color(0xFF2196F3);
 
   // ============ 间距 ============
@@ -82,7 +199,7 @@ class EditorTokens {
   /// 代码字号。
   static const double codeFontSize = 14.0;
 
-  /// 表格单元格字号（Phase 3.2 §3.5 TableBlock,与 code 字号一致但语义独立）。
+  /// 表格单元格字号（与 code 字号一致但语义独立）。
   static const double tableCellFontSize = 14.0;
 
   /// 状态栏字号。

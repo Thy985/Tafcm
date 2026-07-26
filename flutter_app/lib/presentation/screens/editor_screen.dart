@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:async';
-import '../../core/constants/app_constants.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/providers.dart' as providers;
@@ -12,6 +11,7 @@ import '../../domain/services/export_service.dart';
 import '../../core/services/formula_pdf_renderer.dart';
 import '../../core/services/formula_svg_service.dart';
 import '../../core/services/mermaid_service.dart';
+import '../../presentation/theme/app_theme.dart';
 import '../../providers/editor_providers.dart';
 import '../widgets/markdown_input_field.dart';
 import '../widgets/editor_bottom_bar.dart';
@@ -344,15 +344,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   Widget build(BuildContext context) {
     final isPreview = ref.watch(previewModeProvider);
-    final isDark = ref.watch(darkModeProvider);
+    final mode = ref.watch(themeModeProvider);
+    final isDark = mode.isDark;
     final isExporting = ref.watch(isExportingProvider);
-    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final appBarBg = isDark ? AppColors.darkSurface : Colors.white;
 
     return Scaffold(
-      appBar: _buildAppBar(appBarBg, isDark),
+      appBar: _buildAppBar(mode),
       body: Container(
-        color: bg,
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(
           children: [
             Expanded(
@@ -378,7 +377,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  AppBar _buildAppBar(Color appBarBg, bool isDark) {
+  AppBar _buildAppBar(AppThemeMode mode) {
     return AppBar(
       title: const Text(
         'FormulaFix',
@@ -386,8 +385,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         softWrap: false,
         style: TextStyle(fontWeight: FontWeight.w600),
       ),
-      backgroundColor: appBarBg,
-      foregroundColor: isDark ? Colors.white : Colors.black,
+      backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+      foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
       elevation: 0,
       titleSpacing: 8,
       actions: [
@@ -415,7 +414,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 _saveToFile();
                 break;
               case 'theme':
-                ref.read(darkModeProvider.notifier).toggle();
+                ref.read(themeModeProvider.notifier).cycle();
                 break;
             }
           },
@@ -445,11 +444,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               child: Row(
                 children: [
                   Icon(
-                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    switch (mode) {
+                      AppThemeMode.light => Icons.light_mode_outlined,
+                      AppThemeMode.dark => Icons.dark_mode_outlined,
+                      AppThemeMode.sepia => Icons.brightness_medium,
+                    },
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(isDark ? '浅色模式' : '深色模式'),
+                  Text(
+                    switch (mode) {
+                      AppThemeMode.light => '浅色模式',
+                      AppThemeMode.dark => '深色模式',
+                      AppThemeMode.sepia => '护眼模式',
+                    },
+                  ),
                 ],
               ),
             ),

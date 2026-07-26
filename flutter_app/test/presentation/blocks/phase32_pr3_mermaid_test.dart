@@ -43,9 +43,10 @@ void main() {
       final content = file.readAsStringSync();
 
       expect(
-        content.contains('EditorTokens.codeBackground'),
+        content.contains('EditorTokens.of(context).codeBackground'),
         isTrue,
-        reason: 'MermaidBlock 背景必须使用 EditorTokens.codeBackground',
+        reason: 'MermaidBlock 背景必须使用 EditorTokens.of(context).codeBackground'
+            '（ADR-0015）',
       );
       expect(
         content.contains('EditorTokens.codeFontSize'),
