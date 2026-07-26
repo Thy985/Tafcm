@@ -48,6 +48,15 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开文件树侧栏的回调（Phase 3.4.2）。
   final VoidCallback? onOpenFileTree;
 
+  /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
+  ///
+  /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
+  /// chrome/ 保持 Riverpod-free，主题状态由 [EditorPage] 从 provider 透传。
+  final AppThemeMode themeMode;
+
+  /// 循环切换主题的回调（Phase 3.4.3：light → dark → sepia → light）。
+  final VoidCallback? onCycleTheme;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -57,6 +66,8 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onToggleFocus,
     this.onOpenToc,
     this.onOpenFileTree,
+    this.themeMode = AppThemeMode.light,
+    this.onCycleTheme,
   });
 
   @override

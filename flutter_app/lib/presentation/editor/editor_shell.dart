@@ -67,11 +67,27 @@ class EditorShell extends ConsumerStatefulWidget {
   /// 点击文件树某文档的回调（参数为该文档路径），由 EditorPage 负责打开 / 持久化。
   final ValueChanged<String>? onOpenFile;
 
+  /// 当前主题模式（Phase 3.4.3：由 [EditorPage] 从 provider 透传给 AppBar 切换按钮）。
+  final AppThemeMode themeMode;
+
+  /// 循环切换主题的回调（Phase 3.4.3：light → dark → sepia → light）。
+  final VoidCallback? onCycleTheme;
+
+  /// 文档存储基目录（ADR-0014）。非空时本地图片用 [Image.file] 渲染。
+  final String? baseDir;
+
+  /// 图片「选择 + 导入」注入点（ADR-0014，由 [EditorPage] 从 provider 解析后透传）。
+  final ImagePickAndImport? pickImage;
+
   const EditorShell({
     super.key,
     required this.coordinator,
     this.currentPath,
     this.onOpenFile,
+    this.themeMode = AppThemeMode.light,
+    this.onCycleTheme,
+    this.baseDir,
+    this.pickImage,
   });
 
   @override
@@ -172,6 +188,8 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               onToggleFocus: _toggleFocus,
               onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
               onOpenFileTree: _toggleFileTree,
+              themeMode: widget.themeMode,
+              onCycleTheme: widget.onCycleTheme,
             ),
       body: Column(
         children: [
@@ -219,6 +237,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                         coordinator: coordinator,
                         scrollController: _scrollController,
                         blockKeys: _blockKeys,
+                        baseDir: widget.baseDir,
                       ),
                     ),
                   ),

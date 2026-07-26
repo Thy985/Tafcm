@@ -22,6 +22,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/editing/editor_history.dart';
 import '../../core/parser/markdown_parser.dart';
+import '../../providers/asset_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../../providers/file_repository_provider.dart';
@@ -185,6 +186,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
     // notifyListeners() 时，触发 EditorShell 重建。
     final currentPath = ref.watch(currentPathProvider);
+    // Phase 3.4.3 / ADR-0015：主题模式从 provider 读取，透传给 EditorShell → EditorAppBar。
+    // chrome/ 保持 Riverpod-free，主题状态在此（唯一持 ref 的层）解析后向下传递。
+    // 主题切换会由 main.dart（watch themeModeProvider）触发整个 MaterialApp 重建，
+    // 故此处 watch 拿到的 mode 始终最新，切换按钮图标随之更新。
+    final mode = ref.watch(themeModeProvider);
+    // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
+    // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
+    final baseDir = ref.watch(docsDirProvider).value;
     return EditorScope(
       coordinator: _coordinator,
       child: AnimatedBuilder(
@@ -193,6 +202,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           coordinator: _coordinator,
           currentPath: currentPath,
           onOpenFile: _openFile,
+          themeMode: mode,
+          onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
+          baseDir: baseDir,
+          // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
+          // chrome 层不直接 import core/services。
+          pickImage: ref.read(imagePickAndImportProvider),
         ),
       ),
     );

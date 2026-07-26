@@ -7,7 +7,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'providers.dart' show sharedPreferencesProvider;
+import 'editor_providers.dart' show sharedPreferencesProvider;
 
 /// SharedPreferences 键：上次打开的 .md 文件路径。
 const String kLastOpenedPathPrefKey = 'formulafix.lastOpenedPath';
