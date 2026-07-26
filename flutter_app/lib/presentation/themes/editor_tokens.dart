@@ -102,9 +102,21 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 运行时按当前 [ThemeData] 注入的实例取值。
   ///
   /// 要求当前 [ThemeData] 已通过 `extensions: [EditorTokens.xxx]` 注入
-  /// （见 [AppTheme]），否则断言失败。
-  static EditorTokens of(BuildContext context) =>
-      Theme.of(context).extension<EditorTokens>()!;
+  /// （见 [AppTheme]），否则抛 [FlutterError] 并给出明确修复指引
+  /// （而非泛化的 "Null check operator used on a null value"）。
+  static EditorTokens of(BuildContext context) {
+    final tokens = Theme.of(context).extension<EditorTokens>();
+    assert(() {
+      if (tokens == null) {
+        throw FlutterError(
+          'EditorTokens 未注入当前 ThemeData。\n'
+          '请在 ThemeData(extensions: [EditorTokens.xxx]) 中注入（见 AppTheme）。',
+        );
+      }
+      return true;
+    }());
+    return tokens!;
+  }
 
   @override
   EditorTokens copyWith({

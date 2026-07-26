@@ -22,7 +22,13 @@ class ThemeModeNotifier extends StateNotifier<AppThemeMode> {
   static const _key = 'pref_theme_mode';
   static const _legacyKey = 'pref_dark_mode';
 
-  ThemeModeNotifier(this._prefs) : super(_initial(_prefs));
+  ThemeModeNotifier(this._prefs) : super(_initial(_prefs)) {
+    // 迁移成功后清理废弃键，避免每次冷启动都读取旧值。
+    // 仅在键仍存在时移除，避免无意义的写盘。
+    if (_prefs?.containsKey(_legacyKey) ?? false) {
+      _prefs!.remove(_legacyKey);
+    }
+  }
 
   static AppThemeMode _initial(SharedPreferences? prefs) {
     // 兼容迁移：旧版仅存 dark 布尔。
