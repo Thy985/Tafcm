@@ -44,6 +44,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
   final VoidCallback? onOpenToc;
 
+  /// 打开文件树侧栏的回调（Phase 3.4.2）。
+  final VoidCallback? onOpenFileTree;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -52,6 +55,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.focusMode = false,
     this.onToggleFocus,
     this.onOpenToc,
+    this.onOpenFileTree,
   });
 
   @override
@@ -84,6 +88,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => _onBack(context),
       ),
       actions: [
+        // Phase 3.4.2：文件树侧栏开关（VS Code Mobile 风格：默认隐藏，☰ 触发）
+        IconButton(
+          icon: const Icon(Icons.folder_open),
+          tooltip: '文件树',
+          onPressed: onOpenFileTree,
+        ),
         // Phase 3.4.1：目录（大纲）抽屉开关
         IconButton(
           icon: const Icon(Icons.list_alt),

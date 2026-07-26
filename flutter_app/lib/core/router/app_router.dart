@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
+import '../../providers/last_opened_path_provider.dart';
 
 /// 应用路由表。
 ///
@@ -16,9 +18,15 @@ import '../../core/constants/app_constants.dart';
 /// 旧 UI 代码保留一个 release 周期，收集用户反馈后再决定是否完全删除
 /// （按 [phase3.1-task-contract.md v2.0 §3.4](../../docs/contracts/phase3.1-task-contract.md)）。
 final appRouter = GoRouter(
-  initialLocation: '/files',
+  // Phase 3.4.2：启动先经 BootstrapScreen 决定恢复上次文件还是进入文件管理页。
+  initialLocation: '/',
   errorBuilder: (context, state) => _ErrorScreen(error: state.error?.toString()),
   routes: [
+    // Phase 3.4.2：启动引导——读取"上次打开文件"偏好，恢复或进入 /files。
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const BootstrapScreen(),
+    ),
     GoRoute(
       path: '/files',
       builder: (context, state) => const FileManagerScreen(),
@@ -27,12 +35,14 @@ final appRouter = GoRouter(
       path: '/documents',
       builder: (context, state) => const DocumentListScreen(),
     ),
-    // Phase 3.1-A PR #2：默认入口指向新 EditorPage（production 路径）
+    // Phase 3.1-A PR #2：默认入口指向新 EditorPage（production 路径）。
+    // Phase 3.4.2：支持 ?path=<encoded> 打开真实 .md 文件（文件树 / 重启恢复传入）。
     GoRoute(
       path: '/editor',
       builder: (context, state) {
-        final seedSelector = state.extra as int?;
-        return EditorPage(seedSelector: seedSelector ?? 0);
+        final path = state.uri.queryParameters['path'];
+        final seedSelector = state.extra is int ? state.extra as int : 0;
+        return EditorPage(filePath: path, seedSelector: seedSelector);
       },
     ),
     // Phase 3.1-A PR #2：旧 EditorScreen 作为 fallback 路由（迁移期保留）
@@ -99,6 +109,35 @@ class _ErrorScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 启动引导屏（Phase 3.4.2）。
+///
+/// 读取"上次打开文件"偏好（[kLastOpenedPathPrefKey]），若有效则恢复到该文件
+/// （满足契约链3 强制"打开文件一致"），否则进入 /files 文件管理页。
+/// 仅作一次性路由决策，不含业务状态。
+class BootstrapScreen extends StatelessWidget {
+  const BootstrapScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<SharedPreferences>(
+      future: SharedPreferences.getInstance(),
+      builder: (context, snap) {
+        if (snap.hasData) {
+          final last = snap.data!.getString(kLastOpenedPathPrefKey);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (last != null && last.isNotEmpty) {
+              context.go('/editor?path=${Uri.encodeComponent(last)}');
+            } else {
+              context.go('/files');
+            }
+          });
+        }
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      },
     );
   }
 }

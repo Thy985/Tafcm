@@ -18,10 +18,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/editing/editor_history.dart';
+import '../../core/parser/markdown_parser.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/file_repository_provider.dart';
+import '../../providers/last_opened_path_provider.dart';
 import 'autosave_service.dart';
 import 'editor_coordinator.dart';
 import 'editor_scope.dart';
@@ -31,15 +34,19 @@ import 'seed_documents.dart';
 
 /// Phase 3.0 顶层编辑器页面（Route 入口）。
 ///
-/// 通过 [seedSelector] 选择种子文档（0/1/2 对应 demo1/demo2/demo3）。
+/// - [filePath]：打开的真实 .md 文件路径（Phase 3.4.2 文件树）。非空时加载该文件；
+///   为空时回退 [seedSelector] 演示文档。
+/// - [seedSelector]：种子文档（0 = demo1, 1 = demo2, 2 = demo3），仅当 [filePath] 为 null 时生效。
 class EditorPage extends ConsumerStatefulWidget {
+  /// 打开的真实 .md 文件路径（文件树 / 重启恢复传入）。null = 演示文档。
+  final String? filePath;
+
   /// 选择种子文档（0 = demo1, 1 = demo2, 2 = demo3）。
-  ///
-  /// 默认 0。Phase 3.1+ 接入真实 .md 文件时，此参数替换为文件路径。
   final int seedSelector;
 
   const EditorPage({
     super.key,
+    this.filePath,
     this.seedSelector = 0,
   });
 
@@ -51,15 +58,54 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late final EditorCoordinator _coordinator;
   AutosaveService? _autosave;
 
+  /// 文档是否就绪（文件异步加载完成前显示加载态）。
+  bool _ready = false;
+
   @override
   void initState() {
     super.initState();
-    final editor = _buildSeedEditor(widget.seedSelector);
+    if (widget.filePath != null) {
+      // Phase 3.4.2：接入真实 .md 路径（ADR-0016 / Slice6），激活自动保存落盘。
+      ref.read(currentPathProvider.notifier).state = widget.filePath;
+      _loadFromFile(widget.filePath!);
+    } else {
+      _initSeed(widget.seedSelector);
+      _ready = true;
+    }
+  }
+
+  /// 构造种子 [InMemoryDocumentEditor] 并启动自动保存（演示 / 回退路径）。
+  void _initSeed(int selector) {
+    final editor = _buildSeedEditor(selector);
     final history = EditorHistory(maxHistorySize: 200);
     _coordinator = EditorCoordinator(editor: editor, history: history);
+    _startAutosave();
+  }
 
-    // ADR-0013：自动保存服务（显式 DI，无全局单例）。
-    // source = Coordinator（实现 DirtyStateSource）；save = 落盘回调（仅当存在可写路径）。
+  /// 异步加载真实 .md 文件（Phase 3.4.2）。
+  ///
+  /// 经 [DocumentRepository.readDocument] 读取 → [MarkdownParser.parse] 解析为块 →
+  /// 构造 [InMemoryDocumentEditor]。失败则回退种子文档（不阻断编辑器）。
+  Future<void> _loadFromFile(String path) async {
+    try {
+      final repo = ref.read(fileRepositoryProvider);
+      final doc = await repo.readDocument(path);
+      final elements = MarkdownParser.parse(doc.content);
+      final editor = InMemoryDocumentEditor(title: doc.title);
+      for (final element in elements) {
+        editor.insertBlock(editor.blockCount, element);
+      }
+      _coordinator = EditorCoordinator(editor: editor, history: EditorHistory(maxHistorySize: 200));
+      _startAutosave();
+    } catch (_) {
+      _initSeed(widget.seedSelector);
+    } finally {
+      if (mounted) setState(() => _ready = true);
+    }
+  }
+
+  /// 启动自动保存（ADR-0013：显式 DI，无全局单例）。
+  void _startAutosave() {
     _autosave = AutosaveService(
       source: _coordinator,
       save: _saveDocument,
@@ -122,15 +168,30 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     // 用 AnimatedBuilder 监听 ChangeNotifier（_coordinator）变化，
     // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
     // notifyListeners() 时，触发 EditorShell 重建。
+    final currentPath = ref.watch(currentPathProvider);
     return EditorScope(
       coordinator: _coordinator,
       child: AnimatedBuilder(
         animation: _coordinator,
-        builder: (context, _) => EditorShell(coordinator: _coordinator),
+        builder: (context, _) => EditorShell(
+          coordinator: _coordinator,
+          currentPath: currentPath,
+          onOpenFile: _openFile,
+        ),
       ),
     );
+  }
+
+  /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
+  /// 并导航到该文件（替换当前编辑器路由，FileTreePanel 随旧 EditorPage 一并销毁）。
+  void _openFile(String path) {
+    ref.read(lastOpenedPathProvider.notifier).set(path);
+    context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 }
