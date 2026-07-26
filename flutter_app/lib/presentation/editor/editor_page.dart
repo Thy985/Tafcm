@@ -113,6 +113,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   @override
   void dispose() {
     _autosave?.stop();
+    // ADR-0013：释放 DirtyStateTracker 的 StreamController（Level 3 评审 R1）。
+    _coordinator.dispose();
     // Phase 3.0：InMemoryDocumentEditor / EditorHistory 持有的是纯内存数据，
     // 无需显式释放。Phase 3.1+ 接入真实 .md 文件时需补充资源清理。
     super.dispose();
