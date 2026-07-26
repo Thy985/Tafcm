@@ -62,12 +62,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 文档是否就绪（文件异步加载完成前显示加载态）。
   bool _ready = false;
 
+  /// [_coordinator] 是否已初始化（异步加载完成前可能尚未赋值，dispose 时需守卫，
+  /// 避免 LateInitializationError：用户在加载完成前导航离开）。
+  bool _coordinatorReady = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.filePath != null) {
       // Phase 3.4.2：接入真实 .md 路径（ADR-0016 / Slice6），激活自动保存落盘。
-      ref.read(currentPathProvider.notifier).state = widget.filePath;
       _loadFromFile(widget.filePath!);
     } else {
       _initSeed(widget.seedSelector);
@@ -80,6 +83,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final editor = _buildSeedEditor(selector);
     final history = EditorHistory(maxHistorySize: 200);
     _coordinator = EditorCoordinator(editor: editor, history: history);
+    _coordinatorReady = true;
     _startAutosave();
   }
 
@@ -91,12 +95,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     try {
       final repo = ref.read(fileRepositoryProvider);
       final doc = await repo.readDocument(path);
+      // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改 provider）。
+      ref.read(currentPathProvider.notifier).state = path;
       final elements = MarkdownParser.parse(doc.content);
       final editor = InMemoryDocumentEditor(title: doc.title);
       for (final element in elements) {
         editor.insertBlock(editor.blockCount, element);
       }
       _coordinator = EditorCoordinator(editor: editor, history: EditorHistory(maxHistorySize: 200));
+      _coordinatorReady = true;
       _startAutosave();
     } catch (_) {
       _initSeed(widget.seedSelector);
@@ -161,7 +168,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   void dispose() {
     _autosave?.stop();
     // ADR-0013：释放 DirtyStateTracker 的 StreamController（Level 3 评审 R1）。
-    _coordinator.dispose();
+    // [_coordinator] 可能尚未初始化（异步加载完成前已 dispose），需守卫避免
+    // LateInitializationError。
+    if (_coordinatorReady) _coordinator.dispose();
     // Phase 3.0：InMemoryDocumentEditor / EditorHistory 持有的是纯内存数据，
     // 无需显式释放。Phase 3.1+ 接入真实 .md 文件时需补充资源清理。
     super.dispose();

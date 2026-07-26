@@ -112,9 +112,20 @@ class _EditorShellState extends ConsumerState<EditorShell> {
   void _toggleFileTree() => setState(() => _showFileTree = !_showFileTree);
 
   /// 文件树点击：由文档 id 解析路径，转交 [widget.onOpenFile]（EditorPage 负责打开 + 持久化）。
+  ///
+  /// [documentPathFor] 当前实现（[FileRepository]）不抛异常，但 [DocumentRepository]
+  /// 接口未约束"不抛异常"，未来实现（远程仓储等）可能抛。此处兜底，避免点击文件树时
+  /// 因未捕获异常导致整树崩溃。失败时提示用户，不改写 [widget.onOpenFile]。
   Future<void> _openDoc(String id) async {
-    final path = await ref.read(fileRepositoryProvider).documentPathFor(id);
-    widget.onOpenFile?.call(path);
+    try {
+      final path = await ref.read(fileRepositoryProvider).documentPathFor(id);
+      widget.onOpenFile?.call(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开文件失败：$e')),
+      );
+    }
   }
 
   /// TOC 点击条目：聚焦块 + 滚动到可视区 + 关闭抽屉（Phase 3.4.1）。

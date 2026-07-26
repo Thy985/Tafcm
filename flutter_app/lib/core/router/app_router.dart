@@ -126,9 +126,20 @@ class BootstrapScreen extends StatelessWidget {
     return FutureBuilder<SharedPreferences>(
       future: SharedPreferences.getInstance(),
       builder: (context, snap) {
+        if (snap.hasError) {
+          // SharedPreferences 不可用（平台异常等）：兜底进入 /files，
+          // 避免加载 spinner 因 future 永不成功而永久停留。
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) context.go('/files');
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         if (snap.hasData) {
           final last = snap.data!.getString(kLastOpenedPathPrefKey);
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
             if (last != null && last.isNotEmpty) {
               context.go('/editor?path=${Uri.encodeComponent(last)}');
             } else {
@@ -136,7 +147,9 @@ class BootstrapScreen extends StatelessWidget {
             }
           });
         }
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
       },
     );
   }
