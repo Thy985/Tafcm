@@ -19,12 +19,10 @@
 /// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/editing/editor_history.dart';
@@ -175,8 +173,17 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       // 3. 成功：进入 ExportCompletedState。Overlay 显示"已导出 PDF"等。
       notifier.complete(format, bytes);
 
-      // 4. 分享：写临时文件 + 系统 share sheet。
-      await _shareBytes(bytes, format, title);
+      // 4. 分享：写临时文件（domain 层 ExportService.writeBytesToTempFile，
+      // 符合 TC-ARCH-1/2；本方法在 domain/services 路径，受 allowlist）+ 系统 share sheet。
+      final path = await ExportService.writeBytesToTempFile(
+        bytes,
+        format,
+        fileName: title,
+      );
+      await Share.shareXFiles(
+        [XFile(path, mimeType: _mimeFor(format))],
+        subject: path.split('/').last,
+      );
     } catch (e) {
       // 5. 失败：分类 → ExportFailedState。Overlay 显示分类友好文案。
       final info = classifyError(e);
@@ -184,33 +191,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     }
   }
 
-  /// 把导出的字节写入临时文件并调起系统分享。
-  ///
-  /// 与旧 `ExportService.exportAndShare` 行为兼容（同样写 temp + share），
-  /// 但只接受已渲染的字节（避免在 Slice 7 的进度反馈场景下重复调用 exporter）。
-  ///
-  /// 注：当前 share_plus 7.x API 为 `Share.shareXFiles([XFile(path)])`；
-  /// v10+ 才有 `SharePlus.instance.share(ShareParams(...))`。
-  Future<void> _shareBytes(
-    Uint8List bytes,
-    ExportFormat format,
-    String? title,
-  ) async {
-    final ext = switch (format) {
-      ExportFormat.pdf => 'pdf',
-      ExportFormat.docx => 'docx',
-      ExportFormat.txt => 'txt',
-    };
-    final fileName = '${title ?? 'FormulaFix 文档'}.$ext';
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: _mimeFor(format))],
-      subject: fileName,
-    );
-  }
-
+  /// MimeType helper（与 file 扩展名配对）。
   static String _mimeFor(ExportFormat format) => switch (format) {
         ExportFormat.pdf => 'application/pdf',
         ExportFormat.docx =>

@@ -487,6 +487,33 @@ class ExportService {
   static const _shareTimeout = Duration(seconds: 60);
   static const _exportTimeout = Duration(seconds: 120);
 
+  /// 把字节写到临时文件，返回绝对路径。
+  ///
+  /// 由 `ExportService` 持有的原因：domain 层（而非 presentation 层）允许
+  /// 直接 `File()` / `Directory()`，符合 TC-ARCH-1 / TC-ARCH-2 守门
+  /// （presentation 必须经 Repository / Service；本方法所属 `lib/domain/services/`
+  /// 在 allowlist 中，见 `test/architecture/file_access_test.dart`）。
+  ///
+  /// Slice 7 用法：EditorPage 调 [MarkdownExporter.exportToXxx] 获得字节后，
+  /// 调本方法得临时路径，再把路径交给 `Share.shareXFiles([XFile(path)])`。
+  /// 不在 EditorPage 暴露 `File`/`writeAsBytes`（TC-ARCH-1/2）。
+  static Future<String> writeBytesToTempFile(
+    Uint8List bytes,
+    ExportFormat format, {
+    String? fileName,
+  }) async {
+    final ext = switch (format) {
+      ExportFormat.pdf => 'pdf',
+      ExportFormat.docx => 'docx',
+      ExportFormat.txt => 'txt',
+    };
+    final safeName = '${fileName ?? 'FormulaFix 文档'}.$ext';
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$safeName');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
   /// 把 Markdown 导出为目标格式后写临时文件并调起分享。
   ///
   /// [exporter] 是具体的导出函数（通常是一个 MarkdownExporter 静态方法的闭包）。
