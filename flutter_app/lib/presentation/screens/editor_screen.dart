@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:async';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/current_path_provider.dart';
+import '../../providers/asset_provider.dart';
 import '../../providers/providers.dart' as providers;
 import '../../core/services/file_service.dart';
 import '../../domain/services/export_service.dart';
@@ -358,7 +359,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               child: isPreview
                   ? PreviewContent(
                       content: ref.watch(editorContentProvider),
-                      isDark: isDark)
+                      isDark: isDark,
+                      baseDir: ref.watch(docsDirProvider).value,
+                    )
                   : MarkdownInputField(
                       controller: _controller,
                       isDarkMode: isDark,
