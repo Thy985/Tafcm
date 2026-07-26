@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview_platform_interface/flutter_inappwebview_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:formula_fix/main.dart';
 
@@ -36,6 +37,9 @@ class _NoopPlatformInAppWebViewWidget extends PlatformInAppWebViewWidget {
 void main() {
   setUpAll(() {
     InAppWebViewPlatform.instance = _FakeInAppWebViewPlatform();
+    // Phase 3.4.2：BootstrapScreen 启动读取上次打开文件，测试环境需 mock SharedPreferences，
+    // 否则 getInstance() 抛 MissingPluginException 导致启动屏卡在 loading。
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('App smoke test - verifies app can be built',
@@ -46,7 +50,8 @@ void main() {
       ),
     );
 
-    // 初始路由已修正为 /files（文件管理），见 ROADMAP 1.4
+    // Phase 3.4.2：启动经 BootstrapScreen，无上次打开文件时恢复进入 /files（文件管理）。
+    await tester.pumpAndSettle();
     expect(find.text('文件管理'), findsOneWidget);
   });
 }

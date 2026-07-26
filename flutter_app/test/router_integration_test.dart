@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview_platform_interface/flutter_inappwebview_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:formula_fix/main.dart';
 import 'package:formula_fix/presentation/screens/document_list_screen.dart';
 import 'package:formula_fix/presentation/screens/editor_screen.dart';
@@ -35,10 +36,13 @@ class _NoopPlatformInAppWebViewWidget extends PlatformInAppWebViewWidget {
 void main() {
   setUpAll(() {
     InAppWebViewPlatform.instance = _FakeInAppWebViewPlatform();
+    // Phase 3.4.2：BootstrapScreen 启动读取上次打开文件，测试环境需 mock SharedPreferences。
+    SharedPreferences.setMockInitialValues({});
   });
 
-  /// ROADMAP 1.4：初始路由应为文件列表（/files），首屏显示"文件管理"。
-  testWidgets('初始路由为 /files，首屏显示"文件管理"',
+  /// ROADMAP 1.4 + 契约链 3：启动经 BootstrapScreen。无上次打开文件时恢复进入
+  /// 文件列表（/files），首屏显示"文件管理"；有上次文件则恢复到该文件。
+  testWidgets('启动后首屏为 /files，显示"文件管理"',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: FormulaFixApp()),
