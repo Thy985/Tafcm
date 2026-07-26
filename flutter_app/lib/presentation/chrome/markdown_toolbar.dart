@@ -6,52 +6,28 @@
 /// - §2.3 Command Layer 强制（所有修改通过 EditorCommand）
 /// - §2.7.1 selection 强一致读取（onPressed 中重新读取）
 /// - §2.8 CodeBlock 工具栏行为（全部禁用 + 提示）
-/// - §6.3 `+` 模板菜单按钮（8 模板：表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
-/// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,不 import blocks/ / panels/。
+/// - §6.3 `+` 模板菜单按钮（8 模板,子组件与配置见 toolbar_components.dart）
+///
+/// **依赖方向**（Hard Rule 8 + TC-ARCH-3）：chrome/ 通过 [EditorCoordinator]
+/// 接收数据,不 import blocks/ / panels/,也不直接 import core/services/ ——
+/// 图片选择能力经 [MarkdownToolbar.pickImage] 由页面层（providers）注入。
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../core/services/asset_service.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import 'editor_strings.dart';
-import 'templates.dart';
+import 'toolbar_components.dart';
 
-/// 模板菜单项标识（UI 菜单分发用,非业务字符串判断,§2.5.1 Hard Rule）。
-enum _TemplateMenuItem {
-  table,
-  mermaid,
-  codeBlock,
-  taskList,
-  quote,
-  horizontalRule,
-  image,
-  link,
-}
-
-/// 模板配置（label + template + mode + cursorOffset 聚合,消除冗余 switch）。
-typedef _TemplateConfig = ({
-  _TemplateMenuItem item,
-  String label,
-  String template,
-  TemplateInsertMode mode,
-  int cursorOffset,
-});
-
-/// 8 种模板的配置清单（§6.3）。
-const List<_TemplateConfig> _kTemplateConfigs = [
-  (item: _TemplateMenuItem.table, label: EditorStrings.templateMenuTable, template: Templates.tableDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
-  (item: _TemplateMenuItem.mermaid, label: EditorStrings.templateMenuMermaid, template: Templates.mermaidDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
-  (item: _TemplateMenuItem.codeBlock, label: EditorStrings.templateMenuCodeBlock, template: Templates.codeBlockDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
-  (item: _TemplateMenuItem.taskList, label: EditorStrings.templateMenuTaskList, template: Templates.taskListDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
-  (item: _TemplateMenuItem.quote, label: EditorStrings.templateMenuQuote, template: Templates.quoteDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
-  (item: _TemplateMenuItem.horizontalRule, label: EditorStrings.templateMenuHorizontalRule, template: Templates.horizontalRuleDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
-  (item: _TemplateMenuItem.image, label: EditorStrings.templateMenuImage, template: Templates.imageDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
-  (item: _TemplateMenuItem.link, label: EditorStrings.templateMenuLink, template: Templates.linkDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
-];
+/// 图片「选择 + 导入 assets/」函数签名（ADR-0014）。
+///
+/// 返回 Markdown 相对路径（`assets/img_<hash>.<ext>`）；用户取消返回 null。
+/// 生产实现由 providers 层注入（AssetService.pickAndImportImage），
+/// toolbar 不感知 IO 细节（TC-ARCH-3 分层守门）。
+typedef ImagePickAndImport = Future<String?> Function();
 
 /// Markdown 格式工具栏（chrome 组件）。
 ///
@@ -59,14 +35,18 @@ const List<_TemplateConfig> _kTemplateConfigs = [
 /// - `coordinator.focusedId` - 当前聚焦块 ID（null = 无聚焦）
 /// - `coordinator.focusedBlockType` - 聚焦块类型（CodeBlock 时禁用工具栏）
 /// - `coordinator.focusedSelection` - 聚焦块选区（§2.7.1 强一致读取）
-/// - `coordinator.hasSelection` - 是否有非空选区
 class MarkdownToolbar extends StatelessWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
+  /// 图片选择注入点（ADR-0014）。为 null 时图片菜单项回退为纯模板插入
+  /// `![alt](url)`（无文件选择流程,测试环境 / 未接线页面的降级行为）。
+  final ImagePickAndImport? pickImage;
+
   const MarkdownToolbar({
     super.key,
     required this.coordinator,
+    this.pickImage,
   });
 
   @override
@@ -77,7 +57,7 @@ class MarkdownToolbar extends StatelessWidget {
     final hasFocused = coordinator.focusedId != null;
 
     if (isCodeBlock) {
-      return const _DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled);
+      return const DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled);
     }
 
     // ADR-0012 §Editor Context Preservation：模板菜单以「最后聚焦块」为目标，
@@ -90,6 +70,7 @@ class MarkdownToolbar extends StatelessWidget {
       coordinator: coordinator,
       enabled: hasFocused,
       templateEnabled: hasTemplateTarget,
+      pickImage: pickImage,
     );
   }
 }
@@ -102,10 +83,13 @@ class _ToolbarButtons extends StatelessWidget {
   /// 模板菜单是否可用（ADR-0012：基于 lastFocusedId,失焦后仍可插入到最后编辑块）。
   final bool templateEnabled;
 
+  final ImagePickAndImport? pickImage;
+
   const _ToolbarButtons({
     required this.coordinator,
     required this.enabled,
     required this.templateEnabled,
+    required this.pickImage,
   });
 
   @override
@@ -133,7 +117,7 @@ class _ToolbarButtons extends StatelessWidget {
 
   List<Widget> _buildButtons(BuildContext context) {
     return [
-      _FormatButton(
+      FormatButton(
         label: 'B',
         tooltip: EditorStrings.boldTooltip,
         onPressed: enabled
@@ -145,7 +129,7 @@ class _ToolbarButtons extends StatelessWidget {
                 )
             : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'I',
         tooltip: EditorStrings.italicTooltip,
         onPressed: enabled
@@ -157,22 +141,22 @@ class _ToolbarButtons extends StatelessWidget {
                 )
             : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'H1',
         tooltip: EditorStrings.h1Tooltip,
         onPressed: enabled ? () => _handleInsert('# ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'H2',
         tooltip: EditorStrings.h2Tooltip,
         onPressed: enabled ? () => _handleInsert('## ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'H3',
         tooltip: EditorStrings.h3Tooltip,
         onPressed: enabled ? () => _handleInsert('### ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'Code',
         tooltip: EditorStrings.codeTooltip,
         onPressed: enabled
@@ -184,7 +168,7 @@ class _ToolbarButtons extends StatelessWidget {
                 )
             : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'Link',
         tooltip: EditorStrings.linkTooltip,
         onPressed: enabled
@@ -196,29 +180,29 @@ class _ToolbarButtons extends StatelessWidget {
                 )
             : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'Quote',
         tooltip: EditorStrings.quoteTooltip,
         onPressed: enabled ? () => _handleInsert('> ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'OL',
         tooltip: EditorStrings.orderedListTooltip,
         onPressed: enabled ? () => _handleInsert('1. ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'UL',
         tooltip: EditorStrings.unorderedListTooltip,
         onPressed: enabled ? () => _handleInsert('- ') : null,
       ),
-      _FormatButton(
+      FormatButton(
         label: 'Task',
         tooltip: EditorStrings.taskListTooltip,
         onPressed: enabled ? () => _handleInsert('- [ ] ') : null,
       ),
       // §6.3：`+` 模板菜单按钮（PopupMenu,8 模板）
       // ADR-0012：以 templateEnabled（lastFocusedId）为准,失焦后仍可插入。
-      _TemplateMenuButton(
+      TemplateMenuButton(
         enabled: templateEnabled,
         onSelected: templateEnabled ? _handleTemplateSelect : null,
       ),
@@ -284,17 +268,17 @@ class _ToolbarButtons extends StatelessWidget {
 
   /// 处理模板菜单选择（§6.3 + §2.5.1）。
   ///
-  /// 从 [_kTemplateConfigs] 查找配置,构造 [InsertTemplateCommand]。
+  /// 从 [kTemplateConfigs] 查找配置,构造 [InsertTemplateCommand]。
   /// **§2.5.1 Hard Rule**：不解析模板字符串内容,直接使用常量。
   /// **§2.7.1**：强一致读取 selection（仅 insert 模式使用）。
   ///
-  /// 图片项（[Templates.imageDefault]）走异步资源导入流程（[AssetService] +
-  /// [InsertTemplateCommand]），见 [_handleInsertImage]。
-  void _handleTemplateSelect(_TemplateMenuItem item) {
-    if (item == _TemplateMenuItem.image) {
-      // 异步：选图 → 复制到 assets/ → 插入相对路径块。
+  /// 图片项在 [pickImage] 已注入时走异步资源导入流程（ADR-0014，
+  /// 见 [_handleInsertImage]）；未注入时回退纯模板插入 `![alt](url)`。
+  void _handleTemplateSelect(TemplateMenuItem item) {
+    if (item == TemplateMenuItem.image && pickImage != null) {
+      // 异步：选图 → 复制到 assets/ → 插入相对路径。
       // 不 await（onSelected 为 void 回调），用 unawaited 抑制 lint。
-      unawaited(_handleInsertImage());
+      unawaited(_handleInsertImage(pickImage!));
       return;
     }
     // ADR-0012 §Editor Context Preservation：打开模板弹层会抢走编辑器焦点,
@@ -302,7 +286,7 @@ class _ToolbarButtons extends StatelessWidget {
     // 而非实时的（可能已丢失的）focusedId。
     final blockId = coordinator.lastFocusedId;
     if (blockId == null) return;
-    final config = _kTemplateConfigs.firstWhere((c) => c.item == item);
+    final config = kTemplateConfigs.firstWhere((c) => c.item == item);
     // §2.7.1：强一致读取 selection（insert 模式用于计算插入位置）
     final selection = coordinator.focusedSelection;
     coordinator.handle(InsertTemplateCommand(
@@ -314,23 +298,28 @@ class _ToolbarButtons extends StatelessWidget {
     ));
   }
 
-  /// 图片插入（ADR-0014）：从相册 / 文件选择图片 → 复制到文档 assets/ →
-  /// 在当前聚焦块光标处插入 inline 图片 `![](assets/img_<hash>.<ext>)`。
+  /// 图片插入（ADR-0014）：注入的 [pick] 完成「选图 → 复制到 assets/」，
+  /// 本方法在当前聚焦块光标处插入 inline `![](assets/img_<hash>.<ext>)`。
   ///
   /// **为何用 [TemplateInsertMode.insert] 而非 newBlock**：
-  /// newBlock 模式把模板包成单个 [TextElement] 再走 tryTransform，
+  /// newBlock 模式把模板包成单个 TextElement 再走 tryTransform，
   /// 而图片语法是 inline（无对应 BlockType），tryTransform 不会转换，
   /// 导致 Markdown 源以纯文本残留、渲染不出图片。insert 模式改走
-  /// [BlockOperations.updateSource] → [TextOperation] → [toElement] →
-  /// [MarkdownParser.parseInline]，把 `![...](...)` 正确解析为 [ImageElement]，
-  /// 渲染层（ParagraphBlock）即可用 [Image.file] 画出本地图片。
+  /// updateSource → TextOperation → toElement → parseInline，
+  /// 把 `![...](...)` 正确解析为 ImageElement，渲染层即可画出本地图片。
   ///
-  /// 用户取消选择时静默返回（不插入）。文件 IO 在 [AssetService] 内完成，
-  /// 本方法仅负责编排 Command。
-  Future<void> _handleInsertImage() async {
+  /// 用户取消选择时静默返回（不插入）；导入失败（权限 / 超限 / 格式）
+  /// 同样静默吞掉，UI 反馈（SnackBar）留 Phase 3.5 统一错误通道。
+  Future<void> _handleInsertImage(ImagePickAndImport pick) async {
     final blockId = coordinator.lastFocusedId;
     if (blockId == null) return;
-    final relative = await AssetService.pickAndImportImage();
+    String? relative;
+    try {
+      relative = await pick();
+    } catch (_) {
+      // TODO(Phase 3.5): AssetImportException.message 经统一错误通道提示用户。
+      return;
+    }
     if (relative == null) return;
     coordinator.handle(InsertTemplateCommand(
       blockId: blockId,
@@ -339,99 +328,5 @@ class _ToolbarButtons extends StatelessWidget {
       selection: coordinator.focusedSelection,
       cursorOffset: 0,
     ));
-  }
-}
-
-/// 单个格式按钮（紧凑 TextButton + Tooltip）。
-class _FormatButton extends StatelessWidget {
-  final String label;
-  final String tooltip;
-  final VoidCallback? onPressed;
-
-  const _FormatButton({
-    required this.label,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(40, 36),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// CodeBlock 聚焦时的禁用栏（显示提示文字替代工具栏按钮,§2.8）。
-class _DisabledBar extends StatelessWidget {
-  final String hint;
-
-  const _DisabledBar({required this.hint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 0.5,
-          ),
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        hint,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-    );
-  }
-}
-
-/// `+` 模板菜单按钮（PopupMenu,8 模板,§6.3）。
-///
-/// 使用 [_TemplateMenuItem] enum 作为 PopupMenuItem value,
-/// 避免字符串业务判断（§2.5.1 Hard Rule）。
-class _TemplateMenuButton extends StatelessWidget {
-  final bool enabled;
-  final ValueChanged<_TemplateMenuItem>? onSelected;
-
-  const _TemplateMenuButton({
-    required this.enabled,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_TemplateMenuItem>(
-      icon: const Icon(Icons.add, size: 20),
-      tooltip: EditorStrings.templateMenuTooltip,
-      enabled: enabled,
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        for (final c in _kTemplateConfigs)
-          PopupMenuItem(value: c.item, child: Text(c.label)),
-      ],
-    );
   }
 }

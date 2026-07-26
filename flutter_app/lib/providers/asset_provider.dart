@@ -17,3 +17,12 @@ import '../core/services/asset_service.dart';
 final docsDirProvider = FutureProvider<String>((ref) async {
   return AssetService.documentsDir();
 });
+
+/// 图片「选择 + 导入 assets/」函数（ADR-0014）。
+///
+/// 页面层（EditorPage）解析后注入 MarkdownToolbar 的 `pickImage`，
+/// chrome 层不直接 import core/services（TC-ARCH-3 分层守门）。
+final imagePickAndImportProvider =
+    Provider<Future<String?> Function()>((ref) {
+  return AssetService.pickAndImportImage;
+});

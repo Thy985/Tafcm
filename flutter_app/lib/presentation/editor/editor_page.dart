@@ -144,6 +144,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           themeMode: mode,
           onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
           baseDir: baseDir,
+          // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
+          // chrome 层不直接 import core/services。
+          pickImage: ref.read(imagePickAndImportProvider),
         ),
       ),
     );

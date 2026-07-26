@@ -20,12 +20,10 @@
 /// 4. `coordinator.notifyListeners()` → `AnimatedBuilder` 重建
 library;
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../core/editing/block_types.dart';
+import '../../../core/utils/asset_image_resolver.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
@@ -171,19 +169,15 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
     BuildContext context,
   ) {
     final placeholder = TextSpan(
-      text: alt.isNotEmpty ? alt : '[图片]',
+      text: alt.isNotEmpty ? '[图片: $alt]' : '[图片]',
       style: baseStyle.copyWith(
         color: EditorTokens.of(context).textSecondary,
         fontStyle: FontStyle.italic,
       ),
     );
-    if (widget.baseDir == null ||
-        url.startsWith('http') ||
-        url.startsWith('data:')) {
-      return placeholder;
-    }
-    final file = File(p.join(widget.baseDir!, url));
-    if (!file.existsSync()) return placeholder;
+    // TC-ARCH-1：presentation 不直接 File()，经 core/utils 解析。
+    final file = resolveLocalImageFile(widget.baseDir, url);
+    if (file == null) return placeholder;
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
       child: Image.file(

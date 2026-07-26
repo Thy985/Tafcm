@@ -60,12 +60,16 @@ class EditorShell extends StatefulWidget {
   /// 文档存储基目录（ADR-0014）。非空时本地图片用 [Image.file] 渲染。
   final String? baseDir;
 
+  /// 图片「选择 + 导入」注入点（ADR-0014，由 [EditorPage] 从 provider 解析后透传）。
+  final ImagePickAndImport? pickImage;
+
   const EditorShell({
     super.key,
     required this.coordinator,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
     this.baseDir,
+    this.pickImage,
   });
 
   @override
@@ -176,7 +180,11 @@ class _EditorShellState extends State<EditorShell> {
             ),
           ),
           // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
-          if (!_focusMode) MarkdownToolbar(coordinator: coordinator),
+          if (!_focusMode)
+            MarkdownToolbar(
+              coordinator: coordinator,
+              pickImage: widget.pickImage,
+            ),
         ],
       ),
       // 焦点模式：隐藏 StatusBar（§3.3.3）

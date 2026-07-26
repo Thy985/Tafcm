@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:path/path.dart' as p;
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/asset_image_resolver.dart';
 import '../../core/parser/formula_extractor.dart';
 import '../../data/models/document.dart';
 
@@ -143,16 +141,15 @@ class ParagraphRenderer extends StatelessWidget {
       );
     }
     // 本地相对路径：assets/img_xxx.png → <baseDir>/assets/img_xxx.png
-    if (baseDir != null && !url.startsWith('data:')) {
-      final file = File(p.join(baseDir!, url));
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          height: 120,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => placeholder,
-        );
-      }
+    // TC-ARCH-1：presentation 不直接 File()，经 core/utils 解析。
+    final file = resolveLocalImageFile(baseDir, url);
+    if (file != null) {
+      return Image.file(
+        file,
+        height: 120,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
     }
     return placeholder;
   }
