@@ -32,7 +32,12 @@ void main() {
 
   /// 构造测试 widget：EditorScope 提供 Coordinator（BlockRenderer 经
   /// `EditorScope.of` 读取），Workspace 内嵌本切片新增的 Center + ConstrainedBox。
+  ///
+  /// 注意：`blockKeys` 必须是可变 Map —— `EditorViewport.build` 会对其
+  /// `putIfAbsent` 注册 GlobalKey（editor_shell.dart:272）。用局部可变变量
+  /// 既满足运行时需求，也避免 `prefer_const_literals_to_create_immutables` 误报。
   Widget buildTestWidget() {
+    final Map<BlockId, GlobalKey> blockKeys = {};
     return MaterialApp(
       home: Scaffold(
         body: EditorScope(
@@ -40,7 +45,7 @@ void main() {
           child: Workspace(
             coordinator: coordinator,
             scrollController: null,
-            blockKeys: const <BlockId, GlobalKey>{},
+            blockKeys: blockKeys,
           ),
         ),
       ),
