@@ -43,6 +43,12 @@ import '../panels/toc_panel.dart';
 import '../states/block_view_state.dart';
 import 'editor_coordinator.dart';
 
+/// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
+///
+/// 编辑视口在宽屏（> 720）下约束于此值并居中；窄屏（< 720）不受影响。
+/// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
+const double kMaxPageWidth = 720.0;
+
 /// EditorShell：组合 chrome + workspace + status 的布局壳。
 ///
 /// 由 [EditorPage] 挂载，接收 [EditorCoordinator] 并通过 [EditorScope] 注入。
@@ -231,11 +237,15 @@ class Workspace extends StatelessWidget {
           SidePanelHost(coordinator: coordinator),
         // 编辑视口（BlockRenderer 渲染所有块）
         Expanded(
-          child: EditorViewport(
-            coordinator: coordinator,
-            controller: scrollController,
-            blockKeys: blockKeys,
-            baseDir: baseDir,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
+              child: EditorViewport(
+                coordinator: coordinator,
+                controller: scrollController,
+                blockKeys: blockKeys,
+              ),
+            ),
           ),
         ),
       ],
