@@ -1,22 +1,10 @@
 /// AutosaveService 单元测试（Phase 3.4 Slice2 / ADR-0013 验证计划）。
 ///
-/// 覆盖 ADR-0013 §验证计划·单元：
-/// - dirty 后 debounce 触发 save 恰好一次
-/// - 连续编辑 debounce 合并只 save 一次
-/// - markSaved 后定时器重置，不再重复 save
-/// - save 失败不崩溃，指数退避自动重试直到成功
-/// - 并发保存串行化（A 进行中 B 等待，不交错）
-/// - 触发时刻快照隔离（A 不覆盖 B 进行中的实时 live）
-/// - save 返回 false（跳过：无可写路径）时不 markSaved、不重试
-/// - 真实 EditorCoordinator.dirtyChanges 冒烟（变脏发射 true / 保存发射 false）
-/// - status 流序列（saving→saved / error→retrying）
-/// - stop() 在 save 进行中不崩溃
-/// - stop() 后可再次 start() 复用
+/// 覆盖：debounce 触发一次 / 连续编辑合并 / markSaved 重置 / 失败退避重试 /
+/// 并发串行化 / 触发时刻快照隔离 / save=false 跳过 / 真实 Coordinator 冒烟 /
+/// status 流序列 / stop 进行中不崩溃 / stop 后复用。
 ///
-/// 时序用**受控假定时器**（[FakeTimerFactory]）驱动，不依赖真实时钟，
-/// 消除 CI 上因 debounce 等待过紧导致的 flake（ADR-0013 评审·测试 #4）。
-/// 注意：脏状态/状态流均为 broadcast stream，事件异步投递，故每次 setDirty /
-/// fire 后需 [ _pump] 冲刷 microtask，让定时器被创建/触发。
+/// 用 [autosave_test_helpers] 的受控假定时器驱动，不依赖真实时钟（消除 CI flake）。
 library;
 
 import 'dart:async';
@@ -29,103 +17,7 @@ import 'package:formula_fix/presentation/editor/dirty_state_source.dart';
 import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
 import 'package:formula_fix/presentation/editor/seed_documents.dart';
 
-/// 受控定时器：创建即登记，由测试显式 [fire] 触发，不占用真实时钟。
-class FakeTimer implements Timer {
-  bool _active = true;
-  final void Function() _cb;
-  FakeTimer(this._cb);
-
-  @override
-  bool get isActive => _active;
-
-  @override
-  void cancel() => _active = false;
-
-  @override
-  int get tick => 0;
-
-  /// 触发回调（仅当仍 active）。
-  void fire() {
-    if (_active) _cb();
-  }
-}
-
-/// 可注入的定时器工厂（测试用）：记录每次创建的 [Duration]，并允许手动触发。
-class FakeTimerFactory {
-  final List<FakeTimer> timers = [];
-  final List<Duration> durations = [];
-
-  Timer call(Duration duration, void Function() callback) {
-    durations.add(duration);
-    final t = FakeTimer(callback);
-    timers.add(t);
-    return t;
-  }
-
-  /// 触发最近一个仍 active 的定时器（模拟 debounce / 退避到期）。
-  void fireLast() {
-    for (var i = timers.length - 1; i >= 0; i--) {
-      if (timers[i].isActive) {
-        timers[i].fire();
-        return;
-      }
-    }
-  }
-}
-
-/// 冲刷全部 microtask（broadcast stream 异步投递 + save 回调为 async，
-/// fire 后需 pump 让其继续）。多次 zero-delay 足以排空整条 microtask 链。
-Future<void> _pump() async {
-  for (var i = 0; i < 5; i++) {
-    await Future.delayed(Duration.zero);
-  }
-}
-
-/// 测试用脏状态源：可控 isDirty / dirtyChanges / markSaved，并携带可变的 [content]
-/// 以模拟「触发时刻快照 vs 写盘期间新编辑」的并发场景。
-class FakeDirtySource implements DirtyStateSource {
-  bool _dirty = false;
-  String content = '';
-  final StreamController<bool> _ctl = StreamController<bool>.broadcast();
-
-  @override
-  bool get isDirty => _dirty;
-
-  @override
-  Stream<bool> get dirtyChanges => _ctl.stream;
-
-  @override
-  void markSaved() => setDirty(false);
-
-  void setDirty(bool v) {
-    if (_dirty != v) {
-      _dirty = v;
-      _ctl.add(v);
-    }
-  }
-}
-
-/// 构造 save 回调（与生产 [_saveDocument] 同语义）：
-/// 在起始同步捕获 [FakeDirtySource.content] 作为快照写入，写盘后若 source 无新改动则 markSaved。
-Future<bool> Function() makeSave({
-  required FakeDirtySource src,
-  required List<String> writes,
-  List<Completer<void>>? gates,
-}) {
-  var gateIdx = 0;
-  return () async {
-    final snap = src.content; // 触发时刻快照（同步读取）
-    writes.add(snap);
-    if (gates != null && gateIdx < gates.length) {
-      await gates[gateIdx++].future; // 受控完成（模拟写盘耗时）
-    }
-    // 写盘后：source 无新改动才 markSaved（否则保留 dirty，由 service 重调度）。
-    if (src.content == snap) src.markSaved();
-    return true;
-  };
-}
-
-const _kDebounce = Duration(milliseconds: 10);
+import 'autosave_test_helpers.dart';
 
 void main() {
   group('AutosaveService（ADR-0013）', () {
@@ -136,18 +28,18 @@ void main() {
       final service = AutosaveService(
         source: src,
         save: makeSave(src: src, writes: writes),
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump(); // 脏事件异步投递 → _schedule 创建定时器
+      await pump();
       expect(writes, isEmpty);
-      timers.fireLast(); // debounce 到期
-      await _pump();
-      expect(writes, ['x']); // 一次保存，快照 = 触发时刻内容
-      expect(src.isDirty, isFalse); // save 回调已 markSaved
-      await _pump();
+      timers.fireLast();
+      await pump();
+      expect(writes, ['x']);
+      expect(src.isDirty, isFalse);
+      await pump();
       expect(writes, ['x']); // 不再重复
       service.stop();
     });
@@ -159,17 +51,17 @@ void main() {
       final service = AutosaveService(
         source: src,
         save: makeSave(src: src, writes: writes),
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
-      src.setDirty(true); // 翻转 → 调度
-      src.content = 'ab'; // 已 dirty，无翻转，但内容变了
+      src.setDirty(true);
+      src.content = 'ab';
       src.content = 'abc';
-      await _pump(); // 脏事件投递 → 定时器已创建
-      timers.fireLast(); // 单一 debounce 窗口后触发
-      await _pump();
-      expect(writes, ['abc']); // 捕获合并窗口内最后一次内容
+      await pump();
+      timers.fireLast();
+      await pump();
+      expect(writes, ['abc']);
       service.stop();
     });
 
@@ -180,22 +72,22 @@ void main() {
       final service = AutosaveService(
         source: src,
         save: makeSave(src: src, writes: writes),
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump();
+      await pump();
       timers.fireLast();
-      await _pump();
+      await pump();
       expect(writes.length, 1);
-      await _pump();
-      expect(writes.length, 1); // 无新编辑 → 不重复
-      src.setDirty(true); // 再次变脏
-      await _pump();
+      await pump();
+      expect(writes.length, 1);
+      src.setDirty(true);
+      await pump();
       timers.fireLast();
-      await _pump();
-      expect(writes.length, 2); // 重新调度保存
+      await pump();
+      expect(writes.length, 2);
       service.stop();
     });
 
@@ -207,26 +99,26 @@ void main() {
         source: src,
         save: () async {
           attempts++;
-          if (attempts < 3) throw Exception('boom'); // 前两次失败
-          src.markSaved(); // 第三次成功
+          if (attempts < 3) throw Exception('boom');
+          src.markSaved();
           return true;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump();
+      await pump();
       timers.fireLast();
-      await _pump(); // 失败 1 → 退避重试（创建重试定时器）
+      await pump();
       timers.fireLast();
-      await _pump(); // 失败 2 → 退避重试
+      await pump();
       timers.fireLast();
-      await _pump(); // 成功
-      expect(attempts, 3); // 重试直到成功（失败不崩溃）
+      await pump();
+      expect(attempts, 3);
       expect(src.isDirty, isFalse);
       // 退避增长：首次 = debounce，之后 ×2（10 → 10 → 20）
-      expect(timers.durations, [_kDebounce, _kDebounce, _kDebounce * 2]);
+      expect(timers.durations, [kDebounce, kDebounce, kDebounce * 2]);
       service.stop();
     });
 
@@ -245,37 +137,34 @@ void main() {
           order.add('start$i');
           final snap = src.content;
           writes.add(snap);
-          if (i == 1) await gA.future; // A 受控
-          if (i == 2) await gB.future; // B 受控
+          if (i == 1) await gA.future;
+          if (i == 2) await gB.future;
           if (src.content == snap) src.markSaved();
           order.add('end$i');
           return true;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump();
-      timers.fireLast(); // A 开始并 await gA
-      await _pump();
-      expect(order, ['start1']); // A 进行中
-
-      // 模拟 A 写盘期间产生新编辑（content 变化，dirty 已为 true 无翻转事件）
+      await pump();
+      timers.fireLast();
+      await pump();
+      expect(order, ['start1']);
       src.content = 'v2';
-      gA.complete(); // 完成 A
-      await _pump();
-      await _pump();
-      expect(order, ['start1', 'end1']); // A 完整结束，B 尚未开始（串行）
-
-      timers.fireLast(); // B 触发（start2，await gB）
-      await _pump();
+      gA.complete();
+      await pump();
+      await pump();
+      expect(order, ['start1', 'end1']);
+      timers.fireLast();
+      await pump();
       expect(order, ['start1', 'end1', 'start2']);
-      gB.complete(); // 完成 B
-      await _pump();
-      await _pump();
+      gB.complete();
+      await pump();
+      await pump();
       expect(order, ['start1', 'end1', 'start2', 'end2']);
-      expect(writes, ['v1', 'v2']); // A 写 v1、B 写 v2，不交错
+      expect(writes, ['v1', 'v2']);
       service.stop();
     });
 
@@ -287,32 +176,29 @@ void main() {
       final service = AutosaveService(
         source: src,
         save: () async {
-          final snap = src.content; // 触发时刻快照
+          final snap = src.content;
           writes.add(snap);
-          await gA.future; // 受控完成
-          // 写盘期间 content 可能已变；回调按「写盘后是否仍为同一快照」决定是否 markSaved
+          await gA.future;
           if (src.content == snap) src.markSaved();
           return true;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump();
-      timers.fireLast(); // A 捕获 snap='v1' 并 await gA
-      await _pump();
-      // A 进行中用户继续输入 → content 变为 v2（实时 live）
+      await pump();
+      timers.fireLast();
+      await pump();
       src.content = 'v2';
       gA.complete();
-      await _pump();
-      await _pump();
-      // A 写盘期间 content 已变 → 不 markSaved → service 重调度 B
+      await pump();
+      await pump();
       expect(src.isDirty, isTrue);
-      timers.fireLast(); // B 触发，捕获 v2
-      await _pump();
-      expect(writes, ['v1', 'v2']); // 最终落盘 = 最后一次成功 save 的 source（v2）
-      expect(src.isDirty, isFalse); // B 写盘后 content 未变 → markSaved
+      timers.fireLast();
+      await pump();
+      expect(writes, ['v1', 'v2']);
+      expect(src.isDirty, isFalse);
       service.stop();
     });
 
@@ -324,20 +210,20 @@ void main() {
         source: src,
         save: () async {
           savedCalls++;
-          return false; // 跳过
+          return false;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       src.setDirty(true);
-      await _pump();
+      await pump();
       timers.fireLast();
-      await _pump();
+      await pump();
       expect(savedCalls, 1);
-      expect(src.isDirty, isTrue); // 保留 dirty（未误标已保存）
-      await _pump();
-      expect(savedCalls, 1); // 不空转重试
+      expect(src.isDirty, isTrue);
+      await pump();
+      expect(savedCalls, 1);
       service.stop();
     });
 
@@ -350,11 +236,11 @@ void main() {
       expect(c.isDirty, isFalse);
       c.updateLiveSource(editor.allIds.first, '与已提交不同的实时文本');
       expect(c.isDirty, isTrue);
-      expect(events, [true]); // 一次翻转发射
+      expect(events, [true]);
 
       c.markSaved();
       expect(c.isDirty, isFalse);
-      expect(events, [true, false]); // 保存后发射 false
+      expect(events, [true, false]);
 
       await sub.cancel();
       c.dispose();
@@ -368,23 +254,22 @@ void main() {
       final service = AutosaveService(
         source: c,
         save: () async {
-          // 模仿生产 _saveDocument：写盘后若 source 无新改动则 markSaved
           final snap = c.editor.allSources.join('\n');
           if (c.editor.allSources.join('\n') == snap) c.markSaved();
           saved.add(true);
           return true;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       c.updateLiveSource(editor.allIds.first, 'typed text');
       expect(c.isDirty, isTrue);
-      await _pump();
+      await pump();
       timers.fireLast();
-      await _pump();
+      await pump();
       expect(saved, [true]);
-      expect(c.isDirty, isFalse); // 被 save 回调 markSaved
+      expect(c.isDirty, isFalse);
       service.stop();
       c.dispose();
     });
@@ -397,15 +282,15 @@ void main() {
         final service = AutosaveService(
           source: src,
           save: makeSave(src: src, writes: []),
-          debounce: _kDebounce,
+          debounce: kDebounce,
           timerFactory: timers.call,
         );
         final sub = service.status.listen(statuses.add);
         service.start();
         src.setDirty(true);
-        await _pump();
+        await pump();
         timers.fireLast();
-        await _pump();
+        await pump();
         expect(
           statuses,
           containsAllInOrder([AutosaveStatus.saving, AutosaveStatus.saved]),
@@ -427,15 +312,15 @@ void main() {
             src.markSaved();
             return true;
           },
-          debounce: _kDebounce,
+          debounce: kDebounce,
           timerFactory: timers.call,
         );
         final sub = service.status.listen(statuses.add);
         service.start();
         src.setDirty(true);
-        await _pump();
-        timers.fireLast(); // 失败 → error, retrying
-        await _pump();
+        await pump();
+        timers.fireLast();
+        await pump();
         expect(
           statuses,
           containsAllInOrder([
@@ -444,9 +329,9 @@ void main() {
             AutosaveStatus.retrying,
           ]),
         );
-        expect(statuses, isNot(contains(AutosaveStatus.idle))); // 重试中不误发 idle
-        timers.fireLast(); // 重试成功
-        await _pump();
+        expect(statuses, isNot(contains(AutosaveStatus.idle)));
+        timers.fireLast();
+        await pump();
         expect(attempts, 2);
         expect(statuses, contains(AutosaveStatus.saved));
         await sub.cancel();
@@ -463,25 +348,24 @@ void main() {
         source: src,
         save: () async {
           final snap = src.content;
-          await g.future; // 受控进行中
+          await g.future;
           if (src.content == snap) src.markSaved();
           return true;
         },
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       final sub = service.status.listen(statuses.add);
       service.start();
       src.setDirty(true);
-      await _pump();
-      timers.fireLast(); // save 进入 await g
-      await _pump();
+      await pump();
+      timers.fireLast();
+      await pump();
       expect(statuses, [AutosaveStatus.saving]);
-      service.stop(); // 关闭 status controller（save 仍在 await g）
-      g.complete(); // 唤醒 save 继续 → _emit 守卫 isClosed 不崩溃
-      await _pump();
-      // 已停止：不再发射，且未发生异常
-      expect(statuses, [AutosaveStatus.saving]);
+      service.stop();
+      g.complete();
+      await pump();
+      expect(statuses, [AutosaveStatus.saving]); // 已停止：不再发射，无异常
       await sub.cancel();
     });
 
@@ -492,19 +376,18 @@ void main() {
       final service = AutosaveService(
         source: src,
         save: makeSave(src: src, writes: writes),
-        debounce: _kDebounce,
+        debounce: kDebounce,
         timerFactory: timers.call,
       );
       service.start();
       service.stop();
-      // 再次 start：应重新订阅且 status 流可再订阅
       final statuses = <AutosaveStatus>[];
       final sub = service.status.listen(statuses.add);
       service.start();
       src.setDirty(true);
-      await _pump();
+      await pump();
       timers.fireLast();
-      await _pump();
+      await pump();
       expect(writes, ['x']);
       expect(statuses, contains(AutosaveStatus.saved));
       await sub.cancel();
