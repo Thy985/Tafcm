@@ -19,8 +19,6 @@
 /// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
