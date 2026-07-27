@@ -496,8 +496,8 @@ EditorShell ─┬─ BlockRenderer
 
 | # | 任务 | 优先级 | 来源 | 状态 |
 |---|------|--------|------|------|
-| 3.4.5.1 | **Design Token Migration**：建立 `AppColors`（`primary=#1E3A5F` / `accent=#E76F51` / `paper=#FAFAF7` / `textPrimary` / `textSecondary` / `border` / `success` / `warning` / `error`），经 `EditorTokens`（ThemeExtension）注入；所有散落颜色改为引用 token，**Widget 禁止硬编码颜色** | **P0** | ADR-0017 | ⏳ |
-| 3.4.5.2 | **Typography System**：建立 `AppTypography`（display / h1 / h2 / body / caption / formula / code），正文+标题+公式用 serif（`Source Han Serif SC` 中文回退），代码用 mono（`JetBrains Mono`）；`ThemeData` 设 `fontFamily` | **P0** | ADR-0017 | ⏳ |
+| 3.4.5.1 | **Design Token Migration**：建立 `AppColors`（`primary=#1E3A5F` / `accent=#E76F51` / `paper=#FAFAF7` / `textPrimary` / `textSecondary` / `border` / `success` / `warning` / `error`），经 `EditorTokens`（ThemeExtension）注入；所有散落颜色改为引用 token，**Widget 禁止硬编码颜色** | **P0** | ADR-0017 | ✅ 已交付（feat/design-system-alignment） |
+| 3.4.5.2 | **Typography System**：建立 `AppTypography`（display / h1 / h2 / body / caption / formula / code），正文+标题+公式用 serif（`Source Han Serif SC` 中文回退），代码用 mono（`JetBrains Mono`）；`ThemeData` 设 `fontFamily` | **P0** | ADR-0017 | ✅ 已交付（feat/design-system-alignment） |
 | 3.4.5.3 | **Theme Refinement**：`light` / `dark` / `sepia` 三套主题对齐 token 值（背景/语义色/公式块底）；间距/圆角/字号微调（页边距 24 / 段距 20 / 圆角 6·10·16 / 状态栏 32px） | **P0** | ADR-0017 / ui-spec | ⏳ |
 | 3.4.5.4 | **Formula Block（Typora 严格还原）**：`FormulaBlock` 渲染块级公式 `$$...$$`——纯 serif italic、居中、**无卡片**（ui-spec 权威裁定，覆盖 `tokens.json` 旧卡片规格）；真实渲染经 `FormulaSvgService` 渲染 MathJax SVG（与 Mermaid 共享 WebView），未就绪降级为 serif italic 源码；颜色经 `EditorTokens`、字族经 `AppTypography.formula`。集成于 `ParagraphBlock`（纯块级公式委派，不新增 BlockRenderer case） | **P0**（用户提前拉入 P0-3） | ui-spec / Phase 3.5 | ✅ 已交付（feat/design-system-alignment） |
 
@@ -598,6 +598,6 @@ EditorShell ─┬─ BlockRenderer
 
 ---
 
-**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ 已规划 **Phase 3.4.5 Design System Alignment**（产品化对齐，待启动）
-**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40% 双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-3 公式块严格还原已落地（feat/design-system-alignment）；关联 ADR-0017）
+**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（产品化对齐，进行中：P0-1/2/3 已交付，3.4.5.3 收尾）**
+**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40%（P0-1/2/3 落地后明显提升）双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-1/2/3 已随 feat/design-system-alignment 推送（0695bfc / 7c0653c）；ROADMAP 状态表修正：§3.4.5.1/2 标记 ✅，footer 改「进行中」；关联 ADR-0017）
 **维护人**：首席架构工程师
