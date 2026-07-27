@@ -27,6 +27,16 @@
 
 冲突未解决前，Phase 3.0 代码以本文件为准（因为已落地为 [EditorTokens](../../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
 
+> **产品视觉权威源裁定（2026-07-28）**：
+> `../design-system/tokens.json`（2026-07-18 从 `formulafix-redesign.design/` 高保真稿提取）为 **FormulaFix 产品视觉的权威源**。上表"已知视觉规范冲突"在 Phase 3.4.5 Design System Alignment 中以 **redesign 为准**裁定：
+> - 正文字号/字体：**15px serif / 1.85**（非 16sp sans）——对应 `tokens.json.typography.scale.editorBody`；
+> - H1 字号：**26px serif**（非 28sp）；
+> - 编辑器背景：**暖纸 `#FDFDFB`**（design `editor.background`，非 Material 冷灰）；
+> - 顶部栏高度：**48px Floating Top Bar**（design `topBarHeight`，非 56dp AppBar）——Phase 3.4.5.3 微调；
+> - 主色：**`#1E3A5F` 深海军蓝**（非 `#165DFF` 亮 Azure），accent `#E76F51`。
+>
+> 当前 `lib/presentation/themes/editor_tokens.dart` 仍用旧值（亮 Azure + 默认 sans），Phase 3.4.5 按 [ADR-0017 Design System Token & Typography Alignment](../../docs/ADR/0017-design-system-alignment.md) 迁移至上述 token。本文件后续将同步修订为与 `tokens.json` 完全一致，届时"已知视觉规范冲突"段落作废。
+
 **Phase 3.1 Typora 化新增冲突**（待 Phase 3.1 实现时统一）：
 - Edit 态视觉：本文件 §3.1/3.2/3.3 规定 edit 态有左侧蓝色竖线 + 淡色背景，Typora 化原则要求 edit/render 视觉无差异
 - 公式渲染：本文件 §3.1 FormulaElement 原未规定卡片背景，Typora 化要求纯 serif italic 无卡片

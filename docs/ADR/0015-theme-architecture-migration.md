@@ -17,6 +17,17 @@
 
 - **v1.0（2026-07-26）**：初版，冻结 `EditorTokens` → `ThemeExtension<EditorTokens>` 迁移；语义兼容 / API 迁移措辞（评审修正）。
 - **v1.1（2026-07-26，评审补充）**：补 版本修订记录（与既有 ADR-0011/0012 格式对齐）；状态随 PR #68 合并后由 Proposed 转 Accepted（ADR-0011 审批模型）。
+- **v1.2（2026-07-28，Typography 立场调整）**：本 ADR 原 "已知边界" 中 Typography Refactor = `wontfix` + `phase-3.4-typography` 延期 的立场，被 [ADR-0017](./0017-design-system-alignment.md) 覆盖——字体系统提升为 Phase 3.4.5 的 P0-2 一等公民（详见新增 §修订）。
+
+## 修订（2026-07-28）：Typography 立场调整
+
+Phase 3.4.5 Design System Alignment 规划 + [ADR-0017 Design System Token & Typography Alignment](./0017-design-system-alignment.md) 出台后，本 ADR 原 "已知边界" 中 **Typography Refactor = `wontfix` + `phase-3.4-typography` 延期** 的立场**被覆盖**：
+
+- 字体系统（`AppTypography`：serif 文档/标题/公式 + mono 代码 + sans chrome）提升为 Phase 3.4.5 的 **P0-2 一等公民必交付项**，不再 `wontfix`。
+- 本 ADR 仅负责主题**机制**（static const → ThemeExtension）；字体**系统**与颜色**值**的单一真相源由 ADR-0017 定义。
+- **保留的技术边界**：`TextSpan` / `CustomPainter` / `RenderObject` 拿不到 `BuildContext`、无法运行时 `Theme.of` 查询——这部分仍受限，但字体族（serif / mono / sans）本身在 `TextStyle` 构造时即可绑定，不依赖运行时 theme 查询，因此字体系统落地不受此边界阻塞。
+
+> 本修订不改变 ADR-0015 的"机制"决策（ThemeExtension 路线），仅撤回对 Typography 的 `wontfix` 延期立场。
 
 ## 背景
 
@@ -80,8 +91,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
 
 ### 已知边界（inline 颜色 / TextSpan 常量）
 - `linkColor` 等 `TextSpan` 硬编码常量问题（`editor_tokens.dart` 注释已标注）：`TextSpan` 不支持运行时 `Theme.of(context)`。
-- **本阶段边界**：仅保证 `Text` Widget 主题生效；inline 颜色一致性（同 Phase 3.3 §9.1 TextSpan 缩放边界）留后续 **Typography Refactor**，Issue 标记 `wontfix` + `phase-3.4-typography`。
-- **不在 Phase 3.4 顺手解决**：否则主题切换切片会膨胀为全量渲染层重构。
+- **本阶段边界**：仅保证 `Text` Widget 主题生效；inline 颜色一致性（同 Phase 3.3 §9.1 TextSpan 缩放边界）留后续处理。
+- **字体系统不再 `wontfix`**：原 "Typography Refactor = `wontfix` + `phase-3.4-typography`" 立场已被 [ADR-0017](./0017-design-system-alignment.md) 撤回，字体系统（`AppTypography`）提升为 Phase 3.4.5 的 **P0-2 一等公民**（见本 ADR §修订）。字体族（serif / mono / sans）在 `TextStyle` 构造时即可绑定，不依赖运行时 theme 查询，故不受 TextSpan 边界阻塞。
+- **不在 Phase 3.4 顺手解决**：主题切换切片不膨胀为全量渲染层重构；但字体系统作为独立 P0-2 任务在 Phase 3.4.5 落地。
 
 ### 语义兼容 / API 迁移守门（评审修正措辞）
 - **语义兼容（保证）**：所有颜色 token **名称**保持一致（`textPrimary` / `linkColor` 等常量名不变），视觉契约不破。
