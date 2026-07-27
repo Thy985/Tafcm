@@ -10,6 +10,7 @@
 /// - 提供返回按钮（返回到文件管理页）
 /// - **Phase 3.3**：提供 Undo / Redo IconButton（基于 coordinator.canUndo / canRedo）
 /// - **Phase 3.1-A PR #2**：more_vert 菜单含"切换到旧版编辑器"入口（跳 `/editor-legacy`）
+/// - **Phase 3.4 Slice 7**：导出 PopupMenu 触发 [EditorCoordinator] 内容导出
 ///
 /// **不实现**（Phase 3.4+）：
 /// - 自动保存指示
@@ -22,6 +23,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/services/export_service.dart';
 import '../editor/editor_coordinator.dart';
 import '../theme/app_theme.dart';
 
@@ -45,6 +47,13 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开目录（大纲）抽屉的回调（Phase 3.4.1）。
   final VoidCallback? onOpenToc;
 
+  /// 触发导出动作的回调（Phase 3.4 Slice 7 / 3.4.4）。
+  ///
+  /// 接到 [EditorPage] 时由该回调驱动 MarkdownExporter.exportToXxx 调用，
+  /// 并把进度通过 `exportProgressProvider` 暴露给 ExportProgressOverlay。
+  /// `null` 时不显示导出按钮。
+  final ValueChanged<ExportFormat>? onExportTo;
+
   /// 打开文件树侧栏的回调（Phase 3.4.2）。
   final VoidCallback? onOpenFileTree;
 
@@ -65,6 +74,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.focusMode = false,
     this.onToggleFocus,
     this.onOpenToc,
+    this.onExportTo,
     this.onOpenFileTree,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
@@ -138,6 +148,43 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: focusMode ? '退出焦点模式' : '焦点模式',
           onPressed: onToggleFocus,
         ),
+        // Phase 3.4 Slice 7 / §3.7：导出 PopupMenu（PDF / Word / TXT）。
+        // 仅在 EditorPage 注入了 onExportTo 时显示。
+        if (onExportTo != null)
+          PopupMenuButton<ExportFormat>(
+            icon: const Icon(Icons.ios_share),
+            tooltip: '导出',
+            onSelected: onExportTo!,
+            itemBuilder: (context) => const [
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.pdf,
+                child: ListTile(
+                  leading: Icon(Icons.picture_as_pdf),
+                  title: Text('导出为 PDF'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.docx,
+                child: ListTile(
+                  leading: Icon(Icons.description),
+                  title: Text('导出为 Word（.docx）'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<ExportFormat>(
+                value: ExportFormat.txt,
+                child: ListTile(
+                  leading: Icon(Icons.text_snippet),
+                  title: Text('导出为 TXT'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         // Phase 3.1-A PR #2：more_vert 菜单含"切换到旧版编辑器"隐藏入口。
         // 入口不直接暴露在 AppBar 主操作区，需要点开 more_vert 才能看到，
         // 满足"普通用户不会发现，方便需要回退的用户找到"的产品要求。

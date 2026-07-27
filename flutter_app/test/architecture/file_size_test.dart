@@ -14,6 +14,8 @@ void main() {
   //   - pdf_exporter.dart: 592 行
   //   - word_ooxml_builder.dart: 565 行
   //   - export_service.dart: 493 行
+  //   - formula_pdf_renderer.dart: 409 行（Slice 7 加 onEachCompleted 后微增，
+  //     文件内含 cache + 批量预渲染 + LRU 驱逐，本身职责密集）
   //   - editor_screen.dart: 461 行（待 Phase 3 WYSIWYG 重构）
   const knownOffenders = <String>[
     'lib/core/parser/markdown_parser.dart',
@@ -21,6 +23,7 @@ void main() {
     'lib/domain/services/exporters/pdf_exporter.dart',
     'lib/domain/services/exporters/word_ooxml_builder.dart',
     'lib/domain/services/export_service.dart',
+    'lib/core/services/formula_pdf_renderer.dart',
     'lib/presentation/screens/editor_screen.dart',
   ];
 

@@ -16,17 +16,24 @@
 /// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/editing/editor_history.dart';
 import '../../core/parser/markdown_parser.dart';
+import '../../domain/providers/export_progress_provider.dart';
+import '../../domain/services/export_service.dart';
 import '../../providers/asset_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/last_opened_path_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/export_progress_overlay.dart';
 import 'autosave_service.dart';
 import 'editor_coordinator.dart';
 import 'editor_scope.dart';
@@ -194,24 +201,91 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    return EditorScope(
-      coordinator: _coordinator,
-      child: AnimatedBuilder(
-        animation: _coordinator,
-        builder: (context, _) => EditorShell(
-          coordinator: _coordinator,
-          currentPath: currentPath,
-          onOpenFile: _openFile,
-          themeMode: mode,
-          onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
-          baseDir: baseDir,
-          // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
-          // chrome 层不直接 import core/services。
-          pickImage: ref.read(imagePickAndImportProvider),
+    return ExportProgressOverlay(
+      child: EditorScope(
+        coordinator: _coordinator,
+        child: AnimatedBuilder(
+          animation: _coordinator,
+          builder: (context, _) => EditorShell(
+            coordinator: _coordinator,
+            currentPath: currentPath,
+            onOpenFile: _openFile,
+            themeMode: mode,
+            onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
+            baseDir: baseDir,
+            // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
+            // chrome 层不直接 import core/services。
+            pickImage: ref.read(imagePickAndImportProvider),
+            // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
+            onExportTo: _handleExport,
+          ),
         ),
       ),
     );
   }
+
+  /// 导出动作入口（Phase 3.4 Slice 7 / 3.4.4）。
+  ///
+  /// 流程：start → 调 MarkdownExporter.exportToXxx 桥接 onProgress → complete
+  /// → 写临时文件 + Share.shareXFiles（v7 API）；失败用 classifyError 分类。
+  ///
+  /// bytes 留在调用方直接写盘 / 分享，不经过 [exportProgressProvider] 状态机传输
+  /// （避免 Provider state 序列化 Uint8List 导致内存/所有权混淆）。
+  Future<void> _handleExport(ExportFormat format) async {
+    final notifier = ref.read(exportProgressProvider.notifier);
+    final markdown = _coordinator.editor.allSources.join('\n');
+    final title = _coordinator.title;
+    final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
+
+    notifier.start(format);
+    try {
+      final Uint8List bytes = switch (format) {
+        ExportFormat.pdf => await MarkdownExporter.exportToPdf(
+            markdown,
+            title: title,
+            isDark: isDark,
+            onProgress: (p) => notifier.report(p),
+          ),
+        ExportFormat.docx => await MarkdownExporter.exportToWord(
+            markdown,
+            title: title,
+            isDark: isDark,
+            onProgress: (p) => notifier.report(p),
+          ),
+        ExportFormat.txt => await MarkdownExporter.exportToTxt(
+            markdown,
+            onProgress: (p) => notifier.report(p),
+          ),
+      };
+
+      // 成功：状态机进入 ExportCompletedState。Overlay 显示"已导出"等。
+      notifier.complete(format);
+
+      // 分享：写临时文件（domain 层 allowlist，不触达 dart:io in presentation）
+      // + 系统 share sheet（share_plus 7.x API）。
+      final path = await ExportService.writeBytesToTempFile(
+        bytes,
+        format,
+        fileName: title,
+      );
+      await Share.shareXFiles(
+        [XFile(path, mimeType: _mimeFor(format))],
+        subject: title,
+      );
+    } catch (e) {
+      // 失败：分类 → ExportFailedState。Overlay 显示分类友好文案。
+      final info = classifyError(e);
+      notifier.fail(format, info.kind);
+    }
+  }
+
+  /// [ExportFormat] → MIME，用于 `Share.shareXFiles` 的 XFile 标注。
+  static String _mimeFor(ExportFormat format) => switch (format) {
+        ExportFormat.pdf => 'application/pdf',
+        ExportFormat.docx =>
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ExportFormat.txt => 'text/plain',
+      };
 
   /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
   /// 并导航到该文件（替换当前编辑器路由，FileTreePanel 随旧 EditorPage 一并销毁）。

@@ -34,6 +34,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/editing/block_types.dart';
+import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/providers.dart';
 import '../blocks/block_renderer.dart';
@@ -79,6 +80,11 @@ class EditorShell extends ConsumerStatefulWidget {
   /// 图片「选择 + 导入」注入点（ADR-0014，由 [EditorPage] 从 provider 解析后透传）。
   final ImagePickAndImport? pickImage;
 
+  /// 触发导出动作的回调（Phase 3.4 Slice 7 / 3.4.4）。
+  ///
+  /// 接到 AppBar 导出 PopupMenu；`null` 时 AppBar 不渲染导出按钮。
+  final ValueChanged<ExportFormat>? onExportTo;
+
   const EditorShell({
     super.key,
     required this.coordinator,
@@ -88,6 +94,7 @@ class EditorShell extends ConsumerStatefulWidget {
     this.onCycleTheme,
     this.baseDir,
     this.pickImage,
+    this.onExportTo,
   });
 
   @override
@@ -190,6 +197,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               onOpenFileTree: _toggleFileTree,
               themeMode: widget.themeMode,
               onCycleTheme: widget.onCycleTheme,
+              onExportTo: widget.onExportTo,
             ),
       body: Column(
         children: [

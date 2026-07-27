@@ -18,7 +18,7 @@ import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/formula_svg_service.dart';
 import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
-import '../export_service.dart' show ExportException;
+import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 import 'formula_render_plan.dart';
 import 'pdf_mermaid_renderer.dart';
 import 'pdf_page_decoration.dart';
@@ -101,24 +101,40 @@ class PdfExporter {
   }
 
   /// 入口：把 Markdown 文本导出为 PDF 字节流。
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：在阶段切换（解析→公式预渲染→block 渲染→拼装）
+  /// 与公式预渲染每个公式完成时回调。无回调时静默，保持旧行为兼容。
   static Future<Uint8List> export(
     String markdown, {
     String? title,
     String? author,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+
+    // Phase 1: 解析 Markdown（completed/total = 0/1 表示准备阶段，ratio 总是 0）
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.collectingFormulas,
+      completed: 0,
+      total: 1,
+    ));
 
     final elements = MarkdownParser.parse(markdown);
 
     // 收集所有公式（含 table cell 内的）。Set 自动去重。
     final allFormulas = collectAllFormulas(elements);
 
+    // 报告公式总数，后续 SVG 预渲染按此 total。
     if (allFormulas.isNotEmpty) {
-      debugPrint(
-          'Pre-rendering ${allFormulas.length} unique formulas (SVG, isDark=$isDark)...');
+      onProgress?.call(ExportProgress(
+        stage: ExportStage.preRenderingFormulaSvg,
+        completed: 0,
+        total: allFormulas.length,
+      ));
+
       // 主路径：SVG（WebView + MathJax）→ pw.SvgImage 矢量化嵌入 PDF。
       // 优势：无 GPU 离屏渲染、无内存压力、任意缩放清晰。
       // 不再预渲染 PNG：之前 5.0 倍 pixelRatio × 24 公式的离屏 toImage()
@@ -126,10 +142,28 @@ class PdfExporter {
       // PNG 缓存保留在 buildFormulaPlan 中作为最终兜底——WebView
       // 加载失败时回退到 bitmap（text fallback 之后）。
       try {
-        await FormulaSvgService.preRenderAll(allFormulas, displayMode: false);
+        await FormulaSvgService.preRenderAll(
+          allFormulas,
+          displayMode: false,
+          // Phase 2 进度：每个公式（含缓存命中）完成时回调。
+          onEachCompleted: (completed, total) {
+            onProgress?.call(ExportProgress(
+              stage: ExportStage.preRenderingFormulaSvg,
+              completed: completed,
+              total: total,
+            ));
+          },
+        );
       } catch (e) {
         debugPrint('SVG pre-render failed (will fall back to PNG/text): $e');
       }
+    } else {
+      // 无公式：直接报告阶段结束 (0/0)。
+      onProgress?.call(const ExportProgress(
+        stage: ExportStage.preRenderingFormulaSvg,
+        completed: 0,
+        total: 0,
+      ));
     }
 
     final cjk = await _ensureCjkFont();
@@ -166,6 +200,13 @@ class PdfExporter {
 
     final List<pw.Widget> body = [];
 
+    // Phase 3: 渲染 blocks —— 每个 block 完成时回调（completed/index+1，total = elements.length）。
+    onProgress?.call(ExportProgress(
+      stage: ExportStage.renderingBlocks,
+      completed: 0,
+      total: elements.length,
+    ));
+    var rendered = 0;
     for (final element in elements) {
       final widget = await _elementToPdfWidgetAsync(
         element,
@@ -176,8 +217,20 @@ class PdfExporter {
       if (widget != null) {
         body.add(widget);
       }
+      rendered++;
+      onProgress?.call(ExportProgress(
+        stage: ExportStage.renderingBlocks,
+        completed: rendered,
+        total: elements.length,
+      ));
     }
 
+    // Phase 4: 拼装 PDF 页面 → save 为字节流。
+    onProgress?.call(const ExportProgress(
+      stage: ExportStage.assembling,
+      completed: 0,
+      total: 1,
+    ));
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -194,7 +247,14 @@ class PdfExporter {
     // 但每次导出后清理 WebView DOM payload 元素，减少内存压力。
     await MermaidService.cleanupPayloads();
     try {
-      return await pdf.save();
+      final bytes = await pdf.save();
+      // 拼装完成，最终进度报告（completed = 1/1）。
+      onProgress?.call(const ExportProgress(
+        stage: ExportStage.assembling,
+        completed: 1,
+        total: 1,
+      ));
+      return bytes;
     } catch (e, st) {
       // DEBUG-DIAG: 抓完整 stack trace，帮助定位 Unexpected extension byte 真因
       debugPrint('====== [PDF-SAVE-DIAG] pdf.save() FAILED ======');

@@ -10,13 +10,19 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../../../core/parser/markdown_parser.dart';
 import '../../../data/models/document.dart';
-import '../export_service.dart' show ExportException;
+import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 
 class TextExporter {
   TextExporter._();
 
   /// 入口：把 Markdown 文本导出为 UTF-8 编码的纯文本字节流。
-  static Future<Uint8List> export(String markdown) async {
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：纯文本无公式预渲染阶段，仅
+  /// [ExportStage.renderingBlocks] 块级进度；通常较快。
+  static Future<Uint8List> export(
+    String markdown, {
+    ExportProgressCallback? onProgress,
+  }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
@@ -24,11 +30,26 @@ class TextExporter {
     final elements = MarkdownParser.parse(markdown);
     final sb = StringBuffer();
 
+    // Phase 1：解析 + 块级渲染进度（纯文本无 pre-render 与 assembling 阶段分离，
+    // 单报告 stages 即可，但仍按规范走 renderingBlocks）。
+    var rendered = 0;
+    final total = elements.length;
+    onProgress?.call(ExportProgress(
+      stage: ExportStage.renderingBlocks,
+      completed: 0,
+      total: total,
+    ));
     for (final element in elements) {
       final line = _elementToText(element);
       if (line.isNotEmpty) {
         sb.writeln(line);
       }
+      rendered++;
+      onProgress?.call(ExportProgress(
+        stage: ExportStage.renderingBlocks,
+        completed: rendered,
+        total: total,
+      ));
     }
 
     final result = sb.toString();

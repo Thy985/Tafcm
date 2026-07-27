@@ -91,32 +91,51 @@ class MarkdownExporter {
   }
 
   /// 把 Markdown 文本导出为 PDF 字节流。
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：在阶段切换（解析 → 公式预渲染 → block 渲染 → 拼装）
+  /// 与公式预渲染每个公式完成时被调用。默认 `null` 时静默（保持旧行为）。
   static Future<Uint8List> exportToPdf(
     String markdown, {
     String? title,
     String? author,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) {
     return _pdfExporter.export(
       markdown,
       title: title,
       author: author,
       isDark: isDark,
+      onProgress: onProgress,
     );
   }
 
   /// 把 Markdown 文本导出为 Word (.docx) 字节流。
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：阶段切换与公式预渲染每次完成时回调。
   static Future<Uint8List> exportToWord(
     String markdown, {
     String? title,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) {
-    return _wordExporter.export(markdown, title: title, isDark: isDark);
+    return _wordExporter.export(
+      markdown,
+      title: title,
+      isDark: isDark,
+      onProgress: onProgress,
+    );
   }
 
   /// 把 Markdown 文本导出为 UTF-8 编码的纯文本字节流。
-  static Future<Uint8List> exportToTxt(String markdown) {
-    return _textExporter.export(markdown);
+  ///
+  /// [onProgress]（3.4.4 Slice 7）：纯文本无公式预渲染阶段，仅
+  /// [ExportStage.renderingBlocks] 块级进度；通常较快，UI 提示可显示百分比。
+  static Future<Uint8List> exportToTxt(
+    String markdown, {
+    ExportProgressCallback? onProgress,
+  }) {
+    return _textExporter.export(markdown, onProgress: onProgress);
   }
 }
 
@@ -125,12 +144,15 @@ class MarkdownExporter {
 // ============================================================================
 
 /// PDF 导出接口。
+///
+/// [onProgress]（3.4.4 Slice 7）：可选进度回调，阶段切换 + 公式逐个完成时调用。
 abstract interface class PdfExporterInterface {
   Future<Uint8List> export(
     String markdown, {
     String? title,
     String? author,
     bool isDark,
+    ExportProgressCallback? onProgress,
   });
 }
 
@@ -140,12 +162,16 @@ abstract interface class WordExporterInterface {
     String markdown, {
     String? title,
     bool isDark,
+    ExportProgressCallback? onProgress,
   });
 }
 
 /// 纯文本导出接口。
 abstract interface class TextExporterInterface {
-  Future<Uint8List> export(String markdown);
+  Future<Uint8List> export(
+    String markdown, {
+    ExportProgressCallback? onProgress,
+  });
 }
 
 /// 默认 PDF 实现，代理到 [PdfExporter] 的 static 方法。
@@ -158,12 +184,14 @@ class DefaultPdfExporter implements PdfExporterInterface {
     String? title,
     String? author,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) {
     return PdfExporter.export(
       markdown,
       title: title,
       author: author,
       isDark: isDark,
+      onProgress: onProgress,
     );
   }
 }
@@ -177,8 +205,14 @@ class DefaultWordExporter implements WordExporterInterface {
     String markdown, {
     String? title,
     bool isDark = false,
+    ExportProgressCallback? onProgress,
   }) {
-    return WordExporter.export(markdown, title: title, isDark: isDark);
+    return WordExporter.export(
+      markdown,
+      title: title,
+      isDark: isDark,
+      onProgress: onProgress,
+    );
   }
 }
 
@@ -187,8 +221,11 @@ class DefaultTextExporter implements TextExporterInterface {
   const DefaultTextExporter();
 
   @override
-  Future<Uint8List> export(String markdown) {
-    return TextExporter.export(markdown);
+  Future<Uint8List> export(
+    String markdown, {
+    ExportProgressCallback? onProgress,
+  }) {
+    return TextExporter.export(markdown, onProgress: onProgress);
   }
 }
 
@@ -353,6 +390,57 @@ String _truncate(String s, int maxLen) {
 }
 
 // ============================================================================
+// Progress reporting (3.4.4 Slice 7)
+// ============================================================================
+
+/// 导出阶段（Slice 7）。UI 用 [ExportProgress.stage] 选择提示文案与图标。
+///
+/// 阶段顺序由对应的 Exporter 决定：PDF/Word 走前 4 阶段，Text 只走
+/// [renderingBlocks]。仅适用于当文档**有公式**时的导出。
+enum ExportStage {
+  /// 解析 Markdown → 收集唯一公式集合。
+  collectingFormulas,
+
+  /// 预渲染公式为 SVG/PNG（耗时大头）。
+  preRenderingFormulaSvg,
+
+  /// 顺序遍历每个 block → 渲染为导出器内部的 widget。
+  renderingBlocks,
+
+  /// 把 widget 集合组装为最终字节（PDF.save / ZIP.encode / 字符串拼接）。
+  assembling,
+}
+
+/// 导出进度快照（Slice 7）。
+///
+/// 由每个 Exporter 在阶段切换时通过 [ExportProgressCallback] 报告。
+/// [completed] / [total] 的语义随 [stage] 变化：
+/// - [ExportStage.preRenderingFormulaSvg]：已渲染公式数 / 总公式数
+/// - [ExportStage.renderingBlocks]：已渲染 block 数 / 总 block 数
+/// - 其它阶段（[collectingFormulas] / [assembling]）：`total` 视为 1，[completed] 0/1
+class ExportProgress {
+  const ExportProgress({
+    required this.stage,
+    required this.completed,
+    required this.total,
+  });
+
+  final ExportStage stage;
+  final int completed;
+  final int total;
+
+  /// 0.0–1.0（`total == 0` 时返回 0.0）。
+  double get fraction => total > 0 ? completed / total : 0.0;
+
+  @override
+  String toString() =>
+      'ExportProgress($stage $completed/$total = ${(fraction * 100).toStringAsFixed(1)}%)';
+}
+
+/// 进度回调（Slice 7）。Exporter 在阶段切换时调用，调用方实现更新 UI。
+typedef ExportProgressCallback = void Function(ExportProgress progress);
+
+// ============================================================================
 // 历史遗留：ExportFormat / ExportException（保持原 API 兼容）
 // ============================================================================
 
@@ -398,6 +486,33 @@ class ExportService {
 
   static const _shareTimeout = Duration(seconds: 60);
   static const _exportTimeout = Duration(seconds: 120);
+
+  /// 把字节写到临时文件，返回绝对路径。
+  ///
+  /// 由 `ExportService` 持有的原因：domain 层（而非 presentation 层）允许
+  /// 直接 `File()` / `Directory()`，符合 TC-ARCH-1 / TC-ARCH-2 守门
+  /// （presentation 必须经 Repository / Service；本方法所属 `lib/domain/services/`
+  /// 在 allowlist 中，见 `test/architecture/file_access_test.dart`）。
+  ///
+  /// Slice 7 用法：EditorPage 调 [MarkdownExporter.exportToXxx] 获得字节后，
+  /// 调本方法得临时路径，再把路径交给 `Share.shareXFiles([XFile(path)])`。
+  /// 不在 EditorPage 暴露 `File`/`writeAsBytes`（TC-ARCH-1/2）。
+  static Future<String> writeBytesToTempFile(
+    Uint8List bytes,
+    ExportFormat format, {
+    String? fileName,
+  }) async {
+    final ext = switch (format) {
+      ExportFormat.pdf => 'pdf',
+      ExportFormat.docx => 'docx',
+      ExportFormat.txt => 'txt',
+    };
+    final safeName = '${fileName ?? 'FormulaFix 文档'}.$ext';
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$safeName');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
 
   /// 把 Markdown 导出为目标格式后写临时文件并调起分享。
   ///

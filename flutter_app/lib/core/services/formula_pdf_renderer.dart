@@ -299,6 +299,9 @@ class FormulaPdfRenderer {
     double fontSize = 16,
     bool isDark = false,
     String format = formatPdf,
+    // 3.4.4 Slice 7：每个公式完成（含成功/失败/缓存命中）时回调，参数为
+    // `(completed, total)`，调用方用于更新 LinearProgressIndicator。
+    void Function(int completed, int total)? onEachCompleted,
   }) async {
     final pending = <String>[];
     for (final latex in formulas) {
@@ -325,8 +328,15 @@ class FormulaPdfRenderer {
         ),
         eagerError: false,
       );
-      done += results.where((ok) => ok).length;
-      skipped += results.where((ok) => !ok).length;
+      // 按完成顺序逐公式回调（不论成功/失败）。
+      for (var idx = 0; idx < results.length; idx++) {
+        if (results[idx]) {
+          done++;
+        } else {
+          skipped++;
+        }
+        onEachCompleted?.call(done + skipped, total);
+      }
       if (done % _progressLogInterval < _maxConcurrent ||
           (done + skipped) == total) {
         debugPrint(
