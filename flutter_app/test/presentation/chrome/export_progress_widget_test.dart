@@ -13,8 +13,6 @@
 ///     Riverpod `ref.listen` 不在初始值时触发的语义
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -166,7 +164,6 @@ void main() {
       await pumpOverlayWithSeed(tester, (container) {
         container.read(exportProgressProvider.notifier).complete(
           ExportFormat.pdf,
-          Uint8List.fromList(<int>[1, 2, 3]),
         );
       });
 
