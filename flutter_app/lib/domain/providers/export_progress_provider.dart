@@ -15,8 +15,6 @@
 ///     ConsumerWidget 集中消费，chrome/editor_app_bar 保持 Riverpod-free。
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/services/export_service.dart';
@@ -45,12 +43,11 @@ class ExportInProgressState extends ExportState {
   final ExportProgress progress;
 }
 
-/// 导出完成（bytes 由调用方消费）。
+/// 导出完成（仅表达语义，bytes 由调用方直接消费，不经过 Provider 状态机传输）。
 class ExportCompletedState extends ExportState {
-  const ExportCompletedState({required this.format, required this.bytes});
+  const ExportCompletedState({required this.format});
 
   final ExportFormat format;
-  final Uint8List bytes;
 }
 
 /// 导出失败。
@@ -84,7 +81,10 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
   ExportProgressNotifier() : super(const ExportIdleState());
 
   /// 启动一次导出（进入 [ExportInProgressState]）。
+  ///
+  /// 防止并发：已在导出中时直接返回（不覆盖前一次进度，也不抛异常中断调用方）。
   void start(ExportFormat format) {
+    if (state is ExportInProgressState) return;
     state = ExportInProgressState(
       format: format,
       progress: const ExportProgress(
@@ -106,9 +106,9 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
     }
   }
 
-  /// 导出成功。
-  void complete(ExportFormat format, Uint8List bytes) {
-    state = ExportCompletedState(format: format, bytes: bytes);
+  /// 导出成功（仅表达语义，bytes 留在调用方）。
+  void complete(ExportFormat format) {
+    state = ExportCompletedState(format: format);
   }
 
   /// 导出失败。

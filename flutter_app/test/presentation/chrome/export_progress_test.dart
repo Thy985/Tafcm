@@ -165,13 +165,12 @@ void main() {
       expect(container.read(exportProgressProvider), isA<ExportIdleState>());
     });
 
-    test('complete(format, bytes) → ExportCompletedState 含 bytes', () {
+    test('complete(format) → ExportCompletedState', () {
       notifier.start(ExportFormat.docx);
-      final bytes = Uint8List.fromList(<int>[1, 2, 3]);
-      notifier.complete(ExportFormat.docx, bytes);
+      notifier.complete(ExportFormat.docx);
       final state = container.read(exportProgressProvider);
       expect(state, isA<ExportCompletedState>());
-      expect((state as ExportCompletedState).bytes, bytes);
+      expect((state as ExportCompletedState).format, ExportFormat.docx);
     });
 
     test('fail(format, kind) → ExportFailedState 含 kind', () {
