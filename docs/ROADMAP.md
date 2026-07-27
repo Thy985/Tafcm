@@ -412,7 +412,54 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | 3.3.3 打字机模式（v1.0） | Phase 3.4 §3.4.6 | 手机端软键盘已占半屏,TextField 自带滚动 |
 | 3.3.9 选区格式化菜单（v1.2,v1.4 整体延期） | Phase 3.4 §3.4.10 | Flutter Overlay + TextSelection + 光标坐标 + 滚动同步复杂度高,Phase 3.3 风险敏感。选区包裹能力已作为 §3.3.7 工具栏内置模式保留 |
 
-### Phase 3.4+ — Advanced Capabilities
+### 阶段状态评估（2026-07-28 更新）
+
+> 基于 UI 还原度审计（对比 `formulafix-redesign.design/` 高保真稿 + `../design-system/tokens.json` 与当前 `lib/presentation/` 实现）。本次评估触发一次**产品化阶段切换**。
+
+### 双线模型
+
+FormulaFix 当前状态可明确分为两条线：
+
+| 维度 | 完成度 | 说明 |
+|------|--------|------|
+| **Engineering Foundation（工程地基）** | **~90%+** | 编辑内核 / 块运行时 / 持久化链 / 主题架构 / 自动保存 / 文件树 / TOC / 导出进度 / 图片全链路 均已落地并通过 E2E |
+| **Visual / Product Identity（视觉与产品识别）** | **~40%** | 结构（编辑器 / 块渲染 / 工具栏 / 文件树 / TOC）都在，但设计语言（深蓝主色 + 衬线学术感 + 公式块）几乎没落地 |
+
+核心诊断（一句话）：
+
+> **结构有、皮没换。**
+
+当前架构已存在：
+
+```
+EditorShell ─┬─ BlockRenderer
+             ├─ Theme (EditorTokens)
+             ├─ FileTree
+             ├─ TOC
+             ├─ Autosave
+             └─ Markdown Runtime
+```
+
+但视觉系统链路没有真正建立：
+
+```
+设计 Token ─→ ThemeExtension ─→ Widget ─→ Renderer   ← 应然
+旧 Theme   ─→ 新架构        ─→ 旧视觉             ← 实然（≈40%）
+```
+
+### 最大根因：Design System 未接入
+
+不是缺功能，而是设计系统没有作为单一真相源接入。当前 `EditorTokens` 主色为 `#165DFF`（亮 Azure / SaaS 工具感），而 redesign token 主色为 `#1E3A5F`（深海军蓝 / 学术出版感）——二者传递完全不同的产品人格。字体未设 `fontFamily`（默认 sans / Roboto），与设计要求的衬线学术感相悖。完整差异记分卡见 `../design-system/tokens.json` 与 [docs/design/ui-spec.md](./design/ui-spec.md)。
+
+### 阶段切换判断
+
+前几个月解决的是「能不能成为一个稳定编辑器」（Engineering Foundation）。现在暴露的是「是不是那个设计中的产品」（Visual / Product Identity）。这是**典型的从架构阶段进入产品化阶段的切换**。
+
+因此重新定义 Phase 3.4 Exit：在 Advanced Capabilities 完成后，新增 **Phase 3.4.5 Design System Alignment**（产品化对齐），再进入 **Phase 3.5 Formula Rendering System**（FormulaFix 的差异化立身之本）。
+
+---
+
+## Phase 3.4+ — Advanced Capabilities
 
 **目标**：高级能力扩展（TOC / 文件树 / 主题 / 导出 / 协作 / 桌面化等）。
 
@@ -435,6 +482,45 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 > **进度同步自** [Phase 3.4 Task Contract v1.2](../contracts/phase3.4-task-contract.md)（PR #68 已合入 main）；切片 1/2/3 分别对应 PR #69 / #70 / #71。
 > 3.4.5 / 3.4.6 快捷键 / 打字机按 Task Contract §9.5 决策整体移入 Phase 4 Desktop Enhancement 子阶段,本阶段不再跟踪。
 
+## Phase 3.4.5 — Design System Alignment（产品化对齐）
+
+**目标**：从 "Functional Editor" 变成 "FormulaFix Product Identity"。把 redesign 的视觉语言（深蓝主色 + 暖纸 + 衬线 + 公式块）接入生产 UI，建立 `Design Token → ThemeExtension → Widget → Renderer` 的单向链路。
+
+**前置条件**：Phase 3.4+ Advanced Capabilities 主体完成（TOC / 自动保存 / 主题架构 / 文件树 / 图片链路已落地）。
+
+**核心理念**：本阶段只做"换皮 + 公式块 UI 原型"，不做公式渲染内核（内核留 Phase 3.5）。最高 ROI 在 **P0-1（主色）+ P0-2（字体）**，单项即可让观感接近设计 ~60%。
+
+**关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](../ADR/0017-design-system-alignment.md)（新增，定义 token 单一真相源 + 字体系统 + "Widget 禁止硬编码颜色" 守门）；[ADR-0015 Theme Architecture Migration](../ADR/0015-theme-architecture-migration.md)（机制：static const → ThemeExtension，本阶段补**值**）。
+
+### 任务
+
+| # | 任务 | 优先级 | 来源 | 状态 |
+|---|------|--------|------|------|
+| 3.4.5.1 | **Design Token Migration**：建立 `AppColors`（`primary=#1E3A5F` / `accent=#E76F51` / `paper=#FAFAF7` / `textPrimary` / `textSecondary` / `border` / `success` / `warning` / `error`），经 `EditorTokens`（ThemeExtension）注入；所有散落颜色改为引用 token，**Widget 禁止硬编码颜色** | **P0** | ADR-0017 | ⏳ |
+| 3.4.5.2 | **Typography System**：建立 `AppTypography`（display / h1 / h2 / body / caption / formula / code），正文+标题+公式用 serif（`Source Han Serif SC` 中文回退），代码用 mono（`JetBrains Mono`）；`ThemeData` 设 `fontFamily` | **P0** | ADR-0017 | ⏳ |
+| 3.4.5.3 | **Theme Refinement**：`light` / `dark` / `sepia` 三套主题对齐 token 值（背景/语义色/公式块底）；间距/圆角/字号微调（页边距 24 / 段距 20 / 圆角 6·10·16 / 状态栏 32px） | **P0** | ADR-0017 / ui-spec | ⏳ |
+| 3.4.5.4 | **Formula Block UI Prototype**：建 `FormulaBlock` 视觉原型（渐变底 + 3px 左 border + serif italic + 编号，见 `tokens.json.component.formulaBlock`），**仅 UI 外壳，不接真实渲染**；等 ADR + AST（`FormulaElement`）定稿后 Phase 3.5 落地 | **P1** | ui-spec / Phase 3.5 | ⏳ |
+
+### 实施原则（来自审计结论）
+
+1. **不散落改色**：所有颜色进 `AppColors` / `EditorTokens`，Widget 经 `EditorTokens.of(context)` 取色；grep 守门 `Color(0x` 字面量在 presentation 层零残留（豁免：token 定义文件本身）。
+2. **字体拆 Typography**：公式样式不写死在 `FormulaBlock`，由 `AppTypography.formula` 提供（serif + italic + 18sp）。
+3. **公式块不提前造假**：3.4.5.4 只做视觉原型，真实 LaTeX 渲染留 Phase 3.5（避免半吊子公式卡片）。
+4. **首页降级为 P1**：核心用户路径是 打开→编辑→公式→保存，非首页浏览；Home redesign 作为 Phase 3.5+ 的 P1 跟进（当前 `DocumentListScreen` 为占位桩）。
+
+### 退出条件（Phase 3.4.5 Exit Gate）
+
+- [ ] `AppColors` 为颜色单一真相源；`EditorTokens`（ThemeExtension）三主题注入 redesign token 值
+- [ ] 主色从 `#165DFF` 切换为 `#1E3A5F`；accent `#E76F51` 生效
+- [ ] `ThemeData` 设 serif `fontFamily`（含中文 serif 回退），正文/标题/公式为衬线、代码为 mono
+- [ ] 背景暖纸 `#FAFAF7`、border / 语义色对齐 token
+- [ ] presentation 层无 `Color(0x..)` 硬编码（grep 守门）
+- [ ] FormulaBlock UI 原型渲染出 redesign 规格的卡片视觉（渐变底 + 左 border + 编号占位）
+- [ ] `flutter analyze` 0 warning；`flutter test` 0 regression
+- [ ] Phase 3.4.5 Verification Report 完成
+
+---
+
 ### 退出条件（Phase 3.1+ 整体）
 
 - [x] 用户不再需要切换"编辑/预览"模式（Phase 3.1-A 已完成）
@@ -443,23 +529,34 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 - [ ] MathBlock 双态切换（Phase 3.5：原 Phase 3.2 §3.2.1 延期）
 - [ ] blocks/shared/ 3 个共享组件（Phase 3.5+：原 Phase 3.2 §3.2.7 部分延期）
 - [ ] 21 项 Typora 核心特性对齐度 ≥ 80%（Phase 3.3+）
+- [ ] **Phase 3.4.5 Design System Alignment 完成**（见 Phase 3.4.5 节：主色 `#1E3A5F` / 字体 serif / 背景暖纸 / 语义色对齐 redesign token；视觉完成度从 ~40% 提升至产品化水准）
 
-### Phase 3.5 — Deferred Block Runtime Items
+### Phase 3.5 — Formula Rendering System（公式渲染系统）
 
-**目标**：承接 Phase 3.2 延期项 + 公式渲染系统专项。Phase 3.3 / 3.4 可并行推进,不阻塞本阶段。
+**目标**：FormulaFix 的差异化立身之本——把 "Markdown 编辑器 + 数学公式 + WYSIWYG" 真正打通。承接 Phase 3.4.5 的 FormulaBlock UI 原型（§3.4.5.4），落地真实公式渲染内核。
 
-**前置条件**：Phase 3.2 Conditionally Complete（已满足）。
+**前置条件**：Phase 3.4.5 Design System Alignment 完成（公式块视觉原型就绪 + token 体系到位）。
 
-### 任务
+**核心理念**：市场上 Markdown + WYSIWYG 编辑器很多，但 "Markdown + 数学公式 + WYSIWYG" 才是 FormulaFix 的定位。公式块不能提前做假卡片（见 §3.4.5.4），必须等 **ADR + AST 定稿** 后实施。公式渲染不应直接走 Mermaid 路径，`FormulaSvgService` 成熟度 + AST 表达方式（`FormulaElement` vs 新类型）需评审。
+
+### 任务（Formula Rendering 主线）
 
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
-| 3.5.1 | MathBlock（行内 + 块级公式） — 依赖 `FormulaSvgService` 成熟 + AST 表达方式评审（`FormulaElement` vs 新类型） | Phase 3.2 §3.2.1 延期 | ⏳ |
-| 3.5.2 | `blocks/shared/block_toolbar.dart` — Block 工具栏（移动 / 删除 / 转换类型） | Phase 3.2 §3.2.7 延期 | ⏳ |
-| 3.5.3 | `blocks/shared/block_selection.dart` — Block 选中状态视觉反馈 | Phase 3.2 §3.2.7 延期 | ⏳ |
-| 3.5.4 | `blocks/shared/block_drag_handle.dart` — Block 拖拽重排序 | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.1 | **Formula Rendering System**：`FormulaElement` AST 表达方式评审（`FormulaElement` vs 新类型）→ `FormulaSvgService` 成熟 → `FormulaBlock` + `FormulaRenderer` + Math Widget（**行内 + 块级**）；块级公式带编号（design `component.formulaBlock`：渐变底 + 3px 左 border + serif italic） | Phase 3.2 §3.2.1 延期 + Phase 3.4.5 Task 4 | ⏳ |
+| 3.5.2 | 公式主题适配：公式块底色 / 编号色随 `EditorTokens` 三主题切换（依赖 §3.4.5.3） | ADR-0017 | ⏳ |
 
-**说明**：3.5.2-4 是否合并实施取决于 Phase 3.3 交互体验推进时是否真正需要这些组件。若 Phase 3.3 推进中发现 BlockToolbar 是硬需求,可提前从 Phase 3.5 拉回 Phase 3.3 实施。
+### 并行轨道：Deferred Block Runtime Items（非公式，原 Phase 3.5 延期项）
+
+> 以下 3 项来自 Phase 3.2 延期，与公式渲染无直接耦合，按 Phase 3.3 交互推进需要择机拉回，不阻塞 Phase 3.5 主线。
+
+| # | 任务 | 来源 | 状态 |
+|---|------|------|------|
+| 3.5.3 | `blocks/shared/block_toolbar.dart` — Block 工具栏（移动 / 删除 / 转换类型） | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.4 | `blocks/shared/block_selection.dart` — Block 选中状态视觉反馈 | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.5 | `blocks/shared/block_drag_handle.dart` — Block 拖拽重排序 | Phase 3.2 §3.2.7 延期 | ⏳ |
+
+**说明**：3.5.3-5 是否合并实施取决于 Phase 3.3 交互体验推进时是否真正需要这些组件。若推进中发现 BlockToolbar 是硬需求，可提前从本轨道拉回对应 Phase 实施。
 
 ---
 
@@ -501,6 +598,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 3.3 — Mobile Markdown Editing Experience（v1.4 Accepted,启动 PR 待人工创建）
-**最近更新**：2026-07-22（Phase 3.2 Closure Conditionally Complete + Phase 3.3 Task Contract v1.4 R4 PR 拆分调整 + 优先级统计修正 6P0+3P1）
+**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ 已规划 **Phase 3.4.5 Design System Alignment**（产品化对齐，待启动）
+**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40% 双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；关联 ADR-0017）
 **维护人**：首席架构工程师
