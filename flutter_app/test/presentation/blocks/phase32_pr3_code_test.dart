@@ -52,9 +52,10 @@ void main() {
       final content = file.readAsStringSync();
 
       expect(
-        content.contains('EditorTokens.codeBackground'),
+        content.contains('EditorTokens.of(context).codeBackground'),
         isTrue,
-        reason: 'CodeBlock 背景必须使用 EditorTokens.codeBackground',
+        reason: 'CodeBlock 背景必须使用 EditorTokens.of(context).codeBackground'
+            '（ADR-0015）',
       );
       expect(
         content.contains('EditorTokens.codeFontSize'),
@@ -62,9 +63,10 @@ void main() {
         reason: 'CodeBlock 字号必须使用 EditorTokens.codeFontSize',
       );
       expect(
-        content.contains('EditorTokens.codeLanguageChip'),
+        content.contains('EditorTokens.of(context).codeLanguageChip'),
         isTrue,
-        reason: 'CodeBlock language chip 必须使用 EditorTokens.codeLanguageChip',
+        reason: 'CodeBlock language chip 必须使用 EditorTokens.of(context).codeLanguageChip'
+            '（ADR-0015）',
       );
       // 不应硬编码 Colors.grey.shade100 / .shade300
       expect(

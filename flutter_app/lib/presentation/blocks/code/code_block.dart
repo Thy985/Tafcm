@@ -98,12 +98,12 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: EditorTokens.codeBackground,
+          color: EditorTokens.of(context).codeBackground,
           borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
           border: Border.all(
             color: widget.state.isFocused
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
-                : EditorTokens.borderDefault,
+                : EditorTokens.of(context).borderDefault,
           ),
         ),
         child: Column(
@@ -157,15 +157,15 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: EditorTokens.codeLanguageChip,
+        color: EditorTokens.of(context).codeLanguageChip,
         borderRadius: BorderRadius.circular(EditorTokens.chipRadius),
       ),
       child: Text(
         language,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: EditorTokens.statusBarFontSize,
           fontFamily: 'monospace',
-          color: EditorTokens.textSecondary,
+          color: EditorTokens.of(context).textSecondary,
         ),
       ),
     );

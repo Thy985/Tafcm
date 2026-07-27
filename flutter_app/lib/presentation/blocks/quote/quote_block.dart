@@ -79,10 +79,10 @@ class _QuoteBlockState extends BaseBlockState<QuoteBlock> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
             left: BorderSide(
-              color: EditorTokens.quoteBorderColor,
+              color: EditorTokens.of(context).quoteBorderColor,
               width: 3,
             ),
           ),

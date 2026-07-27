@@ -3,10 +3,6 @@
 /// 落地 Phase 3.0 Task Contract §3.1（v1.1 新增 chrome/ 目录）+ ADR-0009 §3。
 /// Phase 3.1-A PR #2：新增"切换到旧版"隐藏入口（§3.4）。
 /// **Phase 3.3 PR #1**：接入 dirty tracking（§3.3.1）+ Undo/Redo 按钮（§3.3.5）。
-/// **Phase 3.4 Slice 7**：新增导出 PopupMenu（§3.7，3.4.4 导出进度反馈），
-///   选中目标格式后回调 `onExportTo(format)`，具体导出动作与进度展示由
-///   EditorPage / ExportProgressOverlay 接管（chrome/ 保持 Riverpod-free，
-///   AGENTS.md §6.1 + §6.5 守门）。
 ///
 /// **职责**：
 /// - 显示当前文档标题（Phase 3.3：从 coordinator.title 透传）
@@ -29,6 +25,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/services/export_service.dart';
 import '../editor/editor_coordinator.dart';
+import '../theme/app_theme.dart';
 
 /// 编辑器顶部 AppBar（chrome 组件）。
 class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -57,6 +54,18 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// `null` 时不显示导出按钮。
   final ValueChanged<ExportFormat>? onExportTo;
 
+  /// 打开文件树侧栏的回调（Phase 3.4.2）。
+  final VoidCallback? onOpenFileTree;
+
+  /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
+  ///
+  /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
+  /// chrome/ 保持 Riverpod-free，主题状态由 [EditorPage] 从 provider 透传。
+  final AppThemeMode themeMode;
+
+  /// 循环切换主题的回调（Phase 3.4.3：light → dark → sepia → light）。
+  final VoidCallback? onCycleTheme;
+
   const EditorAppBar({
     super.key,
     required this.coordinator,
@@ -66,6 +75,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onToggleFocus,
     this.onOpenToc,
     this.onExportTo,
+    this.onOpenFileTree,
+    this.themeMode = AppThemeMode.light,
+    this.onCycleTheme,
   });
 
   @override
@@ -98,6 +110,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => _onBack(context),
       ),
       actions: [
+        // Phase 3.4.2：文件树侧栏开关（VS Code Mobile 风格：默认隐藏，☰ 触发）
+        IconButton(
+          icon: const Icon(Icons.folder_open),
+          tooltip: '文件树',
+          onPressed: onOpenFileTree,
+        ),
         // Phase 3.4.1：目录（大纲）抽屉开关
         IconButton(
           icon: const Icon(Icons.list_alt),
@@ -115,6 +133,20 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.redo),
           tooltip: '重做',
           onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
+        ),
+        // Phase 3.4.3 / ADR-0015：3 值主题切换（明亮 → 夜间 → 护眼 → 明亮）。
+        // 图标反映**当前**主题，保持切换入口可发现；主题状态由 EditorPage 透传，
+        // chrome/ 不直接依赖 Riverpod（与 onToggleFocus / onOpenToc 一致的回调模式）。
+        IconButton(
+          icon: Icon(_themeIcon(themeMode)),
+          tooltip: _themeTooltip(themeMode),
+          onPressed: onCycleTheme,
+        ),
+        // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
+        IconButton(
+          icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
+          tooltip: focusMode ? '退出焦点模式' : '焦点模式',
+          onPressed: onToggleFocus,
         ),
         // Phase 3.4 Slice 7 / §3.7：导出 PopupMenu（PDF / Word / TXT）。
         // 仅在 EditorPage 注入了 onExportTo 时显示。
@@ -145,7 +177,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
               PopupMenuItem<ExportFormat>(
                 value: ExportFormat.txt,
                 child: ListTile(
-                  leading: Icon(Icons.text_snippet_outlined),
+                  leading: Icon(Icons.text_snippet),
                   title: Text('导出为 TXT'),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -153,12 +185,6 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ],
           ),
-        // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
-        IconButton(
-          icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
-          tooltip: focusMode ? '退出焦点模式' : '焦点模式',
-          onPressed: onToggleFocus,
-        ),
         // Phase 3.1-A PR #2：more_vert 菜单含"切换到旧版编辑器"隐藏入口。
         // 入口不直接暴露在 AppBar 主操作区，需要点开 more_vert 才能看到，
         // 满足"普通用户不会发现，方便需要回退的用户找到"的产品要求。
@@ -191,6 +217,20 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
     );
   }
+
+  /// 当前主题模式对应的图标（反映当前状态，而非"点击后"的状态）。
+  static IconData _themeIcon(AppThemeMode mode) => switch (mode) {
+        AppThemeMode.light => Icons.light_mode,
+        AppThemeMode.dark => Icons.dark_mode,
+        AppThemeMode.sepia => Icons.brightness_medium,
+      };
+
+  /// 当前主题模式对应的 tooltip（含"点击切换到下一主题"提示）。
+  static String _themeTooltip(AppThemeMode mode) => switch (mode) {
+        AppThemeMode.light => '主题：明亮（点击切换到夜间）',
+        AppThemeMode.dark => '主题：夜间（点击切换到护眼）',
+        AppThemeMode.sepia => '主题：护眼（点击切换到明亮）',
+      };
 
   void _onBack(BuildContext context) {
     // Phase 3.0：返回到文件管理页（路由由 main.dart 配置）

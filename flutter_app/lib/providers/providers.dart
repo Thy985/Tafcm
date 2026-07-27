@@ -1,32 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/document.dart';
 import 'file_repository_provider.dart';
 
-// ============ SharedPreferences ============
-
-final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
-  return SharedPreferences.getInstance();
-});
-
-// ============ Dark Mode ============
-
-final darkModeProvider = StateNotifierProvider<DarkModeNotifier, bool>((ref) {
-  final prefsAsync = ref.watch(sharedPreferencesProvider);
-  return DarkModeNotifier(prefsAsync.valueOrNull);
-});
-
-class DarkModeNotifier extends StateNotifier<bool> {
-  final SharedPreferences? _prefs;
-  static const _key = 'pref_dark_mode';
-
-  DarkModeNotifier(this._prefs) : super(_prefs?.getBool(_key) ?? false);
-
-  void toggle() {
-    state = !state;
-    _prefs?.setBool(_key, state);
-  }
-}
+// 注意：主题状态（darkModeProvider / themeModeProvider / sharedPreferencesProvider）
+// 的权威定义已统一收敛到 `providers/editor_providers.dart`，本文件不再重复定义，
+// 以修复 AGENTS.md §3.2「禁止在多个文件定义同名 Provider」的重复定义 bug
+// （与 previewModeProvider 先例一致）。
 
 // ============ Documents List ============
 

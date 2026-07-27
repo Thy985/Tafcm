@@ -492,6 +492,21 @@ Phase 3.0 完成时，本文件应满足以下验证：
 - [ ] §3.3.10 模板插入菜单 8 种模板（表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
 - [ ] **Toolbar 状态来源**：只读 CoordinatorState,不直接访问 TextEditingController（[ADR-0011 §5](../ADR/0011-phase3.3-architecture-decisions.md)）
 
+### Phase 3.4 验证清单（实施过程逐步勾选,Phase 3.4 整体 Closure 时统一审核）
+
+> 状态同步自 [Phase 3.4 Task Contract v1.2](../contracts/phase3.4-task-contract.md) §6.4 / §10。
+> 图例：✅ 已合入 main ／ 🔶 已实现·PR 评审中（未合入 main）／ ⏳ 未启动。
+
+- [x] §3.4.1 TOC 面板：打开显示标题大纲,点击跳转对应块（标题文本经 inline parser,格式正确）— PR #69 已合入 main
+- [x] §3.4.7 自动保存：修改后自动保存落盘（debounce 1.5s + 失败指数退避重试）,idle/saving/saved/error/retrying 状态流供 UI 订阅 — PR #70 已合入 main
+- [ ] 🔶 §3.4.3 主题切换（light / dark / sepia）：Text Widget 整体换肤,偏好重开一致 — PR #71 评审中（未合入 main）
+- [ ] §3.4.9 Markdown 图片插入（file_picker + assets/ 副本 + 关 App 重开三项一致）
+- [ ] §3.4.8 页面宽度控制（max-width 720）
+- [ ] §3.4.2 文件树侧滑面板
+- [ ] §3.4.4 导出进度反馈
+- [ ] §3.4.10 选区格式化菜单（Overlay,可选,高风险）
+- [ ] §3.4.5 / §3.4.6 快捷键 / 打字机（按 Task Contract 决策移 Phase 4,本阶段不再跟踪）
+
 ---
 
 **本文件由 AI Agent 起草，版本 v1.4（Phase 3.3 Task Contract v1.4 Accepted：6P0+3P1 优先级统计修正 + R4 PR 拆分调整 Toolbar → Template Menu），生效日期 2026-07-22。**
