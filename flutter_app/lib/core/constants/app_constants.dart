@@ -3,37 +3,38 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const primary = Color(0xFF165DFF);
-  static const success = Color(0xFF00B42A);
+  // ===== Brand & semantic —— design-system/tokens.json =====
+  static const primary = Color(0xFF1E3A5F);
+  static const success = Color(0xFF2D6A4F);
 
-  static const lightBg = Color(0xFFF2F3F5);
-  static const darkBg = Color(0xFF2D2D2D);
-  static const darkSurface = Color(0xFF1A1A1A);
+  static const lightBg = Color(0xFFFAFAF7);
+  static const darkBg = Color(0xFF0F1419);
+  static const darkSurface = Color(0xFF1A1D23);
 
-  static const lightText = Color(0xFF000000);
-  static const darkText = Color(0xFFFFFFFF);
-  static const lightTextSecondary = Color(0xff000000de);
-  static const darkTextSecondary = Color(0xffffffffb3);
+  static const lightText = Color(0xFF1A1D23);
+  static const darkText = Color(0xFFE8EAED);
+  static const lightTextSecondary = Color(0xFF6B7280);
+  static const darkTextSecondary = Color(0xFF9AA0A6);
 
-  static const codeBlockBg = Color(0xFFF5F5F5);
-  static const darkCodeBlockBg = Color(0xFF2D2D2D);
+  static const codeBlockBg = Color(0xFFF0EFEA);
+  static const darkCodeBlockBg = Color(0xFF13171D);
 
   static const blockquoteBorder = primary;
-  static const blockquoteBg = Color(0xFFF5F5F5);
-  static const darkBlockquoteBg = Color(0xFF2D2D2D);
+  static const blockquoteBg = Color(0xFFF0EFEA);
+  static const darkBlockquoteBg = Color(0xFF13171D);
 
-  static const tableBorder = Color(0xFFE5E6EB);
-  static const darkTableBorder = Color(0xFF424242);
-  static const tableHeaderBg = Color(0xFFF5F5F5);
-  static const darkTableHeaderBg = Color(0xFF2D2D2D);
+  static const tableBorder = Color(0xFFE5E4DF);
+  static const darkTableBorder = Color(0xFF2A2F38);
+  static const tableHeaderBg = Color(0xFFF0EFEA);
+  static const darkTableHeaderBg = Color(0xFF1A1D23);
 
-  static const formulaInlineBg = Color(0xFFF5F5F5);
-  static const darkFormulaInlineBg = Color(0xFF2D2D2D);
+  static const formulaInlineBg = Color(0xFFEBF0F5);
+  static const darkFormulaInlineBg = Color(0xFF1E2A36);
 
-  static const error = Color(0xFFFF3B30);
-  static const warning = Color(0xFFFF9500);
+  static const error = Color(0xFFC1121F);
+  static const warning = Color(0xFFE9C46A);
 
-  static const wordAccent = Color(0xFF4472C4);
+  static const wordAccent = Color(0xFFE76F51);
 }
 
 class AppSpacing {

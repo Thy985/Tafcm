@@ -31,6 +31,7 @@ import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../theme/app_typography.dart';
 import '../base_block_state.dart';
 
 /// 标题块（render + edit 双态，level 1-6）。
@@ -99,24 +100,36 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
   }
 
   /// 按 heading level 1-6 返回对应 [TextStyle]。
+  ///
+  /// 字号梯度取自 design-system/tokens.json `typography.scale`（reader 梯度），
+  /// 字体统一走 [AppTypography.serif]（ADR-0017 P0-2）。
   TextStyle _styleForLevel(int level) {
     switch (level) {
       case 1:
-        return const TextStyle(fontSize: 28, fontWeight: FontWeight.bold);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 26, fontWeight: FontWeight.bold);
       case 2:
-        return const TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 20, fontWeight: FontWeight.bold);
       case 3:
-        return const TextStyle(fontSize: 22, fontWeight: FontWeight.bold);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 18, fontWeight: FontWeight.bold);
       case 4:
-        return const TextStyle(fontSize: 20, fontWeight: FontWeight.w600);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 16, fontWeight: FontWeight.w600);
       case 5:
-        return const TextStyle(fontSize: 18, fontWeight: FontWeight.w600);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 14, fontWeight: FontWeight.w600);
       case 6:
         return const TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w600, fontStyle: FontStyle.italic);
+            fontFamily: AppTypography.serif,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            fontStyle: FontStyle.italic);
       default:
         // 防御性兜底：level 越界（应为 1-6）回退到 h6 样式
-        return const TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
+        return const TextStyle(
+            fontFamily: AppTypography.serif, fontSize: 13, fontWeight: FontWeight.w600);
     }
   }
 }

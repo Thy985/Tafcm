@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../themes/editor_tokens.dart';
+import 'app_typography.dart';
 
 /// 应用主题模式（Phase 3.4 Slice 3 / ADR-0015）。
 ///
@@ -15,19 +16,22 @@ enum AppThemeMode {
 }
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF165DFF);
-  static const Color primaryHover = Color(0xFF0E42CC);
-  static const Color successColor = Color(0xFF00B42A);
-  static const Color warningColor = Color(0xFFFF7D00);
-  static const Color errorColor = Color(0xFFF53F3F);
+  // ===== Brand & semantic —— design-system/tokens.json (color.light) =====
+  static const Color primaryColor = Color(0xFF1E3A5F);
+  static const Color primaryHover = Color(0xFF16304F);
+  static const Color successColor = Color(0xFF2D6A4F);
+  static const Color warningColor = Color(0xFFE9C46A);
+  static const Color errorColor = Color(0xFFC1121F);
 
-  static const Color textPrimary = Color(0xFF1D2129);
-  static const Color textSecondary = Color(0xFF4E5969);
-  static const Color textTertiary = Color(0xFF86909C);
+  // ===== Text =====
+  static const Color textPrimary = Color(0xFF1A1D23);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textTertiary = Color(0xFF9AA0A6);
 
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color backgroundSecondary = Color(0xFFF2F3F5);
-  static const Color border = Color(0xFFE5E6EB);
+  // ===== Surface =====
+  static const Color background = Color(0xFFFFFFFF); // card / AppBar
+  static const Color backgroundSecondary = Color(0xFFFAFAF7); // warm paper
+  static const Color border = Color(0xFFE5E4DF);
 
   /// 浅色主题（注入 [EditorTokens.light]）。
   static ThemeData get lightTheme {
@@ -66,33 +70,38 @@ class AppTheme {
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
       ),
+      textTheme: AppTypography.textTheme(Brightness.light),
+      primaryTextTheme: AppTypography.textTheme(Brightness.light),
       extensions: const <ThemeExtension<dynamic>>[EditorTokens.light],
     );
   }
 
   /// 夜间主题（注入 [EditorTokens.dark]）。
   static ThemeData get darkTheme {
+    const seed = Color(0xFF5B8DB8); // tokens color.dark.brand.primary
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF4080FF),
+        seedColor: seed,
         brightness: Brightness.dark,
       ),
-      scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+      scaffoldBackgroundColor: const Color(0xFF0F1419),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1A1A1A),
+        backgroundColor: Color(0xFF1A1D23),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4080FF),
-          foregroundColor: Colors.white,
+          backgroundColor: seed,
+          foregroundColor: const Color(0xFF0F1419),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
+      textTheme: AppTypography.textTheme(Brightness.dark),
+      primaryTextTheme: AppTypography.textTheme(Brightness.dark),
       extensions: const <ThemeExtension<dynamic>>[EditorTokens.dark],
     );
   }
@@ -123,6 +132,8 @@ class AppTheme {
           ),
         ),
       ),
+      textTheme: AppTypography.textTheme(Brightness.light),
+      primaryTextTheme: AppTypography.textTheme(Brightness.light),
       extensions: const <ThemeExtension<dynamic>>[EditorTokens.sepia],
     );
   }

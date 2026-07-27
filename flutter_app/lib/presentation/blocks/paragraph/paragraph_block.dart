@@ -27,6 +27,7 @@ import '../../../core/utils/asset_image_resolver.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../theme/app_typography.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
@@ -100,7 +101,11 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   ///
   /// **Phase 3.0 简化实现**：仅渲染基本 inline 类型，复杂嵌套留到 Phase 3.2+。
   Widget _buildInlineSpans(List<InlineElement> children, BuildContext context) {
-    final span = _buildInlineList(children, const TextStyle(fontSize: 16), context);
+    final span = _buildInlineList(
+      children,
+      const TextStyle(fontFamily: AppTypography.serif, fontSize: 16, height: 1.9),
+      context,
+    );
     return Text.rich(span);
   }
 
