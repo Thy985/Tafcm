@@ -499,13 +499,13 @@ EditorShell ─┬─ BlockRenderer
 | 3.4.5.1 | **Design Token Migration**：建立 `AppColors`（`primary=#1E3A5F` / `accent=#E76F51` / `paper=#FAFAF7` / `textPrimary` / `textSecondary` / `border` / `success` / `warning` / `error`），经 `EditorTokens`（ThemeExtension）注入；所有散落颜色改为引用 token，**Widget 禁止硬编码颜色** | **P0** | ADR-0017 | ⏳ |
 | 3.4.5.2 | **Typography System**：建立 `AppTypography`（display / h1 / h2 / body / caption / formula / code），正文+标题+公式用 serif（`Source Han Serif SC` 中文回退），代码用 mono（`JetBrains Mono`）；`ThemeData` 设 `fontFamily` | **P0** | ADR-0017 | ⏳ |
 | 3.4.5.3 | **Theme Refinement**：`light` / `dark` / `sepia` 三套主题对齐 token 值（背景/语义色/公式块底）；间距/圆角/字号微调（页边距 24 / 段距 20 / 圆角 6·10·16 / 状态栏 32px） | **P0** | ADR-0017 / ui-spec | ⏳ |
-| 3.4.5.4 | **Formula Block UI Prototype**：建 `FormulaBlock` 视觉原型（渐变底 + 3px 左 border + serif italic + 编号，见 `tokens.json.component.formulaBlock`），**仅 UI 外壳，不接真实渲染**；等 ADR + AST（`FormulaElement`）定稿后 Phase 3.5 落地 | **P1** | ui-spec / Phase 3.5 | ⏳ |
+| 3.4.5.4 | **Formula Block（Typora 严格还原）**：`FormulaBlock` 渲染块级公式 `$$...$$`——纯 serif italic、居中、**无卡片**（ui-spec 权威裁定，覆盖 `tokens.json` 旧卡片规格）；真实渲染经 `FormulaSvgService` 渲染 MathJax SVG（与 Mermaid 共享 WebView），未就绪降级为 serif italic 源码；颜色经 `EditorTokens`、字族经 `AppTypography.formula`。集成于 `ParagraphBlock`（纯块级公式委派，不新增 BlockRenderer case） | **P0**（用户提前拉入 P0-3） | ui-spec / Phase 3.5 | ✅ 已交付（feat/design-system-alignment） |
 
 ### 实施原则（来自审计结论）
 
 1. **不散落改色**：所有颜色进 `AppColors` / `EditorTokens`，Widget 经 `EditorTokens.of(context)` 取色；grep 守门 `Color(0x` 字面量在 presentation 层零残留（豁免：token 定义文件本身）。
 2. **字体拆 Typography**：公式样式不写死在 `FormulaBlock`，由 `AppTypography.formula` 提供（serif + italic + 18sp）。
-3. **公式块不提前造假**：3.4.5.4 只做视觉原型，真实 LaTeX 渲染留 Phase 3.5（避免半吊子公式卡片）。
+3. **公式块真实渲染（已落地）**：3.4.5.4 经 `FormulaSvgService` 渲染真实 MathJax SVG（与 Mermaid 共享 WebView），未就绪降级为 serif italic 源码，**不再造假卡片**。设计冲突以 ui-spec 为准：公式块为 Typora 无卡片（非 `tokens.json` 旧卡片规格，已在 tokens.json 修订对齐）。
 4. **首页降级为 P1**：核心用户路径是 打开→编辑→公式→保存，非首页浏览；Home redesign 作为 Phase 3.5+ 的 P1 跟进（当前 `DocumentListScreen` 为占位桩）。
 
 ### 退出条件（Phase 3.4.5 Exit Gate）
@@ -515,7 +515,7 @@ EditorShell ─┬─ BlockRenderer
 - [ ] `ThemeData` 设 serif `fontFamily`（含中文 serif 回退），正文/标题/公式为衬线、代码为 mono
 - [ ] 背景暖纸 `#FAFAF7`、border / 语义色对齐 token
 - [ ] presentation 层无 `Color(0x..)` 硬编码（grep 守门）
-- [ ] FormulaBlock UI 原型渲染出 redesign 规格的卡片视觉（渐变底 + 左 border + 编号占位）
+- [x] FormulaBlock 渲染出 Typora 规格公式块（纯 serif italic + 居中 + 无卡片；真实 SVG 或源码降级；颜色/字族走 token）
 - [ ] `flutter analyze` 0 warning；`flutter test` 0 regression
 - [ ] Phase 3.4.5 Verification Report 完成
 
@@ -543,7 +543,7 @@ EditorShell ─┬─ BlockRenderer
 
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
-| 3.5.1 | **Formula Rendering System**：`FormulaElement` AST 表达方式评审（`FormulaElement` vs 新类型）→ `FormulaSvgService` 成熟 → `FormulaBlock` + `FormulaRenderer` + Math Widget（**行内 + 块级**）；块级公式带编号（design `component.formulaBlock`：渐变底 + 3px 左 border + serif italic） | Phase 3.2 §3.2.1 延期 + Phase 3.4.5 Task 4 | ⏳ |
+| 3.5.1 | **Formula Rendering System**：块级公式渲染已在 3.4.5.4（P0-3）落地（`FormulaBlock` + `FormulaSvgService` SVG，Typora 无卡片）；剩余：`FormulaElement` AST 评审（独立块类型 vs inline）、行内公式统一渲染路径、`FormulaRenderer`/Math Widget 抽取、块级公式**编号**（design：serif italic 居中，无卡片） | Phase 3.2 §3.2.1 延期 + Phase 3.4.5 Task 4 | 🟡 部分（块级渲染已落地） |
 | 3.5.2 | 公式主题适配：公式块底色 / 编号色随 `EditorTokens` 三主题切换（依赖 §3.4.5.3） | ADR-0017 | ⏳ |
 
 ### 并行轨道：Deferred Block Runtime Items（非公式，原 Phase 3.5 延期项）
@@ -599,5 +599,5 @@ EditorShell ─┬─ BlockRenderer
 ---
 
 **当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ 已规划 **Phase 3.4.5 Design System Alignment**（产品化对齐，待启动）
-**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40% 双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；关联 ADR-0017）
+**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40% 双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-3 公式块严格还原已落地（feat/design-system-alignment）；关联 ADR-0017）
 **维护人**：首席架构工程师

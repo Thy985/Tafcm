@@ -30,6 +30,7 @@ import '../../states/block_view_state.dart';
 import '../../theme/app_typography.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
+import '../formula/formula_block.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
 class ParagraphBlock extends StatefulWidget {
@@ -79,6 +80,30 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
 
   @override
   Widget buildRenderContent(BuildContext context) {
+    // P0-3：纯块级公式（仅含一个 displayMode=true 的 FormulaElement）按 Typora 公式块渲染
+    // （纯 serif italic、居中、无卡片；真实 SVG 渲染由 FormulaBlock 内部经 FormulaSvgService 处理）。
+    if (_isPureBlockFormula(widget.element)) {
+      final formula = widget.element.children.first as FormulaElement;
+      return GestureDetector(
+        onTap: onBlockTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: widget.state.isFocused
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
+                  : Colors.transparent,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: FormulaBlock(
+            element: formula,
+            isFocused: widget.state.isFocused,
+          ),
+        ),
+      );
+    }
     return GestureDetector(
       onTap: onBlockTap,
       child: Container(
@@ -95,6 +120,16 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
         child: _buildInlineSpans(widget.element.children, context),
       ),
     );
+  }
+
+  /// 判断段落是否为「纯块级公式」：仅含一个 [FormulaElement] 且其 [displayMode] 为 true。
+  ///
+  /// 块级公式 `$$...$$` 在编辑器中解析为仅含此 FormulaElement 的 [ParagraphElement]，
+  /// 由本 Block 委派 [FormulaBlock] 做 Typora 化独立渲染（不新增 [BlockRenderer] case）。
+  bool _isPureBlockFormula(ParagraphElement element) {
+    if (element.children.length != 1) return false;
+    final only = element.children.first;
+    return only is FormulaElement && only.displayMode;
   }
 
   /// 把 [InlineElement] 列表渲染为 [Text.rich]，支持 bold / italic / code / formula。
@@ -142,9 +177,11 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
             backgroundColor: Colors.grey.shade200,
           ),
         ),
-      FormulaElement(:final latex) => TextSpan(
-          text: '\$$latex\$',
-          style: baseStyle.copyWith(color: Colors.deepPurple),
+      // 公式（行内 / 块级）Typora 化：纯 serif italic，无卡片、无特殊色
+      // （ui-spec.md §3.1/§7；InlineElement 无 context，颜色继承 baseStyle）
+      FormulaElement(:final latex, :final displayMode) => TextSpan(
+          text: displayMode ? '\$\$$latex\$\$' : '\$$latex\$',
+          style: baseStyle.copyWith(fontStyle: FontStyle.italic),
         ),
       // Phase 3.2 §3.7：Link inline rendering（蓝色 + 下划线,不显示多余 URL）
       // 使用 EditorTokens.linkColor（TextSpan 不支持运行时 Theme 查找,需编译时常量）
