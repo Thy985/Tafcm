@@ -60,30 +60,30 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 表格表头背景色。
   final Color tableHeaderBackground;
 
-  /// 浅色主题实例。
+  /// 浅色主题实例（对齐 design-system/tokens.json color.light）。
   static const EditorTokens light = EditorTokens(
-    textPrimary: Color(0xFF1A1A1A),
-    textSecondary: Color(0xFF6B6B6B),
-    borderFocused: Color(0xFF2196F3),
-    borderDefault: Color(0xFFE0E0E0),
-    codeBackground: Color(0xFFF5F5F5),
-    codeLanguageChip: Color(0xFFE0E0E0),
-    quoteBorderColor: Color(0xFFC0C0C0),
-    tableBorderColor: Color(0xFFE0E0E0),
-    tableHeaderBackground: Color(0xFFF5F5F5),
+    textPrimary: Color(0xFF1A1D23),
+    textSecondary: Color(0xFF6B7280),
+    borderFocused: Color(0xFF1E3A5F),
+    borderDefault: Color(0xFFE5E4DF),
+    codeBackground: Color(0xFFF0EFEA),
+    codeLanguageChip: Color(0xFFE5E4DF),
+    quoteBorderColor: Color(0xFFD8D3C8),
+    tableBorderColor: Color(0xFFE5E4DF),
+    tableHeaderBackground: Color(0xFFF0EFEA),
   );
 
-  /// 夜间主题实例。
+  /// 夜间主题实例（对齐 design-system/tokens.json color.dark）。
   static const EditorTokens dark = EditorTokens(
-    textPrimary: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFFB0B0B0),
-    borderFocused: Color(0xFF4080FF),
-    borderDefault: Color(0xFF3A3A3A),
-    codeBackground: Color(0xFF2A2A2A),
-    codeLanguageChip: Color(0xFF3A3A3A),
-    quoteBorderColor: Color(0xFF555555),
-    tableBorderColor: Color(0xFF3A3A3A),
-    tableHeaderBackground: Color(0xFF2A2A2A),
+    textPrimary: Color(0xFFE8EAED),
+    textSecondary: Color(0xFF9AA0A6),
+    borderFocused: Color(0xFF5B8DB8),
+    borderDefault: Color(0xFF2A2F38),
+    codeBackground: Color(0xFF13171D),
+    codeLanguageChip: Color(0xFF2A2F38),
+    quoteBorderColor: Color(0xFF3A3F48),
+    tableBorderColor: Color(0xFF2A2F38),
+    tableHeaderBackground: Color(0xFF1A1D23),
   );
 
   /// 护眼(sepia)主题实例。
@@ -175,7 +175,7 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 注：用于 ParagraphBlock 的 inline [TextSpan]，TextSpan 不支持运行时
   /// [Theme.of] 查找，需编译时常量。按 ADR-0015 留作已知边界
   /// （Issue `wontfix` + `phase-3.4-typography`），不随主题切换。
-  static const Color linkColor = Color(0xFF2196F3);
+  static const Color linkColor = Color(0xFF1E3A5F);
 
   // ============ 间距 ============
 
@@ -206,7 +206,7 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   static const double statusBarFontSize = 11.0;
 
   /// heading 字号映射（level 1-6）。
-  static const List<double> headingFontSizes = [28, 24, 22, 20, 18, 16];
+  static const List<double> headingFontSizes = [26, 20, 18, 16, 14, 13];
 
   // ============ 圆角 ============
 
