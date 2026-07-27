@@ -1,0 +1,63 @@
+/// 增强版 TestFixture：支持真实文件路径（Chain 3 持久化链路）。
+///
+/// 在原始 `pumpEditorApp` 基础上新增 `pumpEditorFromFile`，
+/// 用 `EditorPage(filePath:)` 打开磁盘上的真实 .md 文件。
+library;
+
+import 'dart:io' as io;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'package:formula_fix/presentation/editor/editor_page.dart';
+
+/// 原始的种子文档入口（无文件 I/O）。
+Future<EditorPage> pumpEditorApp(
+  WidgetTester tester, {
+  int seedSelector = 0,
+}) async {
+  final app = EditorPage(seedSelector: seedSelector);
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp(
+        home: app,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return app;
+}
+
+/// 从真实 .md 文件打开编辑器（Chain 3 持久化链路入口）。
+Future<EditorPage> pumpEditorFromFile(
+  WidgetTester tester, {
+  required String filePath,
+}) async {
+  final app = EditorPage(filePath: filePath);
+  await tester.pumpWidget(
+    ProviderScope(
+      child: MaterialApp(
+        home: app,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return app;
+}
+
+/// 在应用文档目录创建测试 .md 文件，返回绝对路径。
+Future<String> createTestDoc({
+  required String title,
+  required String content,
+}) async {
+  final dir = await getApplicationDocumentsDirectory();
+  final docsPath = '${dir.path}${io.Platform.pathSeparator}documents';
+  await io.Directory(docsPath).create(recursive: true);
+  final name = 'e2e_${DateTime.now().millisecondsSinceEpoch}.md';
+  final path = '$docsPath${io.Platform.pathSeparator}$name';
+  final fullContent = '---\ntitle: $title\n---\n\n$content';
+  await io.File(path).writeAsString(fullContent);
+  return path;
+}
