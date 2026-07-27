@@ -25,6 +25,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/editing/editor_history.dart';
 import '../../core/parser/markdown_parser.dart';
+import '../../data/models/document.dart';
 import '../../domain/providers/export_progress_provider.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/asset_provider.dart';
@@ -108,6 +109,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       final elements = MarkdownParser.parse(doc.content);
       final editor = InMemoryDocumentEditor(title: doc.title);
       for (final element in elements) {
+        // EmptyLineElement 是 MarkdownParser 产出的「块分隔符」（空行辅助），
+        // 不是可编辑块。BlockRenderer / LiveEditingState.wordCount 均不支持它，
+        // 若插入会导致打开含空行的 .md 直接崩溃（见 BlockRenderer.build 注释
+        // "EmptyLineElement 不应到达此处"）。加载时直接跳过分隔符。
+        if (element is EmptyLineElement) continue;
         editor.insertBlock(editor.blockCount, element);
       }
       _coordinator = EditorCoordinator(editor: editor, history: EditorHistory(maxHistorySize: 200));
