@@ -10,10 +10,11 @@ void main() {
   group('TC-ARCH-1 业务层禁止直接访问文件系统', () {
     test('lib/presentation/ 不直接使用 File() / Directory()', () {
       // 已知历史违法（AGENTS.md §10 "DocumentListScreen 死代码"）：
-      //   - file_manager_screen.dart:68 File().delete()
+      //   - file_manager_screen.dart:69 File().delete()
       // Phase 1 1.3 仅注册路由，未清理死代码；待 P2 完全清理。
+      // 注：行号因前置 import 行插入而由 :68 顺移至 :69，属已知违例位置变更，非新增违例。
       const knownOffenders = <String>[
-        'lib/presentation/screens/file_manager_screen.dart:68',
+        'lib/presentation/screens/file_manager_screen.dart:69',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');
