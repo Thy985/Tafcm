@@ -14,13 +14,10 @@
 /// - [RenderMode.rendered]：显示标题文本，按 [HeadingElement.level] 1-6 渲染不同字号
 /// - [RenderMode.editing]：由基类 `buildEditField` 提供 [TextField]（单行）
 ///
-/// **字号映射**（参考 Material Design type scale，简化版）：
-/// - h1: 28 / bold
-/// - h2: 24 / bold
-/// - h3: 22 / bold
-/// - h4: 20 / w600
-/// - h5: 18 / w600
-/// - h6: 16 / w600 / italic
+/// **字号映射**（单一真相源：[EditorTokens.headingFontSizes]，对齐 tokens.json
+/// `typography.scale`：h1 26 / h2 19 / h3 18 / h4 16 / h5 14 / h6 13；字体统一 serif）：
+/// - h1–h3：bold
+/// - h4–h6：w600（h6 附加 italic）
 ///
 /// **依赖方向**（Hard Rule 8）：blocks/ → editor/ → core/editing/。
 library;
@@ -29,6 +26,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
+import '../../themes/editor_tokens.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
 import '../../theme/app_typography.dart';
@@ -89,7 +87,7 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
         ),
         child: Text(
           widget.element.text,
@@ -101,35 +99,17 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
 
   /// 按 heading level 1-6 返回对应 [TextStyle]。
   ///
-  /// 字号梯度取自 design-system/tokens.json `typography.scale`（reader 梯度），
-  /// 字体统一走 [AppTypography.serif]（ADR-0017 P0-2）。
+  /// 字号梯度取自 [EditorTokens.headingFontSizes]（design-system/tokens.json
+  /// `typography.scale`），字体统一走 [AppTypography.serif]（ADR-0017 P0-2）。
   TextStyle _styleForLevel(int level) {
-    switch (level) {
-      case 1:
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 26, fontWeight: FontWeight.bold);
-      case 2:
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 20, fontWeight: FontWeight.bold);
-      case 3:
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 18, fontWeight: FontWeight.bold);
-      case 4:
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 16, fontWeight: FontWeight.w600);
-      case 5:
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 14, fontWeight: FontWeight.w600);
-      case 6:
-        return const TextStyle(
-            fontFamily: AppTypography.serif,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic);
-      default:
-        // 防御性兜底：level 越界（应为 1-6）回退到 h6 样式
-        return const TextStyle(
-            fontFamily: AppTypography.serif, fontSize: 13, fontWeight: FontWeight.w600);
-    }
+    final idx = (level - 1).clamp(0, EditorTokens.headingFontSizes.length - 1);
+    final size = EditorTokens.headingFontSizes[idx];
+    final weight = level <= 3 ? FontWeight.bold : FontWeight.w600;
+    return TextStyle(
+      fontFamily: AppTypography.serif,
+      fontSize: size,
+      fontWeight: weight,
+      fontStyle: level == 6 ? FontStyle.italic : FontStyle.normal,
+    );
   }
 }

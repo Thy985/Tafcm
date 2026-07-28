@@ -52,7 +52,7 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
       ),
@@ -96,7 +96,7 @@ class AppTheme {
           backgroundColor: seed,
           foregroundColor: const Color(0xFF0F1419),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
       ),
@@ -128,7 +128,7 @@ class AppTheme {
           backgroundColor: sepiaSeed,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
       ),

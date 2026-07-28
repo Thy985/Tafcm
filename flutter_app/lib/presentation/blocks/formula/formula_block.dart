@@ -49,7 +49,6 @@ class FormulaBlock extends StatefulWidget {
 
 class _FormulaBlockState extends State<FormulaBlock> {
   String? _svg;
-  bool _failed = false;
 
   @override
   void initState() {
@@ -61,7 +60,6 @@ class _FormulaBlockState extends State<FormulaBlock> {
   void didUpdateWidget(covariant FormulaBlock oldWidget) {
     if (oldWidget.element.latex != widget.element.latex) {
       _svg = null;
-      _failed = false;
       _load();
     }
     super.didUpdateWidget(oldWidget);
@@ -81,7 +79,7 @@ class _FormulaBlockState extends State<FormulaBlock> {
           if (mounted) setState(() => _svg = svg);
         })
         .catchError((_) {
-          if (mounted) setState(() => _failed = true);
+          // WebView 未就绪 / 渲染失败：_svg 保持 null → build 走 serif italic 源码降级
         });
   }
 

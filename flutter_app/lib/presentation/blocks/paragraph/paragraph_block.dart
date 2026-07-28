@@ -95,7 +95,7 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
                   ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
                   : Colors.transparent,
             ),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
           ),
           child: FormulaBlock(
             element: formula,
@@ -115,7 +115,7 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
         ),
         child: _buildInlineSpans(widget.element.children, context),
       ),
@@ -138,7 +138,11 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   Widget _buildInlineSpans(List<InlineElement> children, BuildContext context) {
     final span = _buildInlineList(
       children,
-      const TextStyle(fontFamily: AppTypography.serif, fontSize: 16, height: 1.9),
+      const TextStyle(
+        fontFamily: AppTypography.serif,
+        fontSize: EditorTokens.paragraphFontSize,
+        height: 1.85,
+      ),
       context,
     );
     return Text.rich(span);
