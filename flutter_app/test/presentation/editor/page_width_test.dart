@@ -18,6 +18,7 @@ import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
 import 'package:formula_fix/presentation/editor/editor_scope.dart';
 import 'package:formula_fix/presentation/editor/editor_shell.dart';
 import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
+import 'package:formula_fix/presentation/theme/app_theme.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;
@@ -39,6 +40,7 @@ void main() {
   Widget buildTestWidget() {
     final Map<BlockId, GlobalKey> blockKeys = {};
     return MaterialApp(
+      theme: AppTheme.lightTheme,
       home: Scaffold(
         body: EditorScope(
           coordinator: coordinator,

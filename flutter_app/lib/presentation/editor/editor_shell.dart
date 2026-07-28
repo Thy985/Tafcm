@@ -37,23 +37,15 @@ import '../../core/editing/block_types.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/providers.dart';
-import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../theme/app_theme.dart';
-import '../themes/editor_tokens.dart';
 import '../chrome/editor_status_bar.dart';
 import '../chrome/markdown_toolbar.dart';
 import '../panels/file_tree_panel.dart';
-import '../panels/side_panel_host.dart';
 import '../panels/toc_panel.dart';
-import '../states/block_view_state.dart';
 import 'editor_coordinator.dart';
-
-/// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
-///
-/// 编辑视口在宽屏（> 720）下约束于此值并居中；窄屏（< 720）不受影响。
-/// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
-const double kMaxPageWidth = 720.0;
+import 'workspace.dart';
+export 'workspace.dart';
 
 /// EditorShell：组合 chrome + workspace + status 的布局壳。
 ///
@@ -272,114 +264,6 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               onZoomOut: _zoomOut,
               onZoomReset: _zoomReset,
             ),
-    );
-  }
-}
-
-/// Workspace：编辑区 + 侧栏组合（Phase 3.0 仅占位）。
-///
-/// Phase 3.0：侧栏隐藏（仅插槽），编辑区占满。
-/// Phase 3.7+：侧栏接入 TOC（左侧滑出）。
-/// Phase 3.8+：侧栏接入文件树（左侧滑出）。
-class Workspace extends StatelessWidget {
-  final EditorCoordinator coordinator;
-  final ScrollController? scrollController;
-  final Map<BlockId, GlobalKey> blockKeys;
-
-  /// 文档存储基目录（ADR-0014）。
-  final String? baseDir;
-
-  const Workspace({
-    super.key,
-    required this.coordinator,
-    this.scrollController,
-    required this.blockKeys,
-    this.baseDir,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // 侧栏插槽（Phase 3.0 占位，默认隐藏）
-        if (SidePanelHost.shouldShow(context))
-          SidePanelHost(coordinator: coordinator),
-        // 编辑视口（BlockRenderer 渲染所有块）
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
-              child: EditorViewport(
-                coordinator: coordinator,
-                controller: scrollController,
-                blockKeys: blockKeys,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// EditorViewport：编辑视口（渲染所有 Block）。
-///
-/// 遍历 [coordinator.allIds]，为每个 Block 构造 [BlockRenderer]。
-class EditorViewport extends StatelessWidget {
-  final EditorCoordinator coordinator;
-  final ScrollController? controller;
-  final Map<BlockId, GlobalKey> blockKeys;
-
-  /// 文档存储基目录（ADR-0014）。
-  final String? baseDir;
-
-  const EditorViewport({
-    super.key,
-    required this.coordinator,
-    this.controller,
-    required this.blockKeys,
-    this.baseDir,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ids = coordinator.allIds;
-    // 修剪已删除块的孤儿 GlobalKey（Level 1 评审发现 3：原为只读 TOC 未触发，
-    // 但编辑操作落地前须消除 —— 否则 _blockKeys 随块增删无限膨胀）。
-    // 仅移除当前不再存在的 id，putIfAbsent 会在下次渲染时按需重建。
-    if (blockKeys.isNotEmpty) {
-      final liveIds = ids.toSet();
-      blockKeys.removeWhere((id, _) => !liveIds.contains(id));
-    }
-    if (ids.isEmpty) {
-      return const Center(
-        child: Text('（空文档）', style: TextStyle(fontSize: 16)),
-      );
-    }
-    return ListView.builder(
-      controller: controller,
-      padding: const EdgeInsets.all(EditorTokens.viewportPadding),
-      itemCount: ids.length,
-      itemBuilder: (context, index) {
-        final id = ids[index];
-        final element = coordinator.getBlock(id);
-        // state 应已在 EditorCoordinator 构造时初始化；
-        // 此处 ?? 兜底防御：若 state 未初始化，使用默认 BlockViewState
-        final state = coordinator.viewStateOf(id) ?? BlockViewState(id: id);
-        if (element == null) {
-          return const SizedBox.shrink();
-        }
-        return Padding(
-          key: blockKeys.putIfAbsent(id, () => GlobalKey()),
-          padding: const EdgeInsets.symmetric(vertical: EditorTokens.blockSpacing / 2),
-          child: BlockRenderer(
-            element: element,
-            state: state,
-            coordinator: coordinator,
-            baseDir: baseDir,
-          ),
-        );
-      },
     );
   }
 }
