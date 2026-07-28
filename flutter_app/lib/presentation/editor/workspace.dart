@@ -18,6 +18,7 @@ import '../states/block_view_state.dart';
 import '../themes/editor_tokens.dart';
 import 'block_reorder.dart';
 import 'editor_coordinator.dart';
+import 'editor_scope.dart';
 
 /// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
 ///
@@ -114,6 +115,17 @@ class EditorViewport extends StatelessWidget {
       padding: const EdgeInsets.all(EditorTokens.viewportPadding),
       itemCount: ids.length,
       onReorderItem: _onReorderItem,
+      // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
+      // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
+      // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
+      // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
+      proxyDecorator: (child, index, animation) => EditorScope(
+        coordinator: coordinator,
+        child: Material(
+          type: MaterialType.transparency,
+          child: child,
+        ),
+      ),
       itemBuilder: (context, index) {
         final id = ids[index];
         final element = coordinator.getBlock(id);

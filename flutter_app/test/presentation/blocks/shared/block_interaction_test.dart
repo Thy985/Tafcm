@@ -7,6 +7,7 @@ import 'package:formula_fix/presentation/editor/editor_scope.dart';
 import 'package:formula_fix/presentation/editor/editor_shell.dart';
 import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
+import 'package:formula_fix/presentation/blocks/shared/block_toolbar.dart';
 import 'package:formula_fix/presentation/commands/commands.dart';
 import 'package:formula_fix/presentation/theme/app_theme.dart';
 import 'package:formula_fix/presentation/themes/editor_tokens.dart';
@@ -240,5 +241,40 @@ void main() {
 
     // BlockType.code 不在 [paragraph,heading,blockquote]，转换按钮隐藏
     expect(find.byTooltip('转换类型'), findsNothing);
+  });
+
+  // ============ T1-1 触屏可达性（Release Gate G2）============
+  // 手机没有 hover：BlockToolbar / DragHandle 必须在 tap（setFocus）路径下可见。
+  // 以下用触摸指针（默认 tap 即 touch）验证，全程不产生 MouseRegion hover 事件。
+
+  testWidgets('触屏 tap 块 → BlockToolbar 可见（不依赖 hover）', (tester) async {
+    await _pumpViewport(tester);
+    // 初始无焦点、无 hover → 无工具栏
+    expect(find.byType(BlockToolbar), findsNothing);
+
+    // 触摸 tap 首块（BaseBlockState.onBlockTap → coordinator.setFocus）
+    await tester.tap(find.text('Para 1'));
+    await tester.pumpAndSettle();
+
+    expect(coordinator.focusedId, coordinator.allIds.first);
+    // chrome 经 focusedId 路径显示（showChrome = hover || selected）
+    expect(find.byType(BlockToolbar), findsOneWidget);
+    expect(find.byTooltip('删除'), findsOneWidget);
+  });
+
+  testWidgets('触屏 tap 另一块 → 原块 chrome 消失、新块显示', (tester) async {
+    await _pumpViewport(tester);
+    await tester.tap(find.text('Para 1'));
+    await tester.pumpAndSettle();
+    expect(coordinator.focusedId, coordinator.allIds.first);
+    expect(find.byType(BlockToolbar), findsOneWidget);
+
+    // tap 第二块（Heading）
+    await tester.tap(find.text('Heading'));
+    await tester.pumpAndSettle();
+
+    expect(coordinator.focusedId, coordinator.allIds[1]);
+    // 仍有且仅有一个工具栏（属于新聚焦块），原块 chrome 已收起
+    expect(find.byType(BlockToolbar), findsOneWidget);
   });
 }
