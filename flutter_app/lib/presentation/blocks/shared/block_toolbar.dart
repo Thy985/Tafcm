@@ -13,6 +13,7 @@ import '../../../core/editing/block_types.dart';
 import '../../commands/commands.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../themes/editor_tokens.dart';
+import 'block_convert.dart';
 
 /// 块操作工具条。
 class BlockToolbar extends StatelessWidget {
@@ -101,38 +102,10 @@ class BlockToolbar extends StatelessWidget {
     final element = coordinator.getBlock(blockId);
     if (element == null) return;
     final source = coordinator.sourceOf(blockId);
-    final newSource = _applyBlockPrefix(source, target);
+    // 前缀映射委托纯函数 applyBlockPrefix（block_convert.dart，T1-4 可单测）
+    final newSource = applyBlockPrefix(source, target);
     coordinator.handle(
       UpdateBlockSourceCommand(blockId: blockId, newSource: newSource),
     );
-  }
-
-  /// 剥离每行既有块级标记（# / > / 列表前缀），再按目标类型加前缀。
-  ///
-  /// - [BlockType.paragraph]：去除所有行的前缀
-  /// - [BlockType.heading]：首行加 `# `，其余行去前缀
-  /// - [BlockType.blockquote]：每行加 `> `
-  ///
-  /// 由 [BlockOperations.updateSource] 内部的 tryTransform 自动转化为目标 BlockType。
-  String _applyBlockPrefix(String source, BlockType target) {
-    final prefix = switch (target) {
-      BlockType.heading => '# ',
-      BlockType.blockquote => '> ',
-      _ => null, // paragraph：仅去前缀
-    };
-    final lines = source.split('\n');
-    // Strip existing block-level prefix from every line (fixes multi-line blockquote)
-    final stripped = lines
-        .map(
-            (line) => line.replaceFirst(RegExp(r'^(#+\s+|>\s+|[-*+]\s+)'), ''))
-        .toList();
-    if (prefix == '> ') {
-      // Blockquote: prefix every line
-      return stripped.map((line) => '> $line').join('\n');
-    } else if (prefix != null) {
-      // Heading: # prefix only on first line
-      stripped[0] = '$prefix${stripped[0]}';
-    }
-    return stripped.join('\n');
   }
 }
