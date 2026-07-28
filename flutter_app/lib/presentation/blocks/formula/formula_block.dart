@@ -9,7 +9,7 @@
 ///   WebView 未就绪 / 渲染失败则**降级为 serif italic 源码**（Typora 观感不丢失，不崩溃）。
 /// - 真实渲染成功时，下方显示 mono 源码行（与高保真 prototype 一致）；降级态不重复显示。
 ///
-/// **颜色守门（ADR-0017）**：不硬编码 `Color(0x..)`，全部经 [EditorTokens.of] 取色；
+/// **颜色守门（ADR-0017）**：不硬编码颜色字面量，全部经 [EditorTokens.of] 取色；
 /// 公式字族 / 字重由 [AppTypography.formula] 提供（serif + italic）。
 ///
 /// **AST 来源**：[FormulaElement]（inline 层，`displayMode=true` 标记块级）。块级公式在编辑器中
