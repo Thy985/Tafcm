@@ -107,11 +107,11 @@ class BlockToolbar extends StatelessWidget {
     );
   }
 
-  /// 剥离首行既有块级标记（# / > / 列表前缀），再按目标类型加前缀。
+  /// 剥离每行既有块级标记（# / > / 列表前缀），再按目标类型加前缀。
   ///
-  /// - [BlockType.paragraph]：去除前缀（无新前缀）
-  /// - [BlockType.heading]：加 `# `
-  /// - [BlockType.blockquote]：加 `> `
+  /// - [BlockType.paragraph]：去除所有行的前缀
+  /// - [BlockType.heading]：首行加 `# `，其余行去前缀
+  /// - [BlockType.blockquote]：每行加 `> `
   ///
   /// 由 [BlockOperations.updateSource] 内部的 tryTransform 自动转化为目标 BlockType。
   String _applyBlockPrefix(String source, BlockType target) {
@@ -121,10 +121,18 @@ class BlockToolbar extends StatelessWidget {
       _ => null, // paragraph：仅去前缀
     };
     final lines = source.split('\n');
-    var first = lines.first;
-    first = first.replaceFirst(RegExp(r'^(#+\s+|>\s+|[-*+]\s+)'), '');
-    if (prefix != null) first = '$prefix$first';
-    lines[0] = first;
-    return lines.join('\n');
+    // Strip existing block-level prefix from every line (fixes multi-line blockquote)
+    final stripped = lines
+        .map(
+            (line) => line.replaceFirst(RegExp(r'^(#+\s+|>\s+|[-*+]\s+)'), ''))
+        .toList();
+    if (prefix == '> ') {
+      // Blockquote: prefix every line
+      return stripped.map((line) => '> $line').join('\n');
+    } else if (prefix != null) {
+      // Heading: # prefix only on first line
+      stripped[0] = '$prefix${stripped[0]}';
+    }
+    return stripped.join('\n');
   }
 }

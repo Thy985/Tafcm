@@ -44,6 +44,7 @@ import '../chrome/markdown_toolbar.dart';
 import '../panels/file_tree_panel.dart';
 import '../panels/toc_panel.dart';
 import 'editor_coordinator.dart';
+import 'workspace.dart';
 export 'workspace.dart';
 
 /// EditorShell：组合 chrome + workspace + status 的布局壳。

@@ -149,4 +149,96 @@ void main() {
     // 三个块外壳均渲染
     expect(find.byType(EditorViewport), findsOneWidget);
   });
+
+  testWidgets('BlockToolbar 下移：中间块降到末尾', (tester) async {
+    await _pumpViewport(tester);
+    final middle = coordinator.allIds[1];
+    coordinator.setFocus(middle);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('下移'));
+    await tester.pumpAndSettle();
+
+    // 原 [P1, H, P2] → 下移 H → [P1, P2, H]
+    expect(coordinator.allIds.last, middle);
+  });
+
+  testWidgets('BlockToolbar 转换：paragraph -> blockquote', (tester) async {
+    await _pumpViewport(tester);
+    final para = coordinator.allIds.first;
+    coordinator.setFocus(para);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('转换类型'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('引用'));
+    await tester.pumpAndSettle();
+
+    final element = coordinator.getBlock(para);
+    expect(element, isNotNull);
+    expect(BlockType.fromElement(element!), BlockType.blockquote);
+  });
+
+  testWidgets('引用转正文：类型变为 paragraph 且内容保留', (tester) async {
+    // 用 addBlock 创建单块引用
+    final editor = InMemoryDocumentEditor(title: 'bq2p');
+    editor.addBlock('> a blockquote', BlockType.blockquote);
+    coordinator = EditorCoordinator(
+      editor: editor,
+      history: EditorHistory(maxHistorySize: 200),
+    );
+    await _pumpViewport(tester);
+
+    final bqId = coordinator.allIds.first;
+    coordinator.setFocus(bqId);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('转换类型'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('正文'));
+    await tester.pumpAndSettle();
+
+    final element = coordinator.getBlock(bqId);
+    expect(element, isNotNull);
+    expect(BlockType.fromElement(element!), BlockType.paragraph);
+    // 内容应保留
+    expect(coordinator.sourceOf(bqId), contains('blockquote'));
+  });
+
+  testWidgets('块数为 1 时删除按钮不生效', (tester) async {
+    final editor = InMemoryDocumentEditor(title: 'single');
+    editor.addParagraph('Only one block');
+    coordinator = EditorCoordinator(
+      editor: editor,
+      history: EditorHistory(maxHistorySize: 200),
+    );
+    await _pumpViewport(tester);
+
+    final only = coordinator.allIds.first;
+    coordinator.setFocus(only);
+    await tester.pumpAndSettle();
+
+    expect(coordinator.blockCount, 1);
+    // 删除按钮存在但禁用；tap 不改变块数
+    await tester.tap(find.byTooltip('删除'));
+    await tester.pumpAndSettle();
+    expect(coordinator.blockCount, 1);
+  });
+
+  testWidgets('代码块不显示转换按钮', (tester) async {
+    final editor = InMemoryDocumentEditor(title: 'code');
+    editor.insertBlock(0, const CodeElement(code: 'print("hello")'));
+    coordinator = EditorCoordinator(
+      editor: editor,
+      history: EditorHistory(maxHistorySize: 200),
+    );
+    await _pumpViewport(tester);
+
+    final codeId = coordinator.allIds.first;
+    coordinator.setFocus(codeId);
+    await tester.pumpAndSettle();
+
+    // BlockType.code 不在 [paragraph,heading,blockquote]，转换按钮隐藏
+    expect(find.byTooltip('转换类型'), findsNothing);
+  });
 }
