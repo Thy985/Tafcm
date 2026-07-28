@@ -134,7 +134,7 @@ jobs:
   # 注意：基线实际落点 test/golden/golden/*.png（matchesGoldenFile 相对测试
   # 文件目录解析），故 artifact path 为 flutter_app/test/golden/golden/*.png。
   golden:
-    name: Golden (bootstrap: update baselines)
+    name: Golden (bootstrap update baselines)
     runs-on: ubuntu-24.04
     needs: analyze
     if: true  # Bootstrap：在 Linux 生成权威基线；完成后改回比对模式
@@ -165,7 +165,7 @@ jobs:
       - name: Download dependencies
         run: flutter pub get
 
-      - name: Run golden tests (bootstrap: update baselines on Linux)
+      - name: Run golden tests (bootstrap update baselines on Linux)
         run: flutter test --tags golden --update-goldens --reporter expanded
 
       - name: Upload golden baselines (Linux-generated)
