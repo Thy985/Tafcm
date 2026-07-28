@@ -18,6 +18,7 @@ import '../../core/editing/block_types.dart';
 import '../../core/parser/markdown_parser.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
+import '../widgets/formula_renderer.dart';
 
 /// 单个 TOC 条目（不可变快照）。
 class _TocItem {
@@ -177,7 +178,16 @@ class TocPanel extends StatelessWidget {
         ),
       ];
     } else if (child is FormulaElement) {
-      return [TextSpan(text: '\$${child.latex}\$')];
+      // 目录内公式同样经统一 [FormulaRenderer] 真实渲染（行内、无卡片）。
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: FormulaRenderer(
+            element: FormulaElement(latex: child.latex, displayMode: false),
+            displayMode: false,
+          ),
+        ),
+      ];
     } else if (child is ImageElement) {
       return [TextSpan(text: child.alt.isNotEmpty ? child.alt : '[图片]')];
     }

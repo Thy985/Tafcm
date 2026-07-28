@@ -543,8 +543,8 @@ EditorShell ─┬─ BlockRenderer
 
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
-| 3.5.1 | **Formula Rendering System**：块级公式渲染已在 3.4.5.4（P0-3）落地（`FormulaBlock` + `FormulaSvgService` SVG，Typora 无卡片）；剩余：`FormulaElement` AST 评审（独立块类型 vs inline）、行内公式统一渲染路径、`FormulaRenderer`/Math Widget 抽取、块级公式**编号**（design：serif italic 居中，无卡片） | Phase 3.2 §3.2.1 延期 + Phase 3.4.5 Task 4 | 🟡 部分（块级渲染已落地） |
-| 3.5.2 | 公式主题适配：公式块底色 / 编号色随 `EditorTokens` 三主题切换（依赖 §3.4.5.3） | ADR-0017 | ⏳ |
+| 3.5.1 | **Formula Rendering System**：统一 `FormulaRenderer`（行内/块级单路径，ui-spec §7 无卡片 serif italic 落地）、`FormulaElement` AST 评审（inline 元素 + `displayMode` 字段，不新增块类型守 exhaustive-switch）、行内公式统一渲染路径、`FormulaRenderer` 抽取、块级公式**编号**（serif italic 居中，无卡片）、双内核降级（块级 `FormulaSvgService` MathJax SVG 优先 + `flutter_math_fork` 兜底；行内 `flutter_math_fork` 优先 + serif 源码兜底） | Phase 3.2 §3.2.1 延期 + Phase 3.4.5 Task 4 | ✅ 完成（分支 `feat/formula-rendering-system`） |
+| 3.5.2 | 公式主题适配：公式块底色 / 编号色随 `EditorTokens` 三主题切换（依赖 §3.4.5.3） | ADR-0017 | ✅ 完成（`FormulaRenderer` 颜色读 `EditorTokens.textPrimary/textSecondary`，三主题切换） |
 
 ### 并行轨道：Deferred Block Runtime Items（非公式，原 Phase 3.5 延期项）
 
@@ -598,6 +598,6 @@ EditorShell ─┬─ BlockRenderer
 
 ---
 
-**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（产品化对齐，✅ 全部退出条件达成：P0-1/2/3 + 3.4.5.3 主题精修 + presentation 硬编码 `Color(0x` 清理（grep 守门零残留）+ Phase 3.4.5 Verification Report 完成；分支 `feat/design-system-alignment` HEAD `d48a6b9`，待 Human Owner 审批并合并 main 后正式关闭）**
-**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40%（P0-1/2/3 落地后明显提升）双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-1/2/3 已随 feat/design-system-alignment 推送（0695bfc / 7c0653c）；ROADMAP 状态表修正：§3.4.5.1/2 标记 ✅；3.4.5.3 主题精修已交付（commit 23ba83c）；TC-ARCH-3 失败修复（FormulaBlock 经 providers 层访问 FormulaSvgService，commit faf5453）；presentation 硬编码 Color(0x 清理已完成（file_manager_screen 旧主色 #165DFF/Colors.red → AppColors.primary/error，app_typography 文本色 → AppColors.lightText/darkText，grep 守门零残留），退出条件标记 ✅；TC-ARCH-1 冻结名单行号 :68→:69 同步（commit d48a6b9）；Phase 3.4.5 Verification Report 完成（docs/releases/phase3.4.5-verification-report.md），8/8 退出条件达成；关联 ADR-0017）
+**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（✅ 全部退出条件达成，分支 `feat/design-system-alignment` 待合并 main）** + **Phase 3.5 Formula Rendering System（主线 3.5.1 + 主题 3.5.2 已完成：统一 `FormulaRenderer` 单路径 + 行内/块级无卡片 + 编号 + `EditorTokens` 三主题适配；分支 `feat/formula-rendering-system` 待 CI + 合并 main）**
+**最近更新**：2026-07-28（Phase 3.4.5 全部退出条件达成（8/8，Verification Report 完成，commit c02c14d）；启动 Phase 3.5 Formula Rendering System：①新增统一 `FormulaRenderer`（`lib/presentation/widgets/formula_renderer.dart`）— 行内/块级单路径、ui-spec §7 无卡片 serif italic、块级编号、双内核降级（块级 `FormulaSvgService` MathJax SVG 优先 + `flutter_math_fork` 兜底；行内 `flutter_math_fork` 优先 + serif 源码兜底）；②`FormulaBlock` 降级为薄壳委托 `FormulaRenderer`；③预览端 `paragraph_renderer`/`list_renderer`/`toc_panel` 改走 `FormulaRenderer`、删除行内卡片偏差与 `flutter_math_fork`/`FormulaExtractor` 直接依赖；④`paragraph_block` 行内公式由源码文本改为 `FormulaRenderer` 真实渲染；⑤`app_typography`/token 已为三主题就绪；验证：analyze 0 error、blocks+theme 117 passed、architecture 62 passed/6 skipped、grep `Color(0x` presentation 仅 2 豁免定义文件；分支 `feat/formula-rendering-system`，待提交后 CI）
 **维护人**：首席架构工程师
