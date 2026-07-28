@@ -38,6 +38,8 @@ import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/providers.dart';
 import '../blocks/block_renderer.dart';
+import '../blocks/shared/block_selection.dart';
+import '../commands/commands.dart';
 import '../chrome/editor_app_bar.dart';
 import '../theme/app_theme.dart';
 import '../themes/editor_tokens.dart';
@@ -47,6 +49,7 @@ import '../panels/file_tree_panel.dart';
 import '../panels/side_panel_host.dart';
 import '../panels/toc_panel.dart';
 import '../states/block_view_state.dart';
+import 'block_reorder.dart';
 import 'editor_coordinator.dart';
 
 /// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
@@ -356,30 +359,51 @@ class EditorViewport extends StatelessWidget {
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
       );
     }
-    return ListView.builder(
-      controller: controller,
+    return ReorderableListView.builder(
+      scrollController: controller,
+      buildDefaultDragHandles: false,
       padding: const EdgeInsets.all(EditorTokens.viewportPadding),
       itemCount: ids.length,
+      onReorderItem: _onReorderItem,
       itemBuilder: (context, index) {
         final id = ids[index];
         final element = coordinator.getBlock(id);
         // state 应已在 EditorCoordinator 构造时初始化；
         // 此处 ?? 兜底防御：若 state 未初始化，使用默认 BlockViewState
         final state = coordinator.viewStateOf(id) ?? BlockViewState(id: id);
-        if (element == null) {
-          return const SizedBox.shrink();
-        }
-        return Padding(
+        final child = element == null
+            ? const SizedBox.shrink()
+            : BlockRenderer(
+                element: element,
+                state: state,
+                coordinator: coordinator,
+                baseDir: baseDir,
+              );
+        // 包裹选中视觉外壳 + 悬浮工具条 + 拖拽手柄（Phase 3.5.3/4/5）
+        return BlockSelectionChrome(
           key: blockKeys.putIfAbsent(id, () => GlobalKey()),
-          padding: const EdgeInsets.symmetric(vertical: EditorTokens.blockSpacing / 2),
-          child: BlockRenderer(
-            element: element,
-            state: state,
-            coordinator: coordinator,
-            baseDir: baseDir,
-          ),
+          coordinator: coordinator,
+          blockId: id,
+          index: index,
+          child: child,
         );
       },
+    );
+  }
+
+  /// 拖拽重排落点 → [MoveBlockCommand]。
+  ///
+  /// 使用 [ReorderableListView.onReorderItem]（newIndex 已扣除被移除项），
+  /// 索引 → 命令参数映射委托纯函数 [blockReorderArgs]（便于单测）。
+  void _onReorderItem(int oldIndex, int newIndex) {
+    final args = blockReorderArgs(coordinator.allIds, oldIndex, newIndex);
+    if (args == null) return;
+    coordinator.handle(
+      MoveBlockCommand(
+        targetId: args.targetId,
+        refId: args.refId,
+        before: args.before,
+      ),
     );
   }
 }

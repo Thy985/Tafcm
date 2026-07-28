@@ -552,11 +552,11 @@ EditorShell ─┬─ BlockRenderer
 
 | # | 任务 | 来源 | 状态 |
 |---|------|------|------|
-| 3.5.3 | `blocks/shared/block_toolbar.dart` — Block 工具栏（移动 / 删除 / 转换类型） | Phase 3.2 §3.2.7 延期 | ⏳ |
-| 3.5.4 | `blocks/shared/block_selection.dart` — Block 选中状态视觉反馈 | Phase 3.2 §3.2.7 延期 | ⏳ |
-| 3.5.5 | `blocks/shared/block_drag_handle.dart` — Block 拖拽重排序 | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.3 | `blocks/shared/block_toolbar.dart` — Block 工具栏（移动 / 删除 / 转换类型） | Phase 3.2 §3.2.7 延期 | ✅ 完成（分支 `feat/block-interaction`） |
+| 3.5.4 | `blocks/shared/block_selection.dart` — Block 选中状态视觉反馈 | Phase 3.2 §3.2.7 延期 | ✅ 完成（分支 `feat/block-interaction`） |
+| 3.5.5 | `blocks/shared/block_drag_handle.dart` — Block 拖拽重排序 | Phase 3.2 §3.2.7 延期 | ✅ 完成（分支 `feat/block-interaction`） |
 
-**说明**：3.5.3-5 是否合并实施取决于 Phase 3.3 交互体验推进时是否真正需要这些组件。若推进中发现 BlockToolbar 是硬需求，可提前从本轨道拉回对应 Phase 实施。
+**说明**：3.5.3-5 已于 2026-07-28 在分支 `feat/block-interaction` 合并实施：BlockToolbar（上移/下移/删除/转换类型，经 `EditorCoordinator.handle` 派发 Command）+ BlockSelectionChrome（focusedId 选中描边 + 悬浮工具条）+ BlockDragHandle（ReorderableDragStartListener）；`EditorViewport` 改为 `ReorderableListView.builder`（`buildDefaultDragHandles:false`）+ `onReorderItem` → `MoveBlockCommand` 自由拖拽重排。依赖守门 TC-ARCH-UI-1/5 保持。
 
 ---
 
@@ -598,6 +598,6 @@ EditorShell ─┬─ BlockRenderer
 
 ---
 
-**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（✅ 全部退出条件达成，分支 `feat/design-system-alignment` 待合并 main）** + **Phase 3.5 Formula Rendering System（主线 3.5.1 + 主题 3.5.2 已完成：统一 `FormulaRenderer` 单路径 + 行内/块级无卡片 + 编号 + `EditorTokens` 三主题适配；分支 `feat/formula-rendering-system` 待 CI + 合并 main）**
-**最近更新**：2026-07-28（Phase 3.4.5 全部退出条件达成（8/8，Verification Report 完成，commit c02c14d）；启动 Phase 3.5 Formula Rendering System：①新增统一 `FormulaRenderer`（`lib/presentation/widgets/formula_renderer.dart`）— 行内/块级单路径、ui-spec §7 无卡片 serif italic、块级编号、双内核降级（块级 `FormulaSvgService` MathJax SVG 优先 + `flutter_math_fork` 兜底；行内 `flutter_math_fork` 优先 + serif 源码兜底）；②`FormulaBlock` 降级为薄壳委托 `FormulaRenderer`；③预览端 `paragraph_renderer`/`list_renderer`/`toc_panel` 改走 `FormulaRenderer`、删除行内卡片偏差与 `flutter_math_fork`/`FormulaExtractor` 直接依赖；④`paragraph_block` 行内公式由源码文本改为 `FormulaRenderer` 真实渲染；⑤`app_typography`/token 已为三主题就绪；验证：analyze 0 error、blocks+theme 117 passed、architecture 62 passed/6 skipped、grep `Color(0x` presentation 仅 2 豁免定义文件；分支 `feat/formula-rendering-system`，待提交后 CI）
+**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（✅ 全部退出条件达成，分支 `feat/design-system-alignment` 已合并 main）** + **Phase 3.5 Formula Rendering System（主线 3.5.1 + 主题 3.5.2 已完成并合并 main：统一 `FormulaRenderer` 单路径 + 行内/块级无卡片 + 编号 + `EditorTokens` 三主题适配）** + **Phase 3.5 延期项 3.5.3/4/5 Block 交互三件套（✅ 完成，分支 `feat/block-interaction`）**
+**最近更新**：2026-07-28（Phase 3.5 延期项 3.5.3/4/5 Block 交互三件套完成，分支 `feat/block-interaction`，parent `31b1f17`：①新增 `MoveBlockCommand`（sealed library）+ `command_handler._dispatch` case → `ops.move`；②新增 `blocks/shared/block_drag_handle.dart`（ReorderableDragStartListener）/ `block_selection.dart`（BlockSelectionChrome：focusedId 选中描边 + 悬浮 BlockToolbar + 常驻拖拽手柄）/ `block_toolbar.dart`（上移/下移/删除/转换类型，经 `coordinator.handle` 派发，转换复用 `UpdateBlockSourceCommand` 前缀触发 tryTransform）；③`EditorViewport` 改为 `ReorderableListView.builder`（`buildDefaultDragHandles:false`）+ `onReorderItem` → `MoveBlockCommand`，纯函数 `block_reorder.dart` 推导落点参数；④Widget 测试 10 passed（block_reorder_args 5 + block_interaction 5：选中描边/删除/上移/转换/重排）；⑤architecture 守门 TC-ARCH-UI-5/6/7 仍全绿；analyze 0 新增 fatal warning。待 git 锁绕过提交并 push）
 **维护人**：首席架构工程师

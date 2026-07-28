@@ -155,6 +155,30 @@ final class MoveBlockDownCommand extends EditorCommand {
   }) : super(displayName: '下移块');
 }
 
+/// 自由拖拽重排：把 [targetId] 移动到 [refId] 之前或之后。
+///
+/// 与 [MoveBlockUpCommand] / [MoveBlockDownCommand]（相邻交换）不同，
+/// 本 Command 支持任意位置重排（来自 [ReorderableListView] 的拖拽落点）。
+/// handler 调用 [BlockOperations.move]。
+@immutable
+final class MoveBlockCommand extends EditorCommand {
+  /// 被移动的块。
+  final BlockId targetId;
+
+  /// 参照块（落点相邻块）。
+  final BlockId refId;
+
+  /// true=移到 [refId] 之前；false=之后。
+  final bool before;
+
+  const MoveBlockCommand({
+    required this.targetId,
+    required this.refId,
+    required this.before,
+    super.origin = CommandOrigin.gesture,
+  }) : super(displayName: '移动块');
+}
+
 /// 更新块内容（编辑时，最常见 command）。
 @immutable
 final class UpdateBlockSourceCommand extends EditorCommand {

@@ -88,6 +88,7 @@ class CommandHandler {
       DeleteBlockCommand c => _handleDelete(c, operations),
       MoveBlockUpCommand c => _handleMoveUp(c, operations),
       MoveBlockDownCommand c => _handleMoveDown(c, operations),
+      MoveBlockCommand c => _handleMove(c, operations),
       UpdateBlockSourceCommand c => _handleUpdateSource(c, operations),
       TransformBlockCommand c => _handleTransform(c, operations),
       // Phase 3.3 PR #2A 新增 3 个分支（Markdown 工具栏 + 模板菜单）
@@ -150,6 +151,10 @@ class CommandHandler {
     if (currentIndex + 1 >= editor.blockCount) return false;
     final nextId = editor.allIds[currentIndex + 1];
     return ops.move(c.blockId, nextId, before: false);
+  }
+
+  bool _handleMove(MoveBlockCommand c, BlockOperations ops) {
+    return ops.move(c.targetId, c.refId, before: c.before);
   }
 
   bool _handleUpdateSource(UpdateBlockSourceCommand c, BlockOperations ops) {
