@@ -103,36 +103,21 @@ jobs:
           name: test-coverage
           path: flutter_app/coverage/
 
-  # Golden UI 测试 job — 暂停状态
+  # Golden UI 测试 job — 常驻比对模式（GOLDEN-CI-001 已销案，2026-07-28）
   #
-  # 跨平台字体渲染差异导致 Windows 本地基线与 Linux CI 渲染不匹配
-  # （实测 0.09% / 4007px diff），非真实 UI 回归。
+  # 根因（跨平台字体渲染差异 0.09% / 4007px diff）已通过 Tier 2 环境三固定
+  # 根除：CI 镜像固定 ubuntu-24.04、Flutter 3.44.6 固定、pubspec 打包
+  # NotoSerifSC / NotoSansSC / CascadiaMono 且 golden 测试 setUpAll 显式
+  # loadAppFonts()、固定 locale=en_US / textScaleFactor=1.0 / viewport 800×1200。
   #
-  # 当前策略：
-  # - 主 test job 用 `--exclude-tags golden` 排除
-  # - 本 job 暂停（if: false），保留轨迹供未来解封
-  # - 本地 `flutter test` 默认全跑，开发期间仍有视觉回归保护
+  # 基线由 Linux CI 生成并提交仓库（golden-baselines artifact 落库，实际落点
+  # test/golden/golden/*.png），禁用 Windows 本机基线。
   #
-  # 解封条件（见 docs/TEST_SKIP_REGISTRY.md GOLDEN-CI-001）：
-  #   □ 固定字体安装（Ahem / Roboto）
-  #   □ 固定 locale / textScaleFactor / viewport
-  #   □ Linux baseline 重新生成
-  #   □ 连续 10 次 CI 运行 0 随机 diff
-  # 满足后：将 if: false 改为 if: true
+  # 本 job 现每次 push/PR 跑 `flutter test --tags golden` 与 Linux 基线比对，
+  # 任何像素 diff 即失败（视觉回归保护）。解封条件全部满足。
   #
-  # ── Tier 2 (TEST_GAP_PLAN T2-0) 解封准备（2026-07-28）──
-  # 环境三固定已完成：CI 镜像固定 ubuntu-24.04、Flutter 3.44.6 已固定、
-  # pubspec 打包 NotoSerifSC/NotoSansSC/CascadiaMono + golden 测试 setUpAll
-  # 显式 loadAppFonts()、固定 locale=en_US / textScaleFactor=1.0 / viewport。
-  # 剩余：必须在 Linux CI 内生成基线（禁用 Windows 本机基线），再观察 10 连绿。
-  #
-  # 当前为 Bootstrap 阶段（if: true + --update-goldens）：在 Linux 内生成权威
-  # 基线并上传 golden-baselines artifact。下载后提交到仓库，再把下方命令改回
-  # 比对模式（`flutter test --tags golden`，去掉 --update-goldens），即恢复
-  # Golden job 为常驻比对（GOLDEN-CI-001 销案）。
-  #
-  # 注意：基线实际落点 test/golden/golden/*.png（matchesGoldenFile 相对测试
-  # 文件目录解析），故 artifact path 为 flutter_app/test/golden/golden/*.png。
+  # 后续观测（G4 验收项「试点 10 连绿」）：保持本 job 常驻，观察连续 10 次
+  # CI 运行 0 随机 diff 即达成。失败时 artifact golden-diffs 提供比对图。
   golden:
     name: Golden (compare)
     runs-on: ubuntu-24.04

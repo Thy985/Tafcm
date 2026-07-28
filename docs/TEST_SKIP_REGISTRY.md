@@ -39,44 +39,38 @@
 | 解封 Phase | Phase 3 UI 重构（引入 Provider 解耦文件 I/O 后） |
 | 跟踪 | ROADMAP Phase 3 |
 
-### 2.2 GOLDEN-CI-001（跨平台字体渲染差异，CI 排除）
+### 2.2 GOLDEN-CI-001（跨平台字体渲染差异，CI 排除）— ✅ 已销案（2026-07-28）
 
 ```yaml
 id: GOLDEN-CI-001
-test:
-  - test/golden/file_manager_test.dart (library-level @Tags(['golden']))
-reason: Cross-platform font rendering difference
-measured_diff:
-  ratio: 0.09%
-  pixels: 4007
-  total_pixels: ~4500000
-  baseline: golden/file_manager.png (generated on Windows)
-  ci_runner: ubuntu-latest (GitHub Actions)
-action: Exclude golden tag from main test job via --exclude-tags golden
-ci_handling:
-  - main test job: `flutter test --exclude-tags golden`
-  - golden job: paused (if: false), structure preserved for future re-enable
-  - failure artifacts: uploaded via actions/upload-artifact@v4
-local_handling:
-  - `flutter test` 默认全跑（含 golden）
-  - 开发期间仍有视觉回归保护
-owner: Architecture Team
-revisit: Phase 3 visual consistency work
+status: RESOLVED  # 2026-07-28 Tier 2 T2 收尾销案
+root_cause_fixed:
+  - CI 镜像固定 ubuntu-24.04（替代浮动 ubuntu-latest，杜绝镜像升级致渲染漂移）
+  - Flutter 3.44.6 固定
+  - pubspec 打包 NotoSerifSC / NotoSansSC / CascadiaMono（OFL），AppTypography
+    serif/sans/mono 改为单一打包字族名，根除平台字体回退链跨平台不一致根因
+  - golden 测试 setUpAll 显式 loadAppFonts()，固定 locale=en_US /
+    textScaleFactor=1.0 / viewport 800×1200
+baselines:
+  - 由 Linux CI 生成并提交仓库（golden-baselines artifact 落库，实际落点
+    test/golden/golden/*.png），禁用 Windows 本机基线
+  - 首批 10 张 golden（paragraph / formula-block / inline-formula / code /
+    heading / markdown-toolbar / editor-shell + formula-block-dark /
+    paragraph-dark / formula-block-sepia）+ file_manager 基线，均由 Linux 生成
+ci_handling_now:
+  - golden job：常驻比对模式（if: true + flutter test --tags golden），
+    任何像素 diff 即失败；失败时上传 golden-diffs artifact
+  - 主 test job：保留 --exclude-tags golden
 re_enable_checklist:
-  - 固定字体安装（Ahem 或 Roboto）
-  - 固定 locale / textScaleFactor / viewport
-  - Linux baseline 重新生成
-  - 连续 10 次 CI 运行 0 随机 diff
-re_enable_steps:
-  - workflow: 将 golden job 的 `if: false` 改为 `if: true`
-  - workflow: 主 test job 的 `--exclude-tags golden` 可保留或移除
-  - 测试代码: 无需修改（tag 已声明）
+  - 固定字体安装 ✅
+  - 固定 locale / textScaleFactor / viewport ✅
+  - Linux baseline 重新生成 ✅
+  - 连续 10 次 CI 运行 0 随机 diff：常驻 job 后续观测项（T2 收尾已验证 1 连绿）
 ```
 
-**临时覆盖**：
-- 空状态结构性断言（4 条）在 CI 与本地都跑（在排除 golden tag 的 test 文件内仍有 structural assertion）：AppBar 标题、刷新按钮、空状态文案、folder_open 图标
-  - **注意**：tag 在 library 级声明时，CI 排除整个文件。如希望 CI 仍跑结构性断言，需把结构性断言拆到独立非 golden 文件
-- 本地 Windows 仍跑完整 Golden 像素比对（`file_manager.png` 基线已生成）
+**归档**：根因与基线均由 Tier 2（TEST_GAP_PLAN）T2-0 / T2-1 / T2 收尾解决。
+golden 视觉回归保护现已在 CI 常驻生效。后续新增 golden 测试须同样遵循固定环境
+与 Linux 基线生成约定（见 ci.yml golden job 注释）。
 
 ---
 
