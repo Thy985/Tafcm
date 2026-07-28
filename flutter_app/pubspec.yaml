@@ -44,6 +44,7 @@ dependencies:
   crypto: ^3.0.3
   uuid: ^4.3.3
   intl: ^0.18.1
+  golden_toolkit: ^0.15.0
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,17 @@ dependency_overrides:
 flutter:
   uses-material-design: true
 
-  # TODO: 补齐 assets 目录后启用
-  # assets:
-  #   - assets/fonts/
-  #   - assets/templates/
+  assets:
+    - assets/fonts/
+
+  # Tier 2 (TEST_GAP_PLAN T2-0)：打包视觉关键字体，消除跨平台字体渲染差异
+  # （GOLDEN-CI-001 根因）。serif/sans 用 OFL 的 Noto Serif/Sans SC（含 Latin
+  # 字形 + CJK，单一文件覆盖正文/标题/UI/中文）。mono 在 T2-1 代码块 golden
+  # 前补齐（ci/golden-env-pinning 先以 Latin 段落试点验证确定性）。
+  fonts:
+    - family: NotoSerifSC
+      fonts:
+        - asset: assets/fonts/NotoSerifSC.ttf
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC.ttf

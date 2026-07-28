@@ -16,11 +16,15 @@ env:
   # 过渡期兼容：部分 action（flutter-action v2.x）尚未完全适配 Node 24
   # 待 subosito/flutter-action 发布 Node 24 原生支持后移除
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  # Tier 2 (TEST_GAP_PLAN T2-0)：固定 CI 镜像版本，杜绝镜像升级引发的
+  # 字体/渲染漂移（GOLDEN-CI-001 根因之一）。ubuntu-latest 是浮动镜像，
+  # 升级会静默改变渲染基线。
+  CI_IMAGE: 'ubuntu-24.04'
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: flutter_app
@@ -56,7 +60,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: analyze
     defaults:
       run:
@@ -115,11 +119,20 @@ jobs:
   #   □ Linux baseline 重新生成
   #   □ 连续 10 次 CI 运行 0 随机 diff
   # 满足后：将 if: false 改为 if: true
+  #
+  # ── Tier 2 (TEST_GAP_PLAN T2-0) 解封准备（2026-07-28）──
+  # 环境三固定已完成：CI 镜像固定 ubuntu-24.04、Flutter 3.44.6 已固定、
+  # pubspec 打包 NotoSerifSC/NotoSansSC + golden 测试 setUpAll 显式
+  # loadAppFonts()、固定 locale=en_US / textScaleFactor=1.0 / viewport。
+  # 剩余：必须在 Linux CI 内生成基线（禁用 Windows 本机基线），再观察 10 连绿。
+  # Bootstrap：将下方 `if: false` 改为 `if: true` 并把 Run 命令改为
+  #   `flutter test --tags golden --update-goldens`
+  # 下载 golden-baselines artifact 提交到仓库后，命令改回比对模式。
   golden:
-    name: Golden (paused)
-    runs-on: ubuntu-latest
+    name: Golden (bootstrap ready)
+    runs-on: ubuntu-24.04
     needs: analyze
-    if: false  # pending cross-platform font solution (Phase 3)
+    if: false  # 基线尚未在 Linux 生成；bootstrap 步骤见上方注释
     defaults:
       run:
         working-directory: flutter_app
@@ -147,19 +160,19 @@ jobs:
       - name: Download dependencies
         run: flutter pub get
 
-      - name: Run golden tests
+      - name: Run golden tests (compare mode)
         run: flutter test --tags golden --reporter expanded
 
-      - name: Upload golden failures
+      - name: Upload golden baselines (bootstrap: use --update-goldens)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-failures
-          path: flutter_app/test/golden/failures/
+          name: golden-baselines
+          path: flutter_app/test/golden/*.png
 
   build-android:
     name: Build Android Debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     defaults:
       run:
@@ -217,7 +230,7 @@ jobs:
 
   build-web:
     name: Build Web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     defaults:
       run:
