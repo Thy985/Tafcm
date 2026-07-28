@@ -31,6 +31,7 @@ import '../../theme/app_typography.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 import '../formula/formula_block.dart';
+import '../../widgets/formula_renderer.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
 class ParagraphBlock extends StatefulWidget {
@@ -99,7 +100,6 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           ),
           child: FormulaBlock(
             element: formula,
-            isFocused: widget.state.isFocused,
           ),
         ),
       );
@@ -181,11 +181,14 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
             backgroundColor: Colors.grey.shade200,
           ),
         ),
-      // 公式（行内 / 块级）Typora 化：纯 serif italic，无卡片、无特殊色
-      // （ui-spec.md §3.1/§7；InlineElement 无 context，颜色继承 baseStyle）
-      FormulaElement(:final latex, :final displayMode) => TextSpan(
-          text: displayMode ? '\$\$$latex\$\$' : '\$$latex\$',
-          style: baseStyle.copyWith(fontStyle: FontStyle.italic),
+      // 公式（行内 / 块级）Typora 化：纯 serif italic，无卡片（ui-spec.md §3.1/§7）。
+      // 经统一 [FormulaRenderer] 真实渲染（编辑器 render 态 WYSIWYG；颜色随 EditorTokens 主题）。
+      FormulaElement(:final latex, :final displayMode) => WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: FormulaRenderer(
+            element: FormulaElement(latex: latex, displayMode: displayMode),
+            displayMode: displayMode,
+          ),
         ),
       // Phase 3.2 §3.7：Link inline rendering（蓝色 + 下划线,不显示多余 URL）
       // 使用 EditorTokens.linkColor（TextSpan 不支持运行时 Theme 查找,需编译时常量）

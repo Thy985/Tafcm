@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/asset_image_resolver.dart';
-import '../../core/parser/formula_extractor.dart';
 import '../../data/models/document.dart';
+import '../widgets/formula_renderer.dart';
 
 class ListRenderer extends StatelessWidget {
   final List<InlineElement> children;
@@ -178,45 +177,11 @@ class ListRenderer extends StatelessWidget {
   }
 
   Widget _buildFormula(String latex, bool displayMode) {
-    final normalized = FormulaExtractor.normalizeLatex(latex);
-
-    if (displayMode) {
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Math.tex(
-          normalized,
-          mathStyle: MathStyle.display,
-          textStyle: const TextStyle(fontSize: AppSpacing.formulaDisplay),
-          onErrorFallback: _fallback(latex),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkFormulaInlineBg : AppColors.formulaInlineBg,
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Math.tex(
-        normalized,
-        mathStyle: MathStyle.text,
-        textStyle: const TextStyle(fontSize: AppSpacing.formulaInline),
-        onErrorFallback: _fallback(latex),
-      ),
-    );
-  }
-
-  Widget Function(FlutterMathException) _fallback(String latex) {
-    return (_) => Text(
-      '\$$latex\$',
-      style: const TextStyle(
-        color: AppColors.error,
-        fontFamily: 'monospace',
-        fontSize: 12,
-      ),
+    // 统一经 [FormulaRenderer]：块级/行内均 serif italic、无卡片（ui-spec §3.1/§7），
+    // 颜色随 EditorTokens 主题（Phase 3.5.1 / 3.5.2）。
+    return FormulaRenderer(
+      element: FormulaElement(latex: latex, displayMode: displayMode),
+      displayMode: displayMode,
     );
   }
 }
