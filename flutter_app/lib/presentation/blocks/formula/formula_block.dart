@@ -21,7 +21,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../core/services/formula_svg_service.dart';
+import '../../../providers/formula_svg_provider.dart';
 import '../../../data/models/document.dart';
 import '../../theme/app_typography.dart';
 import '../../themes/editor_tokens.dart';
@@ -68,13 +68,13 @@ class _FormulaBlockState extends State<FormulaBlock> {
   void _load() {
     final latex = widget.element.latex;
     // 同步命中缓存直接展示，避免一帧的源码闪烁
-    final cached = FormulaSvgService.cachedSvg(latex, displayMode: true);
+    final cached = formulaSvgCached(latex, displayMode: true);
     if (cached != null) {
       setState(() => _svg = cached);
       return;
     }
     // 异步渲染；WebView 未就绪 / 失败则降级为 serif italic 源码（catchError 不抛）
-    FormulaSvgService.renderToSvg(latex, displayMode: true)
+    renderFormulaToSvg(latex, displayMode: true)
         .then((svg) {
           if (mounted) setState(() => _svg = svg);
         })
