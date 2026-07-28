@@ -517,7 +517,7 @@ EditorShell ─┬─ BlockRenderer
 - [x] presentation 层无 `Color(0x..)` 硬编码（grep 守门；仅 token 定义文件 `app_theme.dart`/`editor_tokens.dart` 保留字面量，Widget 层经 `AppColors`/`EditorTokens` 取色）
 - [x] FormulaBlock 渲染出 Typora 规格公式块（纯 serif italic + 居中 + 无卡片；真实 SVG 或源码降级；颜色/字族走 token）
 - [x] `flutter analyze` 0 warning；`flutter test` 0 regression
-- [ ] Phase 3.4.5 Verification Report 完成
+- [x] Phase 3.4.5 Verification Report 完成（docs/releases/phase3.4.5-verification-report.md）
 
 ---
 
@@ -598,6 +598,6 @@ EditorShell ─┬─ BlockRenderer
 
 ---
 
-**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（产品化对齐，已完成：P0-1/2/3 + 3.4.5.3 主题精修 + presentation 硬编码 `Color(0x` 清理（grep 守门零残留）已交付；剩余 Phase 3.4.5 Verification Report）**
-**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40%（P0-1/2/3 落地后明显提升）双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-1/2/3 已随 feat/design-system-alignment 推送（0695bfc / 7c0653c）；ROADMAP 状态表修正：§3.4.5.1/2 标记 ✅；3.4.5.3 主题精修已交付（commit 23ba83c）；TC-ARCH-3 失败修复（FormulaBlock 经 providers 层访问 FormulaSvgService，commit faf5453）；presentation 硬编码 Color(0x 清理已完成（file_manager_screen 旧主色 #165DFF/Colors.red → AppColors.primary/error，app_typography 文本色 → AppColors.lightText/darkText，grep 守门零残留），退出条件标记 ✅；关联 ADR-0017）
+**当前阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）+ **Phase 3.4.5 Design System Alignment（产品化对齐，✅ 全部退出条件达成：P0-1/2/3 + 3.4.5.3 主题精修 + presentation 硬编码 `Color(0x` 清理（grep 守门零残留）+ Phase 3.4.5 Verification Report 完成；分支 `feat/design-system-alignment` HEAD `d48a6b9`，待 Human Owner 审批并合并 main 后正式关闭）**
+**最近更新**：2026-07-28（阶段状态评估：Engineering ~90% / Visual ~40%（P0-1/2/3 落地后明显提升）双线模型；新增 Phase 3.4.5 Design System Alignment；Phase 3.5 重定位为 Formula Rendering System；P0-1/2/3 已随 feat/design-system-alignment 推送（0695bfc / 7c0653c）；ROADMAP 状态表修正：§3.4.5.1/2 标记 ✅；3.4.5.3 主题精修已交付（commit 23ba83c）；TC-ARCH-3 失败修复（FormulaBlock 经 providers 层访问 FormulaSvgService，commit faf5453）；presentation 硬编码 Color(0x 清理已完成（file_manager_screen 旧主色 #165DFF/Colors.red → AppColors.primary/error，app_typography 文本色 → AppColors.lightText/darkText，grep 守门零残留），退出条件标记 ✅；TC-ARCH-1 冻结名单行号 :68→:69 同步（commit d48a6b9）；Phase 3.4.5 Verification Report 完成（docs/releases/phase3.4.5-verification-report.md），8/8 退出条件达成；关联 ADR-0017）
 **维护人**：首席架构工程师
