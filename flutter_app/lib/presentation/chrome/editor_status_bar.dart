@@ -20,6 +20,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../editor/editor_coordinator.dart';
+import '../themes/editor_tokens.dart';
 
 /// 编辑器底部状态栏（chrome 组件）。
 class EditorStatusBar extends StatelessWidget {
@@ -46,7 +47,7 @@ class EditorStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 24,
+      height: EditorTokens.statusBarHeight,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -83,7 +84,10 @@ class EditorStatusBar extends StatelessWidget {
         ),
         Text(
           '$percent%',
-          style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          style: const TextStyle(
+            fontSize: EditorTokens.statusBarFontSize,
+            fontFamily: 'monospace',
+          ),
         ),
         IconButton(
           icon: const Icon(Icons.add),
@@ -108,7 +112,10 @@ class EditorStatusBar extends StatelessWidget {
   Widget _buildItem(String text) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+      style: const TextStyle(
+        fontSize: EditorTokens.statusBarFontSize,
+        fontFamily: 'monospace',
+      ),
     );
   }
 }

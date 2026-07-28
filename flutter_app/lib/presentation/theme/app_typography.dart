@@ -29,6 +29,19 @@ class AppTypography {
   static const String mono =
       'SF Mono, JetBrains Mono, Fira Code, Consolas, monospace';
 
+  /// 公式样式（文档 / 块级公式）：serif + italic。
+  ///
+  /// 颜色不由本方法固化（TextSpan 无法在构造时取运行时 theme），调用方经
+  /// [EditorTokens] 注入 [color]。[ADR-0017]：公式样式不写死在 FormulaBlock，
+  /// 由本方法统一提供（fontSize 对齐 tokens.json `typography.scale.formulaDisplay`）。
+  static TextStyle formula({Color? color}) => TextStyle(
+        fontFamily: serif,
+        fontStyle: FontStyle.italic,
+        fontSize: 19,
+        height: 1.4,
+        color: color,
+      );
+
   /// 按亮度构建全局 [TextTheme]（serif 正文 + sans 标签）。
   ///
   /// 字号梯度取自 tokens.json `typography.scale`：

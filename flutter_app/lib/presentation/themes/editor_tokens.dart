@@ -179,8 +179,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
 
   // ============ 间距 ============
 
-  /// 块间距（块与块之间的垂直间距）。
-  static const double blockSpacing = 8.0;
+  /// 块间距（块与块之间的垂直间距）→ tokens.json spacing.paragraphGap (20px)。
+  /// EditorViewport 对每块上下各垫 blockSpacing/2，相邻块合计间距 = blockSpacing。
+  static const double blockSpacing = 20.0;
 
   /// 块内边距（水平）。
   static const double blockPaddingHorizontal = 12.0;
@@ -188,13 +189,13 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 块内边距（垂直）。
   static const double blockPaddingVertical = 6.0;
 
-  /// EditorViewport 整体内边距。
-  static const double viewportPadding = 16.0;
+  /// EditorViewport 整体内边距 → tokens.json spacing.pageHorizontal (24px)。
+  static const double viewportPadding = 24.0;
 
   // ============ 字号 ============
 
-  /// 段落字号。
-  static const double paragraphFontSize = 16.0;
+  /// 段落字号 → tokens.json typography.scale.editorBody.size (15px)。
+  static const double paragraphFontSize = 15.0;
 
   /// 代码字号。
   static const double codeFontSize = 14.0;
@@ -205,21 +206,21 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 状态栏字号。
   static const double statusBarFontSize = 11.0;
 
-  /// heading 字号映射（level 1-6）。
-  static const List<double> headingFontSizes = [26, 20, 18, 16, 14, 13];
+  /// heading 字号映射（level 1-6）→ tokens.json typography.scale（h1 26 / h2 19 / …）。
+  static const List<double> headingFontSizes = [26, 19, 18, 16, 14, 13];
 
   // ============ 圆角 ============
 
-  /// 块圆角。
-  static const double blockRadius = 4.0;
+  /// 块圆角 → tokens.json radius.sm (6px)。
+  static const double blockRadius = 6.0;
 
-  /// chip 圆角（language chip 等）。
-  static const double chipRadius = 3.0;
+  /// chip 圆角（language chip 等）→ tokens.json radius.sm (6px)。
+  static const double chipRadius = 6.0;
 
   // ============ 状态栏 ============
 
-  /// 状态栏高度。
-  static const double statusBarHeight = 24.0;
+  /// 状态栏高度 → tokens.json spacing.statusBarHeight (32px)。
+  static const double statusBarHeight = 32.0;
 
   /// AppBar 高度（对齐 [kToolbarHeight]）。
   static const double appBarHeight = kToolbarHeight;

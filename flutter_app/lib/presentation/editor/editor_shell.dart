@@ -40,6 +40,7 @@ import '../../providers/providers.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../theme/app_theme.dart';
+import '../themes/editor_tokens.dart';
 import '../chrome/editor_status_bar.dart';
 import '../chrome/markdown_toolbar.dart';
 import '../panels/file_tree_panel.dart';
@@ -357,7 +358,7 @@ class EditorViewport extends StatelessWidget {
     }
     return ListView.builder(
       controller: controller,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(EditorTokens.viewportPadding),
       itemCount: ids.length,
       itemBuilder: (context, index) {
         final id = ids[index];
@@ -370,7 +371,7 @@ class EditorViewport extends StatelessWidget {
         }
         return Padding(
           key: blockKeys.putIfAbsent(id, () => GlobalKey()),
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: EditorTokens.blockSpacing / 2),
           child: BlockRenderer(
             element: element,
             state: state,
