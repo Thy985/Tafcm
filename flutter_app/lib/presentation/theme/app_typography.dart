@@ -14,6 +14,8 @@
 /// - UI 标签走 [sans]（见 `textTheme` 的 label* 角色）。
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_constants.dart';
+
 class AppTypography {
   AppTypography._();
 
@@ -48,8 +50,8 @@ class AppTypography {
   /// readerH1 28 / h1 26 / h2 19-20 / sectionHeader 18 / readerBody 16 / editorBody 15。
   static TextTheme textTheme(Brightness brightness) {
     final textColor = brightness == Brightness.dark
-        ? const Color(0xFFE8EAED)
-        : const Color(0xFF1A1D23);
+        ? AppColors.darkText
+        : AppColors.lightText;
     return TextTheme(
       displayLarge: TextStyle(
           fontFamily: serif, fontSize: 28, fontWeight: FontWeight.w700, height: 1.25, color: textColor),

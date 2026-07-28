@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/file_service.dart' show decodeBytesAuto;
+import '../../core/constants/app_constants.dart';
 
 class FileManagerScreen extends ConsumerStatefulWidget {
   const FileManagerScreen({super.key});
@@ -56,7 +57,7 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('删除'),
           ),
         ],
@@ -115,7 +116,7 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: ListTile(
-                    leading: const Icon(Icons.description, color: Color(0xFF165DFF)),
+                    leading: const Icon(Icons.description, color: AppColors.primary),
                     title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(
                       '$dateStr  ·  ${_formatSize(file.size)}  ·  ${file.preview}',
@@ -123,7 +124,7 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline, color: AppColors.error),
                       onPressed: () => _deleteFile(index),
                     ),
                     onTap: () => _openFile(index),
