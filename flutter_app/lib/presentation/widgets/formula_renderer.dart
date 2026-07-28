@@ -25,11 +25,16 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../providers/formula_svg_provider.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/app_constants.dart' show AppSpacing;
 import '../../../core/parser/formula_extractor.dart';
 import '../../../data/models/document.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
+
+/// 块级公式容器垂直留白。
+/// 10 介于 [AppSpacing.sm](8) 与 [AppSpacing.md](12) 之间，无对应 token，
+/// 故提取为命名常量；水平留白直接用 [AppSpacing.xs]（== 4）。
+const double _formulaBlockVerticalPadding = 10.0;
 
 /// 公式统一渲染 Widget（编辑器 + 预览共用）。
 ///
@@ -61,6 +66,9 @@ class FormulaRenderer extends StatefulWidget {
 class _FormulaRendererState extends State<FormulaRenderer> {
   String? _svg;
 
+  /// 请求序列号：丢弃过期异步结果，避免快速连续改公式时的竞态覆盖（review #1）。
+  int _loadToken = 0;
+
   @override
   void initState() {
     super.initState();
@@ -78,17 +86,21 @@ class _FormulaRendererState extends State<FormulaRenderer> {
   }
 
   void _load() {
+    final token = ++_loadToken;
     final latex = widget.element.latex;
+    final displayMode = widget.displayMode;
     // 同步命中缓存直接展示，避免一帧的源码闪烁
-    final cached = formulaSvgCached(latex, displayMode: true);
+    final cached = formulaSvgCached(latex, displayMode: displayMode);
     if (cached != null) {
-      setState(() => _svg = cached);
+      if (mounted) setState(() => _svg = cached);
       return;
     }
-    // 异步渲染；WebView 未挂载 / 渲染失败 → catchError 不抛，build 走 flutter_math_fork 降级
-    renderFormulaToSvg(latex, displayMode: true)
+    // 异步渲染；WebView 未挂载 / 渲染失败 → catchError 不抛，build 走 flutter_math_fork 降级。
+    // token 校验：若期间 didUpdateWidget 触发了更新的 _load()（token 已自增），
+    // 旧请求的回调会被丢弃，避免用旧公式 SVG 覆盖新公式内容（review #1）。
+    renderFormulaToSvg(latex, displayMode: displayMode)
         .then((svg) {
-          if (mounted) setState(() => _svg = svg);
+          if (mounted && token == _loadToken) setState(() => _svg = svg);
         })
         .catchError((_) {
           // WebView 未就绪 / 渲染失败：_svg 保持 null → 降级 flutter_math_fork
@@ -159,8 +171,11 @@ class _FormulaRendererState extends State<FormulaRenderer> {
 
     return Container(
       width: double.infinity,
-      // Typora：无卡片、无边框，仅垂直留白
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      // Typora：无卡片、无边框、无圆角（焦点圆角由 ParagraphBlock 统一绘制，避免重复；review #5）。
+      padding: const EdgeInsets.symmetric(
+        vertical: _formulaBlockVerticalPadding,
+        horizontal: AppSpacing.xs,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

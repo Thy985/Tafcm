@@ -7,6 +7,7 @@ import 'package:formula_fix/presentation/blocks/formula/formula_block.dart';
 import 'package:formula_fix/presentation/widgets/formula_renderer.dart';
 import 'package:formula_fix/presentation/theme/app_theme.dart';
 import 'package:formula_fix/presentation/theme/app_typography.dart';
+import 'package:formula_fix/presentation/themes/editor_tokens.dart';
 
 /// FormulaRenderer / FormulaBlock 的 Typora 化「公式块严格还原」验证（Phase 3.5.1）。
 ///
@@ -32,7 +33,7 @@ void main() {
 
       // 真实渲染（flutter_math_fork），不显示源码字面量
       expect(find.byType(FormulaRenderer), findsOneWidget);
-      expect(find.byType(Math), findsWidgets);
+      expect(find.byType(Math), findsOneWidget);
       expect(find.text('E=mc^2'), findsNothing);
       // 降级态（无 SVG）不重复显示 mono 源码行
       expect(find.text('\$\$E=mc^2\$\$'), findsNothing);
@@ -41,8 +42,8 @@ void main() {
       expect(math.mathStyle, MathStyle.display);
       expect(math.textStyle?.fontStyle, FontStyle.italic);
       expect(math.textStyle?.fontFamily, AppTypography.serif);
-      // 颜色来自 EditorTokens.light.textPrimary（#1A1D23），非硬编码
-      expect(math.textStyle?.color, const Color(0xFF1A1D23));
+      // 颜色来自 EditorTokens.light.textPrimary（语义断言，主题变更仍健壮；review #4）
+      expect(math.textStyle?.color, EditorTokens.light.textPrimary);
 
       // 无卡片：不存在 formulaInlineBg 背景的装饰容器
       expect(
@@ -71,8 +72,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final math = tester.widget<Math>(find.byType(Math));
-      // dark 主题 foreground = #E8EAED（EditorTokens.dark.textPrimary）
-      expect(math.textStyle?.color, const Color(0xFFE8EAED));
+      // dark 主题 foreground = EditorTokens.dark.textPrimary（语义断言；review #4）
+      expect(math.textStyle?.color, EditorTokens.dark.textPrimary);
     });
 
     testWidgets('行内公式（displayMode=false）经统一渲染为 serif italic', (tester) async {
