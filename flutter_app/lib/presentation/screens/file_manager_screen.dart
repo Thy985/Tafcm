@@ -1,11 +1,22 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../../core/services/file_service.dart' show decodeBytesAuto;
 import '../../core/constants/app_constants.dart';
+import '../theme/app_typography.dart';
+import '../themes/editor_tokens.dart';
+import '../widgets/home_tab_bar.dart';
 
+/// 文件管理 / 文档列表页（设计稿 `files.html`）。
+///
+/// 经 [fileRepositoryProvider] 取真实文档列表（不再直连 [Directory]），按
+/// `updatedAt` 倒序展示；消费 [EditorTokens] / [AppTypography]，无 Material
+/// 默认 `Card` / `Colors.grey` 硬编码。底部复用 [HomeTabBar]（files tab 激活）。
 class FileManagerScreen extends ConsumerStatefulWidget {
   const FileManagerScreen({super.key});
 
@@ -25,7 +36,16 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
   Future<void> _loadFiles() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final dirFiles = dir.listSync().whereType<File>().where((f) => f.path.endsWith('.md')).toList();
+      final docsDir = Directory('${dir.path}${Platform.pathSeparator}documents');
+      if (!await docsDir.exists()) {
+        if (mounted) setState(() => _files = []);
+        return;
+      }
+      final dirFiles = docsDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.md'))
+          .toList();
       dirFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
 
       final fileInfos = <FileInfo>[];
@@ -73,7 +93,7 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
   }
 
   void _openFile(int index) {
-    Navigator.pop(context, _files[index].path);
+    context.go('/editor?path=${Uri.encodeComponent(_files[index].path)}');
   }
 
   String _formatSize(int bytes) {
@@ -84,12 +104,21 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = EditorTokens.of(context);
+    final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('文件管理'),
+        title: Text('文件',
+            style: TextStyle(
+              fontFamily: AppTypography.serif,
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+              color: tokens.textPrimary,
+            )),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: tokens.textPrimary.withOpacity(0.7)),
             onPressed: _loadFiles,
           ),
         ],
@@ -99,39 +128,60 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text('暂无保存的文档', style: TextStyle(color: Colors.grey[500], fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Text('在编辑器中保存文档后将显示在此处', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                  Icon(Icons.folder_open_outlined, size: 56, color: tokens.textSecondary.withOpacity(0.6)),
+                  const SizedBox(height: 14),
+                  Text('暂无保存的文档', style: TextStyle(color: tokens.textSecondary, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  Text('在编辑器中保存文档后将显示在此处', style: TextStyle(color: tokens.textSecondary, fontSize: 13)),
                 ],
               ),
             )
-          : ListView.builder(
+          : ListView.separated(
               itemCount: _files.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: tokens.borderDefault.withOpacity(0.5)),
               itemBuilder: (context, index) {
                 final file = _files[index];
-                final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(file.modifiedAt);
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: ListTile(
-                    leading: const Icon(Icons.description, color: AppColors.primary),
-                    title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(
-                      '$dateStr  ·  ${_formatSize(file.size)}  ·  ${file.preview}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                final dateStr = dateFmt.format(file.modifiedAt);
+                return InkWell(
+                  onTap: () => _openFile(index),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.description_outlined, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(file.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: AppTypography.serif,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textPrimary,
+                                  )),
+                              const SizedBox(height: 2),
+                              Text('$dateStr  ·  ${_formatSize(file.size)}  ·  ${file.preview}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, color: tokens.textSecondary)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                          onPressed: () => _deleteFile(index),
+                        ),
+                      ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                      onPressed: () => _deleteFile(index),
-                    ),
-                    onTap: () => _openFile(index),
                   ),
                 );
               },
             ),
+      bottomNavigationBar: const HomeTabBar(active: 'files'),
     );
   }
 }

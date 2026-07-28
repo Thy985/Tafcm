@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
+import '../../presentation/screens/home_screen.dart';
+import '../../presentation/screens/placeholder_screens.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/last_opened_path_provider.dart';
@@ -28,8 +30,20 @@ final appRouter = GoRouter(
       builder: (context, state) => const BootstrapScreen(),
     ),
     GoRoute(
+      path: '/home',
+      builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
       path: '/files',
       builder: (context, state) => const FileManagerScreen(),
+    ),
+    GoRoute(
+      path: '/reader',
+      builder: (context, state) => const ReaderPlaceholderScreen(),
+    ),
+    GoRoute(
+      path: '/me',
+      builder: (context, state) => const MePlaceholderScreen(),
     ),
     GoRoute(
       path: '/documents',
@@ -97,7 +111,7 @@ class _ErrorScreen extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton.icon(
-                onPressed: () => context.go('/files'),
+                onPressed: () => context.go('/home'),
                 icon: const Icon(Icons.home),
                 label: const Text('返回首页'),
                 style: ElevatedButton.styleFrom(
@@ -130,7 +144,7 @@ class BootstrapScreen extends StatelessWidget {
           // SharedPreferences 不可用（平台异常等）：兜底进入 /files，
           // 避免加载 spinner 因 future 永不成功而永久停留。
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/files');
+            if (context.mounted) context.go('/home');
           });
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -143,7 +157,7 @@ class BootstrapScreen extends StatelessWidget {
             if (last != null && last.isNotEmpty) {
               context.go('/editor?path=${Uri.encodeComponent(last)}');
             } else {
-              context.go('/files');
+              context.go('/home');
             }
           });
         }
