@@ -32,10 +32,11 @@ class AppTypography {
 
   /// 等宽字族：行内代码、公式源码、状态栏。
   ///
-  /// T2-0 先行以 Latin 段落试点，mono 在 T2-1 代码块 golden 前补齐打包
-  /// （当前仍走平台等宽回退；代码块 golden 需等宽字体确定后才入基线）。
-  static const String mono =
-      'SF Mono, JetBrains Mono, Fira Code, Consolas, monospace';
+  /// Tier 2 (TEST_GAP_PLAN T2-1)：原值逗号分隔平台等宽回退链（同 serif/sans
+  /// 旧症），改为打包注册的单一字族名 [CascadiaMono]（OFL，Cascadia Code 家族，
+  /// `pubspec` `fonts:` 注册，`assets/fonts/CascadiaMono.ttf`）。与 serif/sans
+  /// 一致，从根因消除「等宽字体跨平台不一致」导致的 golden 抖动。
+  static const String mono = 'CascadiaMono';
 
   /// 公式样式（文档 / 块级公式）：serif + italic。
   ///

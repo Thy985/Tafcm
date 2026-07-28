@@ -66,10 +66,11 @@ flutter:
   assets:
     - assets/fonts/
 
-  # Tier 2 (TEST_GAP_PLAN T2-0)：打包视觉关键字体，消除跨平台字体渲染差异
-  # （GOLDEN-CI-001 根因）。serif/sans 用 OFL 的 Noto Serif/Sans SC（含 Latin
-  # 字形 + CJK，单一文件覆盖正文/标题/UI/中文）。mono 在 T2-1 代码块 golden
-  # 前补齐（ci/golden-env-pinning 先以 Latin 段落试点验证确定性）。
+  # Tier 2 (TEST_GAP_PLAN T2-0/T2-1)：打包视觉关键字体，消除跨平台字体渲染
+  # 差异（GOLDEN-CI-001 根因）。serif/sans/mono 全部改为单一打包字族名：
+  # - NotoSerifSC / NotoSansSC：OFL，含 Latin + CJK（正文/标题/UI/中文）。
+  # - CascadiaMono：OFL（Cascadia Code 家族），等宽（行内代码/公式源码/状态栏）。
+  # 三者均经 pubspec 注册，golden_toolkit loadAppFonts() 显式加载，禁止平台回退。
   fonts:
     - family: NotoSerifSC
       fonts:
@@ -77,3 +78,6 @@ flutter:
     - family: NotoSansSC
       fonts:
         - asset: assets/fonts/NotoSansSC.ttf
+    - family: CascadiaMono
+      fonts:
+        - asset: assets/fonts/CascadiaMono.ttf

@@ -12,8 +12,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
+import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
+import 'package:formula_fix/presentation/editor/editor_scope.dart';
+import 'package:formula_fix/presentation/editor/editor_shell.dart';
 import 'package:formula_fix/presentation/theme/app_theme.dart';
 
 /// 在 [setUpAll] 中调用，显式加载打包字体。
@@ -23,21 +28,61 @@ Future<void> setUpGoldenFonts() async {
 
 /// 在固定环境下 pump 一个 widget 供 golden 比对。
 ///
-/// 固定 locale / textScaleFactor / viewport，并用 [AppTheme.lightTheme]
-/// 注入 EditorTokens（MEMORY §3：公式/chrome 等 widget 依赖 EditorTokens）。
-Future<void> pumpGoldenApp(WidgetTester tester, Widget child) async {
+/// 固定 locale / textScaleFactor / viewport，并用 [theme]（默认
+/// [AppTheme.lightTheme]）注入 EditorTokens（MEMORY §3：公式/chrome 等 widget
+/// 依赖 EditorTokens）。[theme] 可传 [AppTheme.darkTheme] / [AppTheme.sepiaTheme]
+/// 以生成对应主题的 golden。
+///
+/// 外层包 [ProviderScope]：EditorShell 是 ConsumerStatefulWidget，必须位于
+/// ProviderScope 之下；对纯 EditorViewport 测试无副作用。
+Future<void> pumpGoldenApp(
+  WidgetTester tester,
+  Widget child, {
+  ThemeData? theme,
+}) async {
+  final effectiveTheme = theme ?? AppTheme.lightTheme;
   tester.platformDispatcher
     ..localeTestValue = const Locale('en', 'US')
     ..textScaleFactorTestValue = 1.0;
 
   await tester.pumpWidget(
-    MediaQuery(
-      data: const MediaQueryData(size: Size(800, 1200)),
-      child: MaterialApp(
-        theme: AppTheme.lightTheme,
-        home: Scaffold(body: child),
+    ProviderScope(
+      child: MediaQuery(
+        data: const MediaQueryData(size: Size(800, 1200)),
+        child: MaterialApp(
+          theme: effectiveTheme,
+          home: Scaffold(body: child),
+        ),
       ),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+/// 用固定环境渲染一个已填充的编辑器（经 [EditorViewport]，真实块渲染路径）。
+///
+/// 覆盖 [pumpGoldenApp] 的固定项，外加 [EditorScope] + [AnimatedBuilder] +
+/// [EditorViewport]（配合 [coordinator]）。[theme] 控制亮/暗/护眼主题。
+///
+/// 等价 T2-0 试点 `paragraph_light_test` 的样板，抽公共用，避免 9 张 golden
+/// 各自重复。每个块的视觉由 [coordinator] 内文档决定。
+Future<void> pumpEditorGolden(
+  WidgetTester tester,
+  EditorCoordinator coordinator, {
+  ThemeData? theme,
+}) async {
+  await pumpGoldenApp(
+    tester,
+    EditorScope(
+      coordinator: coordinator,
+      child: AnimatedBuilder(
+        animation: coordinator,
+        builder: (context, _) => EditorViewport(
+          coordinator: coordinator,
+          blockKeys: <BlockId, GlobalKey>{},
+        ),
+      ),
+    ),
+    theme: theme,
+  );
 }

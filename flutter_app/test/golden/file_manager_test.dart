@@ -29,6 +29,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:formula_fix/presentation/screens/file_manager_screen.dart';
+import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'golden_helpers.dart';
 
 class _MockPathProvider extends PathProviderPlatform {
   _MockPathProvider(this.root);
@@ -43,12 +45,17 @@ late Directory _tmp;
 Widget _wrap(Widget child) {
   return ProviderScope(
     child: MaterialApp(
+      theme: AppTheme.lightTheme,
       home: child,
     ),
   );
 }
 
 void main() {
+  setUpAll(() async {
+    await setUpGoldenFonts();
+  });
+
   setUp(() async {
     _tmp = await Directory.systemTemp.createTemp('formulafix_golden_test_');
     PathProviderPlatform.instance = _MockPathProvider(_tmp.path);
