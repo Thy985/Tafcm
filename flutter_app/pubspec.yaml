@@ -44,6 +44,7 @@ dependencies:
   crypto: ^3.0.3
   uuid: ^4.3.3
   intl: ^0.18.1
+  golden_toolkit: ^0.15.0
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,27 @@ dependency_overrides:
 flutter:
   uses-material-design: true
 
-  # TODO: 补齐 assets 目录后启用
-  # assets:
-  #   - assets/fonts/
-  #   - assets/templates/
+  assets:
+    - assets/fonts/
+    # WebView 公式/图表渲染资产（MermaidRendererHost 经 loadFile 加载）：
+    # mermaid_renderer.html + js/tex-svg.js (MathJax 3.2.2) + js/mermaid.min.js。
+    # 曾在历史提交 8bfe76a 引入（LFS），后随 pubspec 精简意外脱落——导致主线
+    # FormulaSvgService/MermaidService 的真实 SVG 路径静默降级（T3-2 E2E 暴露）。
+    - assets/mermaid_renderer.html
+    - assets/js/
+
+  # Tier 2 (TEST_GAP_PLAN T2-0/T2-1)：打包视觉关键字体，消除跨平台字体渲染
+  # 差异（GOLDEN-CI-001 根因）。serif/sans/mono 全部改为单一打包字族名：
+  # - NotoSerifSC / NotoSansSC：OFL，含 Latin + CJK（正文/标题/UI/中文）。
+  # - CascadiaMono：OFL（Cascadia Code 家族），等宽（行内代码/公式源码/状态栏）。
+  # 三者均经 pubspec 注册，golden_toolkit loadAppFonts() 显式加载，禁止平台回退。
+  fonts:
+    - family: NotoSerifSC
+      fonts:
+        - asset: assets/fonts/NotoSerifSC.ttf
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC.ttf
+    - family: CascadiaMono
+      fonts:
+        - asset: assets/fonts/CascadiaMono.ttf

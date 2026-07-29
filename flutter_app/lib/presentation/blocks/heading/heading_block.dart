@@ -70,9 +70,10 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
   @override
   RenderMode previousMode(HeadingBlock oldWidget) => oldWidget.state.mode;
 
-  /// 标题单行编辑。
+  /// 标题多行编辑（Phase A：允许软键盘回车键插入 `\n` 被拦截器捕获 → 分块）。
+  /// 渲染态仍按标题样式显示。
   @override
-  int? get editFieldMaxLines => 1;
+  int? get editFieldMaxLines => null;
 
   @override
   Widget buildRenderContent(BuildContext context) {
