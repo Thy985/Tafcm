@@ -1,10 +1,15 @@
 name: CI
 
+# 触发作用域收敛（Repository Reliability System ③）：
+# - push 仅监听 main → 主干合入后的 Release CI；feature 分支 push 不再触发，
+#   彻底消除「同 commit 跑 push+PR 两次」的双触发。
+# - pull_request 仅监听 main → feature 分支统一由 PR 触发验证。
+# 配合 .github/workflows/branch-cleanup.yml 做生命周期闭环。
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   # 手动触发基线更新：Actions 页选 CI → Run workflow → 勾选 update_goldens。
   # 之前每次视觉变更都要手改 ci.yml 切 --update-goldens 再改回来，现在一键完成。
   workflow_dispatch:

@@ -1,0 +1,75 @@
+name: Branch Cleanup
+
+# Repository Reliability System ①：分支生命周期闭环。
+# 仅删除「已并入 main」且「匹配短生命周期前缀」的远程分支；
+# 白名单（main/develop/release/*）与「有开放 PR」的分支永不删除。
+# 配合 .agent/GIT_POLICY.md 与 ci.yml 的触发作用域收敛。
+
+on:
+  schedule:
+    # 每周日 00:00 UTC 执行一次。
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Delete merged short-lived branches
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout (full history for --merged)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete merged feature/fix/experiment branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # 白名单：精确匹配，永不删除。
+          PROTECTED_EXACT="main develop"
+          # 白名单：前缀匹配，永不删除（release 线等长期分支）。
+          PROTECTED_PREFIX="release/"
+          # 可删前缀：短生命周期分支（合入后即清理）。
+          DELETE_PREFIX="feature/ fix/ experiment/"
+
+          # 当前开放 PR 的源分支 —— 有未合并工作的分支保留。
+          OPEN_BRANCHES="$(gh pr list --state open --json headRefName -q '.[].headRefName')"
+
+          should_delete() {
+            local b="$1"
+            for p in $PROTECTED_EXACT; do
+              [ "$b" = "$p" ] && return 1
+            done
+            for p in $PROTECTED_PREFIX; do
+              case "$b" in "$p"*) return 1 ;; esac
+            done
+            for p in $DELETE_PREFIX; do
+              case "$b" in "$p"*)
+                for ob in $OPEN_BRANCHES; do
+                  [ "$b" = "$ob" ] && return 1
+                done
+                return 0 ;;
+              esac
+            done
+            return 1
+          }
+
+          MERGED="$(git branch -r --merged origin/main | sed 's|origin/||' | grep -v '^HEAD$' || true)"
+          DELETED=0
+          for b in $MERGED; do
+            if should_delete "$b"; then
+              if git push origin --delete "$b" 2>/dev/null; then
+                echo "deleted: $b"
+                DELETED=$((DELETED + 1))
+              else
+                echo "skip (push failed): $b"
+              fi
+            fi
+          done
+          echo "cleanup done, deleted=$DELETED"
