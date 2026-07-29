@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
@@ -195,6 +196,33 @@ class FileRepository implements DocumentRepository {
           FileSystemEvent.move,
     )) {
       yield await _listMetadata();
+    }
+  }
+
+  @override
+  Stream<List<Document>> watchAllDocuments() async* {
+    final dir = Directory(await _docsDirPath());
+    if (!await dir.exists()) {
+      yield const [];
+      await dir.create(recursive: true);
+    }
+    // 首屏立即返回当前列表，后续目录事件重发。
+    yield await listDocuments();
+    while (true) {
+      try {
+        await for (final _ in dir.watch(
+          events: FileSystemEvent.create |
+              FileSystemEvent.delete |
+              FileSystemEvent.modify |
+              FileSystemEvent.move,
+        )) {
+          yield await listDocuments();
+        }
+      } catch (e) {
+        debugPrint('[FileRepository] watchAllDocuments error (will retry): $e');
+        yield await listDocuments(); // 重连前发一次当前状态
+        await Future.delayed(const Duration(seconds: 3)); // 退避
+      }
     }
   }
 

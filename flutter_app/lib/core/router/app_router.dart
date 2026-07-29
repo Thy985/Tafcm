@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
+import '../../presentation/screens/home_screen.dart';
+import '../../presentation/screens/placeholder_screens.dart';
+import '../../presentation/widgets/home_shell.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/last_opened_path_provider.dart';
@@ -27,9 +30,24 @@ final appRouter = GoRouter(
       path: '/',
       builder: (context, state) => const BootstrapScreen(),
     ),
-    GoRoute(
-      path: '/files',
-      builder: (context, state) => const FileManagerScreen(),
+    // Phase 3.5 首页 / 文件 / 阅读 / 我的：StatefulShellRoute 持久化各 tab 状态。
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          HomeScaffold(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/files', builder: (context, state) => const FileManagerScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/reader', builder: (context, state) => const ReaderPlaceholderScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/me', builder: (context, state) => const MePlaceholderScreen()),
+        ]),
+      ],
     ),
     GoRoute(
       path: '/documents',
@@ -97,7 +115,7 @@ class _ErrorScreen extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton.icon(
-                onPressed: () => context.go('/files'),
+                onPressed: () => context.go('/home'),
                 icon: const Icon(Icons.home),
                 label: const Text('返回首页'),
                 style: ElevatedButton.styleFrom(
@@ -130,7 +148,7 @@ class BootstrapScreen extends StatelessWidget {
           // SharedPreferences 不可用（平台异常等）：兜底进入 /files，
           // 避免加载 spinner 因 future 永不成功而永久停留。
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/files');
+            if (context.mounted) context.go('/home');
           });
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -138,12 +156,13 @@ class BootstrapScreen extends StatelessWidget {
         }
         if (snap.hasData) {
           final last = snap.data!.getString(kLastOpenedPathPrefKey);
+          final lastBranch = snap.data!.getInt('last_shell_branch_index');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
             if (last != null && last.isNotEmpty) {
               context.go('/editor?path=${Uri.encodeComponent(last)}');
             } else {
-              context.go('/files');
+              _goToBranch(context, lastBranch ?? 0);
             }
           });
         }
@@ -153,4 +172,12 @@ class BootstrapScreen extends StatelessWidget {
       },
     );
   }
+}
+
+/// 恢复到指定 Shell branch（ADR-0018 Decision 4）。
+const _branchRoutes = ['/home', '/files', '/reader', '/me'];
+void _goToBranch(BuildContext context, int index) {
+  context.go(index >= 0 && index < _branchRoutes.length
+      ? _branchRoutes[index]
+      : '/home');
 }

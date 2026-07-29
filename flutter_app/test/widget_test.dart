@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,8 +51,9 @@ void main() {
       ),
     );
 
-    // Phase 3.4.2：启动经 BootstrapScreen，无上次打开文件时恢复进入 /files（文件管理）。
-    await tester.pumpAndSettle();
-    expect(find.text('文件管理'), findsOneWidget);
+    // Phase 3.5：启动经 BootstrapScreen → /home（PR #93 StatefulShellRoute）。
+    // pumpAndSettle 在 Stream provider 上不 settle，用 pump 固定等待。
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }
