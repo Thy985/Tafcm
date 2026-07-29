@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,7 +35,11 @@ class DocMetadata {
 /// 以 [DocumentRepository] 端口类型实现，[fileRepositoryProvider] 位于 providers/
 /// （presentation 经其访问，不直连本文件）。
 class FileRepository implements DocumentRepository {
+  @visibleForTesting
+  String? testDocsDir;
+
   Future<String> _docsDirPath() async {
+    if (testDocsDir != null) return testDocsDir!;
     final dir = await getApplicationDocumentsDirectory();
     return '${dir.path}${Platform.pathSeparator}documents';
   }
@@ -224,6 +229,26 @@ class FileRepository implements DocumentRepository {
         await Future.delayed(const Duration(seconds: 3)); // 退避
       }
     }
+  }
+
+  @override
+  Future<String> getDocumentPreview(String id) async {
+    final path = await documentPathFor(id);
+    final file = File(path);
+    if (!await file.exists()) return ''; // 优雅降级
+    // 流式读取，找到首非空行即停止（避免大文件全量加载）
+    final stream = file.openRead().transform(utf8.decoder).transform(const LineSplitter());
+    String? firstLine;
+    await for (final line in stream) {
+      if (line.trim().isNotEmpty) {
+        firstLine = line;
+        break;
+      }
+    }
+    final text = firstLine ?? '';
+    return text.length > 40
+        ? '${text.substring(0, 40)}\u2026'
+        : text;
   }
 
   Future<List<DocMetadata>> searchDocuments(String query) async {
