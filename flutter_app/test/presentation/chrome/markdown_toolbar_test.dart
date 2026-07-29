@@ -75,29 +75,26 @@ void main() {
   });
 
   group('Phase 3.3 PR #2B MarkdownToolbar 渲染', () {
-    testWidgets('无聚焦块时 11 按钮全部禁用（onPressed = null）', (tester) async {
+    testWidgets('无聚焦块时主级按钮禁用 + 溢出按钮存在（两级工具栏，ADR-0019）', (tester) async {
       editor.addParagraph('hello');
       await tester.pumpWidget(buildTestWidget());
       await tester.pump();
 
-      // 11 个按钮的 tooltip 均存在
-      const expectedTooltips = [
+      // 主级按钮：B/I/H1/Code 存在 + `+` 模板按钮 + `⋯` 溢出按钮
+      const primaryTooltips = [
         EditorStrings.boldTooltip,
         EditorStrings.italicTooltip,
         EditorStrings.h1Tooltip,
-        EditorStrings.h2Tooltip,
-        EditorStrings.h3Tooltip,
         EditorStrings.codeTooltip,
-        EditorStrings.linkTooltip,
-        EditorStrings.quoteTooltip,
-        EditorStrings.orderedListTooltip,
-        EditorStrings.unorderedListTooltip,
-        EditorStrings.taskListTooltip,
       ];
-      for (final tip in expectedTooltips) {
-        expect(find.byTooltip(tip), findsOneWidget,
-            reason: '应找到 tooltip: $tip');
+      for (final tip in primaryTooltips) {
+        expect(find.byTooltip(tip), findsOneWidget, reason: '应找到主级 tooltip: $tip');
       }
+      // 溢出按钮 `⋯` 存在（tooltip '更多'）
+      expect(find.byTooltip('更多'), findsOneWidget, reason: '应找到溢出按钮 ⋯');
+      // 溢出按钮内二级按钮（H2/H3/Link/Quote/OL/UL/Task）在关闭时不可见
+      expect(find.byTooltip(EditorStrings.h2Tooltip), findsNothing,
+          reason: '二级按钮在关闭的溢出菜单中不可见');
     });
 
     testWidgets('Paragraph 聚焦时 11 按钮全部启用', (tester) async {

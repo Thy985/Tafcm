@@ -90,6 +90,41 @@ class CommandSelectionSync {
           newFocus: null,
           affectedIds: {c.blockId},
         );
+      case SplitBlockCommand c:
+        // 拆分后新块插在原块之后（editor.allIds[index+1]）。
+        final idx = editor.allIds.indexOf(c.blockId);
+        final newId = (idx >= 0 && idx + 1 < editor.allIds.length)
+            ? editor.allIds[idx + 1]
+            : null;
+        if (newId == null) {
+          return (state: state, newFocus: null, affectedIds: {c.blockId});
+        }
+        final next = _setSelection(
+          state.focusOn(newId),
+          newId,
+          const TextSelection.collapsed(offset: 0),
+        );
+        return (
+          state: next,
+          newFocus: newId,
+          affectedIds: {c.blockId, newId},
+        );
+      case MergeWithPreviousCommand c:
+        // 合并后当前块被移除；用 oldIds 找上一块，焦点移到连接点。
+        final ids = oldIds?.toList();
+        if (ids == null || ids.indexOf(c.blockId) <= 0) {
+          return (state: state, newFocus: null, affectedIds: {c.blockId});
+        }
+        final idx = ids.indexOf(c.blockId);
+        final prevId = ids[idx - 1];
+        final prevLen = editor.sourceOf(prevId).length;
+        final next = _setSelection(
+          state.focusOn(prevId),
+          prevId,
+          TextSelection.collapsed(offset: prevLen),
+        );
+        // 仅对齐存活的上一块；被合并块已移除，reconcile 不应再读其 source。
+        return (state: next, newFocus: prevId, affectedIds: {prevId});
       default:
         return (state: state, newFocus: null, affectedIds: const {});
     }
