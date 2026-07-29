@@ -226,6 +226,19 @@ class FileRepository implements DocumentRepository {
     }
   }
 
+  @override
+  Future<String> getDocumentPreview(String id) async {
+    final path = await documentPathFor(id);
+    final raw = decodeBytesAuto(await File(path).readAsBytes());
+    final firstLine = raw.split('\n').firstWhere(
+      (l) => l.trim().isNotEmpty,
+      orElse: () => '',
+    );
+    return firstLine.length > 40
+        ? '${firstLine.substring(0, 40)}\u2026'
+        : firstLine;
+  }
+
   Future<List<DocMetadata>> searchDocuments(String query) async {
     final q = query.toLowerCase();
     final entries = await _readAll();

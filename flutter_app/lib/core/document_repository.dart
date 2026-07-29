@@ -35,4 +35,7 @@ abstract class DocumentRepository {
   /// 供首页 / 文件页共享（见 `documentListProvider`），使任一屏的创建 / 删除经
   /// 文件系统事件自动刷新另一屏，避免两屏各持一份数据源导致的不一致。
   Stream<List<Document>> watchAllDocuments();
+
+  /// 获取文档预览片段（≤ 40 字符），不加载全量 AST。
+  Future<String> getDocumentPreview(String id);
 }
