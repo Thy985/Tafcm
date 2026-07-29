@@ -47,8 +47,8 @@ Owner 对本 ADR 的核心判断，作为后续裁定锚点：
 | D1 | AST 单一真相源（Markdown 降级为序列化格式，UI 禁直接读 `Document.content`） | ✅ Accepted / 已合 #96 | A | `core/parser/markdown_serializer.dart` + `model_content_gate_test.dart` |
 | D2 | BlockId：`int` 自增 → `String` UUID（in-memory identity，不持久化） | ⬜ Pending | D | `core/editing/block_types.dart` |
 | D3 | Command → Transaction：`TransactionBuilder` 注入，`EditOperation` apply/revert 原子性 | ⬜ Pending | E | `core/editing/transaction*.dart` |
-| D4 | 去边框：块编辑 `decoration` → `InputBorder.none` | ⬜ Pending | C | `lib/presentation/blocks/**` |
-| D5 | BlockRenderer 不裁决行为（渲染与交互分离，由 Intent Layer 裁决） | ✅ Accepted / 已合 #97 | B | ADR-0019（见 §0 缺口） |
+| D4 | 去边框：块编辑 `decoration` → `InputBorder.none` | 🔧 实施中（PR #102） | C | `lib/presentation/blocks/**` |
+| D5 | BlockRenderer 不裁决行为（渲染与交互分离，由 Intent Layer 裁决） | ✅ Accepted / 已合 #97 | B | ADR-0019（见 ADR-0019 §0） |
 | D6 | Block 类型扩展克制原则（类型增加须由真实编辑语义驱动，禁渲染需求驱动） | ✅ Accepted（原则，无独立实施期） | — | 本 ADR §2 D6 + TC-ARCH-MODEL-5 |
 
 > 净新增工作 = **C（去UI）/ D（UUID）/ E（Transaction）** 三项；D6 为已接受原则，无实现期。
@@ -109,11 +109,11 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 - **风险**：高（编辑内核核心抽象变更）。建议 E 期先行 spike，再全量替换 `BlockOperations` 直调点。
 - **守门（E 落地后生效）**：TC-ARCH-MODEL-3（禁止在 coordinator/dispatcher 之外直接 `BlockOperations().x()` 提交；必须经 `TransactionBuilder`）。
 
-### D4 — 去边框（⬜ 待实施）
+### D4 — 去边框（🔧 实施中，PR #102 待合并）
 
 - **决策**：块编辑组件（`TextField`/`TextFormField` 的 `decoration`）统一 `InputBorder.none`；聚焦指示改由 caret + 主题 token 的 subtle 背景区分，不再用 box border。涵盖 `heading_block` / `paragraph_block` / `code_block` / `list_block` / `blockquote_block` / `formula_block` 等所有 `base_block_state` 派生编辑组件。
-- **风险**：低（纯 UI）。但会改变 golden 基线，须用 `update-goldens` workflow 重新生成 `test/golden/golden/*.png`（见 RRS PR #99 的 `golden-update` job）。
-- **守门（C 落地后生效）**：TC-ARCH-MODEL-4（扫描块编辑组件 `decoration` 必须为 `InputBorder.none`，禁止 `OutlineInputBorder`/`UnderlineInputBorder`）。
+- **风险**：低（纯 UI）。实测 WSL golden 对比无像素差异（块编辑 border 未在 golden 捕获范围内），无需更新基线；若后续引入 focus 背景再评估。
+- **守门（已生效）**：TC-ARCH-MODEL-4（扫描块编辑组件 `decoration` 必须为 `InputBorder.none`，禁止 `OutlineInputBorder`/`UnderlineInputBorder`，见 `test/architecture/block_border_gate_test.dart`）。
 
 ### D5 — BlockRenderer 不裁决行为（✅ 已落地）
 
@@ -138,7 +138,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 |----|------|---------|------|-----------|
 | A | 冻结引擎（AST 单一真相源） | D1 | ✅ MERGED | #96 |
 | B | Intent Layer | D5 | ✅ MERGED | #97 |
-| C | 去 UI（去边框） | D4 | ⬜ 未开工 | 新分支 `chore/block-no-border` |
+| C | 去 UI（去边框） | D4 | 🔧 实施中 | PR #102（chore/block-no-border） |
 | E | Transaction（先 spike） | D3 | ⬜ 未开工（风险最高，先 spike） | 新分支 `refactor/editor-transaction` |
 | D | 补类型（BlockId UUID） | D2 | ⬜ 未开工（优先级低于 E） | 新分支 `refactor/block-id-uuid` |
 
@@ -156,7 +156,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | TC-ARCH-MODEL-1 | presentation 层禁直接读 `Document.content` | ✅ 已生效 | `test/architecture/model_content_gate_test.dart` |
 | TC-ARCH-MODEL-2 | 禁止 `BlockId(` 接 int 字面量 | ⬜ D 落地后启用 | 新增 `test/architecture/block_id_type_test.dart` |
 | TC-ARCH-MODEL-3 | 编辑操作经 `TransactionBuilder`，禁 `BlockOperations` 直调 | ⬜ E 落地后启用 | 新增 `test/architecture/transaction_gate_test.dart` |
-| TC-ARCH-MODEL-4 | 块编辑 `decoration` 必须为 `InputBorder.none` | ⬜ C 落地后启用 | 新增 `test/architecture/block_border_gate_test.dart` |
+| TC-ARCH-MODEL-4 | 块编辑 `decoration` 必须为 `InputBorder.none` | ✅ 已启用 | `test/architecture/block_border_gate_test.dart` |
 | TC-ARCH-MODEL-5 | 禁止 Block 子类名含渲染语义词（`*Color*Block`/`*Size*Block`）；新增 Block 类型须登记语义理由 | ⬜ D6 生效即启用 | 新增 `test/architecture/block_type_gate_test.dart` |
 
 ---
@@ -167,7 +167,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 |------|--------|------|
 | M1 | AST 为唯一编辑态，UI 无 `Document.content` 直读 | ✅（D1） |
 | M2 | 回车/退格/工具栏/模板插入全经 Intent Layer dispatch | ✅（D5/B） |
-| M3 | 任意块编辑组件无可见 box border（三主题） | ⬜（D4/C） |
+| M3 | 任意块编辑组件无可见 box border（三主题） | ✅（D4/C, PR #102） |
 | M4 | BlockId 为 uuid 且会话内稳定、零碰撞 | ⬜（D2/D） |
 | M5 | 多步编辑可原子 undo/redo（Transaction 粒度） | ⬜（D3/E） |
 | M6 | 序列化 .md 不含 BlockId / Transaction（单一真相源） | ✅（ADR-0003/0008 约束） |
