@@ -287,10 +287,11 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   @protected
   TextStyle? get editFieldStyle => null;
 
-  /// edit 态 [TextField] 的 [InputDecoration]。默认 OutlineInputBorder + 水平12/垂直8 padding。
+  /// edit 态 [TextField] 的 [InputDecoration]。默认 [InputBorder.none]（去边框，
+  /// 见 ADR-0020 D4：BlockRenderer 不绘制 box border，聚焦指示由 caret 提供）+ 水平12/垂直8 padding。
   @protected
   InputDecoration get editFieldDecoration => const InputDecoration(
-        border: OutlineInputBorder(),
+        border: InputBorder.none,
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       );
