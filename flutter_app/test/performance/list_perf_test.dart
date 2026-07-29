@@ -1,5 +1,9 @@
 /// TC-PERF-2: listDocuments(1000 文件)
 ///
+/// **CI 排除**：本测试依赖环境 IO 性能，在慢速 runner 上不稳定。
+/// 仅在本地开发机运行：`flutter test --tags perf`。
+@Tags(['perf'])
+///
 /// 对应 docs/PHASE1_TEST_PLAN.md §14.2 性能基线。
 ///
 /// 测试方法（参考 §14.1）：

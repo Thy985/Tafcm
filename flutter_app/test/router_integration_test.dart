@@ -41,15 +41,15 @@ void main() {
   });
 
   /// ROADMAP 1.4 + 契约链 3：启动经 BootstrapScreen。无上次打开文件时恢复进入
-  /// 文件列表（/files），首屏显示"文件管理"；有上次文件则恢复到该文件。
-  testWidgets('启动后首屏为 /files，显示"文件管理"',
+  /// 首页（/home），首屏显示"FormulaFix"品牌字标（PR #93 StatefulShellRoute）。
+  testWidgets('启动后首屏为 /home，显示"FormulaFix"',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: FormulaFixApp()),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('文件管理'), findsWidgets);
+    expect(find.text('FormulaFix'), findsWidgets);
   });
 
   /// ROADMAP 1.3：DocumentListScreen 可正常构建（非死代码/非损坏）。

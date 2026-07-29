@@ -50,8 +50,8 @@ void main() {
       ),
     );
 
-    // Phase 3.4.2：启动经 BootstrapScreen，无上次打开文件时恢复进入 /files（文件管理）。
+    // Phase 3.5：启动经 BootstrapScreen，无上次打开文件时进入 /home（PR #93 StatefulShellRoute）。
     await tester.pumpAndSettle();
-    expect(find.text('文件管理'), findsOneWidget);
+    expect(find.text('FormulaFix'), findsOneWidget);
   });
 }
