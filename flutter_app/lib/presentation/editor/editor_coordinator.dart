@@ -17,11 +17,14 @@ import '../states/block_view_state.dart';
 import '../states/coordinator_state.dart';
 import 'command_selection_sync.dart';
 import 'dirty_state_source.dart';
+import 'editor_intent.dart';
+import 'editor_intent_dispatcher.dart';
 import 'in_memory_document_editor.dart';
 import 'live_editing_state.dart';
 
-/// UI 层对编辑内核的协调器。Widget 通过 [EditorScope] 获取实例。
-class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
+/// UI 层对编辑内核的协调器（ADR-0009/0012/0013）。
+class EditorCoordinator extends ChangeNotifier
+    implements DirtyStateSource, IntentCoordinator {
   final InMemoryDocumentEditor editor;
   final EditorHistory history;
   late final CommandHandler handler;
@@ -33,8 +36,6 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
   /// ADR-0012 §Editor Context Preservation：最后聚焦的编辑块，不随 [clearFocus] 清空。
   BlockId? _lastFocusedId;
 
-  /// ADR-0013：脏状态跟踪器。[isDirty] 实时反射 [_live.isDirty]（含 editor.isDirty，
-  /// 故 editor 直接变更也即时可见）；[dirtyChanges] 仅在翻转时发射。
   late final DirtyStateTracker _dirty;
 
   EditorCoordinator({
@@ -44,6 +45,7 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
     handler = CommandHandler(editor: editor, history: history);
     _live = LiveEditingState(editor);
     _dirty = DirtyStateTracker(() => _live.isDirty);
+    _intentDispatcher = EditorIntentDispatcher(this);
     _state = CoordinatorState.initial({
       for (final id in editor.allIds) id: BlockViewState(id: id),
     });
@@ -57,6 +59,8 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
       InsertTemplateCommand c when c.mode == TemplateInsertMode.newBlock =>
         (null, editor.allIds.toSet()),
       InsertNewLineWithPrefixCommand c => (editor.sourceOf(c.blockId), null),
+      InsertBlockAfterCommand c => (editor.sourceOf(c.blockId), editor.allIds.toSet()),
+      MergeWithPreviousCommand c => (null, editor.allIds.toSet()),
       _ => (null, null),
     };
     final ok = handler.handle(command);
@@ -76,16 +80,16 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
 
+  /// ADR-0019：输入意图派发器。UI 事件统一经此 flush→resolve→handle。
+  late final EditorIntentDispatcher _intentDispatcher;
+
+  EditorIntentDispatcher get intents => _intentDispatcher;
+
   String get title => editor.title;
 
-  /// 实时字数（ADR-0012 Live Editing State，委托 [LiveEditingState]）。
   int get wordCount => _live.wordCount;
-
-  /// ADR-0013：[DirtyStateSource.isDirty] —— 实时反射 [_live.isDirty]（含 editor.isDirty）。
   @override
   bool get isDirty => _dirty.isDirty;
-
-  /// ADR-0013：[DirtyStateSource.dirtyChanges] —— [_dirty.sync] 在翻转时发射。
   @override
   Stream<bool> get dirtyChanges => _dirty.dirtyChanges;
 
@@ -96,13 +100,11 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
     notifyListeners();
   }
 
-  /// 推入某 block 的实时编辑文本（由 `BaseBlockState._onTextChanged` 高频调用）。
   void updateLiveSource(BlockId id, String source) {
     _live.update(id, source);
     notifyListeners();
   }
 
-  /// 读取某 block 的实时文本（live 优先，fallback 到已提交 source）。
   String liveSourceOf(BlockId id) => _live.sourceOf(id);
 
   /// 聚焦块的 [BlockType]（null = 无聚焦，§2.8 CodeBlock 禁用工具栏）。
@@ -121,7 +123,6 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
 
   BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
 
-  /// 更新指定块的 [BlockViewState]，触发 [notifyListeners]。
   void updateViewState(BlockId id, BlockViewState state) {
     _state = _state.updateViewState(id, state);
     notifyListeners();
@@ -182,7 +183,6 @@ class EditorCoordinator extends ChangeNotifier implements DirtyStateSource {
 
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
 
-  /// ADR-0013：每次 [notifyListeners] 同步脏状态到 [_dirty]，保持 coordinator 精简（God Object 闸门）。
   @override
   void notifyListeners() {
     _dirty.sync();

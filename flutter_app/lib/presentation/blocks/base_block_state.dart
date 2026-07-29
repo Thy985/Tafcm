@@ -28,12 +28,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInputFormatter;
 
 import '../../core/editing/block_types.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_intent.dart';
 import '../editor/editor_scope.dart';
 import '../states/block_view_state.dart';
+import 'block_enter_intent_formatter.dart';
 import 'input/input_handler.dart';
 
 /// Block 组件状态抽象基类。
@@ -72,6 +75,10 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 不直接实现配对 / 续行规则,避免 God Object 膨胀。
   late final InputHandler _inputHandler;
 
+  /// 回车意图拦截器（Phase A：捕获软键盘插入的 `\n` → 派发 [EnterPressedIntent]）。
+  ///
+  late final TextInputFormatter _enterFormatter;
+
   /// 上一次 [TextEditingValue]（Phase 3.3 PR #3：自动配对/续列表的 oldValue 来源）。
   ///
   /// **为什么由 BaseBlockState 持有而非 InputHandler**：
@@ -93,6 +100,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     focusNode.addListener(_onFocusChange);
     textController.addListener(_onSelectionChanged);
     _inputHandler = InputHandler();
+    _enterFormatter = EnterIntentFormatter(onEnter: _onEnterIntercepted);
   }
 
   // ============ Phase 3.3 PR #2B §2.7: selection 同步（节流）============
@@ -196,6 +204,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
         decoration: editFieldDecoration,
         maxLines: editFieldMaxLines,
         inputAction: editFieldInputAction,
+        inputFormatters: [_enterFormatter],
       );
     }
     return buildRenderContent(context);
@@ -264,31 +273,21 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     coordinator.setFocus(blockId);
   }
 
-  /// 模式变化回调（子类可覆盖，默认空实现）。
-  ///
-  /// 用于在 render ↔ editing 切换时执行额外逻辑（如 scroll to focus）。
+  /// 模式变化回调（子类可覆盖）。render ↔ editing 切换时回调。
   @protected
   void onModeChanged(RenderMode oldMode) {}
 
-  /// 子类实现的 render 内容（render 态显示内容）。
-  ///
-  /// **§3.0 方案 A 后**：此方法由基类 `build()` 在 `RenderMode.rendered` 时调用,
-  /// 子类只需实现 render 态的视觉差异（如富文本 / 标题样式 / 代码块样式）,
-  /// 不再需要自己判断 mode 也不用调用 `buildEditField`。
+  /// 子类实现的 render 内容。由基类 `build()` 在 `RenderMode.rendered` 时调用。
   @protected
   Widget buildRenderContent(BuildContext context);
 
-  // ============ edit 态 TextField 配置（子类可覆盖） ============
+  // ============ edit 态 TextField 配置（子类可覆盖）============
 
-  /// edit 态 [TextField] 的文本样式（子类可覆盖）。
-  ///
-  /// 默认 `null`（跟随 Theme.of(context).textTheme.bodyMedium）。
+  /// edit 态 [TextField] 的文本样式。默认 `null`。
   @protected
   TextStyle? get editFieldStyle => null;
 
-  /// edit 态 [TextField] 的 [InputDecoration]（子类可覆盖）。
-  ///
-  /// 默认带 `OutlineInputBorder` + 水平 12 / 垂直 8 内边距。
+  /// edit 态 [TextField] 的 [InputDecoration]。默认 OutlineInputBorder + 水平12/垂直8 padding。
   @protected
   InputDecoration get editFieldDecoration => const InputDecoration(
         border: OutlineInputBorder(),
@@ -296,39 +295,25 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       );
 
-  /// edit 态 [TextField] 的 maxLines（子类可覆盖）。
-  ///
-  /// - 默认 `null`（多行,适合段落 / 代码块）
-  /// - 标题块可覆盖为 `1`（单行）
+  /// edit 态 [TextField] 的 maxLines。默认 `null`（多行）；标题块可覆盖为 `1`。
   @protected
   int? get editFieldMaxLines => null;
 
-  /// edit 态 [TextField] 的 [TextInputAction]（子类可覆盖）。
-  ///
-  /// - 默认 [TextInputAction.done]：触发 [TextField.onSubmitted] → 失焦 → commit
-  /// - 代码块可覆盖为 [TextInputAction.newline]：不触发 onSubmitted,
-  ///   插入换行符;失焦通过点击其他区域触发 [_onFocusChange]
+  /// 默认 [TextInputAction.newline]：软键盘回车插入 `\n`，由 [_enterFormatter]
+  /// 拦截并派发 [EnterPressedIntent]（走 Intent Layer，而非不触发的 `onSubmitted`）。
   @protected
-  TextInputAction get editFieldInputAction => TextInputAction.done;
+  TextInputAction get editFieldInputAction => TextInputAction.newline;
 
-  /// 构造标准 TextField（edit 态显示）。
-  ///
-  /// 由基类 `build()` 在 `RenderMode.editing` 时调用,
-  /// 子类通常不需要直接调用此方法。
-  ///
-  /// **onSubmitted 触发条件**：仅在 [editFieldInputAction] 为
-  /// [TextInputAction.done]（默认）时触发。覆盖为 [TextInputAction.newline]
-  /// 的子类（如 CodeBlock）不会触发 onSubmitted,改由 [_onFocusChange]
-  /// 在失焦时 commit。
-  ///
-  /// **Phase 3.3 PR #3**：新增 [onChanged] → [_onTextChanged],
-  /// 统一入口处理自动配对 + 自动续列表（§2.4）。
+  /// 构造 edit 态 TextField。[_enterFormatter] 捕获软键盘 `\n` 派发
+  /// [EnterPressedIntent]；[onSubmitted] 仅部分平台兜底。
+  /// [onChanged] → [_onTextChanged]（Phase 3.3 PR #3 自动配对 / 续列表）。
   @protected
   Widget buildEditField({
     required TextStyle? style,
     required InputDecoration decoration,
     required int? maxLines,
     required TextInputAction inputAction,
+    required List<TextInputFormatter> inputFormatters,
   }) {
     return TextField(
       controller: textController,
@@ -337,12 +322,33 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
       maxLines: maxLines,
       textInputAction: inputAction,
       decoration: decoration,
+      inputFormatters: inputFormatters,
       onChanged: _onTextChanged,
-      onSubmitted: (_) => focusNode.unfocus(),
+      onSubmitted: (_) => _onEnterSubmitted(),
     );
   }
 
-  // ============ Phase 3.3 PR #3: 自动输入行为（§2.4 + §2.6）============
+  // ============ 回车分块（Phase A：经 Intent Layer）============
+
+  /// 软键盘回车拦截（[EnterIntentFormatter] 捕获插入的 `\n`）→ 派发 [EnterPressedIntent]。
+  void _onEnterIntercepted(int offset) {
+    if (!isFocused) return;
+    coordinator.intents.dispatch(EnterPressedIntent(
+      blockId,
+      TextSelection.collapsed(offset: offset),
+    ));
+  }
+
+  // 兜底：真机（Xiaomi/MIUI）onSubmitted 为死代码（P0 已验证）；仅桌面/旧 IME 走此路径，resolver 同 offset 幂等不会双块（后续桌面 E2E 确认后可移除）。
+  void _onEnterSubmitted() {
+    if (!isFocused) return;
+    final offset = textController.value.selection.baseOffset;
+    if (offset < 0) return;
+    coordinator.intents.dispatch(EnterPressedIntent(
+      blockId,
+      TextSelection.collapsed(offset: offset),
+    ));
+  }
 
   /// 输入变化回调：自动配对 + 自动续列表统一入口。
   ///
@@ -363,6 +369,18 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
 
     // ADR-0012：Live Editing State 实时上报（含 CodeBlock,规则委托才跳过 CodeBlock）
     coordinator.updateLiveSource(blockId, text);
+
+    // 块首退格合并（§4.1）：composing 守卫已在方法顶部；判定抽离到
+    // [detectBackspaceMerge]（block_enter_intent_formatter.dart）。
+    if (detectBackspaceMerge(_previousTextValue, value)) {
+      coordinator.intents.dispatch(DeleteIntent(
+        blockId,
+        true,
+        const TextSelection.collapsed(offset: 0),
+      ));
+      _previousTextValue = value;
+      return;
+    }
 
     // §2.5 CodeBlock 例外：不应用自动配对 / 自动续列表
     if (coordinator.isFocusedOnCodeBlock) return;

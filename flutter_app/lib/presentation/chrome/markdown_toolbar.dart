@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_intent.dart';
 import 'editor_strings.dart';
 import 'toolbar_components.dart';
 
@@ -116,89 +117,30 @@ class _ToolbarButtons extends StatelessWidget {
   }
 
   List<Widget> _buildButtons(BuildContext context) {
+    // 一级（高频固定）：B / I / H(标题) / Code / +（模板）
+    // 二级（⋯ 收纳）：H2 / H3 / Link / Quote / OL / UL / Task
+    // 全部经 [EditorIntentDispatcher] 派发（ADR-0019 + Human Owner 评审：
+    // 手机 393px 宽度无法复制桌面全按钮布局，必须分层）。
     return [
       FormatButton(
         label: 'B',
         tooltip: EditorStrings.boldTooltip,
-        onPressed: enabled
-            ? () => _handleWrapOrInsert(
-                  prefix: '**',
-                  suffix: '**',
-                  noSelectionText: '****',
-                  noSelectionCursorOffset: -2,
-                )
-            : null,
+        onPressed: enabled ? () => _dispatchKind(ToolbarActionKind.bold) : null,
       ),
       FormatButton(
         label: 'I',
         tooltip: EditorStrings.italicTooltip,
-        onPressed: enabled
-            ? () => _handleWrapOrInsert(
-                  prefix: '*',
-                  suffix: '*',
-                  noSelectionText: '**',
-                  noSelectionCursorOffset: -1,
-                )
-            : null,
+        onPressed: enabled ? () => _dispatchKind(ToolbarActionKind.italic) : null,
       ),
       FormatButton(
-        label: 'H1',
+        label: 'H',
         tooltip: EditorStrings.h1Tooltip,
-        onPressed: enabled ? () => _handleInsert('# ') : null,
-      ),
-      FormatButton(
-        label: 'H2',
-        tooltip: EditorStrings.h2Tooltip,
-        onPressed: enabled ? () => _handleInsert('## ') : null,
-      ),
-      FormatButton(
-        label: 'H3',
-        tooltip: EditorStrings.h3Tooltip,
-        onPressed: enabled ? () => _handleInsert('### ') : null,
+        onPressed: enabled ? () => _dispatchKind(ToolbarActionKind.h1) : null,
       ),
       FormatButton(
         label: 'Code',
         tooltip: EditorStrings.codeTooltip,
-        onPressed: enabled
-            ? () => _handleWrapOrInsert(
-                  prefix: '`',
-                  suffix: '`',
-                  noSelectionText: '``',
-                  noSelectionCursorOffset: -1,
-                )
-            : null,
-      ),
-      FormatButton(
-        label: 'Link',
-        tooltip: EditorStrings.linkTooltip,
-        onPressed: enabled
-            ? () => _handleWrapOrInsert(
-                  prefix: '[',
-                  suffix: ']()',
-                  noSelectionText: '[]()',
-                  noSelectionCursorOffset: -3,
-                )
-            : null,
-      ),
-      FormatButton(
-        label: 'Quote',
-        tooltip: EditorStrings.quoteTooltip,
-        onPressed: enabled ? () => _handleInsert('> ') : null,
-      ),
-      FormatButton(
-        label: 'OL',
-        tooltip: EditorStrings.orderedListTooltip,
-        onPressed: enabled ? () => _handleInsert('1. ') : null,
-      ),
-      FormatButton(
-        label: 'UL',
-        tooltip: EditorStrings.unorderedListTooltip,
-        onPressed: enabled ? () => _handleInsert('- ') : null,
-      ),
-      FormatButton(
-        label: 'Task',
-        tooltip: EditorStrings.taskListTooltip,
-        onPressed: enabled ? () => _handleInsert('- [ ] ') : null,
+        onPressed: enabled ? () => _dispatchKind(ToolbarActionKind.code) : null,
       ),
       // §6.3：`+` 模板菜单按钮（PopupMenu,8 模板）
       // ADR-0012：以 templateEnabled（lastFocusedId）为准,失焦后仍可插入。
@@ -206,64 +148,26 @@ class _ToolbarButtons extends StatelessWidget {
         enabled: templateEnabled,
         onSelected: templateEnabled ? _handleTemplateSelect : null,
       ),
+      // 二级：⋯ 溢出菜单收纳次要动作
+      _OverflowButton(
+        enabled: enabled,
+        onSelected: _dispatchKind,
+      ),
     ];
   }
 
-  // ============ Command 构造与分发（§2.3 + §2.7.1）============
+  // ============ Intent 派发（§2.3 + ADR-0019）============
 
-  /// 处理「包裹选区 / 插入文本」双路径按钮（B / I / Code / Link）。
+  /// 工具栏按钮统一入口：经 [EditorIntentDispatcher] 派发 [ToolbarActionIntent]。
   ///
-  /// **§2.7.1 强一致读取**：Command 构造瞬间通过 [coordinator.focusedSelection]
-  /// 重新读取最新 selection（不依赖节流后可能滞后的视觉态）。
-  void _handleWrapOrInsert({
-    required String prefix,
-    required String suffix,
-    required String noSelectionText,
-    required int noSelectionCursorOffset,
-  }) {
+  /// dispatcher 内部先 [EditorCoordinator.flushLiveSource]（防 #4 文本复活），
+  /// 再交 [BlockBehaviorResolver] 解析为 Command。UI 层不再直接 handle 格式命令。
+  void _dispatchKind(ToolbarActionKind kind) {
     final blockId = coordinator.focusedId;
     if (blockId == null) return;
-
-    // §2.7.1：强一致读取 selection
-    final selection = coordinator.focusedSelection;
-    final hasSelection =
-        selection != null && selection.baseOffset != selection.extentOffset;
-
-    if (hasSelection) {
-      // 有选区 → WrapSelectionCommand
-      coordinator.handle(WrapSelectionCommand(
-        blockId: blockId,
-        prefix: prefix,
-        suffix: suffix,
-        selection: selection,
-      ));
-    } else {
-      // 无选区 → InsertTextCommand（光标定位到插入文本中间或末尾）
-      coordinator.handle(InsertTextCommand(
-        blockId: blockId,
-        text: noSelectionText,
-        cursorOffset: noSelectionCursorOffset,
-        selection: selection,
-      ));
-    }
-  }
-
-  /// 处理纯插入按钮（H1 / H2 / H3 / Quote / OL / UL / Task）。
-  ///
-  /// 这些按钮始终走 InsertTextCommand（不依赖选区）。
-  void _handleInsert(String text) {
-    final blockId = coordinator.focusedId;
-    if (blockId == null) return;
-
-    // §2.7.1：强一致读取 selection（用于计算插入位置）
-    final selection = coordinator.focusedSelection;
-
-    coordinator.handle(InsertTextCommand(
-      blockId: blockId,
-      text: text,
-      cursorOffset: 0,
-      selection: selection,
-    ));
+    final selection =
+        coordinator.focusedSelection ?? const TextSelection.collapsed(offset: 0);
+    coordinator.intents.dispatch(ToolbarActionIntent(blockId, kind, selection));
   }
 
   /// 处理模板菜单选择（§6.3 + §2.5.1）。
@@ -289,9 +193,11 @@ class _ToolbarButtons extends StatelessWidget {
     final config = kTemplateConfigs.firstWhere((c) => c.item == item);
     // §2.7.1：强一致读取 selection（insert 模式用于计算插入位置）
     final selection = coordinator.focusedSelection;
-    coordinator.handle(InsertTemplateCommand(
-      blockId: blockId,
-      template: config.template,
+    // ADR-0019（PR #97 P0-1）：经 dispatcher 统一派发，flushLiveSource 由
+    // dispatcher 保证，不再手动调用（避免绕过 Intent Layer）。
+    coordinator.intents.dispatch(InsertTemplateIntent(
+      blockId,
+      config.template,
       mode: config.mode,
       selection: config.mode == TemplateInsertMode.insert ? selection : null,
       cursorOffset: config.cursorOffset,
@@ -321,12 +227,43 @@ class _ToolbarButtons extends StatelessWidget {
       return;
     }
     if (relative == null) return;
-    coordinator.handle(InsertTemplateCommand(
-      blockId: blockId,
-      template: '![]($relative)',
+    // ADR-0019（PR #97 P0-1）：经 dispatcher 统一派发，flushLiveSource 由
+    // dispatcher 在 insert 时机对齐 live→domain，避免绕过 Intent Layer。
+    coordinator.intents.dispatch(InsertTemplateIntent(
+      blockId,
+      '![]($relative)',
       mode: TemplateInsertMode.insert,
       selection: coordinator.focusedSelection,
       cursorOffset: 0,
     ));
+  }
+}
+
+/// 工具栏二级动作溢出菜单（⋯）：收纳 H2 / H3 / Link / Quote / OL / UL / Task。
+///
+/// 手机 393px 宽度无法平铺桌面全按钮，低频动作折叠进菜单（Human Owner 评审）。
+class _OverflowButton extends StatelessWidget {
+  final bool enabled;
+  final void Function(ToolbarActionKind) onSelected;
+
+  const _OverflowButton({required this.enabled, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<ToolbarActionKind>(
+      icon: const Icon(Icons.more_horiz),
+      tooltip: '更多',
+      enabled: enabled,
+      onSelected: onSelected,
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: ToolbarActionKind.h2, child: Text('H2')),
+        PopupMenuItem(value: ToolbarActionKind.h3, child: Text('H3')),
+        PopupMenuItem(value: ToolbarActionKind.link, child: Text('链接')),
+        PopupMenuItem(value: ToolbarActionKind.quote, child: Text('引用')),
+        PopupMenuItem(value: ToolbarActionKind.ol, child: Text('有序列表')),
+        PopupMenuItem(value: ToolbarActionKind.ul, child: Text('无序列表')),
+        PopupMenuItem(value: ToolbarActionKind.task, child: Text('任务')),
+      ],
+    );
   }
 }
