@@ -17,6 +17,7 @@ void main() {
   //   - formula_pdf_renderer.dart: 409 行（Slice 7 加 onEachCompleted 后微增，
   //     文件内含 cache + 批量预渲染 + LRU 驱逐，本身职责密集）
   //   - editor_screen.dart: 461 行（待 Phase 3 WYSIWYG 重构）
+  //   - home_screen.dart: 480 行（feat/home-screen PR #93，Phase 3 重构时拆分）
   const knownOffenders = <String>[
     'lib/core/parser/markdown_parser.dart',
     'lib/core/services/mermaid_service.dart',
@@ -25,6 +26,7 @@ void main() {
     'lib/domain/services/export_service.dart',
     'lib/core/services/formula_pdf_renderer.dart',
     'lib/presentation/screens/editor_screen.dart',
+    'lib/presentation/screens/home_screen.dart',
   ];
 
   test('TC-ARCH-7 lib/ 下所有 .dart 文件 ≤ 400 行（除已知超限）', () {

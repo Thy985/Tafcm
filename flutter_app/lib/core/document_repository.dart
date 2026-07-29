@@ -29,4 +29,7 @@ abstract class DocumentRepository {
 
   /// 重命名：仅替换正文首个 `# H1`，路径（uuid）不变。
   Future<void> renameDocument(String path, String newTitle);
+
+  /// 获取文档预览片段（≤ 40 字符），不加载全量 AST。
+  Future<String> getDocumentPreview(String id);
 }

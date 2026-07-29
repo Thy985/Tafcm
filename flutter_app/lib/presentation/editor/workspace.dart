@@ -109,8 +109,11 @@ class EditorViewport extends StatelessWidget {
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
       );
     }
-    return ReorderableListView.builder(
-      scrollController: controller,
+    return Column(
+      children: [
+        Expanded(
+          child: ReorderableListView.builder(
+            scrollController: controller,
       buildDefaultDragHandles: false,
       padding: const EdgeInsets.all(EditorTokens.viewportPadding),
       itemCount: ids.length,
@@ -149,6 +152,31 @@ class EditorViewport extends StatelessWidget {
           child: child,
         );
       },
+          ),
+        ),
+        // 尾部空白点击区：即点即插（AS-1.3）
+        GestureDetector(
+          onTap: () {
+            final newId = coordinator.intents.appendBlock();
+            coordinator.setFocus(newId);
+          },
+          behavior: HitTestBehavior.translucent,
+          child: const SizedBox(
+            height: 120,
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  '点击此处添加新块',
+                  style: TextStyle(fontSize: 13, color: Colors.black38),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

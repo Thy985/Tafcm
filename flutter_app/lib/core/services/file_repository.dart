@@ -99,6 +99,19 @@ class FileRepository implements DocumentRepository {
       (await _readAll()).map((e) => e.doc).toList();
 
   @override
+  Future<String> getDocumentPreview(String id) async {
+    final path = await documentPathFor(id);
+    final raw = decodeBytesAuto(await File(path).readAsBytes());
+    final firstLine = raw.split('\n').firstWhere(
+      (l) => l.trim().isNotEmpty,
+      orElse: () => '',
+    );
+    return firstLine.length > 40
+        ? '${firstLine.substring(0, 40)}\u2026'
+        : firstLine;
+  }
+
+  @override
   Future<Document> readDocument(String path) async {
     final file = File(path);
     final raw = decodeBytesAuto(await file.readAsBytes());
