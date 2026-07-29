@@ -39,9 +39,12 @@ Stream<List<Document>> _emptyDocsStream() async* {
 Widget _wrap(Widget child, {List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: overrides,
-    child: MaterialApp(
-      theme: AppTheme.lightTheme,
-      home: child,
+    child: MediaQuery(
+      data: const MediaQueryData(size: Size(800, 1200)),
+      child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: child,
+      ),
     ),
   );
 }
@@ -53,6 +56,11 @@ void main() {
 
   group('TC-GOLDEN-1 FileManager 布局', () {
     testWidgets('空状态：无 .md 文件时显示空状态布局', (tester) async {
+      // 固定 locale / textScaleFactor，消除跨平台渲染差异
+      tester.platformDispatcher
+        ..localeTestValue = const Locale('en', 'US')
+        ..textScaleFactorTestValue = 1.0;
+
       await tester.pumpWidget(_wrap(
         const FileManagerScreen(),
         overrides: [
@@ -80,6 +88,10 @@ void main() {
 
   group('TC-GOLDEN-3 工具栏布局', () {
     testWidgets('FileManager AppBar 布局稳定', (tester) async {
+      tester.platformDispatcher
+        ..localeTestValue = const Locale('en', 'US')
+        ..textScaleFactorTestValue = 1.0;
+
       await tester.pumpWidget(_wrap(
         const FileManagerScreen(),
         overrides: [

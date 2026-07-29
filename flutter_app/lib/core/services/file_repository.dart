@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
@@ -218,7 +219,7 @@ class FileRepository implements DocumentRepository {
           yield await listDocuments();
         }
       } catch (e) {
-        print('[FileRepository] watchAllDocuments error (will retry): $e');
+        debugPrint('[FileRepository] watchAllDocuments error (will retry): $e');
         yield await listDocuments(); // 重连前发一次当前状态
         await Future.delayed(const Duration(seconds: 3)); // 退避
       }
