@@ -24,6 +24,7 @@ import '../../core/editing/document_editor.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
+import '../../core/editing/transaction_rollback.dart';
 import '../../data/models/document.dart';
 import 'commands.dart';
 
@@ -48,7 +49,7 @@ class CommandHandler {
   /// 3. 创建 [BlockOperations]（每次 handle 创建新实例，绑定新 builder）
   /// 4. 分发到对应的 _handle* 方法
   /// 5. 成功 → builder.commit()（触发 onChange → history.push）
-  /// 6. 失败 → builder.rollback()
+  /// 6. 失败 → revertBuilder(builder, editor)（原子回滚：逆序 revert 已 eager-apply 的 op）
   bool handle(EditorCommand command) {
     // Prototype 阶段不接入 ComposingController，守卫跳过
     // Phase 3 正式实现时：if (composing?.isActive == true) return false;
@@ -63,7 +64,10 @@ class CommandHandler {
     if (success) {
       builder.commit(label: command.displayName);
     } else {
-      builder.rollback();
+      // D3 原子性：BlockOperations 在 op.apply 成功后才加入 builder，
+      // 故 builder.ops 均为已 apply 到 editor 的 op。失败须逆序 revert 以恢复
+      // 编辑器到命令前状态（避免多原语命令中途失败残留部分变异态）。
+      revertBuilder(builder, editor);
     }
     return success;
   }
