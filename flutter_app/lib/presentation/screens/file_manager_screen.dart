@@ -8,13 +8,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../providers/file_repository_provider.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
 import '../../data/models/document.dart';
-import '../../core/document_repository.dart';
 
 class FileManagerScreen extends ConsumerWidget {
   const FileManagerScreen({super.key});
@@ -23,7 +21,6 @@ class FileManagerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final docsAsync = ref.watch(documentListProvider);
     final tokens = EditorTokens.of(context);
-    final dateFmt = DateFormat('yyyy-MM-dd HH:mm');
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -63,7 +60,6 @@ class FileManagerScreen extends ConsumerWidget {
                     Divider(height: 1, color: tokens.borderDefault.withOpacity(0.5)),
                 itemBuilder: (context, index) {
                   final doc = docs[index];
-                  final dateStr = dateFmt.format(doc.updatedAt);
                   final preview = _preview(doc);
                   return InkWell(
                     onTap: () => _openDoc(ref, doc, context),
