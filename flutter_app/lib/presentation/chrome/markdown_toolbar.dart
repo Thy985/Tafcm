@@ -190,13 +190,14 @@ class _ToolbarButtons extends StatelessWidget {
     // 而非实时的（可能已丢失的）focusedId。
     final blockId = coordinator.lastFocusedId;
     if (blockId == null) return;
-    coordinator.intents.flushLiveSource(blockId); // #4：模板插入前对齐 live→domain，防复活
     final config = kTemplateConfigs.firstWhere((c) => c.item == item);
     // §2.7.1：强一致读取 selection（insert 模式用于计算插入位置）
     final selection = coordinator.focusedSelection;
-    coordinator.handle(InsertTemplateCommand(
-      blockId: blockId,
-      template: config.template,
+    // ADR-0019（PR #97 P0-1）：经 dispatcher 统一派发，flushLiveSource 由
+    // dispatcher 保证，不再手动调用（避免绕过 Intent Layer）。
+    coordinator.intents.dispatch(InsertTemplateIntent(
+      blockId,
+      config.template,
       mode: config.mode,
       selection: config.mode == TemplateInsertMode.insert ? selection : null,
       cursorOffset: config.cursorOffset,
@@ -218,7 +219,6 @@ class _ToolbarButtons extends StatelessWidget {
   Future<void> _handleInsertImage(ImagePickAndImport pick) async {
     final blockId = coordinator.lastFocusedId;
     if (blockId == null) return;
-    coordinator.intents.flushLiveSource(blockId); // #4：图片插入前对齐 live→domain，防复活
     String? relative;
     try {
       relative = await pick();
@@ -227,9 +227,11 @@ class _ToolbarButtons extends StatelessWidget {
       return;
     }
     if (relative == null) return;
-    coordinator.handle(InsertTemplateCommand(
-      blockId: blockId,
-      template: '![]($relative)',
+    // ADR-0019（PR #97 P0-1）：经 dispatcher 统一派发，flushLiveSource 由
+    // dispatcher 在 insert 时机对齐 live→domain，避免绕过 Intent Layer。
+    coordinator.intents.dispatch(InsertTemplateIntent(
+      blockId,
+      '![]($relative)',
       mode: TemplateInsertMode.insert,
       selection: coordinator.focusedSelection,
       cursorOffset: 0,

@@ -31,6 +31,8 @@ class EditorIntentDispatcher {
         _dispatchDelete(i);
       case ToolbarActionIntent i:
         _dispatchToolbar(i);
+      case InsertTemplateIntent i:
+        _dispatchTemplate(i);
       case PasteIntent i:
         _dispatchPaste(i);
     }
@@ -67,6 +69,19 @@ class EditorIntentDispatcher {
 
   void _dispatchPaste(PasteIntent i) {
     // Phase C：纯文本按换行拆分多块。
+  }
+
+  void _dispatchTemplate(InsertTemplateIntent i) {
+    flushLiveSource(i.blockId);
+    final cmd = resolver.resolveTemplateInsert(
+      coordinator,
+      i.blockId,
+      i.template,
+      i.mode,
+      i.selection,
+      i.cursorOffset,
+    );
+    if (cmd != null) coordinator.handle(cmd);
   }
 
   /// 将某 block 的 live 文本刷新为已提交 domain source（#4 工具栏复活修复）。

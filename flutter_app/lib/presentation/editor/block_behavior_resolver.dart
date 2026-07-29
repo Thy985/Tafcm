@@ -109,6 +109,27 @@ class BlockBehaviorResolver {
     }
   }
 
+  /// 模板 / 图片插入意图 → Command（§6.3 + ADR-0014，PR #97 P0-1）。
+  ///
+  /// 与工具栏动作一致：直接透传构造 [InsertTemplateCommand]，由 dispatcher 保证
+  /// [flushLiveSource] 后再执行。意图已携带 UI 提供的模板 / 模式 / 选区 / 光标，
+  /// resolver 不做额外语义裁决（newBlock 建块 / insert 文本由命令自身处理）。
+  EditorCommand? resolveTemplateInsert(
+    IntentCoordinator c,
+    BlockId id,
+    String template,
+    TemplateInsertMode mode,
+    TextSelection? selection,
+    int cursorOffset,
+  ) =>
+      InsertTemplateCommand(
+        blockId: id,
+        template: template,
+        mode: mode,
+        selection: selection,
+        cursorOffset: cursorOffset,
+      );
+
   EditorCommand _wrap(
     BlockId id,
     TextSelection sel,

@@ -25,6 +25,10 @@ class EnterIntentFormatter extends TextInputFormatter {
     if (!newValue.text.contains('\n')) return newValue;
 
     // 首个 `\n` 位置即回车光标处；移除所有换行，光标置于移除点。
+    // **单 `\n` 假设（PR #97 P2）**：本 formatter 仅处理软键盘单次回车插入的
+    // 单个 `\n`。若某 [TextInputUpdate] 含多个 `\n`（极端 IME 或粘贴），仅按
+    // 首个 offset 报告并打平所有换行——属已知边界，多 `\n` 的拆分（粘贴多块）
+    // 由 Phase C 的 [PasteIntent] 在 dispatcher 层处理，此处不展开。
     final offset = newValue.text.indexOf('\n');
     final cleaned = newValue.text.replaceAll('\n', '');
     onEnter(offset);
@@ -36,10 +40,17 @@ class EnterIntentFormatter extends TextInputFormatter {
 }
 
 /// 块首退格合并判定（规范 §4.1）：光标在块首且本帧文本变短。
+///
+/// **PR #97 P0-2 修复**：不再依赖 [prev].selection.baseOffset == 0。
+/// 原因：[_previousTextValue] 仅在文本变化（[_onTextChanged]）/ 模式切换
+/// （[didUpdateWidget]）时更新；若用户通过触摸 / 方向键把光标移到块首
+/// （selection 改变但文本未变），[_previousTextValue].selection 仍是旧位置，
+/// 导致 `prev.selection.baseOffset == 0` 为 false、合并条件不满足、退格不触发
+/// 合并（产生异常空行）。改为仅依据当前光标在块首（cur）＋文本变短判定，
+/// 触摸 / 方向键移动光标后按退格也能正确合并。
 bool detectBackspaceMerge(TextEditingValue? prev, TextEditingValue cur) {
   if (prev == null) return false;
   return cur.selection.isCollapsed &&
       cur.selection.baseOffset == 0 &&
-      prev.selection.baseOffset == 0 &&
       prev.text.length > cur.text.length;
 }

@@ -340,6 +340,15 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   }
 
   /// `done` 动作兜底（部分平台回车不发 `\n` 直接触发 onSubmitted）→ 同派发 Enter。
+  ///
+  /// **平台依赖说明（PR #97 P1）**：多行 [TextField] 配 [TextInputAction.newline]
+  /// 时，iOS / Android 真机软键盘回车已被 [_enterFormatter] 拦截并派发
+  /// [EnterPressedIntent]（P0 真机验证：[_onEnterSubmitted] 在 Xiaomi/MIUI 上为
+  /// 死代码）。但部分桌面平台 / 旧 IME 在 newline 动作下不会向 formatter 注入
+  /// `\n`，而是直接触发 `onSubmitted` 作为唯一回车路径——此处保留作兜底，避免
+  /// 这些平台回车失效。若某平台同时触发 formatter 与 onSubmitted（极端情况），
+  /// 两者对同一 blockId + offset 派发 [EnterPressedIntent]，resolver 对空块尾
+  /// 退化为分块一次，不会双块。后续桌面端 E2E 确认无双触发后可移除本路径。
   void _onEnterSubmitted() {
     if (!isFocused) return;
     final offset = textController.value.selection.baseOffset;

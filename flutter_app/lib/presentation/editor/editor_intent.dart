@@ -98,6 +98,35 @@ final class ToolbarActionIntent extends EditorIntent {
   const ToolbarActionIntent(super.blockId, this.kind, this.selection);
 }
 
+/// 模板 / 图片插入意图（ADR-0019：所有模板与图片插入必须经 dispatch）。
+///
+/// 替代 UI 层直接 `coordinator.handle(InsertTemplateCommand(...))` 的绕过写法
+/// （PR #97 评审 P0-1）。统一走 dispatcher 的 flush → resolve → handle 管线：
+/// [flushLiveSource] 由 dispatcher 统一保证，UI 层不再手动调用（消除脆弱的
+/// 重复 flush）。意图直接携带 UI 提供的模板 / 模式 / 选区 / 光标偏移，
+/// resolver 透传构造 [InsertTemplateCommand]。
+final class InsertTemplateIntent extends EditorIntent {
+  /// 模板文本（Markdown 格式），来自 [Templates] 常量（禁止运行时拼接）。
+  final String template;
+
+  /// 插入模式（insert = 当前块光标插入；newBlock = 新建块）。
+  final TemplateInsertMode mode;
+
+  /// 当前选区（仅 [TemplateInsertMode.insert] 模式使用，null = 单光标点）。
+  final TextSelection? selection;
+
+  /// 相对插入文本末尾的光标偏移（仅 insert 模式生效）。
+  final int cursorOffset;
+
+  const InsertTemplateIntent(
+    super.blockId,
+    this.template, {
+    this.mode = TemplateInsertMode.insert,
+    this.selection,
+    this.cursorOffset = 0,
+  });
+}
+
 /// 粘贴意图（Phase C：纯文本按换行拆分多块）。
 final class PasteIntent extends EditorIntent {
   final String text;
