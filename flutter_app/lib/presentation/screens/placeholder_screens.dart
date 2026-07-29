@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/home_tab_bar.dart';
-
 /// 阅读 tab 占位页（设计稿 `reader.html` 尚未实现，Phase 3.5+ 跟进）。
 ///
-/// 当前仅提供与首页一致的底部导航 + 占位空状态，保证 4 tab 导航闭环可用，
-/// 不阻塞真机验收流程。真实阅读器（沉浸式阅读 / 目录 / 主题切换）后续落地。
+/// 底部导航由 StatefulShellRoute 的 HomeScaffold 统一提供，本页不渲染。
 class ReaderPlaceholderScreen extends StatelessWidget {
   const ReaderPlaceholderScreen({super.key});
 
@@ -26,7 +23,6 @@ class ReaderPlaceholderScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const HomeTabBar(active: 'reader'),
     );
   }
 }
@@ -50,7 +46,6 @@ class MePlaceholderScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const HomeTabBar(active: 'me'),
     );
   }
 }

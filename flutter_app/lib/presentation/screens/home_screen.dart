@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,108 +11,86 @@ import '../../providers/file_repository_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
-import '../widgets/home_tab_bar.dart';
 
 /// 应用首页（对齐设计稿 `home-v3.html`）。
 ///
-/// 布局：iOS 风格状态栏 → serif 品牌字标 + 搜索/新建 → 「最近」区（打开任意
-/// .md 入口 + 最近 3 篇）→ 「更早」区（其余）→ 底部 4 tab 导航。数据经
-/// [fileRepositoryProvider] 取真实文档，三主题经 [EditorTokens] / [AppTypography]
-/// 注入，无硬编码颜色字面量。
-class HomeScreen extends ConsumerStatefulWidget {
+/// 数据经 [documentListProvider]（Stream）取值，`AsyncValue.when` 覆盖
+/// loading/error/data 三态（ADR-0018 Decision 2 统一异步 UI 契约）。
+/// 布局：serif 品牌字标 + 搜索/新建 →「最近」区（打开任意 .md + 最近 3 篇）
+/// →「更早」区（其余）→ 底栏由 StatefulShellRoute 的 HomeScaffold 统一渲染。
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  List<Document> _docs = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final repo = ref.read(fileRepositoryProvider);
-    try {
-      final docs = await repo.listDocuments();
-      if (mounted) {
-        setState(() {
-          _docs = docs;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _openDoc(Document doc) async {
-    final repo = ref.read(fileRepositoryProvider);
-    final path = await repo.documentPathFor(doc.id);
-    if (mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
-  }
-
-  Future<void> _openAnyMd() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['md'],
-    );
-    final path = result?.files.single.path;
-    if (path != null && mounted) {
-      context.go('/editor?path=${Uri.encodeComponent(path)}');
-    }
-  }
-
-  Future<void> _newDoc() async {
-    final repo = ref.read(fileRepositoryProvider);
-    final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
-    if (mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
-  }
-
-  void _onSearch() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('搜索即将上线'), duration: Duration(seconds: 1)),
-    );
-  }
-
-  void _onThemeCycle() {
-    ref.read(themeModeProvider.notifier).cycle();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final docsAsync = ref.watch(documentListProvider);
     final tokens = EditorTokens.of(context);
-    final recent = _docs.take(3).toList();
-    final earlier = _docs.skip(3).toList();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  // 状态栏
-                  const SliverToBoxAdapter(child: _StatusBar()),
-                  // 头部字标 + 操作
-                  SliverToBoxAdapter(
-                    child: _Header(
-                      onSearch: _onSearch,
-                      onNew: _newDoc,
-                      onThemeCycle: _onThemeCycle,
-                    ),
-                  ),
-                  // 最近
+        child: docsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('加载失败', style: TextStyle(color: tokens.textSecondary)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(documentListProvider),
+                  child: const Text('重试'),
+                ),
+              ],
+            ),
+          ),
+          data: (docs) => _buildBody(context, ref, docs, tokens),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+      BuildContext context, WidgetRef ref, List<Document> docs, EditorTokens tokens) {
+    final recent = docs.take(3).toList();
+    final earlier = docs.skip(3).toList();
+
+    return Column(
+      children: [
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _Header(
+                  onSearch: () => _onSearch(context),
+                  onNew: () => _newDoc(ref, context),
+                  onThemeCycle: () => ref.read(themeModeProvider.notifier).cycle(),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                  child: Text('最近',
+                      style: TextStyle(
+                        fontFamily: AppTypography.serif,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textSecondary,
+                      )),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _OpenAnyMdEntry(onTap: () => _openAnyMd(ref, context)),
+              ),
+              if (docs.isEmpty)
+                const SliverToBoxAdapter(child: _EmptyHint())
+              else ...[
+                _DocList(docs: recent, onTap: (doc) => _openDoc(ref, doc, context)),
+                if (earlier.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-                      child: Text('最近',
+                      child: Text('更早',
                           style: TextStyle(
                             fontFamily: AppTypography.serif,
                             fontSize: 13,
@@ -120,169 +99,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           )),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: _OpenAnyMdEntry(onTap: _openAnyMd),
-                  ),
-                  if (_loading)
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    )
-                  else if (_docs.isEmpty)
-                    const SliverToBoxAdapter(child: _EmptyHint())
-                  else ...[
-                    _DocList(docs: recent, onTap: _openDoc),
-                    // 更早
-                    if (earlier.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-                          child: Text('更早',
-                              style: TextStyle(
-                                fontFamily: AppTypography.serif,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: tokens.textSecondary,
-                              )),
-                        ),
-                      ),
-                    _DocList(docs: earlier, onTap: _openDoc),
-                  ],
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: const HomeTabBar(active: 'home'),
-    );
-  }
-}
-
-/// iOS 风格状态栏（设计稿占位：9:41 + 信号 / Wi-Fi / 电池）。
-class _StatusBar extends StatelessWidget {
-  const _StatusBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final fg = scheme.onSurface.withOpacity(0.7);
-    return SizedBox(
-      height: 40,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('9:41',
-                style: const TextStyle(
-                  fontFamily: AppTypography.mono,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ).copyWith(color: fg)),
-            Row(
-              children: [
-                _signalIcon(fg),
-                const SizedBox(width: 6),
-                _wifiIcon(fg),
-                const SizedBox(width: 6),
-                _batteryIcon(fg),
+                _DocList(docs: earlier, onTap: (doc) => _openDoc(ref, doc, context)),
               ],
-            ),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _signalIcon(Color c) => SizedBox(
-        width: 17,
-        height: 11,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _bar(c, 4.0, 4.0),
-            const SizedBox(width: 1.5),
-            _bar(c, 6.0, 6.0),
-            const SizedBox(width: 1.5),
-            _bar(c, 8.5, 8.5),
-            const SizedBox(width: 1.5),
-            _bar(c, 11.0, 11.0),
-          ],
-        ),
-      );
+  static Future<void> _openDoc(WidgetRef ref, Document doc, BuildContext context) async {
+    final repo = ref.read(fileRepositoryProvider);
+    final path = await repo.documentPathFor(doc.id);
+    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
+  }
 
-  Widget _bar(Color c, double h, double full) => Container(
-        width: 3,
-        height: h,
-        decoration: BoxDecoration(
-          color: c,
-          borderRadius: BorderRadius.circular(0.5),
-        ),
-      );
-
-  Widget _wifiIcon(Color c) => CustomPaint(
-        size: const Size(15, 11),
-        painter: _WifiPainter(c),
-      );
-
-  Widget _batteryIcon(Color c) => SizedBox(
-        width: 24,
-        height: 11,
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 10,
-              decoration: BoxDecoration(
-                border: Border.all(color: c, width: 1),
-                borderRadius: BorderRadius.circular(2.2),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(1.5),
-                child: Container(
-                  width: 15,
-                  decoration: BoxDecoration(
-                    color: c,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              ),
-            ),
-            Container(width: 1.8, height: 4, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(0.6))),
-          ],
-        ),
-      );
-}
-
-class _WifiPainter extends CustomPainter {
-  final Color color;
-  _WifiPainter(this.color);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round;
-    for (final r in [11.0, 7.0, 3.5]) {
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(size.width / 2, size.height + 2), radius: r),
-        -2.4,
-        1.4,
-        false,
-        p,
-      );
+  static Future<void> _openAnyMd(WidgetRef ref, BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['md'],
+    );
+    final path = result?.files.single.path;
+    if (path != null && context.mounted) {
+      context.go('/editor?path=${Uri.encodeComponent(path)}');
     }
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
+  static Future<void> _newDoc(WidgetRef ref, BuildContext context) async {
+    final repo = ref.read(fileRepositoryProvider);
+    final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
+    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
+  }
 
+  static void _onSearch(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('搜索即将上线'), duration: Duration(seconds: 1)),
+    );
+  }
+}
 /// 头部：serif 品牌字标 + 搜索 / 新建 圆形按钮。
 class _Header extends StatelessWidget {
   final VoidCallback onSearch;

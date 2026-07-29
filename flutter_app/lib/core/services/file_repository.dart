@@ -198,6 +198,25 @@ class FileRepository implements DocumentRepository {
     }
   }
 
+  @override
+  Stream<List<Document>> watchAllDocuments() async* {
+    final dir = Directory(await _docsDirPath());
+    if (!await dir.exists()) {
+      yield const [];
+      await dir.create(recursive: true);
+    }
+    // 首屏立即返回当前列表，后续目录事件重发。
+    yield await listDocuments();
+    await for (final _ in dir.watch(
+      events: FileSystemEvent.create |
+          FileSystemEvent.delete |
+          FileSystemEvent.modify |
+          FileSystemEvent.move,
+    )) {
+      yield await listDocuments();
+    }
+  }
+
   Future<List<DocMetadata>> searchDocuments(String query) async {
     final q = query.toLowerCase();
     final entries = await _readAll();

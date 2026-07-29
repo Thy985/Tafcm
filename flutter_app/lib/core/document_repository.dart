@@ -29,4 +29,10 @@ abstract class DocumentRepository {
 
   /// 重命名：仅替换正文首个 `# H1`，路径（uuid）不变。
   Future<void> renameDocument(String path, String newTitle);
+
+  /// 监听文档列表（全量 [Document]），目录变更时自动重发。
+  ///
+  /// 供首页 / 文件页共享（见 `documentListProvider`），使任一屏的创建 / 删除经
+  /// 文件系统事件自动刷新另一屏，避免两屏各持一份数据源导致的不一致。
+  Stream<List<Document>> watchAllDocuments();
 }

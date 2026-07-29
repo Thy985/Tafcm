@@ -4,6 +4,11 @@
 /// 经 [EditorTokens.of] 在运行时按当前 [ThemeData] 注入的实例取值
 /// （light / dark / sepia 三套，见 [AppTheme]）。
 ///
+/// **app-wide 角色（ADR-0018 Decision 3）**：本类为 app-wide design token 载体，
+/// 编辑器 / 首页 / 文件 / 阅读 / 我的 / CodeBlock / 块级公式均消费此 Token。
+/// 实例字段禁止静态访问（TC-THEME）。若未来非编辑器屏出现专用 token，先在
+/// `EditorTokens` 追加；仅当编辑器专属占比失衡时评估拆 `AppTokens`（记新 ADR）。
+///
 /// **两类 token**：
 /// - 主题相关颜色：实例字段（textPrimary / codeBackground / …），必须经由
 ///   [EditorTokens.of] 取，禁止静态访问（架构守门 TC-THEME）。

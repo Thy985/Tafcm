@@ -1,47 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/shell_branch_provider.dart';
 import '../themes/editor_tokens.dart';
 
-/// 首页底部 4 tab 导航栏（对齐设计稿 `home-v3.html` 底部 tab bar）。
+/// 首页底部 4 tab 导航栏（对齐设计稿 `home-v3.html`）。
 ///
-/// 设计语言：固定在底部、卡片背景 + 半透明模糊、顶部分隔线；4 列等宽网格，
-/// 每列图标 + 11sp 标签；当前 tab 用主题 `colorScheme.primary`，其余用
-/// `EditorTokens.textSecondary`。底部附带 iOS home indicator 小横条。
+/// 由 [StatefulShellRoute] 的 [StatefulNavigationShell] 驱动：切换 tab 时调用
+/// [StatefulNavigationShell.goBranch]，各分支（首页 / 文件 / 阅读 / 我的）以
+/// [IndexedStack] 常驻，保持其 Navigator 与滚动位置，避免 `context.go()` 重建
+/// 整页导致的状态丢失（见评审 1.2）。
 ///
-/// 复用点：首页 / 文件 / 阅读 / 我的 四屏共用同一导航，避免重复实现。
-class HomeTabBar extends StatelessWidget {
-  /// 当前激活的 tab key（home / files / reader / me）。
-  final String active;
+/// 设计语言：固定在底部、卡片背景 + 半透明、顶部分隔线；4 列等宽；当前 tab 用
+/// `colorScheme.primary`，其余用 `colorScheme.onSurfaceVariant`；底部附带 iOS
+/// home indicator 小横条。
+class HomeBottomBar extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
 
-  const HomeTabBar({super.key, required this.active});
+  const HomeBottomBar({super.key, required this.navigationShell});
 
   static const double _height = 64;
 
-  void _onTap(BuildContext context, String key) {
-    if (key == active) return;
-    switch (key) {
-      case 'home':
-        context.go('/home');
-      case 'files':
-        context.go('/files');
-      case 'reader':
-        context.go('/reader');
-      case 'me':
-        context.go('/me');
-    }
-  }
+  static const List<_TabItem> _items = [
+    _TabItem(label: '首页', icon: Icons.home_outlined),
+    _TabItem(label: '文件', icon: Icons.folder_outlined),
+    _TabItem(label: '阅读', icon: Icons.menu_book_outlined),
+    _TabItem(label: '我的', icon: Icons.person_outline),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = EditorTokens.of(context);
-    const items = [
-      _TabItem(key: 'home', label: '首页', icon: Icons.home_outlined),
-      _TabItem(key: 'files', label: '文件', icon: Icons.folder_outlined),
-      _TabItem(key: 'reader', label: '阅读', icon: Icons.menu_book_outlined),
-      _TabItem(key: 'me', label: '我的', icon: Icons.person_outline),
-    ];
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface.withOpacity(0.95),
@@ -58,12 +48,15 @@ class HomeTabBar extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    for (final item in items)
+                    for (var i = 0; i < _items.length; i++)
                       Expanded(
                         child: _TabButton(
-                          item: item,
-                          active: item.key == active,
-                          onTap: () => _onTap(context, item.key),
+                          item: _items[i],
+                          active: navigationShell.currentIndex == i,
+                          onTap: () {
+                            saveShellBranch(i);
+                            navigationShell.goBranch(i);
+                          },
                         ),
                       ),
                   ],
@@ -88,10 +81,9 @@ class HomeTabBar extends StatelessWidget {
 }
 
 class _TabItem {
-  final String key;
   final String label;
   final IconData icon;
-  const _TabItem({required this.key, required this.label, required this.icon});
+  const _TabItem({required this.label, required this.icon});
 }
 
 class _TabButton extends StatelessWidget {
