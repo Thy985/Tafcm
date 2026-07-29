@@ -10,7 +10,6 @@ library;
 import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/presentation/commands/editor_command.dart'
     show TemplateInsertMode;
