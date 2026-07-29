@@ -44,16 +44,17 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          data: (docs) => _buildBody(context, ref, docs, tokens),
+          data: (_) => _buildBody(context, ref, tokens),
         ),
       ),
     );
   }
 
   Widget _buildBody(
-      BuildContext context, WidgetRef ref, List<Document> docs, EditorTokens tokens) {
-    final recent = docs.take(3).toList();
-    final earlier = docs.skip(3).toList();
+      BuildContext context, WidgetRef ref, EditorTokens tokens) {
+    final recent = ref.watch(recentDocumentsProvider);
+    final earlier = ref.watch(earlierDocumentsProvider);
+    final docs = ref.watch(documentListProvider).valueOrNull ?? [];
 
     return Column(
       children: [
@@ -203,7 +204,7 @@ class _RoundButton extends StatelessWidget {
   }
 }
 
-/// 「打开任意 .md 文件」虚线入口（便携查看器）。
+/// 「打开任意 .md 文件」实线入口（便携查看器）。
 class _OpenAnyMdEntry extends StatelessWidget {
   final VoidCallback onTap;
   const _OpenAnyMdEntry({required this.onTap});

@@ -207,13 +207,21 @@ class FileRepository implements DocumentRepository {
     }
     // 首屏立即返回当前列表，后续目录事件重发。
     yield await listDocuments();
-    await for (final _ in dir.watch(
-      events: FileSystemEvent.create |
-          FileSystemEvent.delete |
-          FileSystemEvent.modify |
-          FileSystemEvent.move,
-    )) {
-      yield await listDocuments();
+    while (true) {
+      try {
+        await for (final _ in dir.watch(
+          events: FileSystemEvent.create |
+              FileSystemEvent.delete |
+              FileSystemEvent.modify |
+              FileSystemEvent.move,
+        )) {
+          yield await listDocuments();
+        }
+      } catch (e) {
+        print('[FileRepository] watchAllDocuments error (will retry): $e');
+        yield await listDocuments(); // 重连前发一次当前状态
+        await Future.delayed(const Duration(seconds: 3)); // 退避
+      }
     }
   }
 

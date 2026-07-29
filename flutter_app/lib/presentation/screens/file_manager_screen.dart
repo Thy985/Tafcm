@@ -36,7 +36,17 @@ class FileManagerScreen extends ConsumerWidget {
       body: docsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
-          child: Text('加载失败', style: TextStyle(color: tokens.textSecondary)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('加载失败', style: TextStyle(color: tokens.textSecondary)),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(documentListProvider),
+                child: const Text('重试'),
+              ),
+            ],
+          ),
         ),
         data: (docs) => docs.isEmpty
             ? Center(
