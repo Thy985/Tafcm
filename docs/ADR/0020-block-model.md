@@ -3,7 +3,7 @@
 - **状态**：✅ Accepted（Human Owner 签字：2026-07-29）
 - **日期**：2026-07-29
 - **决策者**：Human Owner（裁定三大架构问题 + Block 改进方向）；AI Agent 起草
-- **关联**：[ADR-0003 存储单一真相源](./0003-storage-single-source-md-files.md) / [ADR-0007 BlockEditor 抽象设计](./0007-blockeditor-abstraction-design.md) / [ADR-0008 Editor Transaction Model](./0008-editor-transaction-model.md) / [ADR-0018 App Shell 导航](./0018-app-shell-navigation.md) / [ADR-0019 Editor Interaction Layer](./0019-editor-interaction-layer.md)（见 §0 缺口）
+- **关联**：[ADR-0003 存储单一真相源](./0003-storage-single-source-md-files.md) / [ADR-0007 BlockEditor 抽象设计](./0007-blockeditor-abstraction-design.md) / [ADR-0008 Editor Transaction Model](./0008-editor-transaction-model.md) / [ADR-0018 App Shell 导航](./0018-app-shell-navigation.md) / [ADR-0019 Editor Interaction Layer](./0019-editor-interaction-layer.md)（D5 权威依据，见 §0）
 
 ---
 
@@ -19,10 +19,10 @@ Phase 2 进入块级编辑内核后，出现三类反复出现的架构问题：
 
 本 ADR 将 Block 模型冻结为 5 个决策（D1–D5）与 1 条类型扩展原则（D6），并划分为 A–E 五期实施。其中 A、B 已完成并合入 main；C、D、E 待本 ADR 签字后开工；D6 为已接受原则、无独立实施期。实施优先序经 Owner 评审调整为 **C（去边框）→ E（Transaction）→ D（UUID）**（见 §3 与 §0.1）。
 
-### 已知文档缺口（须补）
+### 文档审计状态
 
-- **ADR-0019（Editor Interaction Layer）文档未落盘**：其决策已在 PR #97（Intent Layer）实现并合入 main，但 `docs/ADR/0019-editor-interaction-layer.md` 文件不存在。D5 引用其「BlockRenderer 不裁决行为」结论，建议补写 ADR-0019 文档以闭合审计链（不影响已合并代码）。
-- **本 ADR（0020）此前仅在记忆笔记中起草**，本次为首次落盘。
+- **ADR-0019（Editor Interaction Layer）文档已落盘并签字 ✅**：其决策已在 PR #97（Intent Layer）实现并合入 main；`docs/ADR/0019-editor-interaction-layer.md` 已增补为 **✅ Accepted（v1.1，2026-07-29）**，并与本 ADR D5（BlockRenderer 不裁决行为）建立审计关系（见 ADR-0019 §0）。**本审计缺口已闭合（PR #101）**。原草稿曾误置于 `flutter_app/docs/ADR/`，现统一归位到 canonical `docs/ADR/`（与全部 ADR 一致）。
+- **本 ADR（0020）此前仅在记忆笔记中起草**，本次为首次落盘（PR #100 已合 main）。
 
 ### 0.1 Owner 评审要点（2026-07-29，未签字前记录）
 
