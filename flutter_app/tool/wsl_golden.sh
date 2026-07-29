@@ -31,6 +31,9 @@ WORK='$HOME/fx_golden'
 
 echo "[wsl_golden] mode=$MODE  src=$APP_DIR_WSL"
 
+# 注意：用 set +e 包裹 wsl 调用，确保测试失败时仍能打印友好提示并正确返回退出码
+#（外层 set -e 会在 wsl 失败时直接退出，跳过后面的红/绿提示）。
+set +e
 wsl -d Ubuntu -- bash -lc "
 set -eu
 export PUB_HOSTED_URL=https://pub.flutter-io.cn FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
@@ -47,6 +50,7 @@ else
 fi
 "
 RC=$?
+set -e
 
 if [ "$MODE" = "update" ]; then
   echo "[wsl_golden] 拷回新基线到 test/golden/golden/ ..."
