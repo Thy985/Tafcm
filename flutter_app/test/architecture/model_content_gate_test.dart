@@ -2,6 +2,11 @@
 ///
 /// 落地 ADR-0020 Decision 1：Document.content 仅被 MarkdownParser（加载方向）
 /// 读取；UI / 搜索 / 预览必须经 Repository 或 serializer 获取内容。
+///
+/// **已知局限**：仅检测直接引用 `doc.content` / `document.content`，以下模式漏报：
+/// - 间接引用（`final c = doc.content;` 后使用 `c`）
+/// - 解构（`final {content} = document;`）
+/// - getter 封装（`String get body => document.content;`）
 library;
 
 import 'dart:io';

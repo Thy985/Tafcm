@@ -20,8 +20,11 @@ class MarkdownSerializer {
 
   /// 将 [DocumentElement] 列表序列化为 Markdown 字符串。
   ///
-  /// 块间以 `\n` 分隔（[EmptyLineElement] 不在此列表中，已在 parser 层过滤）；
-  /// 需要段落间空行的场景由调用方在 join 时插入 `\n\n`。
-  static String serialize(List<DocumentElement> elements) =>
-      elements.map(fromElement).join('\n');
+  /// 块间以 [separator] 分隔（默认 `\n`）；需要段落间空行的场景传入 `\n\n`。
+  /// [EmptyLineElement] 不在此列表中（已在 parser 层过滤）。
+  static String serialize(
+    List<DocumentElement> elements, {
+    String separator = '\n',
+  }) =>
+      elements.map(fromElement).join(separator);
 }
