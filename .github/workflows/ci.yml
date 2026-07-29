@@ -5,6 +5,14 @@ on:
     branches: ['**']
   pull_request:
     branches: [main, develop]
+  # 手动触发基线更新：Actions 页选 CI → Run workflow → 勾选 update_goldens。
+  # 之前每次视觉变更都要手改 ci.yml 切 --update-goldens 再改回来，现在一键完成。
+  workflow_dispatch:
+    inputs:
+      update_goldens:
+        description: '在 Linux 上重新生成 golden 基线（产出 golden-baselines artifact）'
+        type: boolean
+        default: false
 
 # 同一 PR 新推送时取消旧 run
 concurrency:
@@ -159,6 +167,41 @@ jobs:
         with:
           name: golden-diffs
           path: flutter_app/test/golden/failures/
+
+  # 手动触发的基线更新 job（workflow_dispatch + update_goldens=true 时运行）。
+  # 产出 golden-baselines artifact，下载后拷入 test/golden/golden/ 提交即可：
+  #   gh run download <run-id> --name golden-baselines --dir /tmp/gb
+  #   cp /tmp/gb/*.png flutter_app/test/golden/golden/
+  # 本地替代方案：tool/wsl_golden.sh --update（WSL Ubuntu，无需等 CI）。
+  golden-update:
+    name: Golden (update baselines)
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' && inputs.update_goldens
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Download dependencies
+        run: flutter pub get
+
+      - name: Regenerate golden baselines
+        run: flutter test --tags golden --update-goldens --reporter expanded
+
+      - name: Upload new baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-baselines
+          path: flutter_app/test/golden/golden/
 
   build-android:
     name: Build Android Debug APK
