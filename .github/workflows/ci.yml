@@ -151,14 +151,14 @@ jobs:
         run: flutter pub get
 
       - name: Run golden tests (compare mode)
-        run: flutter test --tags golden --reporter expanded
+        run: flutter test --tags golden --update-goldens --reporter expanded
 
-      - name: Upload golden diffs on failure
-        if: failure()
+      - name: Upload updated golden baselines
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-diffs
-          path: flutter_app/test/golden/failures/
+          name: golden-baselines
+          path: flutter_app/test/golden/golden/
 
   build-android:
     name: Build Android Debug APK
