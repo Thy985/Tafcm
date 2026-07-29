@@ -94,7 +94,7 @@ jobs:
         # Golden 跨平台字体渲染差异（CI 0.09% 像素）会导致 flake，
         # 由独立 golden job 处理（当前 if: false 暂停，见下方）。
         # 详见 docs/TEST_SKIP_REGISTRY.md GOLDEN-CI-001。
-        run: flutter test --exclude-tags golden --exclude-tags perf --reporter expanded $(find test -name "*.dart" ! -path "test/golden/*")
+        run: flutter test --exclude-tags golden --exclude-tags perf --reporter expanded $(find test -name "*_test.dart" ! -path "test/golden/*")
 
       - name: Upload coverage
         if: success()
