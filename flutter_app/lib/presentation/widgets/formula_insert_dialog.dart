@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/constants/app_constants.dart';
@@ -79,7 +81,9 @@ class _FormulaInsertDialogState extends State<FormulaInsertDialog> {
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
       ),
       child: Container(
-        width: 480,
+        // P1-1 响应式：窄屏（如 375）下 480 固定宽会溢出，改为不超过屏宽 90%。
+        // 宽屏（≥ ~533）仍为 480，与历史布局一致。
+        width: math.min(480, MediaQuery.of(context).size.width * 0.9),
         constraints: const BoxConstraints(maxHeight: 640),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
