@@ -1,9 +1,11 @@
-/// T2-1 核心 golden：EditorShell 整页布局（light 主题）。
+/// T2-1 核心 golden：EditorShell 整页布局（light 主题，800×1200）。
 ///
 /// 防什么：编辑器整页布局回归——[EditorShell] 的 AppBar + 工具栏 + 编辑视口 +
 /// 侧栏插槽的整体结构。这是一张「总览」基线，守护整页结构不被意外改动
 /// （如 AppBar 元素增减、视口 padding 变化、主题注入错乱）。内容覆盖标题 /
 /// 行内公式 / 代码块 / 块级公式，提供有代表性的整页渲染。
+///
+/// 尺寸 / 主题矩阵变体见 [editor_shell_full_page_matrix_test.dart]。
 @Tags(['golden'])
 library;
 
@@ -15,6 +17,7 @@ import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
 import 'package:formula_fix/presentation/editor/editor_scope.dart';
 import 'package:formula_fix/presentation/editor/editor_shell.dart';
 import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
+import 'package:formula_fix/presentation/theme/app_theme.dart';
 import 'golden_helpers.dart';
 
 void main() {
@@ -52,7 +55,7 @@ void main() {
       history: EditorHistory(maxHistorySize: 200),
     );
 
-    await pumpGoldenApp(
+    await pumpFullScreenGolden(
       tester,
       EditorScope(
         coordinator: coordinator,
@@ -61,6 +64,7 @@ void main() {
           builder: (context, _) => EditorShell(coordinator: coordinator),
         ),
       ),
+      theme: AppTheme.lightTheme,
     );
 
     await expectLater(

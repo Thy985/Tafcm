@@ -1,24 +1,17 @@
-/// TC-GOLDEN-1: FileManager 布局
+/// TC-GOLDEN-1: FileManager 布局（P1-4 矩阵扩充）
 ///
 /// 对应 docs/PHASE1_TEST_PLAN.md §11 Golden UI 测试。
 ///
-/// 目的：布局回归保护（不验证视觉美化，美化属 Phase 3）。
-/// 方法：pump FileManagerScreen → 与 golden/file_manager.png 比较。
-/// 首次运行：`flutter test --update-goldens` 生成基线图。
-/// 后续运行：与基线比较，差异 > 1% 即失败。
+/// 目的：布局回归保护 + 像素回归保护（空状态为最高频路径）。
+/// 方法：pump FileManagerScreen（override [documentListProvider] 注入空流，绕过
+/// 真实文件 I/O）→ 结构性断言 + 与 golden 基线像素比对。
 ///
-/// ## Tag 策略（D+ 方案）
+/// ## Tag 策略
 ///
-/// 本文件 library 级声明 `@Tags(['golden'])`，所有 testWidgets 自动
-/// 携带 `golden` tag。CI workflow 主 test job 用
-/// `flutter test --exclude-tags golden` 排除本文件，由独立的 `golden`
-/// job 处理（当前 `if: false` 暂停，待 Phase 3 解封）。
-///
-/// 这样做的原因（不采用测试代码内 `if (CI) skip`）：
-/// 1. 测试代码与 CI 配置分离，避免代码里埋环境判断
-/// 2. CI workflow 中 `golden` job 即使 `if: false` 也留下明确轨迹
-/// 3. 本地 `flutter test` 默认全跑，开发期间仍有视觉回归保护
-/// 4. 解封时只需把 workflow 的 `if: false` 改为 `if: true`，无需改测试
+/// 本文件 library 级声明 `@Tags(['golden'])`，CI 的 `golden` job
+/// （ci.yml `if: true`）跑 `flutter test --tags golden` 与 Linux 基线比对。
+/// 主 test job 用 `--exclude-tags golden` 排除本文件，避免跨平台字体渲染差异
+/// 在主 job 抖动。基线由 Linux（WSL / CI 同环境）生成，禁 Windows 本机基线。
 @Tags(['golden'])
 library;
 
@@ -36,16 +29,21 @@ Stream<List<Document>> _emptyDocsStream() async* {
   yield const <Document>[];
 }
 
-Widget _wrap(Widget child, {List<Override> overrides = const []}) {
-  return ProviderScope(
-    overrides: overrides,
-    child: MediaQuery(
-      data: const MediaQueryData(size: Size(800, 1200)),
-      child: MaterialApp(
-        theme: AppTheme.lightTheme,
-        home: child,
-      ),
-    ),
+List<Override> _emptyOverrides() => <Override>[
+      documentListProvider.overrideWith((_) => _emptyDocsStream()),
+    ];
+
+Future<void> _pumpFileManager(
+  WidgetTester tester,
+  ThemeData theme, {
+  Size size = const Size(800, 1200),
+}) async {
+  await pumpFullScreenGolden(
+    tester,
+    const FileManagerScreen(),
+    theme: theme,
+    size: size,
+    overrides: _emptyOverrides(),
   );
 }
 
@@ -54,53 +52,60 @@ void main() {
     await setUpGoldenFonts();
   });
 
-  group('TC-GOLDEN-1 FileManager 布局', () {
-    testWidgets('空状态：无 .md 文件时显示空状态布局', (tester) async {
-      // 固定 locale / textScaleFactor，消除跨平台渲染差异
-      tester.platformDispatcher
-        ..localeTestValue = const Locale('en', 'US')
-        ..textScaleFactorTestValue = 1.0;
+  group('TC-GOLDEN-1 FileManager 空状态布局', () {
+    testWidgets('light @800：空状态 + 像素基线', (tester) async {
+      await _pumpFileManager(tester, AppTheme.lightTheme);
 
-      await tester.pumpWidget(_wrap(
-        const FileManagerScreen(),
-        overrides: [
-          documentListProvider.overrideWith((_) => _emptyDocsStream()),
-        ],
-      ));
-      await tester.pump();
-      await tester.pump();
-
-      // 结构性断言：保证 UI 结构性回归被守护
-      expect(find.text('文件'), findsWidgets,
-          reason: 'AppBar 应显示「文件」标题');
+      // 结构性断言：布局回归守护
+      expect(find.text('文件'), findsWidgets, reason: 'AppBar 应显示「文件」标题');
       expect(find.text('暂无保存的文档'), findsWidgets,
           reason: '空状态应显示「暂无保存的文档」');
       expect(find.byIcon(Icons.folder_open_outlined), findsWidgets,
           reason: '空状态应显示 folder_open_outlined 图标');
 
-      // Golden 图像比对暂跳过：FileManagerScreen 已重构为 Provider 驱动，
-      // 需在 Linux CI 环境重新生成基线图（Windows 本地字体渲染有 0.26% 像素差异）。
-      // 结构性断言已覆盖布局回归；待 CI 更新基线后再启用像素比对。
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('golden/file_manager.png'),
+      );
+    });
+
+    testWidgets('light @834（平板宽度）', (tester) async {
+      await _pumpFileManager(
+        tester,
+        AppTheme.lightTheme,
+        size: const Size(834, 1200),
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('golden/file_manager_light_834.png'),
+      );
+    });
+
+    testWidgets('dark @800', (tester) async {
+      await _pumpFileManager(tester, AppTheme.darkTheme);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('golden/file_manager_dark.png'),
+      );
+    });
+
+    testWidgets('dark @834（平板宽度）', (tester) async {
+      await _pumpFileManager(
+        tester,
+        AppTheme.darkTheme,
+        size: const Size(834, 1200),
+      );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('golden/file_manager_dark_834.png'),
+      );
     });
   });
 
   group('TC-GOLDEN-3 工具栏布局', () {
     testWidgets('FileManager AppBar 布局稳定', (tester) async {
-      tester.platformDispatcher
-        ..localeTestValue = const Locale('en', 'US')
-        ..textScaleFactorTestValue = 1.0;
-
-      await tester.pumpWidget(_wrap(
-        const FileManagerScreen(),
-        overrides: [
-          documentListProvider.overrideWith((_) => _emptyDocsStream()),
-        ],
-      ));
-      await tester.pump();
-
-      // 验证 AppBar 存在
+      await _pumpFileManager(tester, AppTheme.lightTheme);
       expect(find.byType(AppBar), findsWidgets);
-      // 验证 Scaffold 存在
       expect(find.byType(Scaffold), findsWidgets);
     });
   });

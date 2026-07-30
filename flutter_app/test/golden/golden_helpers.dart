@@ -35,24 +35,64 @@ Future<void> setUpGoldenFonts() async {
 ///
 /// 外层包 [ProviderScope]：EditorShell 是 ConsumerStatefulWidget，必须位于
 /// ProviderScope 之下；对纯 EditorViewport 测试无副作用。
+///
+/// [size] / [textScaleFactor] 为 P1-4 Golden 矩阵扩充入口：默认 800×1200 / 1.0
+/// 保持向后兼容；传 [size] 可覆盖窄屏(375)/平板(834) 等尺寸，传 [textScaleFactor]
+/// 可覆盖系统字体放大(1.3) 场景，用于拦截破版回归。
 Future<void> pumpGoldenApp(
   WidgetTester tester,
   Widget child, {
   ThemeData? theme,
+  Size size = const Size(800, 1200),
+  double textScaleFactor = 1.0,
 }) async {
   final effectiveTheme = theme ?? AppTheme.lightTheme;
   tester.platformDispatcher
     ..localeTestValue = const Locale('en', 'US')
-    ..textScaleFactorTestValue = 1.0;
+    ..textScaleFactorTestValue = textScaleFactor;
 
   await tester.pumpWidget(
     ProviderScope(
       child: MediaQuery(
-        data: const MediaQueryData(size: Size(800, 1200)),
+        data: MediaQueryData(size: size, textScaleFactor: textScaleFactor),
         child: MaterialApp(
           theme: effectiveTheme,
           home: Scaffold(body: child),
         ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// 在固定环境下 pump 一个**整屏 widget**（自身已返回 Scaffold，如
+/// [HomeScreen] / [EditorShell] / [FileManagerScreen]）供 golden 比对。
+///
+/// 与 [pumpGoldenApp] 的区别：不额外套一层 `Scaffold(body: child)`，而是直接
+/// 以 [screen] 作为 `MaterialApp.home`，避免「整屏 Scaffold 内再嵌整屏 Scaffold」
+/// 导致顶部多一处空 AppBar 留白（破坏 P0-4「内容顶到最顶」的视觉基线）。
+///
+/// [size] / [textScaleFactor] 同 [pumpGoldenApp]；[overrides] 用于注入测试用
+/// Provider（如 [documentListProvider]）。外层 [ProviderScope] 提供 Riverpod 环境。
+Future<void> pumpFullScreenGolden(
+  WidgetTester tester,
+  Widget screen, {
+  ThemeData? theme,
+  Size size = const Size(800, 1200),
+  double textScaleFactor = 1.0,
+  List<Override> overrides = const [],
+}) async {
+  final effectiveTheme = theme ?? AppTheme.lightTheme;
+  tester.platformDispatcher
+    ..localeTestValue = const Locale('en', 'US')
+    ..textScaleFactorTestValue = textScaleFactor;
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: overrides,
+      child: MediaQuery(
+        data: MediaQueryData(size: size, textScaleFactor: textScaleFactor),
+        child: MaterialApp(theme: effectiveTheme, home: screen),
       ),
     ),
   );
