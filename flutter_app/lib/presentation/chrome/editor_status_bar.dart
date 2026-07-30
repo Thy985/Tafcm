@@ -46,11 +46,14 @@ class EditorStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: EditorTokens.statusBarHeight,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Container(
+        height: EditorTokens.statusBarHeight,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
         children: [
           _buildItem('块数: ${coordinator.blockCount}'),
           const SizedBox(width: 16),
@@ -65,6 +68,7 @@ class EditorStatusBar extends StatelessWidget {
           // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
           _buildZoomControls(),
         ],
+      ),
       ),
     );
   }

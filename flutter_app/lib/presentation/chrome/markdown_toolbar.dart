@@ -58,7 +58,11 @@ class MarkdownToolbar extends StatelessWidget {
     final hasFocused = coordinator.focusedId != null;
 
     if (isCodeBlock) {
-      return const DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled);
+      return SafeArea(
+        top: false,
+        bottom: true,
+        child: const DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled),
+      );
     }
 
     // ADR-0012 §Editor Context Preservation：模板菜单以「最后聚焦块」为目标，
@@ -67,11 +71,16 @@ class MarkdownToolbar extends StatelessWidget {
     final hasTemplateTarget = coordinator.lastFocusedId != null;
 
     // 无聚焦块：格式按钮整体禁用（onPressed = null,Flutter 自动应用 disabled 样式）
-    return _ToolbarButtons(
-      coordinator: coordinator,
-      enabled: hasFocused,
-      templateEnabled: hasTemplateTarget,
-      pickImage: pickImage,
+    // 底部锚定区（P0-3）：包 SafeArea(bottom:true) 避开 home indicator / 手势条。
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: _ToolbarButtons(
+        coordinator: coordinator,
+        enabled: hasFocused,
+        templateEnabled: hasTemplateTarget,
+        pickImage: pickImage,
+      ),
     );
   }
 }

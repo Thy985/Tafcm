@@ -29,6 +29,8 @@ class EditorBottomBar extends StatelessWidget {
         boxShadow: AppShadows.flipY(AppShadows.of(context).md),
       ),
       child: SafeArea(
+        top: false,
+        bottom: true,
         child: Row(
           children: [
             Expanded(
