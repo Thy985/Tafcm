@@ -21,10 +21,13 @@
 | [GIT_RULES.md](./GIT_RULES.md) | 哪些 git 命令被禁？例外怎么申请？ | **任何 git 写操作前** |
 | [COMMAND_SAFETY.md](./COMMAND_SAFETY.md) | 危险命令怎么写才安全？ | **任何删除/覆盖操作前** |
 | [tools/guard.sh](./tools/guard.sh) | 机器强制版本（可执行断言） | 脚本中 `source`；`doctor` 子命令日常自检 |
+| [context/loading-rules.md](./context/loading-rules.md) | 每次任务前"必须读什么"的加载协议 | 每次会话开始（Level 0 首读项已含本层四份） |
 
 已有的 [AI_POLICY.md](./AI_POLICY.md)（权限矩阵、停止条件）与
 [GIT_POLICY.md](./GIT_POLICY.md)（分支/PR/merge 边界）**继续有效**，
 本层是它们缺失的补集：**物理边界 + 命令安全**。
+
+> **加载闭环**：`.agent/context/loading-rules.md` 的 Level 0 已把本层四份核心文件列为**首读项**，并规定"先读 RSL，再读 AGENTS.md"。即规则列表（loading-rules.md）自身包含了对 RSL 的引用——不存在"列表里没有自己"的盲区。
 
 ---
 

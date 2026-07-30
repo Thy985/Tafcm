@@ -88,6 +88,23 @@ safe_rsync() {
   echo "[guard] --- dry-run 预览（末 20 行）---"
   rsync -a --delete --dry-run "$@" "${src%/}/" "${dest%/}/" | tail -20
 
+  # COMMAND_SAFETY.md §2 / §4 —— dry-run 后必须暂停等待人类确认，
+  # 给"预览中发现预期外内容"留中止机会。非交互环境默认中止（安全优先）。
+  if [ ! -t 0 ]; then
+    guard_err "safe_rsync 在非交互环境运行，无法获得人工确认，已中止（需确认请在前台终端手动执行）"
+    return 1
+  fi
+
+  printf '[guard] 确认执行上述 rsync --delete 吗？[y/N] '
+  local ans=""
+  if ! read -r ans; then
+    echo "[guard] 读取确认失败，已取消。"; return 1
+  fi
+  case "$ans" in
+    y|Y|yes|YES) : ;;
+    *) echo "[guard] 已取消，未执行任何写入。"; return 1 ;;
+  esac
+
   echo "[guard] --- 实际执行 ---"
   rsync -a --delete "$@" "${src%/}/" "${dest%/}/"
 }
