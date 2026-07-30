@@ -19,8 +19,8 @@ import 'package:formula_fix/presentation/states/block_view_state.dart';
 void main() {
   group('R3 BlockViewState copyWith 不变性', () {
     test('默认构造：isFocused=false, mode=rendered, selection=null, composing=null', () {
-      const state = BlockViewState(id: BlockId(1));
-      expect(state.id, equals(const BlockId(1)));
+      const state = BlockViewState(id: BlockId('1'));
+      expect(state.id, equals(const BlockId('1')));
       expect(state.isFocused, isFalse);
       expect(state.mode, equals(RenderMode.rendered));
       expect(state.selection, isNull);
@@ -31,18 +31,18 @@ void main() {
 
     test('copyWith 不传任何参数：返回等价实例（仅 id 一致）', () {
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         isFocused: true,
         mode: RenderMode.editing,
       );
       final copied = original.copyWith();
-      expect(copied.id, equals(const BlockId(1)));
+      expect(copied.id, equals(const BlockId('1')));
       expect(copied.isFocused, isTrue);
       expect(copied.mode, equals(RenderMode.editing));
     });
 
     test('copyWith 部分更新：仅传 isFocused', () {
-      const original = BlockViewState(id: BlockId(1));
+      const original = BlockViewState(id: BlockId('1'));
       final updated = original.copyWith(isFocused: true);
       expect(updated.isFocused, isTrue);
       expect(updated.mode, equals(RenderMode.rendered),
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('copyWith 部分更新：仅传 mode', () {
-      const original = BlockViewState(id: BlockId(1));
+      const original = BlockViewState(id: BlockId('1'));
       final updated = original.copyWith(mode: RenderMode.editing);
       expect(updated.mode, equals(RenderMode.editing));
       expect(updated.isFocused, isFalse,
@@ -62,7 +62,7 @@ void main() {
       // 先设置 composingRegion 为非 null
       const composing = ComposingRegion(start: 0, end: 3);
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         composingRegion: composing,
       );
       expect(original.composingRegion, isNotNull);
@@ -76,7 +76,7 @@ void main() {
     test('copyWith 不传 composingRegion：保持原值（_sentinel 区分）', () {
       const composing = ComposingRegion(start: 0, end: 3);
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         composingRegion: composing,
       );
 
@@ -88,7 +88,7 @@ void main() {
 
     test('copyWith 显式传 composingRegion: null 后再 copyWith 不传保持 null', () {
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         composingRegion: ComposingRegion(start: 0, end: 3),
       );
       // 第一次：显式传 null
@@ -101,7 +101,7 @@ void main() {
     });
 
     test('copyWith 传 selection', () {
-      const original = BlockViewState(id: BlockId(1));
+      const original = BlockViewState(id: BlockId('1'));
       const selection = TextSelection(
         baseOffset: 0,
         extentOffset: 5,
@@ -112,7 +112,7 @@ void main() {
 
     test('原实例不被 copyWith 修改（immutable）', () {
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         isFocused: false,
         mode: RenderMode.rendered,
       );
@@ -131,7 +131,7 @@ void main() {
   group('R3 BlockViewState clearComposing', () {
     test('clearComposing 清空 composingRegion', () {
       const original = BlockViewState(
-        id: BlockId(1),
+        id: BlockId('1'),
         composingRegion: ComposingRegion(start: 0, end: 3),
       );
       expect(original.composingRegion, isNotNull);
@@ -144,7 +144,7 @@ void main() {
     test('clearComposing 不影响其他字段（isFocused / mode / selection）', () {
       const selection = TextSelection(baseOffset: 1, extentOffset: 4);
       const original = BlockViewState(
-        id: BlockId(42),
+        id: BlockId('42'),
         isFocused: true,
         mode: RenderMode.editing,
         selection: selection,
@@ -152,7 +152,7 @@ void main() {
       );
 
       final cleared = original.clearComposing();
-      expect(cleared.id, equals(const BlockId(42)));
+      expect(cleared.id, equals(const BlockId('42')));
       expect(cleared.isFocused, isTrue);
       expect(cleared.mode, equals(RenderMode.editing));
       expect(cleared.selection, equals(selection));
@@ -160,7 +160,7 @@ void main() {
     });
 
     test('clearComposing 在已是 null 时保持 null', () {
-      const original = BlockViewState(id: BlockId(1));
+      const original = BlockViewState(id: BlockId('1'));
       expect(original.composingRegion, isNull);
 
       final cleared = original.clearComposing();
@@ -173,7 +173,7 @@ void main() {
       // 静态验证：检查类声明上有 @immutable 元数据
       // 通过 SMirror 无法直接获取 annotation，改为通过类行为验证：
       // immutable 类的字段必须 final（已由编译期保证），并通过 toString 验证状态完整
-      const state = BlockViewState(id: BlockId(1));
+      const state = BlockViewState(id: BlockId('1'));
       expect(state.toString(), contains('BlockViewState'));
       expect(state.toString(), contains('id=BlockId(1)'));
       expect(state.toString(), contains('isFocused=false'));
@@ -181,7 +181,7 @@ void main() {
     });
 
     test('BlockViewState 多次 copyWith 链式调用保持 immutable 语义', () {
-      const original = BlockViewState(id: BlockId(1));
+      const original = BlockViewState(id: BlockId('1'));
       // 链式 copyWith 应返回新实例，不修改原对象
       final chained = original
           .copyWith(isFocused: true)
@@ -206,8 +206,8 @@ void main() {
     });
 
     test('BlockViewState.isEditing getter 与 mode 联动', () {
-      const rendered = BlockViewState(id: BlockId(1), mode: RenderMode.rendered);
-      const editing = BlockViewState(id: BlockId(1), mode: RenderMode.editing);
+      const rendered = BlockViewState(id: BlockId('1'), mode: RenderMode.rendered);
+      const editing = BlockViewState(id: BlockId('1'), mode: RenderMode.editing);
       expect(rendered.isEditing, isFalse);
       expect(editing.isEditing, isTrue);
     });

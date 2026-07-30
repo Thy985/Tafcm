@@ -9,30 +9,30 @@ import 'package:formula_fix/presentation/editor/block_reorder.dart';
 void main() {
   group('blockReorderArgs', () {
     final ids = const [
-      BlockId(0),
-      BlockId(1),
-      BlockId(2),
-      BlockId(3),
+      BlockId('0'),
+      BlockId('1'),
+      BlockId('2'),
+      BlockId('3'),
     ];
 
     test('下移 (old < new)：refId=ids[newIndex], before=false', () {
       final a = blockReorderArgs(ids, 0, 2)!;
-      expect(a.targetId, const BlockId(0));
-      expect(a.refId, const BlockId(2));
+      expect(a.targetId, const BlockId('0'));
+      expect(a.refId, const BlockId('2'));
       expect(a.before, isFalse);
     });
 
     test('上移 (old > new)：refId=ids[newIndex], before=true', () {
       final a = blockReorderArgs(ids, 3, 1)!;
-      expect(a.targetId, const BlockId(3));
-      expect(a.refId, const BlockId(1));
+      expect(a.targetId, const BlockId('3'));
+      expect(a.refId, const BlockId('1'));
       expect(a.before, isTrue);
     });
 
     test('相邻下移 (old=0,new=1)：refId=ids[1], before=false', () {
       final a = blockReorderArgs(ids, 0, 1)!;
-      expect(a.targetId, const BlockId(0));
-      expect(a.refId, const BlockId(1));
+      expect(a.targetId, const BlockId('0'));
+      expect(a.refId, const BlockId('1'));
       expect(a.before, isFalse);
     });
 

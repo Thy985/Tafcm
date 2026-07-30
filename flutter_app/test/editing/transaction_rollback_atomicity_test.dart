@@ -50,7 +50,7 @@ void main() {
       // op 2: split (成功)
       ops.split(aId, 0);
       // op 3: delete 非法 BlockId (失败)
-      final op3Success = ops.delete(const BlockId(999));
+      final op3Success = ops.delete(const BlockId('999'));
 
       expect(op3Success, isFalse);
       expect(builder.opCount, equals(2));  // 失败 op 不入 builder
@@ -72,7 +72,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // op 1: delete 非法 BlockId (失败)
-      final op1Success = ops.delete(const BlockId(999));
+      final op1Success = ops.delete(const BlockId('999'));
 
       expect(op1Success, isFalse);
       expect(builder.opCount, equals(0));
@@ -97,7 +97,7 @@ void main() {
       expect(builder.opCount, equals(4));
 
       // op 5: 失败（split 非法 BlockId）
-      final op5Success = ops.split(const BlockId(999), 1);
+      final op5Success = ops.split(const BlockId('999'), 1);
       expect(op5Success, isFalse);
       expect(builder.opCount, equals(4));  // 失败不入 builder
 

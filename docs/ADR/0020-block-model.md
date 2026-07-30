@@ -45,7 +45,7 @@ Owner 对本 ADR 的核心判断，作为后续裁定锚点：
 | 决策 | 内容 | 状态 | 实施期 | 落点 |
 |------|------|------|--------|------|
 | D1 | AST 单一真相源（Markdown 降级为序列化格式，UI 禁直接读 `Document.content`） | ✅ Accepted / 已合 #96 | A | `core/parser/markdown_serializer.dart` + `model_content_gate_test.dart` |
-| D2 | BlockId：`int` 自增 → `String` UUID（in-memory identity，不持久化） | ⬜ Pending | D | `core/editing/block_types.dart` |
+| D2 | BlockId：`int` 自增 → `String` UUID（in-memory identity，不持久化） | 🔧 实施中（PR #104） | D | `core/editing/block_types.dart` |
 | D3 | Command → Transaction：`TransactionBuilder` 注入，`EditOperation` apply/revert 原子性 | 🔧 实施中（E spike, PR #103） | E | `core/editing/transaction*.dart` + `command_handler.dart` 失败原子回滚 |
 | D4 | 去边框：块编辑 `decoration` → `InputBorder.none` | 🔧 实施中（PR #102） | C | `lib/presentation/blocks/**` |
 | D5 | BlockRenderer 不裁决行为（渲染与交互分离，由 Intent Layer 裁决） | ✅ Accepted / 已合 #97 | B | ADR-0019（见 ADR-0019 §0） |
@@ -140,7 +140,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | B | Intent Layer | D5 | ✅ MERGED | #97 |
 | C | 去 UI（去边框） | D4 | 🔧 实施中 | PR #102（chore/block-no-border） |
 | E | Transaction（先 spike） | D3 | 🔧 实施中（PR #103） | `refactor/editor-transaction` |
-| D | 补类型（BlockId UUID） | D2 | ⬜ 未开工（优先级低于 E） | 新分支 `refactor/block-id-uuid` |
+| D | 补类型（BlockId UUID） | D2 | 🔧 实施中（PR #104） | 新分支 `refactor/block-id-uuid` |
 
 **开工顺序（Owner 评审调整）**：**C（低风险纯 UI）→ E（高风险内核抽象，编辑器生命线，先 spike）→ D（机械类型迁移，工程质量提升）**。
 
@@ -154,7 +154,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | 编号 | 守门内容 | 状态 | 文件 |
 |------|---------|------|------|
 | TC-ARCH-MODEL-1 | presentation 层禁直接读 `Document.content` | ✅ 已生效 | `test/architecture/model_content_gate_test.dart` |
-| TC-ARCH-MODEL-2 | 禁止 `BlockId(` 接 int 字面量 | ⬜ D 落地后启用 | 新增 `test/architecture/block_id_type_test.dart` |
+| TC-ARCH-MODEL-2 | 禁止 `BlockId(` 接 int 字面量 | ✅ 已启用（PR #104） | `test/architecture/block_id_type_test.dart` |
 | TC-ARCH-MODEL-3 | 编辑操作经 `TransactionBuilder`，禁 `BlockOperations` 直调 | ✅ 已启用 | `test/architecture/transaction_gate_test.dart` |
 | TC-ARCH-MODEL-4 | 块编辑 `decoration` 必须为 `InputBorder.none` | ✅ 已启用 | `test/architecture/block_border_gate_test.dart` |
 | TC-ARCH-MODEL-5 | 禁止 Block 子类名含渲染语义词（`*Color*Block`/`*Size*Block`）；新增 Block 类型须登记语义理由 | ⬜ D6 生效即启用 | 新增 `test/architecture/block_type_gate_test.dart` |
@@ -168,7 +168,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | M1 | AST 为唯一编辑态，UI 无 `Document.content` 直读 | ✅（D1） |
 | M2 | 回车/退格/工具栏/模板插入全经 Intent Layer dispatch | ✅（D5/B） |
 | M3 | 任意块编辑组件无可见 box border（三主题） | ✅（D4/C, PR #102） |
-| M4 | BlockId 为 uuid 且会话内稳定、零碰撞 | ⬜（D2/D） |
+| M4 | BlockId 为 uuid 且会话内稳定、零碰撞 | ✅（D2/D，PR #104） |
 | M5 | 多步编辑可原子 undo/redo（Transaction 粒度） | ✅（D3/E spike, PR #103） |
 | M6 | 序列化 .md 不含 BlockId / Transaction（单一真相源） | ✅（ADR-0003/0008 约束） |
 | M7 | 无渲染需求驱动的 Block 类型（无 `*Color*Block`/`*Size*Block`；新类型有登记语义理由） | ⬜（D6） |
@@ -188,6 +188,6 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 
 1. ✅ Human Owner 已签字（2026-07-29），Status → Accepted；本 ADR 正式生效。
 2. 补写 ADR-0019 文档（闭合 D5 审计链，§0 缺口）。
-3. 按 §3 顺序开工 **C → E → D**，每期独立 PR + 对应 TC-ARCH-MODEL 守门测试。E 期 spike 结论（PR #103）：`BlockOperations` 全仓库仅 `command_handler.dart` 一处实例化（单入口），故「全量替换直调点」无额外工作；唯一缺口是 `CommandHandler` 失败路径此前只 `builder.rollback()`（纯清空）未 revert 已 apply 的 op → 已补 `revertBuilder` helper 闭环 D3 原子性（typing session 粒度在生产已成立：一次焦点输入 = 一个 `UpdateBlockSourceCommand` = 一个 Transaction）。
+3. 按 §3 顺序开工 **C → E → D**，每期独立 PR + 对应 TC-ARCH-MODEL 守门测试。E 期 spike 结论（PR #103）：`BlockOperations` 全仓库仅 `command_handler.dart` 一处实例化（单入口），故「全量替换直调点」无额外工作；唯一缺口是 `CommandHandler` 失败路径此前只 `builder.rollback()`（纯清空）未 revert 已 apply 的 op → 已补 `revertBuilder` helper 闭环 D3 原子性（typing session 粒度在生产已成立：一次焦点输入 = 一个 `UpdateBlockSourceCommand` = 一个 Transaction）。D 期（PR #104）：`BlockId.value` 由 int 自增改为 String UUID v4（in-memory identity，不持久化，对齐 ADR-0008 §9）；分配统一走 `BlockId.generate()`，三个 DocumentEditor 实现（生产 + prototype + Mock）移除 `_nextIdValue` 计数器，117 处测试夹具 `BlockId(int)` → `BlockId('int')` 机械迁移，TC-ARCH-MODEL-2 守门落地。
 4. C 期触发 golden 基线更新（RRS `golden-update` job，`workflow_dispatch` + `update_goldens`）。
 5. D6 类型扩展克制原则自签字起生效：新增 Block 类型须登记语义理由并过 TC-ARCH-MODEL-5 守门（无独立 PR）。

@@ -73,7 +73,7 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.insert,
-        targetId: const BlockId(999),
+        targetId: const BlockId('999'),
         element: const ParagraphElement(children: [TextElement('x')]),
       );
 
@@ -124,7 +124,7 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.delete,
-        targetId: const BlockId(999),
+        targetId: const BlockId('999'),
       );
 
       expect(op.apply(editor), isFalse);
@@ -191,7 +191,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.merge,
         targetId: rightId,
-        auxiliaryId: const BlockId(999),
+        auxiliaryId: const BlockId('999'),
       );
 
       expect(op.apply(editor), isFalse);
@@ -287,7 +287,7 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.split,
-        targetId: const BlockId(999),
+        targetId: const BlockId('999'),
         splitOffset: 1,
         element: const ParagraphElement(children: [TextElement('p')]),
       );
@@ -390,7 +390,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.move,
         targetId: targetId,
-        auxiliaryId: const BlockId(999),
+        auxiliaryId: const BlockId('999'),
       );
 
       expect(op.apply(editor), isFalse);

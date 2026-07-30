@@ -82,7 +82,7 @@ void main() {
       ops.insertAfter(aId, const ParagraphElement(children: [TextElement('b')]));
       expect(builder.opCount, equals(1));
 
-      ops.delete(const BlockId(999));
+      ops.delete(const BlockId('999'));
       expect(builder.opCount, equals(1));
 
       ops.insertAfter(aId, const ParagraphElement(children: [TextElement('c')]));

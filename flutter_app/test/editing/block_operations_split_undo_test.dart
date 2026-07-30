@@ -116,7 +116,7 @@ void main() {
       final builder = _newBuilder();
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.split(const BlockId(999), 1), isFalse);
+      expect(ops.split(const BlockId('999'), 1), isFalse);
 
       expect(builder.opCount, equals(0));
       expect(editor.blockCount, equals(0));

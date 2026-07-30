@@ -18,7 +18,7 @@ import 'package:formula_fix/presentation/blocks/input/auto_pair_rules.dart';
 import 'package:formula_fix/presentation/commands/commands.dart';
 
 void main() {
-  const blockId = BlockId(1);
+  const blockId = BlockId('1');
 
   /// 构造 oldValue（光标在末尾的空文本或指定文本）。
   TextEditingValue oldValueWith(String text, {int? cursor}) =>
