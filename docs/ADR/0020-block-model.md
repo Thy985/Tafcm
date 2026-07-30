@@ -157,7 +157,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | TC-ARCH-MODEL-2 | 禁止 `BlockId(` 接 int 字面量 | ✅ 已启用（PR #104） | `test/architecture/block_id_type_test.dart` |
 | TC-ARCH-MODEL-3 | 编辑操作经 `TransactionBuilder`，禁 `BlockOperations` 直调 | ✅ 已启用 | `test/architecture/transaction_gate_test.dart` |
 | TC-ARCH-MODEL-4 | 块编辑 `decoration` 必须为 `InputBorder.none` | ✅ 已启用 | `test/architecture/block_border_gate_test.dart` |
-| TC-ARCH-MODEL-5 | 禁止 Block 子类名含渲染语义词（`*Color*Block`/`*Size*Block`）；新增 Block 类型须登记语义理由 | ⬜ D6 生效即启用 | 新增 `test/architecture/block_type_gate_test.dart` |
+| TC-ARCH-MODEL-5 | 禁止 Block 子类名含渲染语义词（`*Color*Block`/`*Size*Block`）；新增 Block 类型须登记语义理由 | ✅ 已启用 | `test/architecture/block_type_gate_test.dart` |
 
 ---
 
@@ -171,7 +171,7 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 | M4 | BlockId 为 uuid 且会话内稳定、零碰撞 | ✅（D2/D，PR #104） |
 | M5 | 多步编辑可原子 undo/redo（Transaction 粒度） | ✅（D3/E spike, PR #103） |
 | M6 | 序列化 .md 不含 BlockId / Transaction（单一真相源） | ✅（ADR-0003/0008 约束） |
-| M7 | 无渲染需求驱动的 Block 类型（无 `*Color*Block`/`*Size*Block`；新类型有登记语义理由） | ⬜（D6） |
+| M7 | 无渲染需求驱动的 Block 类型（无 `*Color*Block`/`*Size*Block`；新类型有登记语义理由） | ✅（D6） |
 
 ---
 
@@ -190,4 +190,4 @@ Block 在编辑内核中经历七态，须显式定义其 ID 与 History 归属�
 2. 补写 ADR-0019 文档（闭合 D5 审计链，§0 缺口）。
 3. 按 §3 顺序开工 **C → E → D**，每期独立 PR + 对应 TC-ARCH-MODEL 守门测试。E 期 spike 结论（PR #103）：`BlockOperations` 全仓库仅 `command_handler.dart` 一处实例化（单入口），故「全量替换直调点」无额外工作；唯一缺口是 `CommandHandler` 失败路径此前只 `builder.rollback()`（纯清空）未 revert 已 apply 的 op → 已补 `revertBuilder` helper 闭环 D3 原子性（typing session 粒度在生产已成立：一次焦点输入 = 一个 `UpdateBlockSourceCommand` = 一个 Transaction）。D 期（PR #104）：`BlockId.value` 由 int 自增改为 String UUID v4（in-memory identity，不持久化，对齐 ADR-0008 §9）；分配统一走 `BlockId.generate()`，三个 DocumentEditor 实现（生产 + prototype + Mock）移除 `_nextIdValue` 计数器，117 处测试夹具 `BlockId(int)` → `BlockId('int')` 机械迁移，TC-ARCH-MODEL-2 守门落地。
 4. C 期触发 golden 基线更新（RRS `golden-update` job，`workflow_dispatch` + `update_goldens`）。
-5. D6 类型扩展克制原则自签字起生效：新增 Block 类型须登记语义理由并过 TC-ARCH-MODEL-5 守门（无独立 PR）。
+5. D6 类型扩展克制原则自签字起生效：新增 Block 类型须登记语义理由并过 TC-ARCH-MODEL-5 守门（无独立 PR）。**TC-ARCH-MODEL-5 已落地**（`test/architecture/block_type_gate_test.dart`，扫描 `presentation/blocks` 的 `*Block extends Widget` 与 `data/models` 的 `*Element extends DocumentElement`，类名含渲染语义词且缺 `semantic_reason:`/ADR 登记即 fail）；**M7 已闭环 ✅**。
