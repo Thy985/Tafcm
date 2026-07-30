@@ -87,7 +87,7 @@ void main() {
     });
 
     test('InsertTextCommand 找不到 blockId 返回 false', () {
-      const invalidId = BlockId(999);
+      const invalidId = BlockId('999');
       const cmd = InsertTextCommand(
         blockId: invalidId,
         text: 'x',
@@ -257,7 +257,7 @@ void main() {
     });
 
     test('InsertTemplateCommand 找不到 blockId 返回 false', () {
-      const invalidId = BlockId(999);
+      const invalidId = BlockId('999');
       const cmd = InsertTemplateCommand(
         blockId: invalidId,
         template: 'x',

@@ -19,7 +19,6 @@ import 'package:formula_fix/data/models/document.dart';
 /// 提供 [addParagraph] / [sourceOf] / [allIds] / [allElements] 等辅助方法。
 class InMemoryDocumentEditor implements DocumentEditor {
   final List<_Entry> _blocks = [];
-  int _nextIdValue = 100;
 
   InMemoryDocumentEditor();
 
@@ -47,7 +46,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     if (index < 0 || index > _blocks.length) {
       throw RangeError('index out of range: $index');
     }
-    final id = preserveId ?? BlockId(_nextIdValue++);
+    final id = preserveId ?? BlockId.generate();
     _blocks.insert(index, _Entry(id, element));
     return id;
   }
@@ -111,7 +110,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
-        final newId = BlockId(_nextIdValue++);
+        final newId = BlockId.generate();
         _blocks[i] = _Entry(newId, element);
         onMigrated?.call(id, newId);
         return old;

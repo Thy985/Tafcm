@@ -12,19 +12,36 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show TextAffinity;
+import 'package:uuid/uuid.dart';
 
 import '../../data/models/document.dart';
 
 /// 块唯一标识。
 ///
-/// 同一 Document 内稳定，用于光标定位与 Undo/Redo。
-/// 仅内存标识，非持久化存储（[ADR-0003] §边界约束 5：不引入派生缓存）。
+/// 同一 Document session 内稳定，用于光标定位与 Undo/Redo。
+/// 仅内存标识，非持久化存储（[ADR-0003] §边界约束 5：不引入派生缓存；
+/// [ADR-0008] §9：BlockId 是 in-memory identity，不跨序列化边界）。
+///
+/// **D2（ADR-0020）**：身份由 `int` 自增改为 `String` UUID v4，会话内零碰撞。
+/// 分配统一走 [generate]（新块）或 `BlockId(String)`（显式 / preserveId）；
+/// 不持久化，加载 .md 时重新分配（见 ADR-0020 §2 Block Lifecycle Rules）。
 @immutable
 class BlockId {
-  /// 内部值。使用 int 自增，未来可扩展为 String UUID。
-  final int value;
+  /// 内部值：UUID v4 字符串（会话内唯一）。
+  final String value;
 
+  /// 构造显式 [BlockId]（用于 preserveId / 测试夹具）。
+  ///
+  /// 生产代码分配新身份应走 [generate]，而非硬编码字面量。
   const BlockId(this.value);
+
+  /// 生成新的、会话内唯一的 [BlockId]（UUID v4）。
+  ///
+  /// 唯一分配入口：[BlockOperations.create] / [BlockOperations.split] 等内核
+  /// 原语为新块分配身份时调用（见 ADR-0020 §2 Block Lifecycle Rules）。
+  factory BlockId.generate() => BlockId(_uuid.v4());
+
+  static final Uuid _uuid = Uuid();
 
   @override
   bool operator ==(Object other) =>

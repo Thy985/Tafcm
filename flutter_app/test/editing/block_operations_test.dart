@@ -100,7 +100,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       final newId = ops.insertAfter(
-        const BlockId(999),
+        const BlockId('999'),
         const ParagraphElement(children: [TextElement('x')]),
       );
 
@@ -164,7 +164,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.delete(const BlockId(999)), isFalse);
+      expect(ops.delete(const BlockId('999')), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -220,7 +220,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.merge(const BlockId(999), rightId), isFalse);
+      expect(ops.merge(const BlockId('999'), rightId), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -283,7 +283,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.split(const BlockId(999), 1), isFalse);
+      expect(ops.split(const BlockId('999'), 1), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -352,7 +352,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.move(aId, const BlockId(999), before: true), isFalse);
+      expect(ops.move(aId, const BlockId('999'), before: true), isFalse);
       expect(builder.opCount, equals(0));
     });
   });

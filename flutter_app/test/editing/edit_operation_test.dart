@@ -235,7 +235,7 @@ void main() {
         final editor = MockDocumentEditor();
 
         final op = TextOperation(
-          blockId: const BlockId(999),
+          blockId: const BlockId('999'),
           offset: 0,
           inserted: 'x',
         );

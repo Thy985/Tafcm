@@ -12,19 +12,19 @@ import 'package:formula_fix/data/models/document.dart';
 void main() {
   group('TC-EDIT-1.1 BlockId', () {
     test('同值相等', () {
-      expect(const BlockId(1), equals(const BlockId(1)));
+      expect(const BlockId('1'), equals(const BlockId('1')));
     });
 
     test('不同值不等', () {
-      expect(const BlockId(1), isNot(equals(const BlockId(2))));
+      expect(const BlockId('1'), isNot(equals(const BlockId('2'))));
     });
 
     test('hashCode 一致性', () {
-      expect(const BlockId(1).hashCode, equals(const BlockId(1).hashCode));
+      expect(const BlockId('1').hashCode, equals(const BlockId('1').hashCode));
     });
 
     test('toString 含 value', () {
-      expect(const BlockId(42).toString(), contains('42'));
+      expect(const BlockId('42').toString(), contains('42'));
     });
   });
 
@@ -156,7 +156,7 @@ void main() {
   });
 
   group('TC-EDIT-1.4 BlockPosition', () {
-    const blockId = BlockId(1);
+    const blockId = BlockId('1');
 
     test('offset >= 0', () {
       expect(

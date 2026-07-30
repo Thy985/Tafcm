@@ -29,7 +29,7 @@ void main() {
         final id = editor.insertBlock(
             0, const ParagraphElement(children: [TextElement('hello')]));
         expect(editor.blockCount, equals(1));
-        expect(id.value, greaterThanOrEqualTo(100));
+        expect(id.value, isNotEmpty, reason: 'BlockId 应为非空 UUID');
       });
 
       test('返回新 BlockId（>=100，唯一，自增）', () {
@@ -39,14 +39,13 @@ void main() {
         final id2 = editor.insertBlock(
             1, const ParagraphElement(children: [TextElement('b')]));
         expect(id1, isNot(equals(id2)));
-        expect(id1.value, greaterThanOrEqualTo(100));
-        expect(id2.value, greaterThan(id1.value),
-            reason: 'BlockId 应自增');
+        expect(id1.value, isNotEmpty, reason: 'BlockId 应为非空 UUID');
+        expect(id2.value, isNot(equals(id1.value)), reason: 'BlockId 应唯一');
       });
 
       test('preserveId 参数：用指定 BlockId 插入（不重新分配）', () {
         final editor = InMemoryDocumentEditor();
-        const customId = BlockId(999);
+        const customId = BlockId('999');
         final id = editor.insertBlock(
           0,
           const ParagraphElement(children: [TextElement('custom')]),
@@ -91,7 +90,7 @@ void main() {
       test('找不到 id 抛 StateError', () {
         final editor = InMemoryDocumentEditor();
         expect(
-          () => editor.removeBlock(const BlockId(999)),
+          () => editor.removeBlock(const BlockId('999')),
           throwsStateError,
         );
       });
@@ -171,7 +170,7 @@ void main() {
         final editor = InMemoryDocumentEditor();
         expect(
           () => editor.replaceBlock(
-              const BlockId(999),
+              const BlockId('999'),
               const ParagraphElement(children: [TextElement('x')])),
           throwsStateError,
         );
@@ -202,7 +201,7 @@ void main() {
         final editor = InMemoryDocumentEditor();
         expect(
           () => editor.updateBlockContent(
-              const BlockId(999),
+              const BlockId('999'),
               const ParagraphElement(children: [TextElement('x')])),
           throwsStateError,
         );
@@ -218,7 +217,7 @@ void main() {
 
       test('getBlock 找不到返回 null', () {
         final editor = InMemoryDocumentEditor();
-        expect(editor.getBlock(const BlockId(999)), isNull);
+        expect(editor.getBlock(const BlockId('999')), isNull);
       });
 
       test('indexOf 返回正确 index', () {
@@ -233,7 +232,7 @@ void main() {
 
       test('indexOf 找不到返回 -1', () {
         final editor = InMemoryDocumentEditor();
-        expect(editor.indexOf(const BlockId(999)), equals(-1));
+        expect(editor.indexOf(const BlockId('999')), equals(-1));
       });
     });
 
@@ -255,7 +254,7 @@ void main() {
         editor.addParagraph('b');
         final ids = editor.allIds;
         // 尝试修改返回的列表（应抛异常或无效）
-        expect(() => ids.add(const BlockId(999)), throwsUnsupportedError,
+        expect(() => ids.add(const BlockId('999')), throwsUnsupportedError,
             reason: 'allIds 应返回不可变列表');
         // 内部状态未受影响
         expect(editor.allIds.length, equals(2));
@@ -299,7 +298,7 @@ void main() {
       test('sourceOf 找不到 id 抛 StateError', () {
         final editor = InMemoryDocumentEditor();
         expect(
-          () => editor.sourceOf(const BlockId(999)),
+          () => editor.sourceOf(const BlockId('999')),
           throwsStateError,
         );
       });
