@@ -72,7 +72,9 @@ Future<void> _pumpHome(
 }) async {
   await pumpFullScreenGolden(
     tester,
-    const HomeScreen(),
+    // 注入固定 now，保证相对时间（_relativeTime）跨运行时确定，
+    // 否则 DateTime.now() 在基线生成与 CI 间漂移导致 golden 像素差。
+    HomeScreen(now: DateTime(2026, 7, 30, 12, 0)),
     theme: theme,
     size: size,
     overrides: _docOverrides(docs),
