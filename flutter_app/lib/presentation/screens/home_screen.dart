@@ -28,7 +28,13 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // 设计还原铁律（P0-4 / ADR-0020 衍生）：不抄设计稿的设备装饰（状态栏/home
+      // indicator/刘海）。首页用自绘 _Header（非 AppBar），故顶部不套 SafeArea，
+      // 内容直接顶到屏幕最顶；系统状态栏由 OS 提供并透明叠加在纸色背景上，视觉
+      // 上仅一个系统状态栏。bottom 仍 true：让出 home indicator / 底部手势条。
       body: SafeArea(
+        top: false,
+        bottom: true,
         child: docsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(

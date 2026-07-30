@@ -22,7 +22,7 @@ void main() {
       const knownOffenders = <String>[
         'lib/presentation/editor/editor_page.dart:109',
         'lib/presentation/screens/file_manager_screen.dart:121',
-        'lib/presentation/screens/home_screen.dart:256',
+        'lib/presentation/screens/home_screen.dart:262',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');
