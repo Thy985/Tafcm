@@ -20,21 +20,14 @@ import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/core/editing/transaction.dart';
 import 'package:formula_fix/core/editing/transaction_builder.dart';
+import 'package:formula_fix/core/editing/transaction_rollback.dart';
 import 'package:formula_fix/data/models/document.dart';
 
 import 'helpers/mock_document_editor.dart';
 
 void main() {
-  /// 公共 rollback helper：revert builder 中所有 op + discard。
-  void rollbackTransaction(
-    MockDocumentEditor editor,
-    TransactionBuilder builder,
-  ) {
-    for (final op in builder.ops.reversed) {
-      op.revert(editor);
-    }
-    builder.rollback();
-  }
+  // 原子回滚统一复用 core/editing/transaction_rollback.dart 的 [revertBuilder]
+  // （逆序 revert builder 中已 apply 的 op + discard），不再维护局部副本。
 
   group('TC-EDIT-6.7 Transaction 回滚原子性', () {
     test('3 op Transaction 第 3 步失败 → 全部 rollback', () {
@@ -56,7 +49,7 @@ void main() {
       expect(builder.opCount, equals(2));  // 失败 op 不入 builder
 
       // 检测到失败 → rollback 全部
-      rollbackTransaction(editor, builder);
+      revertBuilder(builder, editor);
 
       // editor 状态完全恢复
       expect(editor.allSources, equals(initialSources));
@@ -101,7 +94,7 @@ void main() {
       expect(op5Success, isFalse);
       expect(builder.opCount, equals(4));  // 失败不入 builder
 
-      rollbackTransaction(editor, builder);
+      revertBuilder(builder, editor);
 
       expect(editor.allSources, equals(initialSources));
       expect(builder.isCompleted, isTrue);
@@ -122,7 +115,7 @@ void main() {
       ops.insertAfter(aId, const ParagraphElement(children: [TextElement('d')]));
       expect(editor.blockCount, equals(4));  // a + b + c + d
 
-      rollbackTransaction(editor, builder);
+      revertBuilder(builder, editor);
 
       // 状态精确恢复
       expect(editor.blockCount, equals(1));
@@ -139,7 +132,7 @@ void main() {
       final builder1 = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops1 = BlockOperations(editor, builder1);
       ops1.insertAfter(aId, const ParagraphElement(children: [TextElement('b')]));
-      rollbackTransaction(editor, builder1);
+      revertBuilder(builder1, editor);
 
       expect(builder1.isCompleted, isTrue);
 
@@ -176,7 +169,7 @@ void main() {
       final builder2 = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops2 = BlockOperations(editor, builder2);
       ops2.insertAfter(aId, const ParagraphElement(children: [TextElement('rolled-back')]));
-      rollbackTransaction(editor, builder2);
+      revertBuilder(builder2, editor);
 
       // history 状态不变
       expect(history.canUndo, isTrue);
@@ -231,7 +224,7 @@ void main() {
       expect(parent.opCount, equals(2));  // parent 1 + child 1
 
       // 外层 rollback：revert parent 中所有 ops（含 child 合并的）
-      rollbackTransaction(editor, parent);
+      revertBuilder(parent, editor);
 
       expect(parent.isCompleted, isTrue);
       expect(editor.allSources, equals(initialSources));
