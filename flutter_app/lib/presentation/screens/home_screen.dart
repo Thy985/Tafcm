@@ -19,7 +19,11 @@ import '../themes/editor_tokens.dart';
 /// 布局：serif 品牌字标 + 搜索/新建 →「最近」区（打开任意 .md + 最近 3 篇）
 /// →「更早」区（其余）→ 底栏由 StatefulShellRoute 的 HomeScaffold 统一渲染。
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.now});
+
+  /// 当前时间，用于相对时间显示（见 [_relativeTime]）。默认取系统时间；
+  /// 测试可注入固定值以保证 golden 基线确定（避免跨运行时 DateTime.now() 漂移）。
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -92,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
               if (docs.isEmpty)
                 const SliverToBoxAdapter(child: _EmptyHint())
               else ...[
-                _DocList(docs: recent, onTap: (doc) => _openDoc(ref, doc, context)),
+                _DocList(docs: recent, now: now, onTap: (doc) => _openDoc(ref, doc, context)),
                 if (earlier.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -106,7 +110,7 @@ class HomeScreen extends ConsumerWidget {
                           )),
                     ),
                   ),
-                _DocList(docs: earlier, onTap: (doc) => _openDoc(ref, doc, context)),
+                _DocList(docs: earlier, now: now, onTap: (doc) => _openDoc(ref, doc, context)),
               ],
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
@@ -250,7 +254,8 @@ class _OpenAnyMdEntry extends StatelessWidget {
 class _DocList extends StatelessWidget {
   final List<Document> docs;
   final void Function(Document) onTap;
-  const _DocList({required this.docs, required this.onTap});
+  final DateTime? now;
+  const _DocList({required this.docs, required this.onTap, this.now});
 
   @override
   Widget build(BuildContext context) {
@@ -308,7 +313,8 @@ class _DocList extends StatelessWidget {
   }
 
   String _relativeTime(DateTime t) {
-    final diff = DateTime.now().difference(t);
+    final now = this.now ?? DateTime.now();
+    final diff = now.difference(t);
     if (diff.inMinutes < 1) return '刚刚';
     if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
     if (diff.inHours < 24) return '${diff.inHours}小时前';
