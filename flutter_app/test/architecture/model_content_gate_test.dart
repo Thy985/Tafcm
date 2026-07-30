@@ -21,7 +21,7 @@ void main() {
       //   stream 获取的 Document 对象上提取预览文本（数据经 Repository→Provider→Widget）
       const knownOffenders = <String>[
         'lib/presentation/editor/editor_page.dart:109',
-        'lib/presentation/screens/file_manager_screen.dart:121',
+        'lib/presentation/screens/file_manager_screen.dart:125',
         'lib/presentation/screens/home_screen.dart:262',
       ];
       final hits = <String>[];

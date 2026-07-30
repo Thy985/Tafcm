@@ -64,8 +64,11 @@ class FileManagerScreen extends ConsumerWidget {
                   ],
                 ),
               )
-            : ListView.separated(
-                itemCount: docs.length,
+            : SafeArea(
+                top: false,
+                bottom: true,
+                child: ListView.separated(
+                  itemCount: docs.length,
                 separatorBuilder: (_, __) =>
                     Divider(height: 1, color: tokens.borderDefault.withOpacity(0.5)),
                 itemBuilder: (context, index) {
@@ -112,6 +115,7 @@ class FileManagerScreen extends ConsumerWidget {
                     ),
                   );
                 },
+                ),
               ),
       ),
     );
