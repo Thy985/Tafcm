@@ -109,8 +109,9 @@ pub_get_output.txt
 # Node.js（Flutter 项目不需要）
 node_modules/
 
-# Agent / 上传临时目录
-.agent/
+# Agent：仅忽略运行时状态；策略文档（Repository Safety Layer）必须入库。
+# 若整目录 ignore，护栏换机器/换会话即失效，与"会话记忆"无异，等于没有。
+.agent/state/
 .uploads/
 
 # 临时备份文件
