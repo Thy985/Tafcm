@@ -6,12 +6,24 @@
 
 set -euo pipefail
 
+ROOT="$(git rev-parse --show-toplevel)"
+
+# Repository Safety Layer（.agent/COMMAND_SAFETY.md §6）：
+# 结构性完整性检查，耗时毫秒级，**不受 SKIP_PREFLIGHT 影响**——
+# 2026-07-30 的冒牌仓库事故就是从一个嵌套 .git 开始的。
+GUARD="$ROOT/.agent/tools/guard.sh"
+if [ -f "$GUARD" ]; then
+  if ! bash "$GUARD" nested; then
+    echo "[pre-push] ❌ 仓库结构异常，推送已阻止。见 .agent/GIT_RULES.md §5。" >&2
+    exit 1
+  fi
+fi
+
 if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
-  echo "[pre-push] SKIP_PREFLIGHT=1 -> 跳过守门（仅限紧急）"
+  echo "[pre-push] SKIP_PREFLIGHT=1 -> 跳过 preflight（仅限紧急；结构检查已通过）"
   exit 0
 fi
 
-ROOT="$(git rev-parse --show-toplevel)"
 APP_DIR="$ROOT/flutter_app"
 PREFLIGHT="$APP_DIR/tool/preflight.sh"
 
