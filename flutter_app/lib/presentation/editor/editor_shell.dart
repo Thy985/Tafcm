@@ -33,6 +33,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/layout_constants.dart';
 import '../../core/editing/block_types.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
@@ -125,7 +126,30 @@ class _EditorShellState extends ConsumerState<EditorShell> {
   void _toggleFocus() => setState(() => _focusMode = !_focusMode);
 
   /// 切换文件树侧栏（Phase 3.4.2）。
-  void _toggleFileTree() => setState(() => _showFileTree = !_showFileTree);
+  /// P1-1 响应式：窄屏(紧凑)下文件树退化为 [Drawer]（endDrawer），调用
+  /// [GlobalKey.currentState] 的 [ScaffoldState.openEndDrawer] 打开覆盖层，
+  /// 避免 260 固定宽挤占 375 编辑区；宽屏则内联切换（[setState] 改 [_showFileTree]）。
+  void _toggleFileTree() {
+    if (isCompact(context)) {
+      _scaffoldKey.currentState?.openEndDrawer();
+    } else {
+      setState(() => _showFileTree = !_showFileTree);
+    }
+  }
+
+  /// 文件树侧栏内容（Phase 3.4.2）。内联（宽屏 body Row）与抽屉（窄屏 endDrawer）
+  /// 共用同一份渲染，确保两种形态内容一致。
+  Widget _buildFileTree() {
+    return ref.watch(documentsProvider).when(
+      data: (docs) => FileTreePanel(
+        documents: docs,
+        currentPath: widget.currentPath,
+        onOpenFile: _openDoc,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('加载失败')),
+    );
+  }
 
   /// 文件树点击：由文档 id 解析路径，转交 [widget.onOpenFile]（EditorPage 负责打开 + 持久化）。
   ///
@@ -169,8 +193,13 @@ class _EditorShellState extends ConsumerState<EditorShell> {
   @override
   Widget build(BuildContext context) {
     final coordinator = widget.coordinator;
+    // P1-1 响应式：宽屏(≥600)文件树内联；窄屏退化为 endDrawer（见 _toggleFileTree）。
+    final isWide = !isCompact(context);
     return Scaffold(
       key: _scaffoldKey,
+      // P1-1 响应式：窄屏文件树退化为右侧抽屉（endDrawer），避免 260 固定宽挤占编辑区。
+      // 宽屏不挂 endDrawer（内联侧栏已在 body 的 Row 内处理）。
+      endDrawer: isWide ? null : Drawer(child: _buildFileTree()),
       // Phase 3.4.1：目录（大纲）抽屉
       drawer: TocPanel(
         coordinator: coordinator,
@@ -199,7 +228,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
             // 点 AppBar「文件树」按钮后，左侧嵌入 FileTreePanel（VS Code Mobile 风格）。
             child: Row(
               children: [
-                if (_showFileTree)
+                if (isWide && _showFileTree)
                   SizedBox(
                     width: 260,
                     child: ref.watch(documentsProvider).when(
