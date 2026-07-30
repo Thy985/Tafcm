@@ -23,14 +23,10 @@ class EditorBottomBar extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
+        // TODO(UI): 底色应随主题（PR-F 即时颜色项），本 PR 只接阴影令牌。
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        // 底部栏向上投影：取主题对应档位后翻转 Y 轴（P0-1）。
+        boxShadow: AppShadows.flipY(AppShadows.of(context).md),
       ),
       child: SafeArea(
         child: Row(
