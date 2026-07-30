@@ -65,14 +65,80 @@ class AppSpacing {
   static const double formulaDisplay = 20;
 }
 
+/// 阴影令牌 —— design-system/tokens.json `shadow` 节（P0-1，UI_FIX_PLAN）。
+///
+/// light / dark 两套 sm/md/lg/xl 四档：亮色用低 alpha 的墨色投影
+/// rgba(26,29,35,0.04~0.14)，暗色用高 alpha 纯黑投影 rgba(0,0,0,0.3~0.6)
+/// （暗背景下低 alpha 阴影不可见，这是原 `card()` 明暗同值的缺陷）。
+///
+/// 消费方式：
+/// - 已持有 isDark 标记：`(isDark ? AppShadows.dark : AppShadows.light).md`
+/// - 只有 context：`AppShadows.of(context).md`
+/// - 向上投影（底部栏）：`AppShadows.flipY(AppShadows.of(context).md)`
 class AppShadows {
   AppShadows._();
 
-  static List<BoxShadow> card({bool isDark = false}) => [
+  /// 亮色阴影基色 rgb(26,29,35) —— tokens.json `shadow.sm~xl`。
+  static const Color _lightBase = Color(0xFF1A1D23);
+
+  /// 暗色阴影基色纯黑 —— tokens.json `shadow.dark.sm~xl`。
+  static const Color _darkBase = Color(0xFF000000);
+
+  static final AppShadowSet light = AppShadowSet._(
+    sm: _tier(_lightBase, 0.04, 1, 2),
+    md: _tier(_lightBase, 0.06, 4, 12),
+    lg: _tier(_lightBase, 0.10, 12, 40),
+    xl: _tier(_lightBase, 0.14, 24, 60),
+  );
+
+  static final AppShadowSet dark = AppShadowSet._(
+    sm: _tier(_darkBase, 0.3, 1, 2),
+    md: _tier(_darkBase, 0.4, 4, 12),
+    lg: _tier(_darkBase, 0.5, 12, 40),
+    xl: _tier(_darkBase, 0.6, 24, 60),
+  );
+
+  /// 按当前主题亮度取对应套。
+  static AppShadowSet of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+
+  /// 反转投影垂直方向（底部栏等向上投影的场景）。
+  static List<BoxShadow> flipY(List<BoxShadow> shadows) => shadows
+      .map(
+        (s) => BoxShadow(
+          color: s.color,
+          offset: Offset(s.offset.dx, -s.offset.dy),
+          blurRadius: s.blurRadius,
+          spreadRadius: s.spreadRadius,
+        ),
+      )
+      .toList();
+
+  static List<BoxShadow> _tier(
+    Color base,
+    double alpha,
+    double y,
+    double blur,
+  ) => [
     BoxShadow(
-      color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.05),
-      blurRadius: 10,
-      offset: const Offset(0, 2),
+      color: base.withValues(alpha: alpha),
+      offset: Offset(0, y),
+      blurRadius: blur,
     ),
   ];
+}
+
+/// 一套四档阴影（sm/md/lg/xl），经 [AppShadows.light] / [AppShadows.dark] 获取。
+class AppShadowSet {
+  const AppShadowSet._({
+    required this.sm,
+    required this.md,
+    required this.lg,
+    required this.xl,
+  });
+
+  final List<BoxShadow> sm;
+  final List<BoxShadow> md;
+  final List<BoxShadow> lg;
+  final List<BoxShadow> xl;
 }

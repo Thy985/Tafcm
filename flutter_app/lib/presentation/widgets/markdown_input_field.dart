@@ -77,7 +77,8 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
       decoration: BoxDecoration(
         color: widget.isDarkMode ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: AppShadows.card(isDark: widget.isDarkMode),
+        boxShadow:
+            (widget.isDarkMode ? AppShadows.dark : AppShadows.light).md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
