@@ -1,9 +1,10 @@
 /// PR-F / P2-1：令牌化按钮组件单测。
 ///
 /// 在 [AppTheme.lightTheme] 下泵入（该主题注入 [EditorTokens.light]），
-/// 验证 4 个组件正确渲染且交互回调触发。golden 不涉及（本文件仅断言
-/// 组件行为与令牌消费，不比对像素）。
+/// 验证 4 个组件正确渲染、交互回调触发、键盘可达性与语义标签。
+/// golden 不涉及（本文件仅断言组件行为与令牌消费，不比对像素）。
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/presentation/theme/app_theme.dart';
@@ -33,6 +34,15 @@ void main() {
       await tester.tap(find.byIcon(Icons.add));
       await tester.pump();
     });
+
+    testWidgets('注入 semanticLabel 后语义树含 label', (tester) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+      await tester.pumpWidget(
+        _harness(const GhostButton(icon: Icons.search, semanticLabel: '搜索')),
+      );
+      expect(tester.getSemantics(find.byType(GhostButton)).label, '搜索');
+    });
   });
 
   group('AppToggle', () {
@@ -49,18 +59,62 @@ void main() {
       expect(value, isTrue);
     });
 
-    testWidgets('onChanged 为 null 时禁用且不回调', (tester) async {
-      var called = false;
+    testWidgets('onChanged 为 null 时禁用且 tap 不翻转状态', (tester) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
       await tester.pumpWidget(
         _harness(const AppToggle(value: true, onChanged: null)),
       );
-      // 无 onChanged → GestureDetector.onTap 为 null，tap 不触发回调。
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(AppToggle)),
-      );
-      await gesture.up();
+      // 禁用态语义：toggled 反映当前 value（true）。
+      expect(tester.getSemantics(find.byType(AppToggle)).toggled, isTrue);
+      // tap 不触发回调（onTap 为 null），语义 toggled 保持不变。
+      await tester.tap(find.byType(AppToggle));
       await tester.pump();
-      expect(called, isFalse);
+      expect(tester.getSemantics(find.byType(AppToggle)).toggled, isTrue);
+    });
+
+    testWidgets('键盘 Enter/Space 各触发 onChanged 恰好一次', (tester) async {
+      var value = true;
+      var calls = 0;
+      await tester.pumpWidget(
+        _harness(AppToggle(
+          value: value,
+          onChanged: (v) {
+            value = v;
+            calls++;
+          },
+        )),
+      );
+      // 首次 tap：聚焦 + 翻转为 false。
+      await tester.tap(find.byType(AppToggle));
+      await tester.pumpAndSettle();
+      expect(value, isFalse);
+      expect(calls, 1);
+      // 键盘 Enter：再翻转为 true（恰好一次）。
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(value, isTrue);
+      expect(calls, 2);
+      // 键盘 Space：再翻转为 false（恰好一次，不重复触发）。
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(value, isFalse);
+      expect(calls, 3);
+    });
+
+    testWidgets('注入 semanticLabel 后语义树含 label 与 toggled', (tester) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+      await tester.pumpWidget(
+        _harness(const AppToggle(
+          value: false,
+          onChanged: null,
+          semanticLabel: '深色模式',
+        )),
+      );
+      final data = tester.getSemantics(find.byType(AppToggle));
+      expect(data.label, '深色模式');
+      expect(data.toggled, isFalse);
     });
   });
 

@@ -97,7 +97,16 @@ class AppToggle extends StatefulWidget {
 }
 
 class _AppToggleState extends State<AppToggle> {
+  // 自有 FocusNode：点击时显式请求聚焦，使键盘（Enter/Space）在聚焦后可用，
+  // 满足开关的键盘可达性（a11y）。同时承载焦点环高亮状态。
+  final FocusNode _focusNode = FocusNode();
   bool _focused = false;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +120,9 @@ class _AppToggleState extends State<AppToggle> {
       toggled: widget.value,
       value: widget.value ? '开' : '关',
       child: FocusableActionDetector(
+        focusNode: _focusNode,
         enabled: enabled,
+        canRequestFocus: enabled,
         mouseCursor: SystemMouseCursors.click,
         onShowFocusHighlight: (v) => setState(() => _focused = v),
         shortcuts: const {
@@ -127,7 +138,14 @@ class _AppToggleState extends State<AppToggle> {
           ),
         },
         child: GestureDetector(
-          onTap: enabled ? () => widget.onChanged!(!widget.value) : null,
+          // 点击即聚焦（a11y：聚焦后 Enter/Space 可键盘操作）并翻转状态；
+          // 禁用时 onTap 为 null，点击无效。
+          onTap: enabled
+              ? () {
+                  _focusNode.requestFocus();
+                  widget.onChanged!(!widget.value);
+                }
+              : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: widget.width,
@@ -147,8 +165,10 @@ class _AppToggleState extends State<AppToggle> {
               child: Container(
                 width: widget.height - 4,
                 height: widget.height - 4,
-                decoration:
-                    BoxDecoration(shape: BoxShape.circle, color: thumbColor),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: thumbColor,
+                ),
               ),
             ),
           ),

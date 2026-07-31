@@ -3,7 +3,7 @@
 /// 从 editor_shell.dart 提取（2026-07-28），满足 AGENTS.md §1.2 400 行限制。
 ///
 /// - [kMaxPageWidth]：页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8）。
-/// - [Workspace]：编辑区布局（Expanded → Center → ConstrainedBox）。侧栏插槽已于 PR-F 清理。
+/// - [Workspace]：编辑区布局（Center → ConstrainedBox，全宽由父级 Expanded 提供）。侧栏插槽已于 PR-F 清理。
 /// - [EditorViewport]：编辑视口（ReorderableListView，渲染所有 Block）。
 library;
 
@@ -47,17 +47,19 @@ class Workspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 单子布局：仅约束编辑视口宽度并居中（原 Row 仅包一个 Expanded，冗余）。
-    return Expanded(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
-          child: EditorViewport(
-            coordinator: coordinator,
-            controller: scrollController,
-            blockKeys: blockKeys,
-            baseDir: baseDir,
-          ),
+    // 单子布局：仅约束编辑视口宽度并居中。
+    // 父级 editor_shell 已用 Expanded 包裹本组件提供全宽 flex 空间，故此处
+    // 不再嵌套 Expanded（原 Row[Expanded(...)] 为冗余层级；且 Expanded 缺直接
+    // Flex 父级会在无 Flex 祖先的测试树中抛断言）。直接 Center + ConstrainedBox
+    // 即为自足布局，像素与「Expanded→Center→ConstrainedBox」等价。
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
+        child: EditorViewport(
+          coordinator: coordinator,
+          controller: scrollController,
+          blockKeys: blockKeys,
+          baseDir: baseDir,
         ),
       ),
     );
