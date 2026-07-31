@@ -33,14 +33,16 @@
 | PR-B | 主屏 SafeArea | P0-3（适配） | ✅ 已合并 #110 |
 | PR-C | 首页 golden + Golden 矩阵扩充 | P0-2 + P1-4 | ✅ 已合并 #111 |
 | PR-D | 响应式断点体系 | P1-1（适配） | ✅ 已合并 #112 |
-| PR-E | spacing/radius/字号令牌集中化 | P1-2 + P1-3 | ⬜ 待启动 |
+| PR-E | spacing/radius/字号令牌集中化 | P1-2 + P1-3 | ✅ 已提交 PR #116（像素中性，待合并） |
 | PR-F | 组件 Widget + 死代码清理 + 即时颜色项（仅影响主题的黑/白） | P2-1/2 + P2-3收窄 | ⬜ 待启动 |
 | PR-G | 不抄设计稿设备装饰（首页 `SafeArea(top:false)` 只留系统状态栏） | P0-4 | ✅ 已合并 #108 |
 | PR-H | 颜色语义化长期治理（独立排期，逐文件小 PR） | P3 | ⬜ 待启动（长期） |
 
-> **当前进度总览（2026-07-31 同步）**：UI 修复 **P0 全部完成**、**P1 完成 2/4**（响应式 #112 + Golden 矩阵 #111）、**P2 / P3 未启动**。
+> **当前进度总览（2026-07-31 同步）**：UI 修复 **P0 全部完成**、**P1 完成 3/4**（响应式 #112 + Golden 矩阵 #111 + 令牌集中化 #116 待合并）、**P2 / P3 未启动**。
 > - ✅ 已合并（5 个）：`#108`(P0-4) `#109`(P0-1) `#110`(P0-3) `#111`(P0-2 + P1-4) `#112`(P1-1)
-> - ⬜ 待做（按顺序）：`PR-E`(P1-2 spacing/radius 令牌、P1-3 字号令牌) → `PR-F`(P2-1 缺失组件 Widget、P2-2 死代码清理) → `PR-H`(P3 颜色语义化长期治理)
+> - 🟡 已提交待合并（1 个）：`#116`(PR-E: P1-2 spacing/radius 令牌、P1-3 字号令牌，像素中性)
+> - ⬜ 待做（按顺序）：`PR-F`(P2-1 缺失组件 Widget、P2-2 死代码清理) → `PR-H`(P3 颜色语义化长期治理)
+> - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
 > - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
 
 ### 基础设施 PR（独立于 UI 修复，2026-07-30 新增）
@@ -150,6 +152,9 @@
 
 ### P1-2 spacing / radius 命名令牌集中化（还原度 Top 5）
 
+> **状态（2026-07-31）**：令牌命名集中化已提交 **PR #116（像素中性，待合并）**——`AppSpacing` 新增 `readerHorizontal/cardGap/sectionGap/fabBottomOffset/topBarHeight/bottomSheetMaxHeightFactor/inputRadius` 命名令牌，`app_theme.dart` 输入框圆角改走 `AppSpacing.inputRadius(8)`。
+> **延后（改像素，需 WSL 补 golden 另开 PR）**：卡片/底部 sheet 消费 `radius.lg(16)`/`radius.xl(24)`（当前仍用 `cardRadius=12`）。
+
 - **问题**：spacing 6 项无名令牌；`radius.lg=16/xl=24` 从未使用。
 - **位置**：`design-system/tokens.json:130-142`（`readerHorizontal28`/`cardGap12`/`sectionGap24`/`fabBottomOffset88`/`topBarHeight48`/`bottomSheetMaxHeight88vh`）；`app_theme.dart:61` 输入框用 `8` 非令牌；`AppSpacing.cardRadius=12` 非令牌值。
 - **改法**：
@@ -159,6 +164,9 @@
 - **验证**：无功能回归；相关 golden 若因圆角变化需 `--update`。
 
 ### P1-3 字号令牌补全与冲突收敛（还原度 Top 6）
+
+> **状态（2026-07-31）**：字号令牌补全已提交 **PR #116（像素中性，待合并）**——`AppTypography` 新增 `caption=10`/`tabLabel=11`/`formulaDisplay=19`/`formulaDisplayReader=21`，`formula()` 硬编码 19→`formulaDisplay`，`home_tab_bar.dart` 硬编码 11→`AppTypography.tabLabel`。
+> **延后（改像素，需 WSL 补 golden 另开 PR）**：段落字号 `AppSpacing.body=16` 与 `EditorTokens.paragraphFontSize=15` 收敛为单一来源（当前 golden 以 15 为准）。
 
 - **问题**：`caption=10`/`formulaDisplayReader=21` 无令牌；`tabLabel` 硬编码；`AppSpacing.body=16` 与 `EditorTokens.paragraphFontSize=15` 同段落冲突。
 - **位置**：`app_typography.dart`（最小 11、公式固定 19）；`home_tab_bar.dart:115` 硬编码 tabLabel；`app_constants.dart:59`(`AppSpacing.body=16`) vs `editor_tokens.dart:203`(`paragraphFontSize=15`)。
