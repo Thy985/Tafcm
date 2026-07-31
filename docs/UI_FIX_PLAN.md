@@ -34,14 +34,14 @@
 | PR-C | 首页 golden + Golden 矩阵扩充 | P0-2 + P1-4 | ✅ 已合并 #111 |
 | PR-D | 响应式断点体系 | P1-1（适配） | ✅ 已合并 #112 |
 | PR-E | spacing/radius/字号令牌集中化 | P1-2 + P1-3 | ✅ 已提交 PR #116（像素中性，待合并） |
-| PR-F | 组件 Widget + 死代码清理 + 即时颜色项（仅影响主题的黑/白） | P2-1/2 + P2-3收窄 | ⬜ 待启动 |
+| PR-F | 组件 Widget + 死代码清理 + 即时颜色项（仅影响主题的黑/白） | P2-1/2 + P2-3收窄 | 🟡 已提交 PR（feat/pr-f-components-cleanup，像素中性部分；接线/颜色延后 PR-Fb） |
 | PR-G | 不抄设计稿设备装饰（首页 `SafeArea(top:false)` 只留系统状态栏） | P0-4 | ✅ 已合并 #108 |
 | PR-H | 颜色语义化长期治理（独立排期，逐文件小 PR） | P3 | ⬜ 待启动（长期） |
 
-> **当前进度总览（2026-07-31 同步）**：UI 修复 **P0 全部完成**、**P1 完成 3/4**（响应式 #112 + Golden 矩阵 #111 + 令牌集中化 #116 待合并）、**P2 / P3 未启动**。
+> **当前进度总览（2026-08-01 同步）**：UI 修复 **P0 全部完成**、**P1 完成 3/4**（响应式 #112 + Golden 矩阵 #111 + 令牌集中化 #116 待合并）、**P2 进行中（PR-F 组件+死代码已提交，像素改动延后 PR-Fb）/ P3 未启动**。
 > - ✅ 已合并（5 个）：`#108`(P0-4) `#109`(P0-1) `#110`(P0-3) `#111`(P0-2 + P1-4) `#112`(P1-1)
-> - 🟡 已提交待合并（1 个）：`#116`(PR-E: P1-2 spacing/radius 令牌、P1-3 字号令牌，像素中性)
-> - ⬜ 待做（按顺序）：`PR-F`(P2-1 缺失组件 Widget、P2-2 死代码清理) → `PR-H`(P3 颜色语义化长期治理)
+> - 🟡 已提交待合并（2 个）：`#116`(PR-E: P1-2/P1-3 令牌，像素中性)、PR-F(`feat/pr-f-components-cleanup`: P2-2 死代码 + P2-1 四个令牌化组件，像素中性；接线/颜色延后 PR-Fb)
+> - ⬜ 待做（按顺序）：`PR-Fb`（PR-F 延后：首页 `_RoundButton`→`GhostButton` 接线、搜索栏接 `SearchPill`、P2-3 主题色 swap，均需 WSL 补 golden）→ `PR-H`(P3 颜色语义化长期治理)
 > - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
 
 ### 基础设施 PR（独立于 UI 修复，2026-07-30 新增）
@@ -206,6 +206,8 @@
 
 ### P2-1 缺失组件 Widget（还原度 Top 3）
 
+> **状态（2026-08-01）**：已实现 `GhostButton`/`AppToggle`/`SearchPill`/`AppFab` 四个令牌化组件（`lib/presentation/widgets/buttons.dart`）+ 单测（`test/widgets/buttons_test.dart`），全部接 `EditorTokens`/`ThemeData.colorScheme`，无硬编码颜色字面量。接线（首页 `_RoundButton`→`GhostButton`、搜索栏接 `SearchPill`、FAB 放置）会改像素、需 WSL 重新生成 golden 基线，属延后项 **PR-Fb**。
+
 - **问题**：`toggle`/`searchPill`/`ghost`/`fab` 0 实现；全仓无 `FloatingActionButton`；首页 `_RoundButton` 为 ad-hoc（size 40≠36）。
 - **位置**：`tokens.json:164-178`（button.ghost/fab）、`:196-217`（searchPill/toggle）；`home_screen.dart:184`（`_RoundButton`）。
 - **改法**：
@@ -215,6 +217,8 @@
 - **验证**：新组件单测 + golden；无令牌泄漏。
 
 ### P2-2 清理侧栏占位死代码（还原度 Top 4）
+
+> **状态（2026-08-01）**：已删除 `side_panel_host.dart` 占位文件，并移除 `workspace.dart` 中 `if (SidePanelHost.shouldShow(context))` 死分支（`[SidePanelHost.shouldShow]` 恒 false，移除不改变渲染，像素中性）。真实侧栏由 `editor_shell` 的 `FileTreePanel`/`TocPanel` 承载。
 
 - **问题**：`side_panel_host.dart` `shouldShow` 恒 false，真实侧栏已在 `editor_shell` 另实现（`FileTreePanel`/`TocPanel`），原 host 未清理且无入口发现性。
 - **位置**：`lib/presentation/panels/side_panel_host.dart:38-42`。

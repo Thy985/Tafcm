@@ -13,7 +13,6 @@ import '../../core/editing/block_types.dart';
 import '../blocks/block_renderer.dart';
 import '../blocks/shared/block_selection.dart';
 import '../commands/commands.dart';
-import '../panels/side_panel_host.dart';
 import '../states/block_view_state.dart';
 import '../themes/editor_tokens.dart';
 import 'block_reorder.dart';
@@ -51,9 +50,6 @@ class Workspace extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // 侧栏插槽（Phase 3.0 占位，默认隐藏）
-        if (SidePanelHost.shouldShow(context))
-          SidePanelHost(coordinator: coordinator),
         // 编辑视口（BlockRenderer 渲染所有块）
         Expanded(
           child: Center(
