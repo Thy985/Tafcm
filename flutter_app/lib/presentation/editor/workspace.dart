@@ -3,7 +3,7 @@
 /// 从 editor_shell.dart 提取（2026-07-28），满足 AGENTS.md §1.2 400 行限制。
 ///
 /// - [kMaxPageWidth]：页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8）。
-/// - [Workspace]：编辑区 + 侧栏组合（Row → Expanded → Center → ConstrainedBox）。
+/// - [Workspace]：编辑区布局（Expanded → Center → ConstrainedBox）。侧栏插槽已于 PR-F 清理。
 /// - [EditorViewport]：编辑视口（ReorderableListView，渲染所有 Block）。
 library;
 
@@ -25,11 +25,10 @@ import 'editor_scope.dart';
 /// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
 const double kMaxPageWidth = 720.0;
 
-/// Workspace：编辑区 + 侧栏组合（Phase 3.0 仅占位）。
+/// Workspace：编辑区布局容器（编辑视口 + 页面宽度约束）。
 ///
-/// Phase 3.0：侧栏隐藏（仅插槽），编辑区占满。
-/// Phase 3.7+：侧栏接入 TOC（左侧滑出）。
-/// Phase 3.8+：侧栏接入文件树（左侧滑出）。
+/// 侧栏插槽（原 `SidePanelHost`）已于 PR-F 删除——真实侧栏由 `editor_shell`
+/// 的 `FileTreePanel` / `TocPanel` 承载。本组件仅负责编辑视口的居中 + 最大宽度约束。
 class Workspace extends StatelessWidget {
   final EditorCoordinator coordinator;
   final ScrollController? scrollController;
@@ -48,23 +47,19 @@ class Workspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // 编辑视口（BlockRenderer 渲染所有块）
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
-              child: EditorViewport(
-                coordinator: coordinator,
-                controller: scrollController,
-                blockKeys: blockKeys,
-                baseDir: baseDir,
-              ),
-            ),
+    // 单子布局：仅约束编辑视口宽度并居中（原 Row 仅包一个 Expanded，冗余）。
+    return Expanded(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
+          child: EditorViewport(
+            coordinator: coordinator,
+            controller: scrollController,
+            blockKeys: blockKeys,
+            baseDir: baseDir,
           ),
         ),
-      ],
+      ),
     );
   }
 }

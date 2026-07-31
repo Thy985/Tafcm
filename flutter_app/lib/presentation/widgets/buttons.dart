@@ -1,9 +1,10 @@
 /// 令牌化按钮组件集（UI 修复 PR-F / P2-1）。
 ///
-/// 对齐 design-system/tokens.json 的 `button.*` 规格，全部接
-/// [EditorTokens]（前景 / 次级前景）与 [ThemeData.colorScheme]
-/// （brand.primary / surface.muted / onPrimary），**无硬编码颜色字面量**，
-/// 随浅色 / 夜间 / 护眼三主题切换。
+/// 对齐 design-system/tokens.json 的 `button.*` 规格，**颜色严格取 [EditorTokens]
+/// 注入的 tokens 精确值**（[EditorTokens.surfaceMuted] / [EditorTokens.brandPrimary]
+/// / [EditorTokens.brandPrimaryForeground] / [EditorTokens.textPrimary] /
+/// [EditorTokens.textSecondary]），**不**使用 M3 重映射的 `colorScheme.primary` /
+/// `surfaceContainerHighest` / `onPrimary`（避免落库像素偏离设计令牌）。
 ///
 /// 注：本文件仅落地"组件实现"（关闭 `AppToggle/SearchPill/GhostButton/AppFab`
 /// 0 实现缺口）。将 `_RoundButton` 收敛为 [GhostButton]、[SearchPill] 接入首页
@@ -25,12 +26,16 @@ class GhostButton extends StatelessWidget {
   final double iconSize;
   final String? tooltip;
 
+  /// 无障碍标签；提供时包裹 [Semantics]（纯图标按钮无可见文字，需显式语义）。
+  final String? semanticLabel;
+
   const GhostButton({
     required this.icon,
     this.onTap,
     this.size = 36,
     this.iconSize = 18,
     this.tooltip,
+    this.semanticLabel,
     super.key,
   });
 
@@ -50,53 +55,101 @@ class GhostButton extends StatelessWidget {
         child: child,
       ),
     );
-    return tooltip == null
-        ? ink
-        : Tooltip(message: tooltip!, child: ink);
+    final wrapped =
+        tooltip == null ? ink : Tooltip(message: tooltip!, child: ink);
+    return semanticLabel == null
+        ? wrapped
+        : Semantics(label: semanticLabel, button: true, child: wrapped);
   }
 }
 
 /// 开关（tokens.button.toggle）：40×24 轨道、圆角 12、thumb 20。
 ///
 /// `value` 为当前状态；`onChanged` 为 null 时禁用。轨道色随主题
-/// （开 = `colorScheme.primary`，关 = `colorScheme.surfaceContainerHighest`），
-/// thumb 用 `colorScheme.onPrimary`。
-class AppToggle extends StatelessWidget {
+/// （开 = [EditorTokens.brandPrimary]，关 = [EditorTokens.surfaceMuted]），
+/// thumb 用 tokens.toggle.thumbColor（#FFFFFF）。
+///
+/// 无障碍：包裹 [Semantics]（`toggled` + `label` + 中文化 `value`），并以
+/// [FocusableActionDetector] 接入 Enter/Space 键盘激活。app-wide 开关原语
+/// 的单一所有权见 UI_FIX_PLAN「PR-Fb 颜色源」决策（与 [AppBottomSheetSwitch]
+/// 收敛为统一原语属后续项）。
+class AppToggle extends StatefulWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final double width;
   final double height;
+
+  /// 无障碍标签；提供时作为 switch role 的语义名。
+  final String? semanticLabel;
 
   const AppToggle({
     required this.value,
     this.onChanged,
     this.width = 40,
     this.height = 24,
+    this.semanticLabel,
     super.key,
   });
 
   @override
+  State<AppToggle> createState() => _AppToggleState();
+}
+
+class _AppToggleState extends State<AppToggle> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final trackColor = value ? scheme.primary : scheme.surfaceContainerHighest;
-    final thumbColor = scheme.onPrimary;
-    return GestureDetector(
-      onTap: onChanged == null ? null : () => onChanged!(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(height / 2),
-          color: trackColor,
-        ),
-        padding: const EdgeInsets.all(2),
-        child: Align(
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            width: height - 4,
-            height: height - 4,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: thumbColor),
+    final tokens = EditorTokens.of(context);
+    final enabled = widget.onChanged != null;
+    final trackColor =
+        widget.value ? tokens.brandPrimary : tokens.surfaceMuted;
+    const thumbColor = Colors.white; // tokens.toggle.thumbColor = #FFFFFF
+    return Semantics(
+      label: widget.semanticLabel,
+      toggled: widget.value,
+      value: widget.value ? '开' : '关',
+      child: FocusableActionDetector(
+        enabled: enabled,
+        mouseCursor: SystemMouseCursors.click,
+        onShowFocusHighlight: (v) => setState(() => _focused = v),
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              if (enabled) widget.onChanged!(!widget.value);
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          onTap: enabled ? () => widget.onChanged!(!widget.value) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(widget.height / 2),
+              color: trackColor,
+              // 键盘焦点环（UI affordance，非 token 颜色）。
+              border: _focused && enabled
+                  ? Border.all(color: tokens.brandPrimary, width: 2)
+                  : null,
+            ),
+            padding: const EdgeInsets.all(2),
+            child: Align(
+              alignment:
+                  widget.value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: widget.height - 4,
+                height: widget.height - 4,
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: thumbColor),
+              ),
+            ),
           ),
         ),
       ),
@@ -126,8 +179,10 @@ class SearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final tokens = EditorTokens.of(context);
+    // 输入 / 占位字号 14 = tokens.searchPill.placeholderSize；spec 仅定义
+    // placeholderSize，输入同值（PR-Fb 若引入 inputSize token 再改）。
+    const textFontSize = 14.0;
     return SizedBox(
       height: height,
       child: TextField(
@@ -135,17 +190,18 @@ class SearchPill extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         textAlignVertical: TextAlignVertical.center,
-        style: TextStyle(fontSize: 14, color: tokens.textPrimary),
+        style: TextStyle(fontSize: textFontSize, color: tokens.textPrimary),
         decoration: InputDecoration(
           filled: true,
-          fillColor: scheme.surfaceContainerHighest,
+          fillColor: tokens.surfaceMuted, // tokens.searchPill.background
           prefixIcon: Icon(
             Icons.search,
             size: 16,
-            color: scheme.onSurface.withOpacity(0.6),
+            color: tokens.textSecondary, // mutedForeground，避免魔法 alpha
           ),
           hintText: hintText,
-          hintStyle: TextStyle(fontSize: 14, color: tokens.textSecondary),
+          hintStyle:
+              TextStyle(fontSize: textFontSize, color: tokens.textSecondary),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(height / 2),
             borderSide: BorderSide.none,
@@ -157,10 +213,12 @@ class SearchPill extends StatelessWidget {
   }
 }
 
-/// 浮动操作按钮（tokens.button.fab）：56 圆形、brand.primary 背景。
+/// 浮动操作按钮（tokens.button.fab）：56 圆形、[EditorTokens.brandPrimary] 背景。
 ///
-/// 包裹 [FloatingActionButton]（默认圆形、elevation 6 ≈ `shadow.lg`），
-/// 背景 `colorScheme.primary`、前景 `colorScheme.onPrimary`、图标 26。
+/// 包裹 [FloatingActionButton]（默认圆形、elevation 6）；背景 / 前景严格取
+/// [EditorTokens.brandPrimary] / [EditorTokens.brandPrimaryForeground]（tokens
+/// 精确值，非 M3 `colorScheme`）。`elevation` 无法表达 `shadow.lg` 模糊/扩散半径，
+/// 像素保真见 build 注释（PR-Fb 改用自定义 BoxShadow）。图标 26。
 class AppFab extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
@@ -175,14 +233,17 @@ class AppFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final tokens = EditorTokens.of(context);
     return SizedBox(
       width: size,
       height: size,
       child: FloatingActionButton(
         onPressed: onPressed,
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        backgroundColor: tokens.brandPrimary, // tokens.button.fab.background
+        foregroundColor:
+            tokens.brandPrimaryForeground, // tokens.button.fab.foreground
+        // elevation 无法表达 tokens.shadow.lg 的模糊/扩散半径（0 12px 40px）。
+        // 像素保真需 PR-Fb 改用自定义 BoxShadow 覆盖 FAB 阴影。
         elevation: 6,
         child: Icon(icon, size: 26),
       ),

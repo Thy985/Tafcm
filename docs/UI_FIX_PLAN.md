@@ -34,13 +34,13 @@
 | PR-C | 首页 golden + Golden 矩阵扩充 | P0-2 + P1-4 | ✅ 已合并 #111 |
 | PR-D | 响应式断点体系 | P1-1（适配） | ✅ 已合并 #112 |
 | PR-E | spacing/radius/字号令牌集中化 | P1-2 + P1-3 | ✅ 已提交 PR #116（像素中性，待合并） |
-| PR-F | 组件 Widget + 死代码清理 + 即时颜色项（仅影响主题的黑/白） | P2-1/2 + P2-3收窄 | 🟡 已提交 PR（feat/pr-f-components-cleanup，像素中性部分；接线/颜色延后 PR-Fb） |
+| PR-F | 组件 Widget + 死代码清理 | P2-1/2 | 🟡 已提交 PR #117（feat/pr-f-components-cleanup，像素中性；含令牌保真度 + 开关 a11y review 修复；接线/颜色延后 PR-Fb） |
 | PR-G | 不抄设计稿设备装饰（首页 `SafeArea(top:false)` 只留系统状态栏） | P0-4 | ✅ 已合并 #108 |
 | PR-H | 颜色语义化长期治理（独立排期，逐文件小 PR） | P3 | ⬜ 待启动（长期） |
 
 > **当前进度总览（2026-08-01 同步）**：UI 修复 **P0 全部完成**、**P1 完成 3/4**（响应式 #112 + Golden 矩阵 #111 + 令牌集中化 #116 待合并）、**P2 进行中（PR-F 组件+死代码已提交，像素改动延后 PR-Fb）/ P3 未启动**。
 > - ✅ 已合并（5 个）：`#108`(P0-4) `#109`(P0-1) `#110`(P0-3) `#111`(P0-2 + P1-4) `#112`(P1-1)
-> - 🟡 已提交待合并（2 个）：`#116`(PR-E: P1-2/P1-3 令牌，像素中性)、PR-F(`feat/pr-f-components-cleanup`: P2-2 死代码 + P2-1 四个令牌化组件，像素中性；接线/颜色延后 PR-Fb)
+> - 🟡 已提交待合并（2 个）：`#116`(PR-E: P1-2/P1-3 令牌，像素中性)、PR-F(`#117`/`feat/pr-f-components-cleanup`: P2-2 死代码 + P2-1 四个令牌化组件 + 令牌保真度/开关 a11y review 修复，像素中性；接线/颜色延后 PR-Fb)
 > - ⬜ 待做（按顺序）：`PR-Fb`（PR-F 延后：首页 `_RoundButton`→`GhostButton` 接线、搜索栏接 `SearchPill`、P2-3 主题色 swap，均需 WSL 补 golden）→ `PR-H`(P3 颜色语义化长期治理)
 > - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
 
@@ -206,7 +206,7 @@
 
 ### P2-1 缺失组件 Widget（还原度 Top 3）
 
-> **状态（2026-08-01）**：已实现 `GhostButton`/`AppToggle`/`SearchPill`/`AppFab` 四个令牌化组件（`lib/presentation/widgets/buttons.dart`）+ 单测（`test/widgets/buttons_test.dart`），全部接 `EditorTokens`/`ThemeData.colorScheme`，无硬编码颜色字面量。接线（首页 `_RoundButton`→`GhostButton`、搜索栏接 `SearchPill`、FAB 放置）会改像素、需 WSL 重新生成 golden 基线，属延后项 **PR-Fb**。
+> **状态（2026-08-01）**：已实现 `GhostButton`/`AppToggle`/`SearchPill`/`AppFab` 四个令牌化组件（`lib/presentation/widgets/buttons.dart`）+ 单测（`test/widgets/buttons_test.dart`）。**颜色严格取 `EditorTokens` 注入的 tokens 精确值**（新增 `brandPrimary`/`surfaceMuted`/`brandPrimaryForeground`，绕过 M3 重映射的 `colorScheme`）；`AppToggle` 加 `Semantics`(toggled/label) + 键盘激活、`GhostButton` 加 `semanticLabel`（review 修复，见下方"决策：组件颜色源"）。接线（首页 `_RoundButton`→`GhostButton`、搜索栏接 `SearchPill`、FAB 放置）会改像素、需 WSL 重新生成 golden 基线，属延后项 **PR-Fb**。
 
 - **问题**：`toggle`/`searchPill`/`ghost`/`fab` 0 实现；全仓无 `FloatingActionButton`；首页 `_RoundButton` 为 ad-hoc（size 40≠36）。
 - **位置**：`tokens.json:164-178`（button.ghost/fab）、`:196-217`（searchPill/toggle）；`home_screen.dart:184`（`_RoundButton`）。
@@ -215,6 +215,21 @@
   2. 首页 `_RoundButton` 收敛为 `GhostButton`（size 36 对齐令牌）。
   3. 若首页/编辑器需要主操作，补 `FloatingActionButton`（接 `button.fab` 规格）。
 - **验证**：新组件单测 + golden；无令牌泄漏。
+
+### 决策：令牌化组件的颜色源（PR-Fb 落地前定调，2026-08-01）
+
+> **背景（PR #117 review）**：组件原本接 `colorScheme.primary` / `surfaceContainerHighest` / `onPrimary`，但 M3 `fromSeed` 会重映射种子色，导致 `scheme.primary ≠ #1E3A5F`、`surfaceContainerHighest ≠ #F0EFEA`。一旦 PR-Fb 接线并生成 golden，落库像素将编码 M3 派生色而非设计令牌——与"还原度"目标直接冲突（且 `EditorTokens.light.codeBackground` 已是精确 #F0EFEA，说明精确值本就在代码库中，只是组件绕过了它）。
+
+- **决策（采纳 Option 1：EditorTokens 精确值优先）**：组件品牌/表面色**严格取 `EditorTokens` 注入的 tokens 精确值**，新增三个语义字段：
+  - `EditorTokens.brandPrimary` → tokens `color.*.brand.primary`（light #1E3A5F / dark #5B8DB8 / sepia #9C7A4D）；
+  - `EditorTokens.surfaceMuted` → tokens `color.*.surface.muted`（light #F0EFEA / dark #242830 / sepia #EDE3D0）；
+  - `EditorTokens.brandPrimaryForeground` → tokens `color.*.brand.primaryForeground`（light #FFFFFF / dark #0F1419 / sepia #FFFFFF）。
+  - `ThemeData.colorScheme` 仅用于系统级表面（scaffold / background），**不**用于组件品牌/静音色。
+- **缺口（待补）**：
+  - tokens.json 仅含 `color.light` / `color.dark`，**无 `color.sepia`** 段。sepia 三字段按现有 `EditorTokens.sepia` 调性推导（surfaceMuted=#EDE3D0=codeBackground、brandPrimary=#9C7A4D=borderFocused 暖调、brandPrimaryForeground=#FFFFFF）；建议后续补 `color.sepia` 段回填。
+  - FAB `elevation` 无法表达 `shadow.lg` 的模糊/扩散半径（0 12px 40px）。PR-Fb 若需像素保真，改用自定义 `BoxShadow` 覆盖 FAB 阴影，或修订 tokens `button.fab.shadow` 引用。
+  - toggle thumb 按 tokens 字面 `#FFFFFF`（开/关同值），非 `brandPrimaryForeground`。
+- **单一开关原语**：app-wide 开关统一收敛到 `AppToggle`（已含 `Semantics` + 键盘激活）。既有 `AppBottomSheetSwitch`（`components/bottom_sheet.dart:110`，基于 `SwitchListTile`）保留为后续迁移目标，避免第二套弱 a11y 开关原语。
 
 ### P2-2 清理侧栏占位死代码（还原度 Top 4）
 

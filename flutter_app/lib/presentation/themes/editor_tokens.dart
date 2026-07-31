@@ -34,6 +34,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     required this.quoteBorderColor,
     required this.tableBorderColor,
     required this.tableHeaderBackground,
+    required this.surfaceMuted,
+    required this.brandPrimary,
+    required this.brandPrimaryForeground,
   });
 
   // ============ 主题相关颜色（实例字段，经 of(context) 取值） ============
@@ -65,6 +68,23 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 表格表头背景色。
   final Color tableHeaderBackground;
 
+  /// 静音表面色 → tokens color.*.surface.muted（light #F0EFEA / dark #242830 / sepia #EDE3D0）。
+  ///
+  /// 用于 searchPill 背景、toggle 关态轨道等"低对比容器"。**精确取 tokens 值，
+  /// 不使用 `colorScheme.surfaceContainerHighest`**（M3 灰阶会偏离 #F0EFEA）。
+  final Color surfaceMuted;
+
+  /// 品牌主色 → tokens color.*.brand.primary（light #1E3A5F / dark #5B8DB8 / sepia #9C7A4D）。
+  ///
+  /// 用于 fab 背景、toggle 开态轨道。精确取 tokens 值，不使用 M3 重映射的
+  /// `colorScheme.primary`。
+  final Color brandPrimary;
+
+  /// 品牌主色前景 → tokens color.*.brand.primaryForeground（light #FFFFFF / dark #0F1419 / sepia #FFFFFF）。
+  ///
+  /// 用于 fab 前景（图标）。精确取 tokens 值，不使用 `colorScheme.onPrimary`。
+  final Color brandPrimaryForeground;
+
   /// 浅色主题实例（对齐 design-system/tokens.json color.light）。
   static const EditorTokens light = EditorTokens(
     textPrimary: Color(0xFF1A1D23),
@@ -76,6 +96,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFFD8D3C8),
     tableBorderColor: Color(0xFFE5E4DF),
     tableHeaderBackground: Color(0xFFF0EFEA),
+    surfaceMuted: Color(0xFFF0EFEA),
+    brandPrimary: Color(0xFF1E3A5F),
+    brandPrimaryForeground: Color(0xFFFFFFFF),
   );
 
   /// 夜间主题实例（对齐 design-system/tokens.json color.dark）。
@@ -89,6 +112,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFF3A3F48),
     tableBorderColor: Color(0xFF2A2F38),
     tableHeaderBackground: Color(0xFF1A1D23),
+    surfaceMuted: Color(0xFF242830),
+    brandPrimary: Color(0xFF5B8DB8),
+    brandPrimaryForeground: Color(0xFF0F1419),
   );
 
   /// 护眼(sepia)主题实例。
@@ -102,6 +128,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFFBBA583),
     tableBorderColor: Color(0xFFD8C9B0),
     tableHeaderBackground: Color(0xFFEDE3D0),
+    surfaceMuted: Color(0xFFEDE3D0),
+    brandPrimary: Color(0xFF9C7A4D),
+    brandPrimaryForeground: Color(0xFFFFFFFF),
   );
 
   /// 运行时按当前 [ThemeData] 注入的实例取值。
@@ -134,6 +163,9 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     Color? quoteBorderColor,
     Color? tableBorderColor,
     Color? tableHeaderBackground,
+    Color? surfaceMuted,
+    Color? brandPrimary,
+    Color? brandPrimaryForeground,
   }) {
     return EditorTokens(
       textPrimary: textPrimary ?? this.textPrimary,
@@ -145,6 +177,10 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
       quoteBorderColor: quoteBorderColor ?? this.quoteBorderColor,
       tableBorderColor: tableBorderColor ?? this.tableBorderColor,
       tableHeaderBackground: tableHeaderBackground ?? this.tableHeaderBackground,
+      surfaceMuted: surfaceMuted ?? this.surfaceMuted,
+      brandPrimary: brandPrimary ?? this.brandPrimary,
+      brandPrimaryForeground:
+          brandPrimaryForeground ?? this.brandPrimaryForeground,
     );
   }
 
@@ -170,6 +206,13 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
       tableHeaderBackground:
           Color.lerp(tableHeaderBackground, other.tableHeaderBackground, t) ??
               tableHeaderBackground,
+      surfaceMuted:
+          Color.lerp(surfaceMuted, other.surfaceMuted, t) ?? surfaceMuted,
+      brandPrimary:
+          Color.lerp(brandPrimary, other.brandPrimary, t) ?? brandPrimary,
+      brandPrimaryForeground:
+          Color.lerp(brandPrimaryForeground, other.brandPrimaryForeground, t) ??
+              brandPrimaryForeground,
     );
   }
 
