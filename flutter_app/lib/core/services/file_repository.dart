@@ -326,13 +326,15 @@ const Duration kAtomicWriteRetryBackoff = Duration(milliseconds: 20);
 ///
 /// 重试语义安全：每次尝试都重新写入完整的 [content]，
 /// 不存在写入一半再续写的情况；失败路径始终清理残留 `.tmp`。
+///
+/// ⚠️ 权衡（delete-then-rename）：每次尝试会先删除已存在的旧目标再 rename，
+/// 若 rename 持续失败并耗尽重试上限，旧内容将丢失（新内容也未落盘）。属设计固有
+/// 权衡，非本处回归；该行为已由 `atomic_write_test` 固化，便于后续若改为
+/// "写临时件、失败时保留旧件"时及时察觉。
 Future<void> atomicWrite(File file, String content) async {
   final dir = file.parent;
   await dir.create(recursive: true);
   final tmp = File('${file.path}.tmp');
-
-  Object? lastError;
-  StackTrace? lastStack;
 
   for (var attempt = 1; attempt <= kAtomicWriteMaxAttempts; attempt++) {
     try {
@@ -343,20 +345,18 @@ Future<void> atomicWrite(File file, String content) async {
       await tmp.rename(file.path);
       return;
     } on FileSystemException catch (e, s) {
-      lastError = e;
-      lastStack = s;
       await _deleteQuietly(tmp);
-      if (attempt < kAtomicWriteMaxAttempts) {
-        await Future<void>.delayed(kAtomicWriteRetryBackoff * attempt);
+      if (attempt == kAtomicWriteMaxAttempts) {
+        // 重试耗尽：保留原始栈上抛，便于定位外部干扰源（清理器/杀毒锁定等）。
+        Error.throwWithStackTrace(e, s);
       }
+      await Future<void>.delayed(kAtomicWriteRetryBackoff * attempt);
     } catch (_) {
       // 非文件系统错误不具备"重试可恢复"性质，直接上抛。
       await _deleteQuietly(tmp);
       rethrow;
     }
   }
-
-  Error.throwWithStackTrace(lastError!, lastStack!);
 }
 
 /// 尽力删除 [file]，忽略删除过程中的任何错误（清理路径不得掩盖原始异常）。
