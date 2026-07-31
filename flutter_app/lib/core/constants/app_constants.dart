@@ -52,6 +52,37 @@ class AppSpacing {
   static const double cardRadius = 12;
   static const double codeRadius = 8;
 
+  // ── 布局令牌（P1-2）：权威值取自 design-system/tokens.json `spacing` 节 ──
+  //
+  // 这些值此前在 tokens.json 有定义、在 Dart 侧却无名（散落为魔法数或尚无
+  // 消费方），本节把它们收敛为命名常量，作为设计系统与代码的对齐锚点。
+  // 部分令牌对应的界面（阅读模式、FAB、底部 sheet）尚未实现，暂无消费方是
+  // 预期状态；新建这些界面时必须消费本节令牌，不得再写魔法数。
+
+  /// 阅读模式左右留白 —— tokens.json `spacing.readerHorizontal`。
+  static const double readerHorizontal = 28;
+
+  /// 卡片之间的纵向间距 —— tokens.json `spacing.cardGap`。
+  static const double cardGap = 12;
+
+  /// 区块之间的纵向间距 —— tokens.json `spacing.sectionGap`。
+  static const double sectionGap = 24;
+
+  /// 悬浮按钮距屏幕底部的偏移 —— tokens.json `spacing.fabBottomOffset`。
+  static const double fabBottomOffset = 88;
+
+  /// 顶部栏高度 —— tokens.json `spacing.topBarHeight`。
+  ///
+  /// 注意：**不等于** Material 的 `kToolbarHeight`(56)，本产品用更紧凑的 48。
+  static const double topBarHeight = 48;
+
+  /// 底部 sheet 最大高度占屏幕的比例 —— tokens.json
+  /// `spacing.bottomSheetMaxHeight`（原值 `88vh`，Flutter 侧表达为比例）。
+  static const double bottomSheetMaxHeightFactor = 0.88;
+
+  /// 输入框圆角 —— tokens.json `radius.input`。
+  static const double inputRadius = 8;
+
   static const double heading1 = 28;
   static const double heading2 = 24;
   static const double heading3 = 20;
@@ -59,9 +90,17 @@ class AppSpacing {
   static const double body = 16;
   static const double code = 14;
   static const double small = 13;
+
+  /// ⚠️ 命名历史遗留：本值 11 实为 tokens.json `typography.scale.meta`，
+  /// **不是** `caption`(10)。真正的 caption 令牌见 [AppTypography.caption]。
+  /// 收敛为单一来源属 P1-3 后续项（会改像素，需同步 golden 基线）。
   static const double caption = 11;
 
   static const double formulaInline = 16;
+  /// ⚠️ 命名历史遗留：本值 20 实为 tokens.json `typography.scale.h2Reader`，
+  /// **不是** `AppTypography.formulaDisplay`(19)。块级公式主渲染路径（Math.tex）
+  /// 用此值，fallback 路径（[AppTypography.formula]）用 19，二者并存为既有不一致。
+  /// 收敛为单一来源属 P1-3 后续项（会改像素，需同步 golden 基线）。
   static const double formulaDisplay = 20;
 }
 

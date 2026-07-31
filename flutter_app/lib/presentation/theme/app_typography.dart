@@ -38,6 +38,23 @@ class AppTypography {
   /// 一致，从根因消除「等宽字体跨平台不一致」导致的 golden 抖动。
   static const String mono = 'CascadiaMono';
 
+  // ── 字号令牌（P1-3）：权威值取自 tokens.json `typography.scale` ──
+
+  /// 说明文字字号 —— tokens.json `typography.scale.caption`。
+  ///
+  /// 注意与 [AppSpacing.caption](11) 区分：后者实为 `meta` 档的历史误名。
+  static const double caption = 10;
+
+  /// 底部 tab 标签字号 —— tokens.json `typography.scale.tabLabel`。
+  static const double tabLabel = 11;
+
+  /// 编辑模式块级公式字号 —— tokens.json `typography.scale.formulaDisplay`。
+  static const double formulaDisplay = 19;
+
+  /// 阅读模式块级公式字号 —— tokens.json
+  /// `typography.scale.formulaDisplayReader`（阅读态比编辑态大一档）。
+  static const double formulaDisplayReader = 21;
+
   /// 公式样式（文档 / 块级公式）：serif + italic。
   ///
   /// 颜色不由本方法固化（TextSpan 无法在构造时取运行时 theme），调用方经
@@ -46,7 +63,7 @@ class AppTypography {
   static TextStyle formula({Color? color}) => TextStyle(
         fontFamily: serif,
         fontStyle: FontStyle.italic,
-        fontSize: 19,
+        fontSize: formulaDisplay,
         height: 1.4,
         color: color,
       );
