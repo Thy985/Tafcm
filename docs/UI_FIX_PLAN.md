@@ -43,7 +43,6 @@
 > - 🟡 已提交待合并（1 个）：`#116`(PR-E: P1-2 spacing/radius 令牌、P1-3 字号令牌，像素中性)
 > - ⬜ 待做（按顺序）：`PR-F`(P2-1 缺失组件 Widget、P2-2 死代码清理) → `PR-H`(P3 颜色语义化长期治理)
 > - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
-> - 🔶 基础设施（非 UI 修复）：`#113` Repository Safety Layer（git 仓库防损坏护栏）**OPEN**，待合并 + 批准 `AGENTS.md` §12/§7 架构决策修改（详见下方"基础设施 PR"）
 
 ### 基础设施 PR（独立于 UI 修复，2026-07-30 新增）
 

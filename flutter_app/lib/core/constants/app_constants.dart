@@ -97,6 +97,10 @@ class AppSpacing {
   static const double caption = 11;
 
   static const double formulaInline = 16;
+  /// ⚠️ 命名历史遗留：本值 20 实为 tokens.json `typography.scale.h2Reader`，
+  /// **不是** `AppTypography.formulaDisplay`(19)。块级公式主渲染路径（Math.tex）
+  /// 用此值，fallback 路径（[AppTypography.formula]）用 19，二者并存为既有不一致。
+  /// 收敛为单一来源属 P1-3 后续项（会改像素，需同步 golden 基线）。
   static const double formulaDisplay = 20;
 }
 
