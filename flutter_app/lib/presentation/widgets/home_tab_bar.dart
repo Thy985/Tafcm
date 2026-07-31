@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/shell_branch_provider.dart';
+import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
 
 /// 首页底部 4 tab 导航栏（对齐设计稿 `home-v3.html`）。
@@ -112,7 +113,7 @@ class _TabButton extends StatelessWidget {
           Text(
             item.label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTypography.tabLabel,
               fontWeight: active ? FontWeight.w600 : FontWeight.w500,
               color: color,
             ),
