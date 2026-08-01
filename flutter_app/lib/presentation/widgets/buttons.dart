@@ -122,7 +122,6 @@ class _AppToggleState extends State<AppToggle> {
       child: FocusableActionDetector(
         focusNode: _focusNode,
         enabled: enabled,
-        canRequestFocus: enabled,
         mouseCursor: SystemMouseCursors.click,
         onShowFocusHighlight: (v) => setState(() => _focused = v),
         shortcuts: const {

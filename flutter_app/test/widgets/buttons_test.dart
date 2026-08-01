@@ -3,6 +3,8 @@
 /// 在 [AppTheme.lightTheme] 下泵入（该主题注入 [EditorTokens.light]），
 /// 验证 4 个组件正确渲染、交互回调触发、键盘可达性与语义标签。
 /// golden 不涉及（本文件仅断言组件行为与令牌消费，不比对像素）。
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,11 +68,18 @@ void main() {
         _harness(const AppToggle(value: true, onChanged: null)),
       );
       // 禁用态语义：toggled 反映当前 value（true）。
-      expect(tester.getSemantics(find.byType(AppToggle)).toggled, isTrue);
+      // 注：tester.getSemantics() 返回 SemanticsNode；toggled 属 SemanticsData。
+      expect(
+        tester.getSemantics(find.byType(AppToggle)).getSemanticsData().toggled,
+        isTrue,
+      );
       // tap 不触发回调（onTap 为 null），语义 toggled 保持不变。
       await tester.tap(find.byType(AppToggle));
       await tester.pump();
-      expect(tester.getSemantics(find.byType(AppToggle)).toggled, isTrue);
+      expect(
+        tester.getSemantics(find.byType(AppToggle)).getSemanticsData().toggled,
+        isTrue,
+      );
     });
 
     testWidgets('键盘 Enter/Space 各触发 onChanged 恰好一次', (tester) async {
@@ -112,7 +121,9 @@ void main() {
           semanticLabel: '深色模式',
         )),
       );
-      final data = tester.getSemantics(find.byType(AppToggle));
+      // tester.getSemantics() 返回 SemanticsNode；toggled 属 SemanticsData。
+      final data =
+          tester.getSemantics(find.byType(AppToggle)).getSemanticsData();
       expect(data.label, '深色模式');
       expect(data.toggled, isFalse);
     });
