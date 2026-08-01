@@ -38,8 +38,8 @@ void main() {
     });
 
     testWidgets('注入 semanticLabel 后语义树含 label', (tester) async {
-      final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
+      // 注：testWidgets 默认 semanticsEnabled=true，runner 已自动创建并 dispose
+      // SemanticsHandle；本测试无需再 ensureSemantics()。
       await tester.pumpWidget(
         _harness(const GhostButton(icon: Icons.search, semanticLabel: '搜索')),
       );
@@ -118,8 +118,8 @@ void main() {
     });
 
     testWidgets('注入 semanticLabel 后语义树含 label', (tester) async {
-      final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
+      // 注：testWidgets 默认 semanticsEnabled=true，runner 已自动创建并 dispose
+      // SemanticsHandle；本测试无需再 ensureSemantics()。
       await tester.pumpWidget(
         _harness(const AppToggle(
           value: false,
