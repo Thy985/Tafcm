@@ -19,15 +19,11 @@ import '../themes/editor_tokens.dart';
 /// 布局：serif 品牌字标 + 搜索/新建 →「最近」区（打开任意 .md + 最近 3 篇）
 /// →「更早」区（其余）→ 底栏由 StatefulShellRoute 的 HomeScaffold 统一渲染。
 class HomeScreen extends ConsumerWidget {
-<<<<<<< HEAD
   const HomeScreen({super.key, this.now});
 
   /// 当前时间，用于相对时间显示（见 [_relativeTime]）。默认取系统时间；
   /// 测试可注入固定值以保证 golden 基线确定（避免跨运行时 DateTime.now() 漂移）。
   final DateTime? now;
-=======
-  const HomeScreen({super.key});
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +32,6 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-<<<<<<< HEAD
       // 设计还原铁律（P0-4 / ADR-0020 衍生）：不抄设计稿的设备装饰（状态栏/home
       // indicator/刘海）。首页用自绘 _Header（非 AppBar），故顶部不套 SafeArea，
       // 内容直接顶到屏幕最顶；系统状态栏由 OS 提供并透明叠加在纸色背景上，视觉
@@ -44,9 +39,6 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         top: false,
         bottom: true,
-=======
-      body: SafeArea(
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
         child: docsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Center(
@@ -104,11 +96,7 @@ class HomeScreen extends ConsumerWidget {
               if (docs.isEmpty)
                 const SliverToBoxAdapter(child: _EmptyHint())
               else ...[
-<<<<<<< HEAD
                 _DocList(docs: recent, now: now, onTap: (doc) => _openDoc(ref, doc, context)),
-=======
-                _DocList(docs: recent, onTap: (doc) => _openDoc(ref, doc, context)),
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
                 if (earlier.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -122,11 +110,7 @@ class HomeScreen extends ConsumerWidget {
                           )),
                     ),
                   ),
-<<<<<<< HEAD
                 _DocList(docs: earlier, now: now, onTap: (doc) => _openDoc(ref, doc, context)),
-=======
-                _DocList(docs: earlier, onTap: (doc) => _openDoc(ref, doc, context)),
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
               ],
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
@@ -270,12 +254,8 @@ class _OpenAnyMdEntry extends StatelessWidget {
 class _DocList extends StatelessWidget {
   final List<Document> docs;
   final void Function(Document) onTap;
-<<<<<<< HEAD
   final DateTime? now;
   const _DocList({required this.docs, required this.onTap, this.now});
-=======
-  const _DocList({required this.docs, required this.onTap});
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
   @override
   Widget build(BuildContext context) {
@@ -333,12 +313,8 @@ class _DocList extends StatelessWidget {
   }
 
   String _relativeTime(DateTime t) {
-<<<<<<< HEAD
     final now = this.now ?? DateTime.now();
     final diff = now.difference(t);
-=======
-    final diff = DateTime.now().difference(t);
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
     if (diff.inMinutes < 1) return '刚刚';
     if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
     if (diff.inHours < 24) return '${diff.inHours}小时前';

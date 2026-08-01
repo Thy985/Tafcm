@@ -4,11 +4,8 @@
 /// 侧栏插槽的整体结构。这是一张「总览」基线，守护整页结构不被意外改动
 /// （如 AppBar 元素增减、视口 padding 变化、主题注入错乱）。内容覆盖标题 /
 /// 行内公式 / 代码块 / 块级公式，提供有代表性的整页渲染。
-<<<<<<< HEAD
 ///
 /// 尺寸 / 主题矩阵变体见 [editor_shell_full_page_matrix_test.dart]。
-=======
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 @Tags(['golden'])
 library;
 

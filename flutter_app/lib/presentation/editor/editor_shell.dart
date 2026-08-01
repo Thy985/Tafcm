@@ -33,10 +33,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-<<<<<<< HEAD
 import '../../core/constants/layout_constants.dart';
-=======
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 import '../../core/editing/block_types.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
@@ -129,7 +126,6 @@ class _EditorShellState extends ConsumerState<EditorShell> {
   void _toggleFocus() => setState(() => _focusMode = !_focusMode);
 
   /// 切换文件树侧栏（Phase 3.4.2）。
-<<<<<<< HEAD
   /// P1-1 响应式：窄屏(紧凑)下文件树退化为 [Drawer]（endDrawer），调用
   /// [GlobalKey.currentState] 的 [ScaffoldState.openEndDrawer] 打开覆盖层，
   /// 避免 260 固定宽挤占 375 编辑区；宽屏则内联切换（[setState] 改 [_showFileTree]）。
@@ -154,9 +150,6 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       error: (_, __) => const Center(child: Text('加载失败')),
     );
   }
-=======
-  void _toggleFileTree() => setState(() => _showFileTree = !_showFileTree);
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
   /// 文件树点击：由文档 id 解析路径，转交 [widget.onOpenFile]（EditorPage 负责打开 + 持久化）。
   ///
@@ -200,7 +193,6 @@ class _EditorShellState extends ConsumerState<EditorShell> {
   @override
   Widget build(BuildContext context) {
     final coordinator = widget.coordinator;
-<<<<<<< HEAD
     // P1-1 响应式：宽屏(≥600)文件树内联；窄屏退化为 endDrawer（见 _toggleFileTree）。
     final isWide = !isCompact(context);
     return Scaffold(
@@ -208,10 +200,6 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       // P1-1 响应式：窄屏文件树退化为右侧抽屉（endDrawer），避免 260 固定宽挤占编辑区。
       // 宽屏不挂 endDrawer（内联侧栏已在 body 的 Row 内处理）。
       endDrawer: isWide ? null : Drawer(child: _buildFileTree()),
-=======
-    return Scaffold(
-      key: _scaffoldKey,
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
       // Phase 3.4.1：目录（大纲）抽屉
       drawer: TocPanel(
         coordinator: coordinator,
@@ -240,11 +228,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
             // 点 AppBar「文件树」按钮后，左侧嵌入 FileTreePanel（VS Code Mobile 风格）。
             child: Row(
               children: [
-<<<<<<< HEAD
                 if (isWide && _showFileTree)
-=======
-                if (_showFileTree)
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
                   SizedBox(
                     width: 260,
                     child: ref.watch(documentsProvider).when(

@@ -52,7 +52,6 @@ class AppSpacing {
   static const double cardRadius = 12;
   static const double codeRadius = 8;
 
-<<<<<<< HEAD
   // ── 布局令牌（P1-2）：权威值取自 design-system/tokens.json `spacing` 节 ──
   //
   // 这些值此前在 tokens.json 有定义、在 Dart 侧却无名（散落为魔法数或尚无
@@ -84,8 +83,6 @@ class AppSpacing {
   /// 输入框圆角 —— tokens.json `radius.input`。
   static const double inputRadius = 8;
 
-=======
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   static const double heading1 = 28;
   static const double heading2 = 24;
   static const double heading3 = 20;
@@ -93,7 +90,6 @@ class AppSpacing {
   static const double body = 16;
   static const double code = 14;
   static const double small = 13;
-<<<<<<< HEAD
 
   /// ⚠️ 命名历史遗留：本值 11 实为 tokens.json `typography.scale.meta`，
   /// **不是** `caption`(10)。真正的 caption 令牌见 [AppTypography.caption]。
@@ -184,22 +180,4 @@ class AppShadowSet {
   final List<BoxShadow> md;
   final List<BoxShadow> lg;
   final List<BoxShadow> xl;
-=======
-  static const double caption = 11;
-
-  static const double formulaInline = 16;
-  static const double formulaDisplay = 20;
-}
-
-class AppShadows {
-  AppShadows._();
-
-  static List<BoxShadow> card({bool isDark = false}) => [
-    BoxShadow(
-      color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.05),
-      blurRadius: 10,
-      offset: const Offset(0, 2),
-    ),
-  ];
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 }

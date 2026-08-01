@@ -3,11 +3,7 @@
 /// 从 editor_shell.dart 提取（2026-07-28），满足 AGENTS.md §1.2 400 行限制。
 ///
 /// - [kMaxPageWidth]：页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8）。
-<<<<<<< HEAD
 /// - [Workspace]：编辑区布局（Center → ConstrainedBox，全宽由父级 Expanded 提供）。侧栏插槽已于 PR-F 清理。
-=======
-/// - [Workspace]：编辑区 + 侧栏组合（Row → Expanded → Center → ConstrainedBox）。
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 /// - [EditorViewport]：编辑视口（ReorderableListView，渲染所有 Block）。
 library;
 
@@ -17,10 +13,6 @@ import '../../core/editing/block_types.dart';
 import '../blocks/block_renderer.dart';
 import '../blocks/shared/block_selection.dart';
 import '../commands/commands.dart';
-<<<<<<< HEAD
-=======
-import '../panels/side_panel_host.dart';
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 import '../states/block_view_state.dart';
 import '../themes/editor_tokens.dart';
 import 'block_reorder.dart';
@@ -33,18 +25,10 @@ import 'editor_scope.dart';
 /// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
 const double kMaxPageWidth = 720.0;
 
-<<<<<<< HEAD
 /// Workspace：编辑区布局容器（编辑视口 + 页面宽度约束）。
 ///
 /// 侧栏插槽（原 `SidePanelHost`）已于 PR-F 删除——真实侧栏由 `editor_shell`
 /// 的 `FileTreePanel` / `TocPanel` 承载。本组件仅负责编辑视口的居中 + 最大宽度约束。
-=======
-/// Workspace：编辑区 + 侧栏组合（Phase 3.0 仅占位）。
-///
-/// Phase 3.0：侧栏隐藏（仅插槽），编辑区占满。
-/// Phase 3.7+：侧栏接入 TOC（左侧滑出）。
-/// Phase 3.8+：侧栏接入文件树（左侧滑出）。
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 class Workspace extends StatelessWidget {
   final EditorCoordinator coordinator;
   final ScrollController? scrollController;
@@ -63,7 +47,6 @@ class Workspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
     // 单子布局：仅约束编辑视口宽度并居中。
     // 父级 editor_shell 已用 Expanded 包裹本组件提供全宽 flex 空间，故此处
     // 不再嵌套 Expanded（原 Row[Expanded(...)] 为冗余层级；且 Expanded 缺直接
@@ -79,28 +62,6 @@ class Workspace extends StatelessWidget {
           baseDir: baseDir,
         ),
       ),
-=======
-    return Row(
-      children: [
-        // 侧栏插槽（Phase 3.0 占位，默认隐藏）
-        if (SidePanelHost.shouldShow(context))
-          SidePanelHost(coordinator: coordinator),
-        // 编辑视口（BlockRenderer 渲染所有块）
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMaxPageWidth),
-              child: EditorViewport(
-                coordinator: coordinator,
-                controller: scrollController,
-                blockKeys: blockKeys,
-                baseDir: baseDir,
-              ),
-            ),
-          ),
-        ),
-      ],
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
     );
   }
 }

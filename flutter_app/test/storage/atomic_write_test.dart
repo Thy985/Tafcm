@@ -4,10 +4,7 @@
 /// 业务价值：进程崩溃 / 写入中断时不能留下半截 .md。
 library;
 
-<<<<<<< HEAD
 import 'dart:convert';
-=======
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/services/file_repository.dart';
@@ -58,7 +55,6 @@ void main() {
       expect(await file.exists(), isTrue);
     });
   });
-<<<<<<< HEAD
 
   group('原子写抗外部干扰（.tmp 在 rename 前被删）', () {
     late Directory tempDir;
@@ -310,6 +306,4 @@ class _FlakyDeleteFile implements File {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       super.noSuchMethod(invocation);
-=======
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 }

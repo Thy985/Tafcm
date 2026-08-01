@@ -77,12 +77,8 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
       decoration: BoxDecoration(
         color: widget.isDarkMode ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-<<<<<<< HEAD
         boxShadow:
             (widget.isDarkMode ? AppShadows.dark : AppShadows.light).md,
-=======
-        boxShadow: AppShadows.card(isDark: widget.isDarkMode),
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
