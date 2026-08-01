@@ -306,16 +306,20 @@ class FileRepository implements DocumentRepository {
   }
 }
 
+<<<<<<< HEAD
 /// [atomicWrite] 遇可恢复的文件系统错误时的最大尝试次数（含首次）。
 const int kAtomicWriteMaxAttempts = 3;
 
 /// [atomicWrite] 重试的基础退避间隔，第 n 次重试等待 n × 该值。
 const Duration kAtomicWriteRetryBackoff = Duration(milliseconds: 20);
 
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 /// 原子写：先写 `<path>.tmp`，落盘后（删除旧目标）rename 到最终路径。
 ///
 /// 避免进程崩溃 / 写入中断时留下半截 `.md`。Windows 上 `rename`
 /// 不能直接覆盖已存在文件，故先删除旧目标再 rename。
+<<<<<<< HEAD
 ///
 /// **抗外部干扰**：`.tmp` 落盘到 rename 之间存在一个时间窗，期间可能被
 /// 外部进程（磁盘清理工具、杀毒软件实时扫描、同步客户端）删除或占用，
@@ -331,10 +335,13 @@ const Duration kAtomicWriteRetryBackoff = Duration(milliseconds: 20);
 /// 若 rename 持续失败并耗尽重试上限，旧内容将丢失（新内容也未落盘）。属设计固有
 /// 权衡，非本处回归；该行为已由 `atomic_write_test` 固化，便于后续若改为
 /// "写临时件、失败时保留旧件"时及时察觉。
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 Future<void> atomicWrite(File file, String content) async {
   final dir = file.parent;
   await dir.create(recursive: true);
   final tmp = File('${file.path}.tmp');
+<<<<<<< HEAD
 
   for (var attempt = 1; attempt <= kAtomicWriteMaxAttempts; attempt++) {
     try {
@@ -365,5 +372,18 @@ Future<void> _deleteQuietly(File file) async {
     if (await file.exists()) await file.delete();
   } catch (_) {
     // 残留 .tmp 由下次写入覆盖，或由 recovery 流程清理。
+=======
+  try {
+    await tmp.writeAsString(content, flush: true);
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await tmp.rename(file.path);
+  } catch (e) {
+    try {
+      if (await tmp.exists()) await tmp.delete();
+    } catch (_) {}
+    rethrow;
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   }
 }

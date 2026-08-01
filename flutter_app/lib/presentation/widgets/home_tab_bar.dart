@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/shell_branch_provider.dart';
+<<<<<<< HEAD
 import '../theme/app_typography.dart';
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 import '../themes/editor_tokens.dart';
 
 /// 首页底部 4 tab 导航栏（对齐设计稿 `home-v3.html`）。
@@ -113,7 +116,11 @@ class _TabButton extends StatelessWidget {
           Text(
             item.label,
             style: TextStyle(
+<<<<<<< HEAD
               fontSize: AppTypography.tabLabel,
+=======
+              fontSize: 11,
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
               fontWeight: active ? FontWeight.w600 : FontWeight.w500,
               color: color,
             ),

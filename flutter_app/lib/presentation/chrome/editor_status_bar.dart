@@ -46,6 +46,7 @@ class EditorStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     return SafeArea(
       top: false,
       bottom: true,
@@ -54,6 +55,13 @@ class EditorStatusBar extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
+=======
+    return Container(
+      height: EditorTokens.statusBarHeight,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
         children: [
           _buildItem('块数: ${coordinator.blockCount}'),
           const SizedBox(width: 16),
@@ -69,7 +77,10 @@ class EditorStatusBar extends StatelessWidget {
           _buildZoomControls(),
         ],
       ),
+<<<<<<< HEAD
       ),
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
     );
   }
 

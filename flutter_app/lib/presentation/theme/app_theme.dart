@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+<<<<<<< HEAD
 import '../../core/constants/app_constants.dart';
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 import '../themes/editor_tokens.dart';
 import 'app_typography.dart';
 
@@ -59,6 +62,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
+<<<<<<< HEAD
           borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
           borderSide: const BorderSide(color: border),
         ),
@@ -68,6 +72,17 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+=======
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
       ),

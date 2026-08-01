@@ -45,7 +45,11 @@ class PreviewContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+<<<<<<< HEAD
         boxShadow: (isDark ? AppShadows.dark : AppShadows.light).md,
+=======
+        boxShadow: AppShadows.card(isDark: isDark),
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),

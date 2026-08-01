@@ -34,9 +34,12 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     required this.quoteBorderColor,
     required this.tableBorderColor,
     required this.tableHeaderBackground,
+<<<<<<< HEAD
     required this.surfaceMuted,
     required this.brandPrimary,
     required this.brandPrimaryForeground,
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   });
 
   // ============ 主题相关颜色（实例字段，经 of(context) 取值） ============
@@ -68,6 +71,7 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 表格表头背景色。
   final Color tableHeaderBackground;
 
+<<<<<<< HEAD
   /// 静音表面色 → tokens color.*.surface.muted（light #F0EFEA / dark #242830 / sepia #EDE3D0）。
   ///
   /// 用于 searchPill 背景、toggle 关态轨道等"低对比容器"。**精确取 tokens 值，
@@ -85,6 +89,8 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
   /// 用于 fab 前景（图标）。精确取 tokens 值，不使用 `colorScheme.onPrimary`。
   final Color brandPrimaryForeground;
 
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   /// 浅色主题实例（对齐 design-system/tokens.json color.light）。
   static const EditorTokens light = EditorTokens(
     textPrimary: Color(0xFF1A1D23),
@@ -96,9 +102,12 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFFD8D3C8),
     tableBorderColor: Color(0xFFE5E4DF),
     tableHeaderBackground: Color(0xFFF0EFEA),
+<<<<<<< HEAD
     surfaceMuted: Color(0xFFF0EFEA),
     brandPrimary: Color(0xFF1E3A5F),
     brandPrimaryForeground: Color(0xFFFFFFFF),
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   );
 
   /// 夜间主题实例（对齐 design-system/tokens.json color.dark）。
@@ -112,9 +121,12 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFF3A3F48),
     tableBorderColor: Color(0xFF2A2F38),
     tableHeaderBackground: Color(0xFF1A1D23),
+<<<<<<< HEAD
     surfaceMuted: Color(0xFF242830),
     brandPrimary: Color(0xFF5B8DB8),
     brandPrimaryForeground: Color(0xFF0F1419),
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   );
 
   /// 护眼(sepia)主题实例。
@@ -128,9 +140,12 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     quoteBorderColor: Color(0xFFBBA583),
     tableBorderColor: Color(0xFFD8C9B0),
     tableHeaderBackground: Color(0xFFEDE3D0),
+<<<<<<< HEAD
     surfaceMuted: Color(0xFFEDE3D0),
     brandPrimary: Color(0xFF9C7A4D),
     brandPrimaryForeground: Color(0xFFFFFFFF),
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   );
 
   /// 运行时按当前 [ThemeData] 注入的实例取值。
@@ -163,9 +178,12 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
     Color? quoteBorderColor,
     Color? tableBorderColor,
     Color? tableHeaderBackground,
+<<<<<<< HEAD
     Color? surfaceMuted,
     Color? brandPrimary,
     Color? brandPrimaryForeground,
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
   }) {
     return EditorTokens(
       textPrimary: textPrimary ?? this.textPrimary,
@@ -177,10 +195,13 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
       quoteBorderColor: quoteBorderColor ?? this.quoteBorderColor,
       tableBorderColor: tableBorderColor ?? this.tableBorderColor,
       tableHeaderBackground: tableHeaderBackground ?? this.tableHeaderBackground,
+<<<<<<< HEAD
       surfaceMuted: surfaceMuted ?? this.surfaceMuted,
       brandPrimary: brandPrimary ?? this.brandPrimary,
       brandPrimaryForeground:
           brandPrimaryForeground ?? this.brandPrimaryForeground,
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
     );
   }
 
@@ -206,6 +227,7 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
       tableHeaderBackground:
           Color.lerp(tableHeaderBackground, other.tableHeaderBackground, t) ??
               tableHeaderBackground,
+<<<<<<< HEAD
       surfaceMuted:
           Color.lerp(surfaceMuted, other.surfaceMuted, t) ?? surfaceMuted,
       brandPrimary:
@@ -213,6 +235,8 @@ class EditorTokens extends ThemeExtension<EditorTokens> {
       brandPrimaryForeground:
           Color.lerp(brandPrimaryForeground, other.brandPrimaryForeground, t) ??
               brandPrimaryForeground,
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
     );
   }
 

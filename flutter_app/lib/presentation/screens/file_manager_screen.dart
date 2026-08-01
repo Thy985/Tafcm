@@ -64,11 +64,16 @@ class FileManagerScreen extends ConsumerWidget {
                   ],
                 ),
               )
+<<<<<<< HEAD
             : SafeArea(
                 top: false,
                 bottom: true,
                 child: ListView.separated(
                   itemCount: docs.length,
+=======
+            : ListView.separated(
+                itemCount: docs.length,
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
                 separatorBuilder: (_, __) =>
                     Divider(height: 1, color: tokens.borderDefault.withOpacity(0.5)),
                 itemBuilder: (context, index) {
@@ -115,7 +120,10 @@ class FileManagerScreen extends ConsumerWidget {
                     ),
                   );
                 },
+<<<<<<< HEAD
                 ),
+=======
+>>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
               ),
       ),
     );
