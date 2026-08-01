@@ -1,0 +1,33 @@
+# 行尾符归一化（Repository Safety Layer）
+#
+# 背景：编辑器/Agent 工具在 Windows 上改写文件时可能静默转成 CRLF，
+# 而仓库内 blob 一律为 LF → git 判定为「整文件重写」，diff 假性放大数百行，
+# 既掩盖真实改动，也容易在 code review 中漏掉问题。
+# 2026-07-30 实测：Edit 工具改 3 个文件 → diff 从 63 行放大到 1787 行。
+#
+# 规则：入库一律 LF；shell 脚本强制 LF（CRLF 会让 bash 报 $'\r': command not found）。
+
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.dart text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+
+# Windows 批处理需要 CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# 二进制：禁止任何转换（golden 基线尤其关键，改一个字节就对不上）
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.ttf  binary
+*.otf  binary
+*.woff  binary
+*.woff2 binary
+*.jar  binary
+*.keystore binary
