@@ -67,17 +67,26 @@ void main() {
       await tester.pumpWidget(
         _harness(const AppToggle(value: true, onChanged: null)),
       );
-      // 禁用态语义：toggled 反映当前 value（true）。
-      // 注：tester.getSemantics() 返回 SemanticsNode；toggled 属 SemanticsData。
+      // 禁用态语义：isToggled 反映当前 value（true）。
+      // 注：tester.getSemantics() 返回 SemanticsNode；3.29 后 toggle 状态通过
+      // SemanticsData.flagsCollection.isToggled（bool?）读取。
       expect(
-        tester.getSemantics(find.byType(AppToggle)).getSemanticsData().toggled,
+        tester
+            .getSemantics(find.byType(AppToggle))
+            .getSemanticsData()
+            .flagsCollection
+            .isToggled,
         isTrue,
       );
       // tap 不触发回调（onTap 为 null），语义 toggled 保持不变。
       await tester.tap(find.byType(AppToggle));
       await tester.pump();
       expect(
-        tester.getSemantics(find.byType(AppToggle)).getSemanticsData().toggled,
+        tester
+            .getSemantics(find.byType(AppToggle))
+            .getSemanticsData()
+            .flagsCollection
+            .isToggled,
         isTrue,
       );
     });
@@ -121,11 +130,12 @@ void main() {
           semanticLabel: '深色模式',
         )),
       );
-      // tester.getSemantics() 返回 SemanticsNode；toggled 属 SemanticsData。
-      final data =
-          tester.getSemantics(find.byType(AppToggle)).getSemanticsData();
+      // toggle 状态走 SemanticsData.flagsCollection.isToggled（3.29 后 API）。
+      final data = tester
+          .getSemantics(find.byType(AppToggle))
+          .getSemanticsData();
       expect(data.label, '深色模式');
-      expect(data.toggled, isFalse);
+      expect(data.flagsCollection.isToggled, isFalse);
     });
   });
 
