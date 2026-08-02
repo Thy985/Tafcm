@@ -11,6 +11,7 @@ import '../../providers/file_repository_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
+import '../widgets/buttons.dart';
 
 /// 应用首页（对齐设计稿 `home-v3.html`）。
 ///
@@ -178,37 +179,29 @@ class _Header extends StatelessWidget {
               )),
           Row(
             children: [
-              _RoundButton(icon: Icons.search, onTap: onSearch),
+              GhostButton(
+                icon: Icons.search,
+                onTap: onSearch,
+                tooltip: '搜索',
+                semanticLabel: '搜索',
+              ),
               const SizedBox(width: 4),
-              _RoundButton(icon: Icons.brightness_6, onTap: onThemeCycle),
+              GhostButton(
+                icon: Icons.brightness_6,
+                onTap: onThemeCycle,
+                tooltip: '切换主题',
+                semanticLabel: '切换主题',
+              ),
               const SizedBox(width: 4),
-              _RoundButton(icon: Icons.add, onTap: onNew),
+              GhostButton(
+                icon: Icons.add,
+                onTap: onNew,
+                tooltip: '新建文档',
+                semanticLabel: '新建文档',
+              ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _RoundButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = EditorTokens.of(context);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, size: 20, color: tokens.textPrimary.withOpacity(0.7)),
-        ),
       ),
     );
   }
