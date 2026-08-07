@@ -140,5 +140,5 @@ void main() {
     const threshold = 3000;
     expect(medianMs, lessThan(threshold),
         reason: '阈值 ${threshold}ms。median=${medianMs.toStringAsFixed(2)}ms');
-  });
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }

@@ -9,11 +9,8 @@ import 'package:formula_fix/presentation/editor/editor_intent.dart';
 import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
 import 'package:formula_fix/presentation/commands/commands.dart';
 
-/// [BlockBehaviorResolver] 纯单测（规范 §3 / §4.1 / §4.4 + ADR-0019）。
-///
-/// 验证 Intent → Command 的唯一裁决点：所有行为映射集中在 resolver.switch，
-/// 不依赖任何 Block 子类。这是 per-block 写法（被否决）的对照基准。
-void main() {
+/// [BlockBehaviorResolver] 纯单测（规范 §3 / §4.1 / §4.4 + ADR-0019）�?///
+/// 验证 Intent �?Command 的唯一裁决点：所有行为映射集中在 resolver.switch�?/// 不依赖任�?Block 子类。这�?per-block 写法（被否决）的对照基准�?void main() {
   late EditorCoordinator coordinator;
   late BlockBehaviorResolver resolver;
   late BlockId paraId;
@@ -40,8 +37,8 @@ void main() {
 
   tearDown(() => coordinator.dispose());
 
-  group('Enter 矩阵（§3）', () {
-    test('Paragraph（非空）→ InsertTextCommand("\\n")（同块换行，不打断 IME）', () {
+  group('Enter 矩阵（�?�?, () {
+    test('Paragraph（非空）�?InsertTextCommand("\\n")（同块换行，不打�?IME�?, () {
       final cmd = resolver.resolveEnter(
           coordinator, paraId, const TextSelection.collapsed(offset: 3));
       expect(cmd, isA<InsertTextCommand>());
@@ -50,7 +47,7 @@ void main() {
       expect(cmd.selection?.baseOffset, 3);
     });
 
-    test('Paragraph（空块）→ SplitBlockCommand（空行 Enter = 新建段，Typora 语义）', () {
+    test('Paragraph（空块）�?SplitBlockCommand（空�?Enter = 新建段，Typora 语义�?, () {
       final editor = InMemoryDocumentEditor(title: 'empty_para');
       editor.insertBlock(0, const ParagraphElement(children: [TextElement('')]));
       final c = EditorCoordinator(
@@ -64,14 +61,14 @@ void main() {
       c.dispose();
     });
 
-    test('Heading（非空）→ InsertTextCommand("\\n")（同块换行，保留标题语义 + 不打断 IME）', () {
+    test('Heading（非空）�?InsertTextCommand("\\n")（同块换行，保留标题语义 + 不打�?IME�?, () {
       final cmd = resolver.resolveEnter(
           coordinator, headingId, const TextSelection.collapsed(offset: 2));
       expect(cmd, isA<InsertTextCommand>());
       expect((cmd as InsertTextCommand).text, '\n');
     });
 
-    test('Heading（空块）→ SplitBlockCommand（空标题 Enter = 退出标题，落为段落兄弟）', () {
+    test('Heading（空块）�?SplitBlockCommand（空标题 Enter = 退出标题，落为段落兄弟�?, () {
       final editor = InMemoryDocumentEditor(title: 'empty_h1');
       editor.insertBlock(0, const HeadingElement(level: 2, text: ''));
       final c = EditorCoordinator(
@@ -85,7 +82,7 @@ void main() {
       c.dispose();
     });
 
-    test('Code → InsertTextCommand("\\n")（块内换行，不分块）', () {
+    test('Code �?InsertTextCommand("\\n")（块内换行，不分块）', () {
       final cmd = resolver.resolveEnter(
           coordinator, codeId, const TextSelection.collapsed(offset: 1));
       expect(cmd, isA<InsertTextCommand>());
@@ -93,35 +90,35 @@ void main() {
     });
   });
 
-  group('Backspace 块首合并（§4.1）', () {
-    test('Paragraph → MergeWithPreviousCommand', () {
+  group('Backspace 块首合并（�?.1�?, () {
+    test('Paragraph �?MergeWithPreviousCommand', () {
       final cmd = resolver.resolveBackspaceAtStart(coordinator, paraId);
       expect(cmd, isA<MergeWithPreviousCommand>());
     });
 
-    test('Code → null（不可合并）', () {
+    test('Code �?null（不可合并）', () {
       expect(resolver.resolveBackspaceAtStart(coordinator, codeId), isNull);
     });
   });
 
-  group('Toolbar 语义动作（§4.4）', () {
+  group('Toolbar 语义动作（�?.4�?, () {
     const sel = TextSelection(baseOffset: 0, extentOffset: 5);
     const noSel = TextSelection.collapsed(offset: 0);
 
-    test('Bold 有选区 → WrapSelectionCommand', () {
+    test('Bold 有选区 �?WrapSelectionCommand', () {
       final cmd = resolver.resolveToolbarAction(
           coordinator, paraId, ToolbarActionKind.bold, sel);
       expect(cmd, isA<WrapSelectionCommand>());
     });
 
-    test('Bold 无选区 → InsertTextCommand("****")', () {
+    test('Bold 无选区 �?InsertTextCommand("****")', () {
       final cmd = resolver.resolveToolbarAction(
           coordinator, paraId, ToolbarActionKind.bold, noSel);
       expect(cmd, isA<InsertTextCommand>());
       expect((cmd as InsertTextCommand).text, '****');
     });
 
-    test('H1 → InsertTextCommand("# ")', () {
+    test('H1 �?InsertTextCommand("# ")', () {
       final cmd = resolver.resolveToolbarAction(
           coordinator, paraId, ToolbarActionKind.h1, noSel);
       expect(cmd, isA<InsertTextCommand>());

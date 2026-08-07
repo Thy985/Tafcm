@@ -1,27 +1,16 @@
-/// TC-ARCH-7: 文件行数 ≤ 400（AGENTS.md §1.2）
-///
-/// 单一职责：一个 .dart 文件 = 一个 class / 一个主题 / 一个 Provider 簇。
-/// 文件超过 400 行必须拆分。
-library;
+/// TC-ARCH-7: 文件行数 �?400（AGENTS.md §1.2�?///
+/// 单一职责：一�?.dart 文件 = 一�?class / 一个主�?/ 一�?Provider 簇�?/// 文件超过 400 行必须拆分�?library;
 
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // 已知超限文件（AGENTS.md §10 "静态状态污染测试" / Phase 2 清理）：
-  //   - markdown_parser.dart: 407 行（待 Phase 1 1.5 重写）
-  //   - mermaid_service.dart: 530 行
-  //   - pdf_exporter.dart: 592 行
-  //   - word_ooxml_builder.dart: 565 行
-  //   - export_service.dart: 493 行
-  //   - formula_pdf_renderer.dart: 409 行（Slice 7 加 onEachCompleted 后微增，
-  //     文件内含 cache + 批量预渲染 + LRU 驱逐，本身职责密集）
-  //   - editor_screen.dart: 461 行（待 Phase 3 WYSIWYG 重构）
-  //   - base_block_state.dart: 417 行（Phase 3.2 重构后微增）
+  // 已知超限文件（AGENTS.md §10 "静态状态污染测�? / Phase 2 清理）：
+  //   - markdown_parser.dart: 407 行（�?Phase 1 1.5 重写�?  //   - mermaid_service.dart: 530 �?  //   - pdf_exporter.dart: 592 �?  //   - word_ooxml_builder.dart: 565 �?  //   - export_service.dart: 493 �?  //   - formula_pdf_renderer.dart: 409 行（Slice 7 �?onEachCompleted 后微增，
+  //     文件内含 cache + 批量预渲�?+ LRU 驱逐，本身职责密集�?  //   - editor_screen.dart: 461 行（�?Phase 3 WYSIWYG 重构�?  //   - base_block_state.dart: 417 行（Phase 3.2 重构后微增）
   //   - command_handler.dart: 420 行（Phase 3.7.2 新增 ErrorSnapshotter 集成后微增）
   //   - editor_page.dart: 412 行（P0 修复 2026-08-04 新增 _loadFromExternalUri
-  //     方法支持外部应用打开 .md 文件，暂不拆分以保持 P0 修复内聚；
-  //     待 Phase 3 文件加载逻辑下沉到 Repository 后自然瘦身）
+  //     方法支持外部应用打开 .md 文件，暂不拆分以保持 P0 修复内聚�?  //     �?Phase 3 文件加载逻辑下沉�?Repository 后自然瘦身）
   const knownOffenders = <String>[
     'lib/core/parser/markdown_parser.dart',
     'lib/core/services/mermaid_service.dart',
@@ -36,19 +25,19 @@ void main() {
     'lib/core/observability/command_replayer.dart',
   ];
 
-  test('TC-ARCH-7 lib/ 下所有 .dart 文件 ≤ 400 行（除已知超限）', () {
+  test('TC-ARCH-7 lib/ 下所�?.dart 文件 �?400 行（除已知超限）', () {
     const maxLines = 400;
     final offenders = <String>[];
     final libDir = Directory('lib');
     if (!libDir.existsSync()) {
-      fail('lib/ 目录不存在');
+      fail('lib/ 目录不存�?);
     }
     for (final entity in libDir.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final path = entity.path.replaceAll('\\', '/');
       final lines = entity.readAsLinesSync();
       if (lines.length > maxLines && !knownOffenders.contains(path)) {
-        offenders.add('$path: ${lines.length} 行');
+        offenders.add('$path: ${lines.length} �?);
       }
     }
     expect(
@@ -59,17 +48,10 @@ void main() {
     );
   });
 
-  test('TC-ARCH-7 test/ 下所有 .dart 文件 ≤ 400 行（除已知超限）', () {
+  test('TC-ARCH-7 test/ 下所�?.dart 文件 �?400 行（除已知超限）', () {
     const maxLines = 400;
     // 已知超限测试文件（Phase 2.8 集成测试，每个文件按 Task Contract §3
-    // 设计为单一主题的端到端集成场景，拆分会引入过多小文件反而降低可读性）：
-    //   - export_integration_test.dart: 导出集成测试（Phase 1）
-    //   - editor_loop_integration_test.dart: 编辑闭环集成测试（Phase 2.8 TC-EDIT-8.1）
-    //   - ime_transaction_integration_test.dart: IME+Transaction 集成测试（Phase 2.8 TC-EDIT-8.3）
-    //   - parser_serializer_consistency_test.dart: Parser/Serializer 一致性集成测试（Phase 2.8 TC-EDIT-8.4）
-    //   - performance_baseline_test.dart: 性能基线集成测试（Phase 2.8 TC-EDIT-8.5）
-    //   - transaction_history_integration_test.dart: Transaction+History 集成测试（Phase 2.8 TC-EDIT-8.2）
-    const knownTestOffenders = <String>[
+    // 设计为单一主题的端到端集成场景，拆分会引入过多小文件反而降低可读性）�?    //   - export_integration_test.dart: 导出集成测试（Phase 1�?    //   - editor_loop_integration_test.dart: 编辑闭环集成测试（Phase 2.8 TC-EDIT-8.1�?    //   - ime_transaction_integration_test.dart: IME+Transaction 集成测试（Phase 2.8 TC-EDIT-8.3�?    //   - parser_serializer_consistency_test.dart: Parser/Serializer 一致性集成测试（Phase 2.8 TC-EDIT-8.4�?    //   - performance_baseline_test.dart: 性能基线集成测试（Phase 2.8 TC-EDIT-8.5�?    //   - transaction_history_integration_test.dart: Transaction+History 集成测试（Phase 2.8 TC-EDIT-8.2�?    const knownTestOffenders = <String>[
       'test/export_integration_test.dart',
       'test/integration/editor_loop_integration_test.dart',
       'test/integration/ime_transaction_integration_test.dart',
@@ -81,33 +63,32 @@ void main() {
     final offenders = <String>[];
     final testDir = Directory('test');
     if (!testDir.existsSync()) {
-      fail('test/ 目录不存在');
+      fail('test/ 目录不存�?);
     }
     for (final entity in testDir.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final path = entity.path.replaceAll('\\', '/');
       final lines = entity.readAsLinesSync();
       if (lines.length > maxLines && !knownTestOffenders.contains(path)) {
-        offenders.add('$path: ${lines.length} 行');
+        offenders.add('$path: ${lines.length} �?);
       }
     }
     expect(
       offenders,
       isEmpty,
-      reason: '测试文件也应保持单一主题，超过 400 行应拆分。\n'
+      reason: '测试文件也应保持单一主题，超�?400 行应拆分。\n'
           '超限：\n${offenders.join("\n")}',
     );
   });
 
-  test('TC-ARCH-7 已知超限文件追踪（不阻塞 CI，仅记录）', () {
-    // 这个测试记录已知超限文件，便于后续清理时移除白名单
-    for (final path in knownOffenders) {
+  test('TC-ARCH-7 已知超限文件追踪（不阻塞 CI，仅记录�?, () {
+    // 这个测试记录已知超限文件，便于后续清理时移除白名�?    for (final path in knownOffenders) {
       final file = File(path);
       if (file.existsSync()) {
         final lines = file.readAsLinesSync();
         // 仅打印，不断言
         // ignore: avoid_print
-        print('  $path: ${lines.length} 行（known offender）');
+        print('  $path: ${lines.length} 行（known offender�?);
       }
     }
     expect(knownOffenders.length, lessThanOrEqualTo(11),

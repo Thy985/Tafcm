@@ -1,7 +1,5 @@
-/// CommandReplayer 测试：验证 Command Replay 的序列化、反序列化、重放和状态验证。
-///
-/// 落地 ADR-0021 §2.5（Layer 5：Command Replay System）+ §3.7.4。
-library;
+/// CommandReplayer 测试：验�?Command Replay 的序列化、反序列化、重放和状态验证�?///
+/// 落地 ADR-0021 §2.5（Layer 5：Command Replay System�? §3.7.4�?library;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -142,8 +140,7 @@ void main() {
     });
 
     test('replays single UpdateBlockSourceCommand', () {
-      // 准备初始状态
-      final id = editor.addParagraph('initial');
+      // 准备初始状�?      final id = editor.addParagraph('initial');
 
       // 构建 replay 事件
       final events = [
@@ -160,9 +157,9 @@ void main() {
       expect(results, hasLength(1));
       expect(results[0].success, isTrue);
       expect(results[0].hashMatch, isTrue,
-          reason: '未指定 afterStateHash 时视为匹配');
+          reason: '未指�?afterStateHash 时视为匹�?);
       expect(editor.sourceOf(id), equals('updated'),
-          reason: '重放后 block source 应更新');
+          reason: '重放�?block source 应更�?);
     });
 
     test('replays multiple commands sequentially', () {
@@ -170,7 +167,7 @@ void main() {
       final id1 = editor.addParagraph('first');
       final id2 = editor.addParagraph('second');
 
-      // 构建 replay 事件序列：先更新块1，再合并块2到块1
+      // 构建 replay 事件序列：先更新�?，再合并�?到块1
       final events = [
         ReplayCommandEvent(
           commandName: 'UpdateBlockSourceCommand',
@@ -189,11 +186,11 @@ void main() {
 
       expect(results, hasLength(2));
       expect(results[0].success, isTrue,
-          reason: 'UpdateBlockSourceCommand 应成功');
+          reason: 'UpdateBlockSourceCommand 应成�?);
       expect(results[1].success, isTrue,
-          reason: 'MergeWithPreviousCommand 应成功');
+          reason: 'MergeWithPreviousCommand 应成�?);
       expect(editor.blockCount, equals(1),
-          reason: '合并后应有 1 个块');
+          reason: '合并后应�?1 个块');
     });
 
     test('replays with state hash verification', () {
@@ -202,7 +199,7 @@ void main() {
       editor.insertBlock(0, ParagraphElement(children: [TextElement('hello')]),
           preserveId: BlockId(fixedId));
 
-      // 计算预期的 afterStateHash
+      // 计算预期�?afterStateHash
       handler.handle(UpdateBlockSourceCommand(
         blockId: BlockId(fixedId),
         newSource: 'world',
@@ -213,13 +210,12 @@ void main() {
       ];
       final expectedHash = canonicalFingerprint(blocks);
 
-      // 重置 editor 到相同初始状态（使用相同固定 BlockId）
-      editor = InMemoryDocumentEditor();
+      // 重置 editor 到相同初始状态（使用相同固定 BlockId�?      editor = InMemoryDocumentEditor();
       editor.insertBlock(0, ParagraphElement(children: [TextElement('hello')]),
           preserveId: BlockId(fixedId));
       handler = CommandHandler(editor: editor, history: history);
 
-      // 用预期 hash 构建 replay 事件
+      // 用预�?hash 构建 replay 事件
       final events = [
         ReplayCommandEvent(
           commandName: 'UpdateBlockSourceCommand',
@@ -242,7 +238,7 @@ void main() {
     test('reports hash mismatch when state diverges', () {
       final id = editor.addParagraph('hello');
 
-      // 使用错误的预期 hash
+      // 使用错误的预�?hash
       final events = [
         ReplayCommandEvent(
           commandName: 'UpdateBlockSourceCommand',
@@ -259,11 +255,11 @@ void main() {
       expect(results[0].success, isTrue,
           reason: '命令执行成功');
       expect(results[0].hashMatch, isFalse,
-          reason: 'hash 不匹配');
+          reason: 'hash 不匹�?);
     });
 
     test('handles deserialization failure gracefully', () {
-      // 未知 commandName → 反序列化失败
+      // 未知 commandName �?反序列化失败
       final events = [
         ReplayCommandEvent(
           commandName: 'NonExistentCommand',
@@ -290,7 +286,7 @@ void main() {
         ),
       ];
 
-      // CommandHandler 内部会 catch 异常并返回 false
+      // CommandHandler 内部�?catch 异常并返�?false
       final replayer = CommandReplayer(handler: handler, events: events);
       final results = replayer.replay();
 
@@ -302,14 +298,12 @@ void main() {
       final id = editor.addParagraph('hello');
 
       final events = [
-        // 第一条：失败（未知 command）
-        ReplayCommandEvent(
+        // 第一条：失败（未�?command�?        ReplayCommandEvent(
           commandName: 'NonExistentCommand',
           params: {},
           origin: 'keyboard',
         ),
-        // 第二条：应成功
-        ReplayCommandEvent(
+        // 第二条：应成�?        ReplayCommandEvent(
           commandName: 'UpdateBlockSourceCommand',
           params: {'blockId': id.value, 'newSource': 'world'},
           origin: 'keyboard',
@@ -374,16 +368,14 @@ void main() {
       });
 
       final replayer = CommandReplayer(handler: handler, events: events);
-      final results = replayer.replayFrom(2); // 从第 3 条开始
-
-      expect(results, hasLength(3)); // 3-5 共 3 条
-      expect(results[0].success, isTrue);
+      final results = replayer.replayFrom(2); // 从第 3 条开�?
+      expect(results, hasLength(3)); // 3-5 �?3 �?      expect(results[0].success, isTrue);
       expect(editor.sourceOf(id), equals('step_4'),
           reason: '最后一条命令的 source 应为 step_4');
     });
   });
 
-  group('CommandReplayer round-trip (serialize → deserialize → replay)', () {
+  group('CommandReplayer round-trip (serialize �?deserialize �?replay)', () {
     test('full round-trip for UpdateBlockSourceCommand', () {
       final editor = InMemoryDocumentEditor();
       final history = EditorHistory();
@@ -398,11 +390,9 @@ void main() {
       );
       expect(handler.handle(originalCommand), isTrue);
 
-      // 2. 序列化
-      final event = CommandReplayer.serialize(originalCommand);
+      // 2. 序列�?      final event = CommandReplayer.serialize(originalCommand);
 
-      // 3. 重置编辑器到初始状态
-      final replayEditor = InMemoryDocumentEditor();
+      // 3. 重置编辑器到初始状�?      final replayEditor = InMemoryDocumentEditor();
       final replayHistory = EditorHistory();
       final replayHandler = CommandHandler(
         editor: replayEditor,
@@ -410,8 +400,7 @@ void main() {
       );
       final replayId = replayEditor.addParagraph('initial');
 
-      // 4. 修正 blockId（新 editor 的 blockId 不同）
-      final correctedEvent = ReplayCommandEvent(
+      // 4. 修正 blockId（新 editor �?blockId 不同�?      final correctedEvent = ReplayCommandEvent(
         commandName: event.commandName,
         params: {
           'blockId': replayId.value,
