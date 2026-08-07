@@ -22,10 +22,18 @@ import 'transaction_builder.dart';
 /// 原子回滚一个 [TransactionBuilder]：逆序 revert 已 apply 的 op，再清空 ops。
 ///
 /// [builder] 必须尚未 commit/rollback（否则 [TransactionBuilder.rollback] 抛 [StateError]）。
-void revertBuilder(TransactionBuilder builder, DocumentEditor editor) {
+///
+/// **P1 信噪比修复（2026-08-06）**：新增 [unexpected] 参数，透传给
+/// [TransactionBuilder.rollback]。默认 `false`（良性回滚，对应守卫拒绝）；
+/// 异常路径调用方传 `true`，触发 ErrorSnapshot。
+void revertBuilder(
+  TransactionBuilder builder,
+  DocumentEditor editor, {
+  bool unexpected = false,
+}) {
   // 逆序：先撤销最后 apply 的 op，再撤销更早的 op，确保依赖顺序正确
   for (final op in builder.ops.reversed) {
     op.revert(editor);
   }
-  builder.rollback();
+  builder.rollback(unexpected: unexpected);
 }

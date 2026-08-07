@@ -17,6 +17,45 @@ import 'editor_intent.dart';
 class BlockBehaviorResolver {
   const BlockBehaviorResolver();
 
+  /// 判定块内容是否"语义为空"（去除 Markdown 前缀后 trim 为空）。
+  ///
+  /// 空块 Enter → SplitBlockCommand（Typora 语义：空行 Enter = 新建兄弟块）；
+  /// 非空 → 同块插入换行（避免 FocusNode 切换打断 IME）。
+  ///
+  /// - Paragraph / Code / Mermaid / Table / HR：直接看 source.trim()。
+  /// - Heading：去掉 `#* ` 前缀。
+  /// - ListItem / TaskListItem：去掉 `- ` / `1. ` / `- [ ] ` 等前缀。
+  /// - Blockquote：去掉 `> ` 前缀。
+  static bool isSemanticallyEmpty(BlockType type, String source) {
+    final trimmed = source.trim();
+    switch (type) {
+      case BlockType.paragraph:
+      case BlockType.code:
+      case BlockType.mermaid:
+      case BlockType.table:
+      case BlockType.horizontalRule:
+        return trimmed.isEmpty;
+      case BlockType.heading:
+        // 去掉 `#` 前缀 + 紧随的空格后判定
+        final withoutSharps = trimmed.replaceFirst(RegExp(r'^#+\s*'), '');
+        return withoutSharps.trim().isEmpty;
+      case BlockType.listItem:
+        // `- ` / `* ` / `1. ` / `2. ` 等
+        final withoutPrefix =
+            trimmed.replaceFirst(RegExp(r'^(\d+\.|[-*+])\s*'), '');
+        return withoutPrefix.trim().isEmpty;
+      case BlockType.taskListItem:
+        // `- [ ] ` / `* [x] ` 等
+        final withoutPrefix = trimmed
+            .replaceFirst(RegExp(r'^[-*+]\s*\[[ xX]\]\s*'), '');
+        return withoutPrefix.trim().isEmpty;
+      case BlockType.blockquote:
+        // `> ` / `>> `（嵌套引用也视为"空引用前缀"）
+        final withoutPrefix = trimmed.replaceFirst(RegExp(r'^(>\s*)+'), '');
+        return withoutPrefix.trim().isEmpty;
+    }
+  }
+
   /// 回车意图 → Command（Enter 矩阵，规范 §3）。
   ///
   /// 决策原则：Enter 产生"当前块类型的兄弟单元"；仅 Code 块内换行、
@@ -29,11 +68,34 @@ class BlockBehaviorResolver {
     final element = c.getBlock(id);
     if (element == null) return null;
     final type = BlockType.fromElement(element);
+    final source = c.sourceOf(id);
+    final isEmpty = isSemanticallyEmpty(type, source);
     switch (type) {
       case BlockType.paragraph:
+        // 段落：空块回车 → 分块（Typora 语义：空行 Enter = 新建段）；
+        // 非空回车 → 同块插入换行，避免 FocusNode 切换打断 IME（移动端核心体验）。
+        // 未来 Phase B 接入 Shift+Enter / 上下文菜单后，再提供显式分块路径。
+        if (isEmpty) {
+          return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
+        }
+        return InsertTextCommand(
+          blockId: id,
+          text: '\n',
+          cursorOffset: 0,
+          selection: sel,
+        );
       case BlockType.heading:
-        // 光标处拆出新兄弟块（标题回车落为段落）。
-        return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
+        // 标题：空标题回车 → 分块（退出标题落为段落兄弟，Typora 语义）；
+        // 非空回车 → 同块插入换行（保留标题语义 + 不打断 IME）。
+        if (isEmpty) {
+          return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
+        }
+        return InsertTextCommand(
+          blockId: id,
+          text: '\n',
+          cursorOffset: 0,
+          selection: sel,
+        );
       case BlockType.code:
         // 代码块内换行，不分块（底层 Markdown 保留 \n）。
         return InsertTextCommand(
@@ -45,7 +107,18 @@ class BlockBehaviorResolver {
       case BlockType.listItem:
       case BlockType.taskListItem:
       case BlockType.blockquote:
-      // Phase B：列表续项 / 引用续行；Phase A 暂退化为分块以保持可用。
+        // Phase B：列表续项 / 引用续行；Phase A 退化为：
+        // - 空块回车 = 分块（退出列表/引用）
+        // - 非空 = 同块换行（避免打断 IME）
+        if (isEmpty) {
+          return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
+        }
+        return InsertTextCommand(
+          blockId: id,
+          text: '\n',
+          cursorOffset: 0,
+          selection: sel,
+        );
       case BlockType.table:
       case BlockType.mermaid:
       case BlockType.horizontalRule:

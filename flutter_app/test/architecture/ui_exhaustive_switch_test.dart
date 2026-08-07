@@ -1,7 +1,7 @@
 /// TC-ARCH-UI-8: Phase 3.0 exhaustive switch 守门测试。
 ///
 /// 落地 Phase 3.0 Task Contract §3.3（BlockRenderer 抽象）+ §6（Exit Gate）+
-/// ADR-0009 Hard Rule 3（BlockRenderer 抽象）。
+/// ADR-0009 Hard Rule 3（BlockRenderer 抽象）+ ADR-0022 Renderer Failure Policy。
 ///
 /// 守门内容：
 /// - `BlockRenderer` 必须使用 `switch (element)` exhaustive 语法
@@ -10,14 +10,15 @@
 ///   （Phase 3.0: paragraph / heading / code
 ///    Phase 3.2 PR #2: quote / table
 ///    Phase 3.2 PR #3: mermaid）
-/// - 未实现的 3 种类型必须显式 throw UnimplementedError（不默默退化显示）
+/// - 未实现的 3 种类型必须经 `FallbackBlockRenderer` 降级渲染
 ///   （listItem / taskListItem / horizontalRule）
 ///   MathBlock 留 Phase 3.5+（依赖 FormulaSvgService 集成）
 ///
-/// 为什么不允许 GenericBlock fallback（Human Owner 反馈）：
-/// - 若有 fallback，新增 Block 类型时不会立刻暴露未实现，可能默默退化显示
-/// - 显式抛错让 Phase 3.2+ 实现新类型时立即被测试发现
-/// - 与 Phase 2.4 的 BlockType.fromElement exhaustive 设计一致
+/// ADR-0022 变更（2026-08-06）：
+/// 原 Phase 3.2 PR #3 要求未实现类型抛 `UnimplementedError`，但生产用户
+/// 触发 `TaskListItemElement` 时崩溃（snapshot.json 实证）。ADR-0022 改为
+/// 经 `FallbackBlockRenderer` 降级渲染（不 crash + 不丢数据 + 可编辑）。
+/// 未实现类型检测责任转移到 observability `UnsupportedBlockFallback` 事件。
 library;
 
 import 'dart:io';
@@ -99,13 +100,20 @@ void main() {
         isTrue,
         reason: 'Phase 3.2 PR #3：BlockRenderer 必须支持 MermaidElement',
       );
-      // 其他 3 种类型必须显式 throw UnimplementedError（不默默 fallback）
+      // 其他 3 种类型必须经 FallbackBlockRenderer 降级渲染（ADR-0022）
+      // 不允许 throw UnimplementedError（用户路径不能 crash）
       // MathBlock 留 Phase 3.5+（依赖 FormulaSvgService 集成）
       expect(
-        content.contains('UnimplementedError'),
+        content.contains('throw UnimplementedError'),
+        isFalse,
+        reason: 'ADR-0022 §2.1：block_renderer.dart 不应含 throw UnimplementedError '
+            '语句。未实现类型必须经 FallbackBlockRenderer 降级渲染。',
+      );
+      expect(
+        content.contains('FallbackBlockRenderer'),
         isTrue,
-        reason: 'Phase 3.2 PR #3：未实现的 3 种类型必须显式 throw '
-            'UnimplementedError，不允许默默退化显示。',
+        reason: 'ADR-0022 §2.2：未实现的 3 种类型必须经 FallbackBlockRenderer '
+            '降级渲染（不 crash + 不丢数据 + 可编辑）',
       );
     });
   });

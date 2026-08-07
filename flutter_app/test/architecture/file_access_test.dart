@@ -57,6 +57,8 @@ void main() {
       //   - core/services/asset_service.dart       (ADR-0014 资产 IO 唯一入口：
       //     图片复制到 documents/assets/，writeAsBytes 仅此一处；与
       //     FileRepository（文档 IO）平行，Phase 3.4 Slice 4 登记)
+      //   - core/observability/export_pipeline.dart (Phase 3.7.3 诊断导出管道：
+      //     生成 zip 到应用文档目录，非用户文档；file I/O 是导出功能的核心职责)
       final allowedRoots = [
         'lib/core/services/file_repository.dart',
         'lib/core/services/file_service.dart',
@@ -64,6 +66,7 @@ void main() {
         'lib/core/services/document_service.dart',
         'lib/domain/services/export_service.dart',
         'lib/core/services/asset_service.dart',
+        'lib/core/observability/export_pipeline.dart',
       ];
       final hits = <String>[];
       final libDir = Directory('lib');

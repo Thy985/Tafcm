@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/observability/observability_service.dart';
 import '../presentation/theme/app_theme.dart';
 
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
@@ -83,3 +84,13 @@ class EditorContentNotifier extends StateNotifier<String> {
 
   void clear() => state = '';
 }
+
+// ============ Observability（Phase 3.7） ============
+
+/// 编辑器可观测服务（LIGHT 模式，默认开启）。
+///
+/// 持有 [CommandTracer]、[TransactionTracer]、[InteractionTracer]、
+/// [ErrorSnapshotter] 等，通过 [EditorCoordinator] 可选注入。
+final observabilityProvider = Provider<ObservabilityService>((ref) {
+  return ObservabilityService();
+});

@@ -41,17 +41,48 @@ void main() {
   tearDown(() => coordinator.dispose());
 
   group('Enter 矩阵（§3）', () {
-    test('Paragraph → SplitBlockCommand（光标处拆兄弟块）', () {
+    test('Paragraph（非空）→ InsertTextCommand("\\n")（同块换行，不打断 IME）', () {
       final cmd = resolver.resolveEnter(
           coordinator, paraId, const TextSelection.collapsed(offset: 3));
-      expect(cmd, isA<SplitBlockCommand>());
-      expect((cmd as SplitBlockCommand).offset, 3);
+      expect(cmd, isA<InsertTextCommand>());
+      expect((cmd as InsertTextCommand).text, '\n');
+      expect(cmd.cursorOffset, 0);
+      expect(cmd.selection?.baseOffset, 3);
     });
 
-    test('Heading → SplitBlockCommand（标题回车落为段落）', () {
+    test('Paragraph（空块）→ SplitBlockCommand（空行 Enter = 新建段，Typora 语义）', () {
+      final editor = InMemoryDocumentEditor(title: 'empty_para');
+      editor.insertBlock(0, const ParagraphElement(children: [TextElement('')]));
+      final c = EditorCoordinator(
+        editor: editor,
+        history: EditorHistory(maxHistorySize: 20),
+      );
+      final emptyId = c.allIds.first;
+      final cmd = resolver.resolveEnter(
+          c, emptyId, const TextSelection.collapsed(offset: 0));
+      expect(cmd, isA<SplitBlockCommand>());
+      c.dispose();
+    });
+
+    test('Heading（非空）→ InsertTextCommand("\\n")（同块换行，保留标题语义 + 不打断 IME）', () {
       final cmd = resolver.resolveEnter(
           coordinator, headingId, const TextSelection.collapsed(offset: 2));
+      expect(cmd, isA<InsertTextCommand>());
+      expect((cmd as InsertTextCommand).text, '\n');
+    });
+
+    test('Heading（空块）→ SplitBlockCommand（空标题 Enter = 退出标题，落为段落兄弟）', () {
+      final editor = InMemoryDocumentEditor(title: 'empty_h1');
+      editor.insertBlock(0, const HeadingElement(level: 2, text: ''));
+      final c = EditorCoordinator(
+        editor: editor,
+        history: EditorHistory(maxHistorySize: 20),
+      );
+      final emptyId = c.allIds.first;
+      final cmd = resolver.resolveEnter(
+          c, emptyId, const TextSelection.collapsed(offset: 0));
       expect(cmd, isA<SplitBlockCommand>());
+      c.dispose();
     });
 
     test('Code → InsertTextCommand("\\n")（块内换行，不分块）', () {

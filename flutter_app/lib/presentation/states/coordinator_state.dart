@@ -82,10 +82,16 @@ class CoordinatorState {
             oldState.copyWith(isFocused: false, mode: RenderMode.rendered);
       }
     }
-    final curState = next[id];
-    if (curState != null) {
-      next[id] =
-          curState.copyWith(isFocused: true, mode: RenderMode.editing);
+    // P0 修复（真机问题 1+5）：新块由 InsertBlockAfterCommand / SplitBlockCommand
+    // 创建后，其 BlockViewState 尚未注入 viewStates。原代码 curState == null 时跳过，
+    // 导致 focusedId 指向新块但 viewState 缺失 → UI 兜底为 rendered 态 →
+    // setFocus 幂等守卫使点击无效 → IME 收起。修复：缺失时创建默认 editing 态。
+    final wasMissing = !next.containsKey(id);
+    final curState = next[id] ?? BlockViewState(id: id);
+    next[id] = curState.copyWith(isFocused: true, mode: RenderMode.editing);
+    if (wasMissing) {
+      // 可观测层：viewState 缺失时创建（帮助真机调试追踪新块焦点路径）。
+      debugPrint('[focusOn] created missing viewState for block $id');
     }
     return CoordinatorState(
       viewStates: Map.unmodifiable(next),

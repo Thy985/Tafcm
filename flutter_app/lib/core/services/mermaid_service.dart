@@ -7,6 +7,14 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 /// 页面加载完成后的回调签名。由 [MermaidService.markPageLoaded] 触发。
 typedef MermaidPageLoadedCallback = void Function();
 
+/// 错误报告回调签名（P1 B-6）。
+///
+/// core 层不能 import observability（AGENTS.md §6.1.1），通过此回调
+/// 把 WebView 渲染错误反向通知调用方（presentation 层注入
+/// observability.captureError）。
+typedef MermaidErrorCallback =
+    void Function(String type, String message, Map<String, Object?>? params);
+
 enum MermaidTheme { light, dark }
 
 /// Mermaid 图表 → SVG 字符串渲染服务。
@@ -50,10 +58,35 @@ class MermaidService {
   static final Map<MermaidTheme, String> _themeSvgCache = {};
   static final List<MermaidPageLoadedCallback> _pageLoadedCallbacks = [];
 
+  /// P1 B-6：错误回调。由 presentation 层注入（main.dart 启动时调用
+  /// [attachErrorCallback]）。WebView 渲染失败 → 调用方 captureError →
+  /// 进入 observability，让 Mermaid / LaTeX 渲染失败可观测。
+  /// 默认为 null（不报告），保持 core 层不依赖 observability。
+  static MermaidErrorCallback? _onError;
+
   static String get html => _kHtml;
   static bool get isReady => _isReady;
   static bool get isPageLoaded => _pageLoaded;
   static MermaidTheme _activeTheme = MermaidTheme.light;
+
+  /// P1 B-6：注入错误回调（由 main.dart 调用）。
+  static void attachErrorCallback(MermaidErrorCallback? callback) {
+    _onError = callback;
+  }
+
+  /// P1 B-6：报告错误（内部统一汇聚点）。
+  ///
+  /// [type] 错误类型（如 `MermaidRenderError` / `MermaidWebViewCrash`）。
+  /// [message] 错误描述。**不传 SVG / latex 原文**（可能含敏感文档内容），
+  /// 仅传元信息（id / 渲染阶段 / 失败原因）。
+  /// [params] 附加参数（如 requestId, code hash 用于去重）。
+  static void _reportError(
+    String type,
+    String message, {
+    Map<String, Object?>? params,
+  }) {
+    _onError?.call(type, message, params);
+  }
 
   /// WebView 加载本地 HTML 的相对资产路径。
   ///
@@ -124,6 +157,12 @@ class MermaidService {
 
   /// WebView 渲染进程崩溃时调用，重置状态并清除所有待处理的渲染请求。
   static void resetRenderer() {
+    // P1 B-6：WebView 崩溃是重要事件，必须上报。
+    _reportError(
+      'MermaidWebViewCrash',
+      'WebView renderer crashed, ${_waiting.length} waiting + '
+          '${_active.length} active requests dropped',
+    );
     _controller = null;
     _isReady = false;
     _pageLoaded = false;
@@ -154,7 +193,13 @@ class MermaidService {
   /// 清理 WebView DOM 中的所有 payload 元素，释放内存。
   static Future<void> cleanupPayloads() async {
     final controller = _controller;
-    if (controller == null || !_isReady) return;
+    // P3 修复（2026-08-03 真机日志定位）：_isReady 在 attachController 时立即
+    // 置 true，但此时页面可能尚未 onLoadStop。仅检查 _isReady 会在页面未就绪
+    // 时调用 window.cleanupPayloads()，JS 层抛 "Uncaught TypeError:
+    // window.cleanupPayloads is not a function"（虽然 Dart catch 吞掉异常，
+    // 但 chromium console 仍输出，污染日志）。同时检查 _pageLoaded 才能确保
+    // JS 函数已注入。
+    if (controller == null || !_isReady || !_pageLoaded) return;
     try {
       await controller.evaluateJavascript(source: 'window.cleanupPayloads();');
     } catch (_) {}
@@ -358,6 +403,18 @@ class MermaidService {
     if (p != null && !p.completer.isCompleted) {
       p.completer.completeError(MermaidRenderException(error));
     }
+    // P1 B-6：渲染失败统一上报 observability。
+    // 不传 code 原文（可能含敏感文档内容），仅传 requestId + 错误原因。
+    _reportError(
+      'MermaidRenderError',
+      error,
+      params: {
+        'requestId': requestId,
+        // 用 code 长度代替 code 本身，便于诊断"图表是否过大"。
+        'codeLength': p?.code.length,
+        'theme': p?.theme.name,
+      },
+    );
     _dispatchWaiting();
   }
 

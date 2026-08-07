@@ -33,12 +33,13 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // 设计还原铁律（P0-4 / ADR-0020 衍生）：不抄设计稿的设备装饰（状态栏/home
-      // indicator/刘海）。首页用自绘 _Header（非 AppBar），故顶部不套 SafeArea，
-      // 内容直接顶到屏幕最顶；系统状态栏由 OS 提供并透明叠加在纸色背景上，视觉
-      // 上仅一个系统状态栏。bottom 仍 true：让出 home indicator / 底部手势条。
+      // P1-4 修复（2026-08-03 真机验证）：P0-4 (PR #108) 当初有意 SafeArea(top:false)
+      // 让 Header 顶到屏幕最顶，假设系统状态栏透明叠加在纸色背景上。但真机状态栏
+      // 不透明（小米 Android 16 实测），遮挡 "FormulaFix" 字标与右上角按钮组。
+      // 改回 top:true 让出状态栏，与 editor_shell 焦点模式 SafeArea 修复保持一致。
+      // bottom:true 让出 home indicator / 底部手势条。
       body: SafeArea(
-        top: false,
+        top: true,
         bottom: true,
         child: docsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -124,24 +125,46 @@ class HomeScreen extends ConsumerWidget {
   static Future<void> _openDoc(WidgetRef ref, Document doc, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.documentPathFor(doc.id);
-    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
+    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：用 push 保留返回栈，
+    // 编辑器返回按钮才能 pop 回 /home。原 context.go 替换整个栈导致 maybePop 无页可 pop。
+    if (context.mounted) context.push('/editor?path=${Uri.encodeComponent(path)}');
   }
 
   static Future<void> _openAnyMd(WidgetRef ref, BuildContext context) async {
+    // P0 修复（2026-08-04 真机定位）：原用 FileType.custom + allowedExtensions:['md']，
+    // file_picker 8.3.7 会把它转成 Intent(type='*/*', EXTRA_MIME_TYPES=['text/markdown'])。
+    // 小米 HyperOS 的 SAF 实现对该配置过滤异常 → 弹窗完全空白（logcat 仅记录
+    // "User cancelled the picker request"，无错误抛出）。改用 FileType.any 让 SAF
+    // 显示所有文件，Dart 层校验 .md 扩展名：非 .md 时提示用户并中止。
+    // 验证：am start -a OPEN_DOCUMENT -t 'text/markdown' 能正常显示 .md 文件，
+    // 但 -t '*/*' --esa EXTRA_MIME_TYPES 'text/markdown' 在小米上完全空白。
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['md'],
+      type: FileType.any,
     );
     final path = result?.files.single.path;
-    if (path != null && context.mounted) {
-      context.go('/editor?path=${Uri.encodeComponent(path)}');
+    if (path == null) return; // 用户取消
+    if (!path.toLowerCase().endsWith('.md')) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('仅支持 .md 文件'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    if (context.mounted) {
+      // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：push 保留返回栈。
+      context.push('/editor?path=${Uri.encodeComponent(path)}');
     }
   }
 
   static Future<void> _newDoc(WidgetRef ref, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
-    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
+    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：push 保留返回栈。
+    if (context.mounted) context.push('/editor?path=${Uri.encodeComponent(path)}');
   }
 
   static void _onSearch(BuildContext context) {

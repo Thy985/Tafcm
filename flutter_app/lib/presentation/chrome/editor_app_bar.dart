@@ -57,6 +57,12 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 打开文件树侧栏的回调（Phase 3.4.2）。
   final VoidCallback? onOpenFileTree;
 
+  /// 导出诊断数据 zip 的回调（Phase 3.7.3）。
+  ///
+  /// 接到 [EditorPage] 时由该回调驱动 [ObservabilityService.exportDiagnosticZip] 调用，
+  /// 结果（zip 路径）通过 SnackBar 展示。`null` 时不显示菜单项。
+  final VoidCallback? onExportDiagnostics;
+
   /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
   ///
   /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
@@ -76,6 +82,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onOpenToc,
     this.onExportTo,
     this.onOpenFileTree,
+    this.onExportDiagnostics,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
   });
@@ -192,8 +199,8 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.more_vert),
           tooltip: '更多',
           onSelected: (value) => _onMenuSelected(context, value),
-          itemBuilder: (context) => const [
-            PopupMenuItem<String>(
+          itemBuilder: (context) => [
+            const PopupMenuItem<String>(
               value: 'about',
               child: ListTile(
                 leading: Icon(Icons.info_outline),
@@ -202,7 +209,18 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
-            PopupMenuItem<String>(
+            if (onExportDiagnostics != null)
+              const PopupMenuItem<String>(
+                value: 'export_diagnostics',
+                child: ListTile(
+                  leading: Icon(Icons.bug_report),
+                  title: Text('导出诊断数据'),
+                  subtitle: Text('调试用 zip'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            const PopupMenuItem<String>(
               value: 'legacy',
               child: ListTile(
                 leading: Icon(Icons.history),
@@ -233,13 +251,21 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
       };
 
   void _onBack(BuildContext context) {
-    // Phase 3.0：返回到文件管理页（路由由 main.dart 配置）
-    Navigator.of(context).maybePop();
+    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：
+    // 原 `Navigator.maybePop()` 在栈空时静默无操作（冷启动恢复 / 外部 URI 拉起时
+    // 编辑器为栈底，无上一页）→ 按钮点了没反应。改为：能 pop 则 pop，
+    // 否则兜底跳 /home（与 ADR-0018 Decision 4 启动决策链一致）。
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/home');
+    }
   }
 
   /// 处理 PopupMenu 选择。
   ///
   /// - `about`：显示 AboutDialog（Phase 3.1-A PR #2 占位实现）
+  /// - `export_diagnostics`：触发诊断数据导出（Phase 3.7.3）
   /// - `legacy`：跳转到 `/editor-legacy`（旧 EditorScreen fallback）
   void _onMenuSelected(BuildContext context, String value) {
     switch (value) {
@@ -251,10 +277,14 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           applicationLegalese: 'WYSIWYG 编辑器 · Phase 3.0+',
         );
         break;
+      case 'export_diagnostics':
+        onExportDiagnostics?.call();
+        break;
       case 'legacy':
         // Phase 3.1-A PR #2：跳转到 legacy fallback 路由。
         // 旧 EditorScreen 保留一个 release 周期，收集用户反馈后移除。
-        context.go('/editor-legacy');
+        // P1 修复（2026-08-06）：用 push 保留返回栈，用户可从 legacy 返回新编辑器。
+        context.push('/editor-legacy');
         break;
     }
   }

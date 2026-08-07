@@ -9,6 +9,7 @@ import '../../presentation/screens/placeholder_screens.dart';
 import '../../presentation/widgets/home_shell.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/external_file_service.dart';
 import '../../providers/last_opened_path_provider.dart';
 
 /// 应用路由表。
@@ -55,12 +56,19 @@ final appRouter = GoRouter(
     ),
     // Phase 3.1-A PR #2：默认入口指向新 EditorPage（production 路径）。
     // Phase 3.4.2：支持 ?path=<encoded> 打开真实 .md 文件（文件树 / 重启恢复传入）。
+    // P0 修复（2026-08-04）：支持 ?externalUri=<encoded> 打开外部应用（微信等）
+    // 通过 ACTION_VIEW 传来的 content:// URI。与 ?path= 互斥，externalUri 优先。
     GoRoute(
       path: '/editor',
       builder: (context, state) {
         final path = state.uri.queryParameters['path'];
+        final externalUri = state.uri.queryParameters['externalUri'];
         final seedSelector = state.extra is int ? state.extra as int : 0;
-        return EditorPage(filePath: path, seedSelector: seedSelector);
+        return EditorPage(
+          filePath: path,
+          externalUri: externalUri,
+          seedSelector: seedSelector,
+        );
       },
     ),
     // Phase 3.1-A PR #2：旧 EditorScreen 作为 fallback 路由（迁移期保留）
@@ -133,14 +141,33 @@ class _ErrorScreen extends StatelessWidget {
 
 /// 启动引导屏（Phase 3.4.2）。
 ///
-/// 读取"上次打开文件"偏好（[kLastOpenedPathPrefKey]），若有效则恢复到该文件
-/// （满足契约链3 强制"打开文件一致"），否则进入 /files 文件管理页。
-/// 仅作一次性路由决策，不含业务状态。
+/// 优先级（P0 修复 2026-08-04）：
+/// 1. **外部 URI**（冷启动被外部应用拉起）：检查 [ExternalFileService.initialUri]，
+///    非空则跳 `/editor?externalUri=...`，跳过 SharedPreferences。
+/// 2. **上次打开文件**（[kLastOpenedPathPrefKey]）：恢复到上次编辑的文件。
+/// 3. **上次所在 tab**（`last_shell_branch_index`）：恢复到 home/files/reader/me。
+///
+/// 仅作一次性路由决策，不含业务状态。外部 URI 优先于"上次打开文件"——
+/// 用户主动从微信等外部应用拉起本应用时，意图明确是打开新文件，不应被旧文件覆盖。
 class BootstrapScreen extends StatelessWidget {
   const BootstrapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 1. 优先检查冷启动外部 URI（已在 main() 中通过 initialize() 填充）。
+    final externalUri = ExternalFileService.instance.initialUri;
+    if (externalUri != null && externalUri.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        debugPrint('Bootstrap: navigating to external URI: $externalUri');
+        context.go('/editor?externalUri=${Uri.encodeComponent(externalUri)}');
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // 2. 无外部 URI → 走 SharedPreferences 恢复上次状态。
     return FutureBuilder<SharedPreferences>(
       future: SharedPreferences.getInstance(),
       builder: (context, snap) {

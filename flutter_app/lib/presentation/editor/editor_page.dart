@@ -31,6 +31,7 @@ import '../../domain/services/export_service.dart';
 import '../../providers/asset_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/editor_providers.dart';
+import '../../providers/external_file_service_provider.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/last_opened_path_provider.dart';
 import '../theme/app_theme.dart';
@@ -44,10 +45,18 @@ import 'seed_documents.dart';
 
 /// Phase 3.0 顶层编辑器页面（Route 入口）。
 ///
+/// - [externalUri]：外部应用（微信/QQ/浏览器等）通过 ACTION_VIEW 传来的 URI
+///   （content:// 或 file://）。优先级最高，非空时通过 [ExternalFileService]
+///   读取字节流加载。**不设置 [currentPathProvider]**——外部 URI 不可写，
+///   自动保存回退为 inert（不写盘）。
 /// - [filePath]：打开的真实 .md 文件路径（Phase 3.4.2 文件树）。非空时加载该文件；
 ///   为空时回退 [seedSelector] 演示文档。
-/// - [seedSelector]：种子文档（0 = demo1, 1 = demo2, 2 = demo3），仅当 [filePath] 为 null 时生效。
+/// - [seedSelector]：种子文档（0 = demo1, 1 = demo2, 2 = demo3），仅当 [filePath]
+///   为 null 且 [externalUri] 为 null 时生效。
 class EditorPage extends ConsumerStatefulWidget {
+  /// 外部应用通过 ACTION_VIEW 传来的 URI（content:// 或 file://）。null = 非外部入口。
+  final String? externalUri;
+
   /// 打开的真实 .md 文件路径（文件树 / 重启恢复传入）。null = 演示文档。
   final String? filePath;
 
@@ -56,6 +65,7 @@ class EditorPage extends ConsumerStatefulWidget {
 
   const EditorPage({
     super.key,
+    this.externalUri,
     this.filePath,
     this.seedSelector = 0,
   });
@@ -78,7 +88,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.filePath != null) {
+    // 优先级：externalUri > filePath > seedSelector。
+    // externalUri（外部应用打开）和 filePath（文件树）不能并存。
+    if (widget.externalUri != null) {
+      // P0 修复（2026-08-04）：外部应用通过 ACTION_VIEW 打开 .md 文件。
+      // 通过 MethodChannel 反向调用 MainActivity.readUriBytes 读取字节流，
+      // 用 decodeBytesAuto 解码（兼容 GBK / UTF-8 BOM），再走正常解析流程。
+      _loadFromExternalUri(widget.externalUri!);
+    } else if (widget.filePath != null) {
       // Phase 3.4.2：接入真实 .md 路径（ADR-0016 / Slice6），激活自动保存落盘。
       _loadFromFile(widget.filePath!);
     } else {
@@ -91,7 +108,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   void _initSeed(int selector) {
     final editor = _buildSeedEditor(selector);
     final history = EditorHistory(maxHistorySize: 200);
-    _coordinator = EditorCoordinator(editor: editor, history: history);
+    _coordinator = EditorCoordinator(
+      editor: editor,
+      history: history,
+      observability: ref.read(observabilityProvider),
+    );
     _coordinatorReady = true;
     _startAutosave();
   }
@@ -100,6 +121,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   ///
   /// 经 [DocumentRepository.readDocument] 读取 → [MarkdownParser.parse] 解析为块 →
   /// 构造 [InMemoryDocumentEditor]。失败则回退种子文档（不阻断编辑器）。
+  ///
+  /// P1 修复（2026-08-04, B-4）：原实现 `catch (_) { _initSeed(...); }` 静默
+  /// 吞掉所有异常（FileNotFound / 权限拒绝 / GBK 解码失败 / 解析崩溃），用户
+  /// 看到的是"打开后变成演示文档"，完全不知发生了什么。修复后：
+  /// - 错误进 observability（captureError，含 path / error 类型）
+  /// - SnackBar 向用户反馈"无法打开文件 X，已加载演示文档"
   Future<void> _loadFromFile(String path) async {
     try {
       final repo = ref.read(fileRepositoryProvider);
@@ -116,21 +143,154 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         if (element is EmptyLineElement) continue;
         editor.insertBlock(editor.blockCount, element);
       }
-      _coordinator = EditorCoordinator(editor: editor, history: EditorHistory(maxHistorySize: 200));
+      _coordinator = EditorCoordinator(
+        editor: editor,
+        history: EditorHistory(maxHistorySize: 200),
+        observability: ref.read(observabilityProvider),
+      );
       _coordinatorReady = true;
       _startAutosave();
-    } catch (_) {
+    } catch (e, st) {
+      // P1 B-4：用户打开文件失败不再静默。
+      debugPrint('[EditorPage] _loadFromFile failed: $e\n$st');
+      ref.read(observabilityProvider).captureError(
+            type: 'FileLoadError',
+            message: '$e',
+            commandName: '_loadFromFile',
+            commandParams: {'path': path},
+          );
       _initSeed(widget.seedSelector);
+      _showFileLoadFailureSnackBar(path: path, error: e);
+    } finally {
+      if (mounted) setState(() => _ready = true);
+    }
+  }
+
+  /// P1 B-4：文件加载失败的 SnackBar 反馈。
+  ///
+  /// 在 _ready=true 之后调用（_coordinator 已就绪，ScaffoldMessenger 可用）。
+  /// 用户提供路径与异常类型，但不展示 stack / detail（AGENTS.md §4.4）。
+  void _showFileLoadFailureSnackBar({String? path, Object? error}) {
+    if (!mounted) return;
+    final where = path != null ? '文件 $path' : '所选文件';
+    // 简短根因描述：取异常 runtimeType + 截断 message（避免泄露敏感路径细节）。
+    final reason = error == null
+        ? '未知错误'
+        : '${error.runtimeType}: ${error.toString().split('\n').first}';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('无法打开$where，已加载演示文档。\n原因：$reason'),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: '知道了',
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  /// P1 B-5：构造 MarkdownParser 的 onError 回调。
+  ///
+  /// 把单行解析降级事件送入 observability（captureError），
+  /// 让用户 / 诊断 zip 能看到"哪些行解析失败、为什么失败"。
+  /// 不弹 UI——单行降级不打断用户阅读，仅在诊断数据中可见。
+  MarkdownParseErrorHandler _buildParserErrorHandler(String source) {
+    return (lineIndex, error, line) {
+      debugPrint('[EditorPage] parser line $lineIndex failed: $error');
+      ref.read(observabilityProvider).captureError(
+            type: 'MarkdownParseError',
+            message: '$error',
+            commandName: 'MarkdownParser.parse',
+            commandParams: {
+              'source': source,
+              'lineIndex': lineIndex,
+              'line': line.length > 200 ? '${line.substring(0, 200)}...' : line,
+            },
+          );
+    };
+  }
+
+  /// 异步加载外部 URI 指向的 .md 文件（P0 修复 2026-08-04）。
+  ///
+  /// 流程：[ExternalFileService.readContent] 通过 MethodChannel 反向调用
+  /// [MainActivity.readUriBytes] 读取字节流 → [decodeBytesAuto] 解码（兼容
+  /// GBK / UTF-8 BOM）→ [MarkdownParser.parse] 解析 → 构造
+  /// [InMemoryDocumentEditor]。
+  ///
+  /// **不设置 [currentPathProvider]**：外部 URI（content://）不可写，
+  /// 自动保存 [_saveDocument] 检测到 path == null 会返回 false（inert），
+  /// 避免向不可写的 URI 写盘导致崩溃。
+  ///
+  /// P1 修复（2026-08-04, B-4）：原 `catch (_) { _initSeed(...); }` 静默吞掉
+  /// MethodChannel 失败 / ContentResolver 读取失败 / 解析崩溃等。修复后：
+  /// - 错误进 observability（captureError，含 uri / error 类型）
+  /// - SnackBar 向用户反馈"无法打开外部文件，已加载演示文档"
+  Future<void> _loadFromExternalUri(String uri) async {
+    try {
+      final content = await ref.read(externalFileServiceProvider).readContent(uri);
+      // 从 URI 推导标题：取最后一段路径，去掉扩展名。失败兜底"未命名文档"。
+      String title = '未命名文档';
+      try {
+        final decoded = Uri.decodeFull(uri);
+        final lastSegment = decoded.split('/').last;
+        if (lastSegment.isNotEmpty) {
+          // 去掉 query string（content:// URI 可能带 ?xxx=yyy）
+          final name = lastSegment.split('?').first;
+          final dotIndex = name.lastIndexOf('.');
+          title = dotIndex > 0 ? name.substring(0, dotIndex) : name;
+        }
+      } catch (e) {
+        // P1 B-4：标题推导是 best-effort，不影响主流程，仅记录日志。
+        debugPrint('[EditorPage] title derivation failed: $e');
+      }
+      final elements = MarkdownParser.parse(
+        content,
+        onError: _buildParserErrorHandler(uri),
+      );
+      final editor = InMemoryDocumentEditor(title: title);
+      for (final element in elements) {
+        if (element is EmptyLineElement) continue;
+        editor.insertBlock(editor.blockCount, element);
+      }
+      _coordinator = EditorCoordinator(
+        editor: editor,
+        history: EditorHistory(maxHistorySize: 200),
+        observability: ref.read(observabilityProvider),
+      );
+      _coordinatorReady = true;
+      _startAutosave();
+    } catch (e, st) {
+      // P1 B-4：外部 URI 加载失败不再静默。
+      debugPrint('[EditorPage] _loadFromExternalUri failed: $e\n$st');
+      ref.read(observabilityProvider).captureError(
+            type: 'ExternalUriLoadError',
+            message: '$e',
+            commandName: '_loadFromExternalUri',
+            commandParams: {'uri': uri},
+          );
+      _initSeed(widget.seedSelector);
+      _showFileLoadFailureSnackBar(path: null, error: e);
     } finally {
       if (mounted) setState(() => _ready = true);
     }
   }
 
   /// 启动自动保存（ADR-0013：显式 DI，无全局单例）。
+  ///
+  /// P2 修复（2026-08-04）：注入 onError 回调，把磁盘满 / 权限拒绝 /
+  /// 文件锁定等持久化失败送入 observability（captureError）。
   void _startAutosave() {
     _autosave = AutosaveService(
       source: _coordinator,
       save: _saveDocument,
+      onError: (error, stack) {
+        debugPrint('[EditorPage] autosave failed: $error\n$stack');
+        ref.read(observabilityProvider).captureError(
+              type: 'AutosaveError',
+              message: '$error',
+              commandName: '_saveDocument',
+            );
+      },
     );
     _autosave!.start();
   }
@@ -146,9 +306,24 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 注：当前演示路径（[seedSelector]）不设置 [currentPathProvider]，故自动保存在该路径下
   /// 为 inert（不写盘、不误标已保存）。一旦 EditorPage 接入真实 .md 路径（ADR-0016 / Slice6
   /// 文件树），本回调即生效，E2E「关 App 重开内容一致」随之满足。
+  ///
+  /// P2 修复（2026-08-04, B-3）：明确区分两种"未落盘"情况：
+  /// - **path == null**（演示文档 / 无主 .md）：**正常行为**，return false，
+  ///   AutosaveService 进入 idle 不重试，**不进 observability**（避免噪音）。
+  ///   仅在 dirty 时 debugPrint 提示"无路径跳过保存"，便于调试。
+  /// - **writeDocument 异常**（磁盘满 / 权限 / 文件锁）：异常冒泡到
+  ///   AutosaveService._saveOnce catch → onError 回调 → captureError，
+  ///   进入 observability 作为 `AutosaveError`，并触发指数退避重试。
   Future<bool> _saveDocument() async {
     final path = ref.read(currentPathProvider);
-    if (path == null) return false;
+    if (path == null) {
+      // P2 B-3：演示文档 / 无主 .md 路径——正常跳过，不报错。
+      // 仅在 dirty 时 debugPrint，便于调试"为什么没保存"。
+      if (_coordinator.isDirty) {
+        debugPrint('[EditorPage] autosave skipped: no path (demo document)');
+      }
+      return false;
+    }
     // 触发时刻快照：在 save 回调**起始同步**读取（避免写盘进行中的实时 live 回退）。
     final snapshot = _coordinator.editor.allSources.join('\n');
     await ref.read(fileRepositoryProvider).writeDocument(
@@ -224,10 +399,46 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             pickImage: ref.read(imagePickAndImportProvider),
             // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
             onExportTo: _handleExport,
+            // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
+            onExportDiagnostics: _handleExportDiagnostics,
           ),
         ),
       ),
     );
+  }
+
+  /// 导出诊断数据 zip（Phase 3.7.3）。
+  ///
+  /// 通过 [EditorCoordinator.exportDiagnosticZip] 委托到 [ObservabilityService]，
+  /// 结果（zip 路径）通过 SnackBar 展示。
+  Future<void> _handleExportDiagnostics() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('正在导出诊断数据...')),
+    );
+    final path = await _coordinator.exportDiagnosticZip();
+    if (!mounted) return;
+    if (path != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('诊断数据已导出：$path'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: '分享',
+            onPressed: () async {
+              await Share.shareXFiles(
+                [XFile(path)],
+                subject: 'FormulaFix 诊断数据',
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('导出诊断数据失败（可观测性未启用）')),
+      );
+    }
   }
 
   /// 导出动作入口（Phase 3.4 Slice 7 / 3.4.4）。
@@ -278,8 +489,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         [XFile(path, mimeType: _mimeFor(format))],
         subject: title,
       );
-    } catch (e) {
+    } catch (e, st) {
       // 失败：分类 → ExportFailedState。Overlay 显示分类友好文案。
+      //
+      // P2 修复（2026-08-04）：导出失败也送入 observability（captureError）。
+      // 用户能在 Overlay 看到友好文案（"导出失败：字体缺失"），但诊断 zip
+      // 之前完全无记录——开发者收到 zip 后无法定位"哪一步失败、什么异常"。
+      // 现在捕获 + 类型标签 + 格式，让诊断 zip 可还原导出失败现场。
+      debugPrint('[EditorPage] export failed: $e\n$st');
+      ref.read(observabilityProvider).captureError(
+            type: 'ExportError',
+            message: '$e',
+            commandName: '_handleExport',
+            commandParams: {'format': format.name},
+          );
       final info = classifyError(e);
       notifier.fail(format, info.kind);
     }
@@ -294,9 +517,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       };
 
   /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
-  /// 并导航到该文件（替换当前编辑器路由，FileTreePanel 随旧 EditorPage 一并销毁）。
+  /// 并导航到该文件。用 [context.pushReplacement] 替换栈顶 /editor，保留下方 /home 或 /files
+  /// 作为返回页（P1 修复 2026-08-06，phase3.5-realdevice-issues 问题 2）。
+  /// 原 `context.go` 会替换整个栈，导致编辑器返回按钮无页可 pop。
   void _openFile(String path) {
     ref.read(lastOpenedPathProvider.notifier).set(path);
-    context.go('/editor?path=${Uri.encodeComponent(path)}');
+    context.pushReplacement('/editor?path=${Uri.encodeComponent(path)}');
   }
 }

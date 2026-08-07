@@ -5,6 +5,26 @@
 > **令牌真源**：`design-system/tokens.json` v1.0.0（来自 `formulafix-redesign.design`）
 > **方法**：只读静态审计（全局检索 + 关键文件行号核实），未改动任何文件。
 
+> **状态更新（2026-08-06，基于代码实况核实）**
+>
+> 本文档反映 2026-07-30 的审计基线。以下缺口已通过 UI 修复 PR 落地，更新摘要详见 `docs/UI_FIX_PLAN.md` 头部"进度同步"表：
+>
+> | 章节 | 缺口 | 当前状态 | 修复证据 |
+> |------|------|---------|---------|
+> | §1 shadow 维度 | 暗色阴影失效（明暗同值） | ✅ 已修复（PR-A #109） | `app_constants.dart:71-77` 分 light/dark 套 |
+> | §1 component 维度 | `toggle/searchPill/ghost/fab` 0 实现 | ✅ 已实现（PR-F #117） | `buttons.dart` 4 组件 + 单测 |
+> | §2 side_panel_host | 占位死代码 | ✅ 已删除（PR-F #117） | Glob 找不到 `side_panel_host.dart` |
+> | §4 Top 缺口 #1 | 首页无 golden + 搜索占位 | ✅ golden 已补（PR-C #111）/ 🟡 搜索占位仍 `SnackBar` | `home_screen_*_test.dart` 已建 |
+> | §4 Top 缺口 #2 | dark 阴影失效 | ✅ 已修复（PR-A #109） | 同上 |
+> | §4 Top 缺口 #3 | 4 组件规格 0 实现 | ✅ 已实现（PR-F #117） | 同上 |
+> | §4 Top 缺口 #4 | 侧栏占位死代码 | ✅ 已清理（PR-F #117） | 同上 |
+> | §4 Top 缺口 #5 | spacing/radius 令牌未集中 | ✅ 已提交（PR-E #116） | `AppSpacing` 补全 7 项命名令牌 |
+> | §4 Top 缺口 #6 | 主题切换无 golden + 字号令牌缺 | ✅ golden 已补（PR-C #111）/ 🟡 字号令牌部分补（PR-E #116） | — |
+> | §4 Top 缺口 #7 | "双状态栏"观感（抄设备装饰） | ✅ 已修复（PR-G #108） | `home_screen.dart:31` `SafeArea(top:false, bottom:true)` |
+> | §5 守门建议 | Golden 矩阵扩充 | ✅ 已扩充（PR-C #111） | `home_screen` 三主题 + 多尺寸 golden |
+>
+> **仍未完成项**：PR-Fb（首页 `_RoundButton`→`GhostButton` 接线 / 搜索栏接 `SearchPill` / P2-3 主题色 swap）+ PR-H（P3 颜色语义化长期治理）。
+
 ---
 
 ## 0. 结论速览

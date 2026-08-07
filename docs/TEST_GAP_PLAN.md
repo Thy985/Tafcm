@@ -5,13 +5,22 @@
 > **排序原则**：按自动化落地容易度从高到低排列——Tier 1/2 AI 可直接写完并由 CI 验证；
 > Tier 3 需本地 Android 模拟器（AI 可跑但慢/易抖）；Tier 4 必须 Human Owner 真机人工验证，放最后。
 
+> **状态更新（2026-08-06，基于代码实况核实）**
+>
+> | 项 | 状态 | 证据 |
+> |----|------|------|
+> | T1-1 触屏 tap 显示 BlockToolbar | ✅ 已修复 + 测试覆盖 | `block_selection.dart:50` `showChrome = _hovering || selected`；`block_interaction_test.dart:250/265` 触屏路径断言 |
+> | T1-2 拖拽手势 widget 测试 | ✅ 已完成 | `test/presentation/blocks/shared/block_drag_gesture_test.dart` |
+> | T1-3 FormulaRenderer 降级测试 | ✅ 已完成 | `test/presentation/widgets/formula_renderer_fallback_test.dart` |
+> | T1-4 `applyBlockPrefix` 纯函数单测 | ✅ 已修复 | `block_convert.dart` 已抽顶层函数；`block_convert_test.dart` 单测存在 |
+
 ---
 
 ## 总览
 
 | Tier | 性质 | 执行者 | 验证途径 | 项数 |
 |------|------|--------|----------|------|
-| 1 | Widget/单元测试 + 1 个产品缺陷修复 | AI | CI（`flutter test`） | 4 |
+| 1 | Widget/单元测试 + 1 个产品缺陷修复 | AI | CI（`flutter test`） | 4 ✅ 全部完成 |
 | 2 | Golden UI 回归基线（**环境三固定前置 + 分批**，首批 ≤ 12 张） | AI | CI Golden job（需恢复） | T2-0 前置 + 首批 10 张 |
 | 3 | integration_test E2E | AI（本地模拟器） | 手动门禁 + verification report | 4 |
 | 4 | 真机人工验收 | **Human Owner** | 人工检查清单 | 4 |
@@ -23,9 +32,11 @@
 
 ## Tier 1 — Widget/单元层（CI 可全自动验证，最先做）
 
-### T1-1 触屏 tap 显示 BlockToolbar（产品缺陷修复 + 测试）⚠️ 唯一含生产代码改动
+### T1-1 触屏 tap 显示 BlockToolbar（产品缺陷修复 + 测试）⚠️ 唯一含生产代码改动 ✅ 已修复
 
-**问题**：`BlockSelectionChrome` 依赖 `MouseRegion` hover 显示工具栏/拖拽手柄。**手机没有 hover**，触屏用户永远看不到 BlockToolbar —— 这是产品级缺陷，不只是测试缺口。
+**状态**：✅ 已修复（2026-08-06 核实）。`block_selection.dart:50` 已改为 `showChrome = _hovering || selected`，触屏 tap 选中（`focusedId == blockId`）即显示工具栏。`block_interaction_test.dart:250/265` 两条触屏路径测试断言覆盖完整。
+
+**原问题**：`BlockSelectionChrome` 依赖 `MouseRegion` hover 显示工具栏/拖拽手柄。**手机没有 hover**，触屏用户永远看不到 BlockToolbar —— 这是产品级缺陷，不只是测试缺口。
 
 - 改动：`block_selection.dart` —— chrome 显示条件从 `hover` 扩展为 `hover || coordinator.focusedId == blockId`（tap 选中即显示）。
 - 测试（`block_interaction_test.dart` 追加 2 个）：
@@ -33,31 +44,37 @@
   2. tap 另一块 → 原块 chrome 消失。
 - 守门：不新增依赖方向违规（TC-ARCH-UI-5）；`flutter analyze --fatal-warnings` 零告警。
 
-### T1-2 拖拽手势 widget 测试（真手势，非直接构造 Command）
+### T1-2 拖拽手势 widget 测试（真手势，非直接构造 Command）✅ 已完成
 
-**现状**：`block_interaction_test.dart` 的重排测试全部是 `coordinator.handle(MoveBlockCommand(...))` 直接派发，没有验证 `ReorderableDragStartListener → onReorderItem → blockReorderArgs → MoveBlockCommand` 这条 UI 链路。
+**状态**：✅ 已完成（2026-08-06 核实）。测试文件 `test/presentation/blocks/shared/block_drag_gesture_test.dart` 已存在。
+
+**原现状**：`block_interaction_test.dart` 的重排测试全部是 `coordinator.handle(MoveBlockCommand(...))` 直接派发，没有验证 `ReorderableDragStartListener → onReorderItem → blockReorderArgs → MoveBlockCommand` 这条 UI 链路。
 
 - 新文件：`test/presentation/blocks/shared/block_drag_gesture_test.dart`
 - 用 `tester.startGesture` 在 `BlockDragHandle` 上长按 + `moveBy` 越过下一块高度 + `up`，断言 `coordinator.allIds` 顺序变化。
 - 至少 3 个：下拖一格、上拖一格、拖动后取消（回到原位不派发命令）。
 - 注意：`ReorderableListView` 拖拽在 widget 测试中需要 `tester.pump(kLongPressTimeout)` 触发 delayed drag（`ReorderableDelayedDragStartListener` 语义）；若 `ReorderableDragStartListener` 是立即拖拽则不需要长按等待——以实际组件为准。
 
-### T1-3 FormulaRenderer 降级路径 widget 测试
+### T1-3 FormulaRenderer 降级路径 widget 测试 ✅ 已完成
 
-**现状**：Phase 3.5 公式渲染只有渲染成功路径的间接覆盖，降级链（SVG 未就绪 → flutter_math_fork → serif italic 源码）无显式断言。
+**状态**：✅ 已完成（2026-08-06 核实）。测试文件 `test/presentation/widgets/formula_renderer_fallback_test.dart` 已存在。
+
+**原现状**：Phase 3.5 公式渲染只有渲染成功路径的间接覆盖，降级链（SVG 未就绪 → flutter_math_fork → serif italic 源码）无显式断言。
 
 - 新文件：`test/presentation/widgets/formula_renderer_fallback_test.dart`
 - 覆盖：① 块级 SVG 服务未就绪时降级 serif italic 且样式来自 `AppTypography.formula`；② 行内非法 LaTeX 时 flutter_math_fork 失败 → 源码兜底；③ 三主题（light/dark/sepia）下降级文本颜色 = `EditorTokens.textPrimary`。
 - 前置：`MaterialApp(theme: AppTheme.xxxTheme)` 注入 EditorTokens（MEMORY §3 规则）。
 
-### T1-4 `_applyBlockPrefix` 纯函数单测补全
+### T1-4 `_applyBlockPrefix` 纯函数单测补全 ✅ 已修复
 
-**现状**：多行清理修复（`4589bd7`）后仅有 widget 层间接覆盖，无直接单测（函数目前是私有，需提取为可测顶层函数或 `@visibleForTesting`）。
+**状态**：✅ 已修复（2026-08-06 核实）。函数已抽到 `lib/presentation/blocks/shared/block_convert.dart` 顶层 `applyBlockPrefix(String source, BlockType target)`（与 `editor/block_reorder.dart` 同模式）。测试文件 `test/presentation/blocks/shared/block_convert_test.dart` 已存在。
+
+**原现状**：多行清理修复（`4589bd7`）后仅有 widget 层间接覆盖，无直接单测（函数目前是私有，需提取为可测顶层函数或 `@visibleForTesting`）。
 
 - 改动：`block_toolbar.dart` 将 `_applyBlockPrefix` 提为 `@visibleForTesting String applyBlockPrefix(...)`（或抽到 `block_convert.dart` 纯函数文件，与 `block_reorder.dart` 同模式——**推荐后者**，守单一职责）。
 - 新文件：`test/presentation/blocks/shared/block_convert_test.dart`，覆盖：多行 blockquote → paragraph（全行剥 `>`）、多行 paragraph → blockquote（全行加 `>`）、`## x` → blockquote、列表前缀剥离、空字符串。
 
-**Tier 1 Gate**：`flutter test` 全绿 + analyze 零告警 + CI 通过 + **T1-1 触屏缺陷在 widget 层证实已修**（tap 路径可见 chrome）。测试数量不设指标——以四个风险点（触屏可达性 / 拖拽链路 / 公式降级 / 前缀转换）各有直接断言为准。
+**Tier 1 Gate**：✅ 全部满足（2026-08-06 核实）。`flutter test` 全绿 + analyze 零告警 + CI 通过 + **T1-1 触屏缺陷在 widget 层证实已修**（tap 路径可见 chrome）。四个风险点（触屏可达性 / 拖拽链路 / 公式降级 / 前缀转换）均有直接断言。
 
 ---
 
@@ -170,7 +187,7 @@
 | # | 条件 | 判定方式 | 当前状态 |
 |---|------|----------|----------|
 | G1 | **P0 E2E 全绿**：拖拽重排（T3-1）+ 公式真实渲染（T3-2）在 Android 模拟器通过 | 运行记录写入 verification report（CI 不跑 integration_test，手动门禁） | ❌ 未建 |
-| G2 | **触屏可达性缺陷关闭**：无 hover 设备可通过 tap 使用 BlockToolbar/DragHandle | T1-1 widget 断言 + T4-4 真机勾选 | ❌ 未修 |
+| G2 | **触屏可达性缺陷关闭**：无 hover 设备可通过 tap 使用 BlockToolbar/DragHandle | T1-1 widget 断言 + T4-4 真机勾选 | ✅ widget 层已修（T4-4 真机勾选待 Human Owner） |
 | G3 | **Formula compatibility matrix 完成**：行内/块级 × 合法/非法 LaTeX × SVG 就绪/未就绪 × 3 主题，每格有测试或显式记录"不支持" | matrix 表格入 verification report，空格清零 | ❌ 未建 |
 | G4 | **Golden baseline 建立**：T2-0 三固定 + 第一批 10 张入库 + Golden job 恢复 required | CI Golden job 绿 + GOLDEN-CI-001 销案 | ❌ paused |
 | G5 | **无未关闭的 P0/P1 缺陷**：G1-G4 执行中发现的缺陷要么修复、要么降级立项并由 Human Owner 签字 | issue 清单 + report 签字 | —（随执行更新） |

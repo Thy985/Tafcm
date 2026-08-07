@@ -1,6 +1,41 @@
 import '../../data/models/document.dart';
 import 'formula_extractor.dart';
 
+/// Markdown 解析异常。
+///
+/// P1 修复（2026-08-04, B-5）：原 [MarkdownParser.parse] 对单行解析失败
+/// 无任何防护——任意一行触发 RegExp 异常 / RangeError / 内部不变量失败，
+/// 整个文档解析崩溃 → 调用方 [EditorPage._loadFromFile] catch 后回退种子文档，
+/// 用户看到的是"打开后变成演示文档"。修复后单行错误降级为 [ParagraphElement]，
+/// 解析继续，并通过 [MarkdownParseError] 回调通知调用方（presentation 层负责
+/// 送入 observability）。
+class MarkdownParseException implements Exception {
+  final String message;
+  final int? lineIndex;
+  final String? lineSnippet;
+
+  MarkdownParseException(this.message, {this.lineIndex, this.lineSnippet});
+
+  @override
+  String toString() {
+    final buf = StringBuffer('MarkdownParseException: $message');
+    if (lineIndex != null) buf.write(' (line $lineIndex)');
+    if (lineSnippet != null) {
+      // 截断长行，避免错误消息过长。
+      final s = lineSnippet!;
+      final snip = s.length > 80 ? '${s.substring(0, 80)}...' : s;
+      buf.write(': "$snip"');
+    }
+    return buf.toString();
+  }
+}
+
+/// 单行解析错误回调签名。
+///
+/// [lineIndex]：0-based 行号；[error]：异常对象；[line]：触发异常的原文行。
+typedef MarkdownParseErrorHandler =
+    void Function(int lineIndex, Object error, String line);
+
 /// 行内 token 的语义类型，按 ADR-0004 优先级排列。
 enum _InlineKind { image, link, code, bold, italic, strike }
 
@@ -31,7 +66,22 @@ class MarkdownParser {
   static final RegExp _italicStarRe = RegExp(r'\*([^*\n]+?)\*');
   static final RegExp _italicUnderRe = RegExp(r'_(?=\S)([^\n_]+?)_(?=\s|$)');
   static final RegExp _strikeRe = RegExp(r'~~(.+?)~~');
-  static List<DocumentElement> parse(String content) {
+
+  /// 解析 Markdown 文本为 [DocumentElement] 列表。
+  ///
+  /// P1 修复（2026-08-04, B-5）：原实现对单行解析失败无防护，任意一行触发
+  /// RegExp 异常 / RangeError → 整个文档解析崩溃 → 调用方 catch 后回退种子
+  /// 文档。修复后：
+  /// - 单行解析失败降级为 [ParagraphElement]（保留原文），解析继续
+  /// - 通过 [onError] 回调通知调用方（presentation 层送入 observability）
+  /// - 不再让一行坏数据让整个文档打不开
+  ///
+  /// [onError]：可选错误回调。core 层不 import observability（AGENTS.md
+  /// §6.1.1），由调用方注入 captureError。回调同步调用，确保错误不丢。
+  static List<DocumentElement> parse(
+    String content, {
+    MarkdownParseErrorHandler? onError,
+  }) {
     if (content.isEmpty) return [];
 
     final List<DocumentElement> elements = [];
@@ -95,162 +145,177 @@ class MarkdownParser {
     for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       final line = lines[lineIndex];
 
-      if (line.startsWith('```')) {
-        if (!inCodeBlock) {
+      // P1 B-5：单行解析降级。try 块覆盖所有块级分支 + inline 解析，
+      // 任意异常都降级为 ParagraphElement（保留原文），不影响后续行。
+      try {
+        if (line.startsWith('```')) {
+          if (!inCodeBlock) {
+            flushParagraph();
+            flushListItems();
+            flushTable();
+            inCodeBlock = true;
+            codeLanguage = line.length > 3 ? line.substring(3).trim() : '';
+          } else {
+            inCodeBlock = false;
+            flushCodeBlock();
+            codeLanguage = null;
+          }
+          continue;
+        }
+
+        if (inCodeBlock) {
+          codeLines.add(line);
+          continue;
+        }
+
+        if (line.trim().isEmpty) {
           flushParagraph();
           flushListItems();
           flushTable();
-          inCodeBlock = true;
-          codeLanguage = line.length > 3 ? line.substring(3).trim() : '';
-        } else {
-          inCodeBlock = false;
-          flushCodeBlock();
-          codeLanguage = null;
-        }
-        continue;
-      }
-
-      if (inCodeBlock) {
-        codeLines.add(line);
-        continue;
-      }
-
-      if (line.trim().isEmpty) {
-        flushParagraph();
-        flushListItems();
-        flushTable();
-        elements.add(const EmptyLineElement());
-        continue;
-      }
-
-      if (line.startsWith('#')) {
-        flushParagraph();
-        flushListItems();
-        flushTable();
-        int level = 0;
-        int i = 0;
-        while (i < line.length && line[i] == '#') {
-          level++;
-          i++;
-        }
-        elements.add(HeadingElement(
-          level: level,
-          text: line.substring(level).trim(),
-        ));
-        continue;
-      }
-
-      final trimmedLine = line.trim();
-
-      // 任务列表：- [ ] / - [x]（ADR-0004 块级扩展，仅新增元素）
-      final taskMatch = RegExp(r'^\s*- \[( |x|X)\]\s+(.+)$').firstMatch(line);
-      if (taskMatch != null) {
-        flushParagraph();
-        flushListItems();
-        flushTable();
-        final checked = taskMatch.group(1) != ' ';
-        final itemText = taskMatch.group(2)!;
-        final indent = getIndent(line);
-        elements.add(TaskListItemElement(
-          children: _parseInline(itemText),
-          checked: checked,
-          indent: indent,
-        ));
-        continue;
-      }
-
-      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') ||
-          trimmedLine.startsWith('+ ') || RegExp(r'^\d+\.\s').hasMatch(trimmedLine)) {
-        flushParagraph();
-        flushTable();
-
-        final indent = getIndent(line);
-        final isOrdered = RegExp(r'^\d+\.\s').hasMatch(trimmedLine);
-        String itemText;
-
-        if (isOrdered) {
-          itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+\d+\.\s+'), '');
-          if (itemText == trimmedLine) {
-            itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+'), '');
-          }
-        } else {
-          itemText = trimmedLine.substring(2);
-        }
-
-        final inlineChildren = _parseInline(itemText);
-
-        if (indent > 0 && pendingListItems.isNotEmpty) {
-          final lastItem = pendingListItems.removeLast();
-          final mergedText = lastItem.children
-              .whereType<TextElement>()
-              .map((c) => c.text)
-              .join();
-          final lastInlineText = mergedText.isEmpty
-              ? ''
-              : '$mergedText\n${'  ' * indent}${inlineChildren
-                  .whereType<TextElement>()
-                  .map((c) => c.text)
-                  .join()}';
-          final reParsed = lastInlineText.isEmpty
-              ? <InlineElement>[]
-              : _parseInline(lastInlineText);
-          pendingListItems.add(ListElement(
-            children: reParsed,
-            ordered: lastItem.ordered,
-            indent: indent,
-          ));
-        } else {
-          pendingListItems.add(ListElement(
-            children: inlineChildren,
-            ordered: isOrdered,
-            indent: indent,
-          ));
-        }
-        continue;
-      }
-
-      if (trimmedLine.startsWith('> ')) {
-        flushParagraph();
-        flushListItems();
-        flushTable();
-        elements.add(BlockquoteElement(text: trimmedLine.substring(2).trim()));
-        continue;
-      }
-
-      if (trimmedLine.startsWith('|')) {
-        flushParagraph();
-        flushListItems();
-        
-        if (_isTableSeparatorRow(trimmedLine)) {
+          elements.add(const EmptyLineElement());
           continue;
         }
-        
-        final cells = _parseTableRow(trimmedLine);
-        if (cells != null && cells.isNotEmpty) {
-          if (currentTable == null) {
-            currentTable = TableElement(headers: cells, rows: []);
-          } else {
-            currentTable!.rows.add(cells);
-          }
-        }
-        continue;
-      } else if (currentTable != null) {
-        flushTable();
-      }
 
-      // 水平分割线：--- / *** / ___（3 个及以上）
-      if (RegExp(r'^\s*(-{3,}|\*{3,}|_{3,})\s*$').hasMatch(line)) {
+        if (line.startsWith('#')) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          int level = 0;
+          int i = 0;
+          while (i < line.length && line[i] == '#') {
+            level++;
+            i++;
+          }
+          elements.add(HeadingElement(
+            level: level,
+            text: line.substring(level).trim(),
+          ));
+          continue;
+        }
+
+        final trimmedLine = line.trim();
+
+        // 任务列表：- [ ] / - [x]（ADR-0004 块级扩展，仅新增元素）
+        final taskMatch = RegExp(r'^\s*- \[( |x|X)\]\s+(.+)$').firstMatch(line);
+        if (taskMatch != null) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          final checked = taskMatch.group(1) != ' ';
+          final itemText = taskMatch.group(2)!;
+          final indent = getIndent(line);
+          elements.add(TaskListItemElement(
+            children: _parseInline(itemText),
+            checked: checked,
+            indent: indent,
+          ));
+          continue;
+        }
+
+        if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') ||
+            trimmedLine.startsWith('+ ') || RegExp(r'^\d+\.\s').hasMatch(trimmedLine)) {
+          flushParagraph();
+          flushTable();
+
+          final indent = getIndent(line);
+          final isOrdered = RegExp(r'^\d+\.\s').hasMatch(trimmedLine);
+          String itemText;
+
+          if (isOrdered) {
+            itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+\d+\.\s+'), '');
+            if (itemText == trimmedLine) {
+              itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+'), '');
+            }
+          } else {
+            itemText = trimmedLine.substring(2);
+          }
+
+          final inlineChildren = _parseInline(itemText);
+
+          if (indent > 0 && pendingListItems.isNotEmpty) {
+            final lastItem = pendingListItems.removeLast();
+            final mergedText = lastItem.children
+                .whereType<TextElement>()
+                .map((c) => c.text)
+                .join();
+            final lastInlineText = mergedText.isEmpty
+                ? ''
+                : '$mergedText\n${'  ' * indent}${inlineChildren
+                    .whereType<TextElement>()
+                    .map((c) => c.text)
+                    .join()}';
+            final reParsed = lastInlineText.isEmpty
+                ? <InlineElement>[]
+                : _parseInline(lastInlineText);
+            pendingListItems.add(ListElement(
+              children: reParsed,
+              ordered: lastItem.ordered,
+              indent: indent,
+            ));
+          } else {
+            pendingListItems.add(ListElement(
+              children: inlineChildren,
+              ordered: isOrdered,
+              indent: indent,
+            ));
+          }
+          continue;
+        }
+
+        if (trimmedLine.startsWith('> ')) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          elements.add(BlockquoteElement(text: trimmedLine.substring(2).trim()));
+          continue;
+        }
+
+        if (trimmedLine.startsWith('|')) {
+          flushParagraph();
+          flushListItems();
+          
+          if (_isTableSeparatorRow(trimmedLine)) {
+            continue;
+          }
+          
+          final cells = _parseTableRow(trimmedLine);
+          if (cells != null && cells.isNotEmpty) {
+            if (currentTable == null) {
+              currentTable = TableElement(headers: cells, rows: []);
+            } else {
+              currentTable!.rows.add(cells);
+            }
+          }
+          continue;
+        } else if (currentTable != null) {
+          flushTable();
+        }
+
+        // 水平分割线：--- / *** / ___（3 个及以上）
+        if (RegExp(r'^\s*(-{3,}|\*{3,}|_{3,})\s*$').hasMatch(line)) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          elements.add(const HorizontalRuleElement());
+          continue;
+        }
+
+        // ignore: prefer_const_constructors — children 需可变，下方 addAll 追加 inline
+        pendingParagraph ??= ParagraphElement(children: <InlineElement>[]);
+        final inline = _parseInline(trimmedLine);
+        pendingParagraph!.children.addAll(inline);
+      } catch (e) {
+        // P1 B-5：单行解析失败 → 降级为 ParagraphElement（保留原文），
+        // flush 当前所有 pending 块状态后追加降级段落，继续解析下一行。
+        onError?.call(lineIndex, e, line);
+        // 退化路径前先 flush，避免 pending 状态错乱（如未闭合的 list/table）。
         flushParagraph();
         flushListItems();
         flushTable();
-        elements.add(const HorizontalRuleElement());
-        continue;
+        elements.add(ParagraphElement(
+          children: [TextElement(line)],
+        ));
       }
-
-      // ignore: prefer_const_constructors — children 需可变，下方 addAll 追加 inline
-      pendingParagraph ??= ParagraphElement(children: <InlineElement>[]);
-      final inline = _parseInline(trimmedLine);
-      pendingParagraph!.children.addAll(inline);
     }
 
     if (inCodeBlock && codeLines.isNotEmpty) {

@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'mermaid_service.dart' show MermaidService;
+import 'mermaid_service.dart' show MermaidErrorCallback, MermaidService;
 
 /// MathJax 渲染 LaTeX 为 SVG 字符串服务（与 MermaidService 共享 WebView）。
 ///
@@ -35,6 +35,27 @@ class FormulaSvgService {
 
   static final List<_PendingLatex> _waiting = [];
   static final Map<String, _PendingLatex> _active = {};
+
+  /// P1 B-6：错误回调。与 [MermaidService] 共享同一回调类型，
+  /// 由 main.dart 统一注入 observability.captureError。
+  static MermaidErrorCallback? _onError;
+
+  /// P1 B-6：注入错误回调（由 main.dart 调用）。
+  static void attachErrorCallback(MermaidErrorCallback? callback) {
+    _onError = callback;
+  }
+
+  /// P1 B-6：报告错误（内部汇聚点）。
+  ///
+  /// 不传 latex 原文（可能含敏感文档内容），仅传 requestId / latex 长度 /
+  /// displayMode 用于诊断"公式是否过大 / 是否为 display 模式渲染失败"。
+  static void _reportError(
+    String type,
+    String message, {
+    Map<String, Object?>? params,
+  }) {
+    _onError?.call(type, message, params);
+  }
 
   /// 渲染 LaTeX 为 SVG 字符串。结果按 (latex, displayMode) 缓存。
   /// 多次并发调用会自动排队，并发上限 [_maxConcurrent]。
@@ -286,6 +307,17 @@ class FormulaSvgService {
     if (p != null && !p.completer.isCompleted) {
       p.completer.completeError(FormulaSvgException(error));
     }
+    // P1 B-6：渲染失败统一上报 observability。
+    // 不传 latex 原文（可能含敏感文档内容），仅传长度 + displayMode。
+    _reportError(
+      'LatexRenderError',
+      error,
+      params: {
+        'requestId': requestId,
+        'latexLength': p?.latex.length,
+        'displayMode': p?.displayMode,
+      },
+    );
     _dispatchWaiting();
   }
 

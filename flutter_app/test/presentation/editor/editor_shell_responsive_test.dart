@@ -200,4 +200,70 @@ void main() {
       expect((wideOuter.constraints as BoxConstraints).maxWidth, closeTo(480.0, 0.01));
     });
   });
+
+  // P1 验收补充（2026-08-04）：焦点模式双击退出交互测试。
+  //
+  // editor_shell.dart 在 GestureDetector 上：
+  //   onDoubleTap: _focusMode ? _toggleFocus : null
+  // 即焦点模式下双击退出，非焦点模式下双击不响应（避免单击延迟影响 TextField）。
+  // 此处锁定两条关键行为，避免后续手势处理重构静默改变交互契约。
+  group('P1-3 焦点模式双击退出', () {
+    /// 进入焦点模式：点击 AppBar 的「焦点模式」IconButton（tooltip='焦点模式'）。
+    Future<void> _enterFocusMode(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('焦点模式'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('焦点模式下双击编辑区 → 退出焦点模式（AppBar 重新出现）',
+        (tester) async {
+      await _pumpShell(tester, const Size(800, 1200), docs);
+
+      // 初始：AppBar + StatusBar 可见（非焦点模式）。
+      expect(find.byTooltip('焦点模式'), findsOneWidget);
+      expect(find.byTooltip('退出焦点模式'), findsNothing);
+
+      // 进入焦点模式：AppBar 隐藏（tooltip 变为 '退出焦点模式' 不存在因 AppBar 已 null）。
+      await _enterFocusMode(tester);
+      await tester.pumpAndSettle();
+      // AppBar 隐藏后，"焦点模式" / "退出焦点模式" 两个 tooltip 都不应出现。
+      expect(find.byTooltip('焦点模式'), findsNothing);
+      expect(find.byTooltip('退出焦点模式'), findsNothing);
+
+      // 双击编辑区（Workspace 区域） → _toggleFocus → 退出焦点模式。
+      // 用 find.byType(Workspace) 定位编辑区，避免点到 AppBar/StatusBar。
+      final workspaceFinder = find.byType(Workspace);
+      expect(workspaceFinder, findsOneWidget);
+      await tester.tap(workspaceFinder);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(workspaceFinder);
+      await tester.pumpAndSettle();
+
+      // 退出焦点模式后 AppBar 回归，「焦点模式」tooltip 重新可见。
+      expect(find.byTooltip('焦点模式'), findsOneWidget,
+          reason: '双击应退出焦点模式，AppBar 重新出现');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('非焦点模式下双击编辑区 → 无响应（AppBar 仍可见）',
+        (tester) async {
+      await _pumpShell(tester, const Size(800, 1200), docs);
+
+      // 初始即为非焦点模式，AppBar 可见。
+      expect(find.byTooltip('焦点模式'), findsOneWidget);
+
+      // 双击编辑区：onDoubleTap 在非焦点模式下为 null，不应触发 _toggleFocus。
+      final workspaceFinder = find.byType(Workspace);
+      expect(workspaceFinder, findsOneWidget);
+      await tester.tap(workspaceFinder);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(workspaceFinder);
+      await tester.pumpAndSettle();
+
+      // 关键回归：AppBar 仍可见（焦点模式未被触发）。
+      expect(find.byTooltip('焦点模式'), findsOneWidget,
+          reason: '非焦点模式下 onDoubleTap=null，双击不应切换状态');
+      expect(find.byTooltip('退出焦点模式'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

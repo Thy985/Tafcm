@@ -254,16 +254,43 @@ class BlockOperations {
       // transform 失败不阻塞 updateSource（继续 TextOperation）
     }
 
-    // 2. TextOperation: 替换 source（type 已是 newType，保持不变）
+    // 2. TextOperation: 增量 diff 替换 source（type 已是 newType，保持不变）
+    //
+    // P0 修复（CORE-009）：从"全量替换"改为"增量 diff"，使 TextOperation 的
+    // offset/deleted/inserted 反映实际变更。这使 coalescing 第 7 条（offset
+    // 连续）能正确匹配连续输入，同时避免 revert 时 inserted.length 超过
+    // currentSource.length 的边界失败（CORE-008）。
     final currentElement = _editor.getBlock(targetId);
     if (currentElement == null) return false;
     final oldSource = fromElement(currentElement);
 
+    // No-op guard：source 未变则不入栈（防止空 Transaction 污染 undo 栈）
+    if (oldSource == newSource) return true;
+
+    // 计算公共前缀长度
+    int prefixLen = 0;
+    final oldLen = oldSource.length;
+    final newLen = newSource.length;
+    while (prefixLen < oldLen &&
+        prefixLen < newLen &&
+        oldSource.codeUnitAt(prefixLen) == newSource.codeUnitAt(prefixLen)) {
+      prefixLen++;
+    }
+
+    // 计算公共后缀长度（不与前缀重叠）
+    int suffixLen = 0;
+    while (suffixLen < oldLen - prefixLen &&
+        suffixLen < newLen - prefixLen &&
+        oldSource.codeUnitAt(oldLen - 1 - suffixLen) ==
+            newSource.codeUnitAt(newLen - 1 - suffixLen)) {
+      suffixLen++;
+    }
+
     final textOp = TextOperation(
       blockId: targetId,
-      offset: 0,
-      deleted: oldSource,
-      inserted: newSource,
+      offset: prefixLen,
+      deleted: oldSource.substring(prefixLen, oldLen - suffixLen),
+      inserted: newSource.substring(prefixLen, newLen - suffixLen),
     );
 
     if (!textOp.apply(_editor)) return false;

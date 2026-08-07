@@ -37,19 +37,43 @@ void main() {
       );
     });
 
-    test('BlockRenderer 不再将 MermaidElement 放入 UnimplementedError 分支', () {
+    test('BlockRenderer 不再将 MermaidElement 放入未实现分支（ADR-0022）', () {
       final file = File('lib/presentation/blocks/block_renderer.dart');
       final content = file.readAsStringSync();
 
-      // MermaidElement 不应在 UnimplementedError 分支（已移出）
-      // 检查 ListElement / TaskListItemElement / HorizontalRuleElement 仍在 fallback
+      // MermaidElement 不应在未实现分支（已移出，有专用 MermaidBlock）
+      expect(
+        content.contains('MermaidElement me => MermaidBlock'),
+        isTrue,
+        reason: 'MermaidElement 必须有专用 MermaidBlock 分支',
+      );
+    });
+
+    test('ADR-0022：ListElement / TaskListItemElement / HorizontalRuleElement '
+        '经 FallbackBlockRenderer 降级渲染（不抛 UnimplementedError）', () {
+      final file = File('lib/presentation/blocks/block_renderer.dart');
+      final content = file.readAsStringSync();
+
+      // 3 种未实现类型必须有显式 case 分支
       expect(
         content.contains('ListElement()') &&
             content.contains('TaskListItemElement()') &&
             content.contains('HorizontalRuleElement()'),
         isTrue,
-        reason: 'BlockRenderer 仍需对 ListElement / TaskListItemElement / '
-            'HorizontalRuleElement 抛 UnimplementedError（Phase 3.5+ 实现）',
+        reason: 'ADR-0022 §2.2：3 种未实现类型必须有显式 case 分支',
+      );
+      // 必须经 FallbackBlockRenderer 降级（不抛 UnimplementedError）
+      expect(
+        content.contains('FallbackBlockRenderer'),
+        isTrue,
+        reason: 'ADR-0022 §2.2：3 种未实现类型必须经 FallbackBlockRenderer '
+            '降级渲染',
+      );
+      expect(
+        content.contains('throw UnimplementedError'),
+        isFalse,
+        reason: 'ADR-0022 §2.1：block_renderer.dart 不应含 throw UnimplementedError '
+            '语句',
       );
     });
   });
