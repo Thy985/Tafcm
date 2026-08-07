@@ -251,6 +251,113 @@ class InvariantFailure {
   });
 }
 
+/// Command Replay 的事件表示（可序列化/反序列化）。
+///
+/// 对应 session.json 中的单条事件记录。
+/// 用于在诊断 zip 中导出 Command 事件流，供 Replayer 加载重放。
+class ReplayCommandEvent {
+  /// Command 运行时类型名（如 "InsertTextCommand"）。
+  final String commandName;
+
+  /// Command 参数（可序列化）。
+  final Map<String, Object?> params;
+
+  /// Command 来源（enum name，如 "keyboard" / "menu" / "ime"）。
+  final String origin;
+
+  /// 执行前的预期 Document fingerprint。
+  final String? beforeStateHash;
+
+  /// 执行后的预期 Document fingerprint。
+  final String? afterStateHash;
+
+  const ReplayCommandEvent({
+    required this.commandName,
+    required this.params,
+    required this.origin,
+    this.beforeStateHash,
+    this.afterStateHash,
+  });
+
+  /// 序列化为 JSON 兼容 Map。
+  Map<String, Object?> toJson() => {
+    'commandName': commandName,
+    'params': params,
+    'origin': origin,
+    if (beforeStateHash != null) 'beforeStateHash': beforeStateHash,
+    if (afterStateHash != null) 'afterStateHash': afterStateHash,
+  };
+
+  /// 从 JSON Map 反序列化。
+  factory ReplayCommandEvent.fromJson(Map<String, Object?> json) {
+    return ReplayCommandEvent(
+      commandName: json['commandName'] as String,
+      params: (json['params'] as Map<String, Object?>?) ?? <String, Object?>{},
+      origin: (json['origin'] as String?) ?? 'keyboard',
+      beforeStateHash: json['beforeStateHash'] as String?,
+      afterStateHash: json['afterStateHash'] as String?,
+    );
+  }
+
+  /// 从 [CommandTraceEntry] 构建 [ReplayCommandEvent]。
+  ///
+  /// 用于将已记录的 Trace 转换为可重放的事件。
+  static ReplayCommandEvent fromTraceEntry(CommandTraceEntry entry) {
+    return ReplayCommandEvent(
+      commandName: entry.commandName,
+      params: entry.params,
+      origin: entry.origin.name,
+      beforeStateHash: entry.beforeStateHash,
+      afterStateHash: entry.afterStateHash,
+    );
+  }
+}
+
+/// 单条 Command Replay 结果。
+class ReplayResult {
+  /// 事件序号（0-based）。
+  final int index;
+
+  /// Command 名称。
+  final String commandName;
+
+  /// CommandHandler.handle() 是否返回 true。
+  final bool success;
+
+  /// 预期 afterStateHash 与实际 hash 是否匹配。
+  ///
+  /// 若事件未记录 afterStateHash，视为匹配（跳过验证）。
+  final bool hashMatch;
+
+  /// 实际 hash（null 若计算失败）。
+  final String? actualHash;
+
+  /// 预期 hash（null 若事件未记录 afterStateHash）。
+  final String? expectedHash;
+
+  /// 错误信息（如有）。
+  final String? error;
+
+  const ReplayResult({
+    required this.index,
+    required this.commandName,
+    required this.success,
+    required this.hashMatch,
+    this.actualHash,
+    this.expectedHash,
+    this.error,
+  });
+
+  /// 人类可读的摘要。
+  @override
+  String toString() {
+    final status = success ? 'OK' : 'FAIL';
+    final hashStatus = hashMatch ? '' : ' HASH_MISMATCH';
+    final err = error != null ? ' | $error' : '';
+    return '[$index] $commandName: $status$hashStatus$err';
+  }
+}
+
 /// 可观测性模式的配置。
 ///
 /// 控制记录级别、环形缓冲区大小、隐私保护等。

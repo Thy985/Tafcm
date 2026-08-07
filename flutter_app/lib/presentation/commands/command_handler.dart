@@ -27,7 +27,7 @@ import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
 import '../../core/editing/transaction_rollback.dart';
 import '../../core/observability/canonical_fingerprint.dart';
-import '../../core/observability/command_replayer.dart';
+import '../observability/command_replayer.dart';
 import '../../core/observability/invariant_checker.dart';
 import '../../core/observability/models.dart' as obs;
 import '../../core/observability/observability_service.dart';

@@ -9,8 +9,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 
-import '../../presentation/commands/command_handler.dart';
-import 'command_replayer.dart';
+
 import 'command_tracer.dart';
 import 'error_snapshot.dart';
 import 'error_snapshotter.dart';
@@ -328,22 +327,12 @@ class ObservabilityService {
   /// 导出 Command 事件流（用于 Replay）。
   ///
   /// 返回 [ReplayCommandEvent] 列表，可序列化为 JSON 供
-  /// [CommandReplayer] 加载重放。
+  /// CommandReplayer 加载重放。
   List<ReplayCommandEvent> exportCommandStream() {
     if (!isEnabled) return [];
     return commandTracer.entries
-        .map(CommandReplayer.fromTraceEntry)
+        .map(ReplayCommandEvent.fromTraceEntry)
         .toList();
-  }
-
-  /// 从已记录的 Command 事件流创建 [CommandReplayer]。
-  ///
-  /// [handler]：必须从固定 seed document 初始化的 [CommandHandler]。
-  CommandReplayer createReplayer(CommandHandler handler) {
-    return CommandReplayer(
-      handler: handler,
-      events: exportCommandStream(),
-    );
   }
 
   /// 清空所有记录。

@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/core/observability/canonical_fingerprint.dart';
-import 'package:formula_fix/core/observability/command_replayer.dart';
+import 'package:formula_fix/presentation/observability/command_replayer.dart';
 import 'package:formula_fix/core/observability/models.dart' hide CommandOrigin;
 import 'package:formula_fix/core/observability/observability_service.dart';
 import 'package:formula_fix/data/models/document.dart';

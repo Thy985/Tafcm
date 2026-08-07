@@ -3,111 +3,22 @@
 /// 从 Command 事件流重新执行用户操作，确定性复现问题现场。
 /// 每步验证 AST 状态是否符合预期（通过 fingerprint 对比）。
 ///
+/// **架构说明**：此类依赖 [CommandHandler] 与 [EditorCommand]（presentation 层），
+/// 因此位于 `presentation/observability/` 而非 `core/observability/`。
+/// 纯数据类 [ReplayCommandEvent] / [ReplayResult] 已下沉到
+/// `core/observability/models.dart`，避免 core 反向依赖 presentation。
+///
 /// 落地 ADR-0021 §2.5（Layer 5：Command Replay System）+ §3.7.4。
 library;
 
 import 'package:flutter/widgets.dart';
 
+import '../../core/editing/block_types.dart';
+import '../../core/observability/canonical_fingerprint.dart';
+import '../../core/observability/models.dart' hide CommandOrigin;
 import '../../data/models/document.dart';
-import '../../presentation/commands/command_handler.dart';
-import '../../presentation/commands/commands.dart';
-import '../editing/block_types.dart';
-import 'canonical_fingerprint.dart';
-import 'models.dart' as obs;
-
-/// Command Replay 的事件表示（可序列化/反序列化）。
-///
-/// 对应 session.json 中的单条事件记录。
-/// 用于在诊断 zip 中导出 Command 事件流，供 Replayer 加载重放。
-class ReplayCommandEvent {
-  /// Command 运行时类型名（如 "InsertTextCommand"）。
-  final String commandName;
-
-  /// Command 参数（可序列化）。
-  final Map<String, Object?> params;
-
-  /// Command 来源（enum name，如 "keyboard" / "menu" / "ime"）。
-  final String origin;
-
-  /// 执行前的预期 Document fingerprint。
-  final String? beforeStateHash;
-
-  /// 执行后的预期 Document fingerprint。
-  final String? afterStateHash;
-
-  const ReplayCommandEvent({
-    required this.commandName,
-    required this.params,
-    required this.origin,
-    this.beforeStateHash,
-    this.afterStateHash,
-  });
-
-  /// 序列化为 JSON 兼容 Map。
-  Map<String, Object?> toJson() => {
-    'commandName': commandName,
-    'params': params,
-    'origin': origin,
-    if (beforeStateHash != null) 'beforeStateHash': beforeStateHash,
-    if (afterStateHash != null) 'afterStateHash': afterStateHash,
-  };
-
-  /// 从 JSON Map 反序列化。
-  factory ReplayCommandEvent.fromJson(Map<String, Object?> json) {
-    return ReplayCommandEvent(
-      commandName: json['commandName'] as String,
-      params: (json['params'] as Map<String, Object?>?) ?? <String, Object?>{},
-      origin: (json['origin'] as String?) ?? 'keyboard',
-      beforeStateHash: json['beforeStateHash'] as String?,
-      afterStateHash: json['afterStateHash'] as String?,
-    );
-  }
-}
-
-/// 单条 Command Replay 结果。
-class ReplayResult {
-  /// 事件序号（0-based）。
-  final int index;
-
-  /// Command 名称。
-  final String commandName;
-
-  /// CommandHandler.handle() 是否返回 true。
-  final bool success;
-
-  /// 预期 afterStateHash 与实际 hash 是否匹配。
-  ///
-  /// 若事件未记录 afterStateHash，视为匹配（跳过验证）。
-  final bool hashMatch;
-
-  /// 实际 hash（null 若计算失败）。
-  final String? actualHash;
-
-  /// 预期 hash（null 若事件未记录 afterStateHash）。
-  final String? expectedHash;
-
-  /// 错误信息（如有）。
-  final String? error;
-
-  const ReplayResult({
-    required this.index,
-    required this.commandName,
-    required this.success,
-    required this.hashMatch,
-    this.actualHash,
-    this.expectedHash,
-    this.error,
-  });
-
-  /// 人类可读的摘要。
-  @override
-  String toString() {
-    final status = success ? 'OK' : 'FAIL';
-    final hashStatus = hashMatch ? '' : ' HASH_MISMATCH';
-    final err = error != null ? ' | $error' : '';
-    return '[$index] $commandName: $status$hashStatus$err';
-  }
-}
+import '../commands/command_handler.dart';
+import '../commands/commands.dart';
 
 /// Command Replayer：基于 Command 事件流的确定性回放。
 ///
@@ -332,19 +243,6 @@ class CommandReplayer {
       ),
       _ => throw ArgumentError('Unknown command: ${event.commandName}'),
     };
-  }
-
-  /// 从 [obs.CommandTraceEntry] 构建 [ReplayCommandEvent]。
-  ///
-  /// 用于将已记录的 Trace 转换为可重放的事件。
-  static ReplayCommandEvent fromTraceEntry(obs.CommandTraceEntry entry) {
-    return ReplayCommandEvent(
-      commandName: entry.commandName,
-      params: entry.params,
-      origin: entry.origin.name,
-      beforeStateHash: entry.beforeStateHash,
-      afterStateHash: entry.afterStateHash,
-    );
   }
 
   // ============ 序列化（EditorCommand → ReplayCommandEvent） ============

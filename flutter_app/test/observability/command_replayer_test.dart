@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/observability/command_replayer.dart';
+import 'package:formula_fix/presentation/observability/command_replayer.dart';
 import 'package:formula_fix/core/observability/canonical_fingerprint.dart';
-import 'package:formula_fix/core/observability/models.dart' as obs;
+import 'package:formula_fix/core/observability/models.dart' hide CommandOrigin;
 import 'package:formula_fix/data/models/document.dart';
 import 'package:formula_fix/presentation/commands/command_handler.dart';
 import 'package:formula_fix/presentation/commands/commands.dart';
@@ -105,12 +105,12 @@ void main() {
     });
   });
 
-  group('CommandReplayer.fromTraceEntry', () {
+  group('ReplayCommandEvent.fromTraceEntry', () {
     test('converts CommandTraceEntry to ReplayCommandEvent', () {
-      final traceEntry = obs.CommandTraceEntry(
+      final traceEntry = CommandTraceEntry(
         commandName: 'UpdateBlockSourceCommand',
         params: {'blockId': 'b1', 'newSource': 'test'},
-        origin: obs.CommandOrigin.keyboard,
+        origin: CommandOrigin.keyboard,
         timestamp: DateTime(2026, 8, 3, 10, 30, 0),
         transactionId: 'tx_001',
         succeeded: true,
@@ -120,7 +120,7 @@ void main() {
         spanId: 'cmd_0001',
       );
 
-      final event = CommandReplayer.fromTraceEntry(traceEntry);
+      final event = ReplayCommandEvent.fromTraceEntry(traceEntry);
       expect(event.commandName, equals('UpdateBlockSourceCommand'));
       expect(event.params['blockId'], equals('b1'));
       expect(event.beforeStateHash, equals('hash_before'));
