@@ -463,6 +463,31 @@ cd flutter_app && flutter analyze --no-fatal-infos --fatal-warnings
 ```
 **教训出处**：PR #78 Slice 7 首跑 CI（`449ee4b` 删 `_shareBytes` 后未删 `dart:typed_data`）；PR #78 评审修复（移除 `ExportCompletedState.bytes` 后未删 `dart:typed_data`）。
 
+### 11.3 SDK API 误用 → 反复 push 多次才能闭环
+
+**症状**：CI 报 `Undefined getter / Undefined name / Undefined class` 等分析错误，多次 commit 反复试错才能收敛。
+
+**根因**：直接根据训练记忆/经验推断 Flutter SDK API 签名，未先 Read 真实源码；或在 widget test binding 下 API 行为与本机 SDK 文档不一致但未对照实测。
+
+**修复模板**：
+1. 修改前先用 `grep -n "<symbol>" <flutter SDK>/packages/<pkg>/lib/src/<file>.dart` 定位真实定义
+2. Read 该位置 ±20 行确认签名（参数类型、返回类型、deprecated 状态）
+3. 跨版本不稳定的 API（如 `SemanticsFlags.isToggled` 在不同 Flutter 版本可能返回 `bool?` / `Tristate` / `int`）：用 `expect(actual.toString(), ...)` 跨版本兼容写法，或绕开该断言由组件代码注释保证
+4. **测试代码里 `tester.ensureSemantics()` 是常见重复创建陷阱**——`testWidgets` 默认 `semanticsEnabled=true`（见 SDK `widget_tester.dart:153`），test runner 已自动创建并 dispose 一个 handle；测试体里**不要再 `ensureSemantics()`**
+
+**preflight 自检**：
+```bash
+cd flutter_app && flutter analyze --no-fatal-infos --fatal-warnings <file>
+cd flutter_app && flutter test test/<dir>/<file>_test.dart
+```
+
+**强制项**：
+- **任何 commit 前必须本地跑 `flutter analyze` + `flutter test` 对应文件**——CI 不是唯一守门，本机是更早的一道闸
+- **L1 干扰（Defender 实时删工作树）**只影响全量 `flutter` 套件，单文件 `flutter test <file>` 可正常跑出
+- **pre-push hook 仍需 `SKIP_PREFLIGHT=1` 跳过**——它跑全量 preflight，单文件验证不受影响
+
+**教训出处**：PR #117 CI 修复 5 个 commit 反复试错（`ab91c32` / `b28db34` / `e41d03a` / `7e85aa1` / `7db6f71`）。toggle 断言连续踩 3 次 SDK API 误用坑；SemanticsHandle 双创建直到核 `widget_tester.dart:153` 才定位根因。教训：**先 Read 真实源码再下笔**——训练记忆会在 SDK 跨版本时作恶。
+
 ### 11.2 架构守门 `TC-ARCH-1/2`（presentation 层直接文件 I/O）
 
 **症状**：CI Test 步骤 `test/architecture/file_access_test.dart` 失败：
