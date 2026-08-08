@@ -140,10 +140,8 @@ class EditorCoordinator extends ChangeNotifier
     final wasMissing = !_state.viewStates.containsKey(id);
     _state = _state.focusOn(id);
     if (wasMissing) {
-      observability?.recordRender(obs.FocusOnViewStateCreatedEvent(
-        blockId: id.value,
-        timestamp: DateTime.now(),
-      ));
+      observability?.recordRender(
+          obs.FocusOnViewStateCreatedEvent(blockId: id.value, timestamp: DateTime.now()));
     }
     _lastFocusedId = id;
     notifyListeners();
