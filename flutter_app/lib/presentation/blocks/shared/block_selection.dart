@@ -81,7 +81,9 @@ class _BlockSelectionChromeState extends State<BlockSelectionChrome> {
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: Listener(
-        onPointerDown: (_) {
+        onPointerDown: (event) {
+          // R-C1 修复：仅触屏指针启动长按定时器，桌面鼠标点击/拖动不触发。
+          if (!_isTouchDevice) return;
           _longPressTimer?.cancel();
           _longPressTimer = Timer(const Duration(milliseconds: 500), _onLongPress);
         },

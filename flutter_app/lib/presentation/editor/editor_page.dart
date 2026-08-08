@@ -135,7 +135,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       final doc = await repo.readDocument(path);
       // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改 provider）。
       ref.read(currentPathProvider.notifier).state = path;
-      final elements = MarkdownParser.parse(doc.content);
+      final elements = MarkdownParser.parse(
+        doc.content,
+        onError: buildParserErrorHandler(ref, path),
+      );
       final editor = InMemoryDocumentEditor(title: doc.title);
       for (final element in elements) {
         // EmptyLineElement 是 MarkdownParser 产出的「块分隔符」（空行辅助），

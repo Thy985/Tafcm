@@ -23,6 +23,13 @@ abstract class IntentCoordinator {
   /// 执行命令（返回是否成功）。
   bool handle(EditorCommand command);
 
+  /// 开始新的用户交互（设置 trace context）。
+  ///
+  /// ADR-0021 §2.6：一次用户交互（按键 / 点击 / undo 等）对应一个 traceId，
+  /// 交互内可能派发多个 command，共享同一 traceId。在 dispatch / setFocus /
+  /// undo / redo 等用户交互入口调用，不在 handle() 内调用。
+  void beginUserInteraction();
+
   /// 块的源元素（集中裁决读取，resolver 由此推导 [BlockType]）。
   DocumentElement? getBlock(BlockId id);
 

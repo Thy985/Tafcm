@@ -125,7 +125,11 @@ class PdfExporter {
       total: 1,
     ));
 
-    final elements = MarkdownParser.parse(markdown);
+    final elements = MarkdownParser.parse(
+      markdown,
+      onError: (lineIndex, error, line) =>
+          debugPrint('[PdfExporter] parse line $lineIndex failed: $error'),
+    );
 
     // 收集所有公式（含 table cell 内的）。Set 自动去重。
     final allFormulas = collectAllFormulas(elements);

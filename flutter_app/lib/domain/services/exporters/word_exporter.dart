@@ -44,7 +44,11 @@ class WordExporter {
       total: 1,
     ));
 
-    final elements = MarkdownParser.parse(markdown);
+    final elements = MarkdownParser.parse(
+      markdown,
+      onError: (lineIndex, error, line) =>
+          debugPrint('[WordExporter] parse line $lineIndex failed: $error'),
+    );
 
     // 收集所有公式（paragraph / list / table cell 走 PdfExporter.collectAllFormulas）
     final allFormulasSet = PdfExporter.collectAllFormulas(elements);

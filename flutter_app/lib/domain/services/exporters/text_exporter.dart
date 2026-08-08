@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../../../core/parser/markdown_parser.dart';
 import '../../../data/models/document.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
@@ -27,7 +28,11 @@ class TextExporter {
       throw ExportException('Cannot export empty content');
     }
 
-    final elements = MarkdownParser.parse(markdown);
+    final elements = MarkdownParser.parse(
+      markdown,
+      onError: (lineIndex, error, line) =>
+          debugPrint('[TextExporter] parse line $lineIndex failed: $error'),
+    );
     final sb = StringBuffer();
 
     // Phase 1：解析 + 块级渲染进度（纯文本无 pre-render 与 assembling 阶段分离，

@@ -72,14 +72,12 @@ class EditorCoordinator extends ChangeNotifier
       _ => (null, null),
     };
 
-    // === Observability: 设置 Trace Context ===
-    _setupTraceContext();
-
     // === Observability: 记录交互事件（Phase 3.7.3） ===
-    _recordInteractionForCommand(command);
+    // R-C3 修复：移到 handle 之后，仅成功时记录（避免守卫拒绝后仍入 RingBuffer）
 
     final ok = handler.handle(command);
     if (ok) {
+      _recordInteractionForCommand(command);
       final result = CommandSelectionSync.apply(_state, command,
           editor: editor, oldSource: oldSource, oldIds: oldIds);
       _state = result.state;
@@ -136,6 +134,7 @@ class EditorCoordinator extends ChangeNotifier
   BlockId? get lastFocusedId => _state.focusedId ?? _lastFocusedId;
   /// 聚焦指定块。旧块切回渲染态，新块切到编辑态。
   void setFocus(BlockId id) {
+    beginUserInteraction();
     _recordInteraction(obs.UserTap(target: 'Block($id)', timestamp: DateTime.now()));
     if (_state.focusedId == id) return;
     _state = _state.focusOn(id);
@@ -153,6 +152,7 @@ class EditorCoordinator extends ChangeNotifier
   bool get canRedo => history.canRedo;
   /// Undo/Redo：回环真实事务（lastOrNull / redoLastOrNull）携带可重放 ops（修复 Phase 3.3 空 ops 问题）。
   Transaction? undo() {
+    beginUserInteraction();
     _recordInteraction(obs.UserUndoRedo(isUndo: true, timestamp: DateTime.now()));
     final target = history.lastOrNull;
     if (target == null) return null;
@@ -167,6 +167,7 @@ class EditorCoordinator extends ChangeNotifier
     return tx;
   }
   Transaction? redo() {
+    beginUserInteraction();
     _recordInteraction(obs.UserUndoRedo(isUndo: false, timestamp: DateTime.now()));
     final target = history.redoLastOrNull;
     if (target == null) return null;
@@ -181,7 +182,13 @@ class EditorCoordinator extends ChangeNotifier
     return tx;
   }
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
-  void _setupTraceContext() {
+
+  /// ADR-0021 §2.6：开始新的用户交互，生成新 traceId。
+  ///
+  /// 在 dispatch / setFocus / undo / redo 等用户交互入口调用，
+  /// 不在 handle() 内调用（一次交互可能派发多个 command，共享同一 traceId）。
+  @override
+  void beginUserInteraction() {
     final svc = observability;
     if (svc?.isEnabled == true) {
       svc!.setTraceContext(EditorTraceContext(
