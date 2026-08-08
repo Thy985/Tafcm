@@ -25,7 +25,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInputFormatter;
 import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 
 import '../../../core/editing/block_types.dart';
@@ -89,9 +91,38 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   @override
   TextInputAction get editFieldInputAction => TextInputAction.newline;
 
+  /// 编辑态在 TextField 上方显示 language chip（问题 6.5 修复）。
+  @override
+  Widget buildEditField({
+    required TextStyle? style,
+    required InputDecoration decoration,
+    required int? maxLines,
+    required TextInputAction inputAction,
+    required List<TextInputFormatter> inputFormatters,
+  }) {
+    final field = super.buildEditField(
+      style: style,
+      decoration: decoration,
+      maxLines: maxLines,
+      inputAction: inputAction,
+      inputFormatters: inputFormatters,
+    );
+    final language = widget.element.language;
+    if (language == null || language.isEmpty) return field;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLanguageChip(_normalizeLanguage(language)),
+        const SizedBox(height: 6),
+        field,
+      ],
+    );
+  }
+
   @override
   Widget buildRenderContent(BuildContext context) {
     final language = widget.element.language;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onBlockTap,
       child: Container(
@@ -116,7 +147,7 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
             HighlightView(
               widget.element.code,
               language: _normalizeLanguage(language),
-              theme: githubTheme,
+              theme: isDark ? atomOneDarkTheme : githubTheme,
               padding: EdgeInsets.zero,
               textStyle: const TextStyle(
                 fontFamily: 'monospace',

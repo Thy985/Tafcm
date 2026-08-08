@@ -518,9 +518,9 @@ class PdfExporter {
     final borderColor = isDark ? PdfColors.grey600 : PdfColors.grey300;
     final textColor = isDark ? PdfColors.grey100 : PdfColors.grey900;
     // 代码块优先用等宽字体 (Courier) 以保证代码对齐；
-    // cjkFont 仅在无等宽字体时作 fallback（事实上 pdf 包的 standard fonts
-    // 不支持 cjkFont fontFallback 命名参数，这里仅用 cjkFont 整体替换）。
-    final codeFont = monoFont ?? (cjkFont ?? pw.Font.courier());
+    // cjkFont 作为 fontFallback，使代码中的中文注释能正常渲染（问题 6.4 修复）。
+    final codeFont = monoFont ?? pw.Font.courier();
+    final fontFallback = cjkFont != null ? [cjkFont] : const <pw.Font>[];
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
@@ -560,6 +560,7 @@ class PdfExporter {
               fontSize: 11,
               color: textColor,
               font: codeFont,
+              fontFallback: fontFallback,
             ),
           ),
         ],
