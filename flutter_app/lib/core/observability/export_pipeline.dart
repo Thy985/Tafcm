@@ -104,6 +104,7 @@ class ExportPipeline {
       'commandCount': _service.commandTracer.count,
       'transactionCount': _service.transactionTracer.count,
       'interactionCount': _service.interactionTracer.count,
+      'renderCount': _service.renderTracer.count,
     };
   }
 
@@ -176,10 +177,59 @@ class ExportPipeline {
       };
     }).toList();
 
+    final renders = _service.renderTracer.entries.map((e) {
+      return switch (e) {
+        CodeBlockThemeRendered(
+          :final isDark,
+          :final themeName,
+          :final language,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'CodeBlockThemeRendered',
+            'isDark': isDark,
+            'themeName': themeName,
+            'language': language,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        CodeBlockLanguageChipRendered(
+          :final language,
+          :final shown,
+          :final mode,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'CodeBlockLanguageChipRendered',
+            'language': language,
+            'shown': shown,
+            'mode': mode,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        PdfCjkFontFallbackEvent(
+          :final fontLoaded,
+          :final fallbackActive,
+          :final language,
+          :final codeLength,
+          :final hasCjk,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'PdfCjkFontFallbackEvent',
+            'fontLoaded': fontLoaded,
+            'fallbackActive': fallbackActive,
+            'language': language,
+            'codeLength': codeLength,
+            'hasCjk': hasCjk,
+            'timestamp': timestamp.toIso8601String(),
+          },
+      };
+    }).toList();
+
     return {
       'interactions': interactions,
       'commands': commands,
       'transactions': transactions,
+      'renders': renders,
     };
   }
 
@@ -205,7 +255,7 @@ class ExportPipeline {
         'This archive contains diagnostic data for debugging.\n\n'
         'Files:\n'
         '  metadata.json           - App version, device, OS, session info\n'
-        '  trace.json              - Interaction + Command + Transaction traces\n'
+        '  trace.json              - Interaction + Command + Transaction + Render traces\n'
         '  snapshot.json           - Error snapshot (if any)\n'
         '  invariant_report.json   - Invariant checker results\n\n'
         'For analysis:\n'
