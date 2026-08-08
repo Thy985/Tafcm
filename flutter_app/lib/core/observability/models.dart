@@ -351,6 +351,49 @@ class PdfCjkFontFallbackEvent extends RenderObservabilityEvent {
   });
 }
 
+/// focusOn 时 viewState 缺失事件（真机问题 1+5，P0）。
+///
+/// 当 [EditorCoordinator.setFocus] 调用 [CoordinatorState.focusOn] 时，
+/// 目标块的 BlockViewState 尚未注入 viewStates。原代码跳过导致 IME 中断。
+/// 修复后自动创建默认 editing 态，本事件记录此异常路径。
+/// 诊断价值：追踪新块焦点路径，定位 InsertBlockAfter / SplitBlock 后
+/// viewState 注入时序问题。
+class FocusOnViewStateCreatedEvent extends RenderObservabilityEvent {
+  /// 缺失 viewState 的块 ID。
+  final String blockId;
+
+  @override
+  final DateTime timestamp;
+
+  const FocusOnViewStateCreatedEvent({
+    required this.blockId,
+    required this.timestamp,
+  });
+}
+
+/// CJK 字体加载事件（真机问题 4，P0）。
+///
+/// 记录 PDF 导出时 CJK 字体（NotoSansSC.ttf）的加载结果。
+/// 诊断价值：字体加载失败 → PDF 中文渲染为方框/空白。
+/// 与 [PdfCjkFontFallbackEvent] 区分：后者记录每个代码块的回退状态，
+/// 本类记录整体字体加载的一次性结果。
+class CjkFontLoadEvent extends RenderObservabilityEvent {
+  /// 字体是否加载成功。
+  final bool loaded;
+
+  /// 失败时的错误摘要（截断，不含完整 stack）。
+  final String? errorMessage;
+
+  @override
+  final DateTime timestamp;
+
+  const CjkFontLoadEvent({
+    required this.loaded,
+    this.errorMessage,
+    required this.timestamp,
+  });
+}
+
 /// 不变量检查失败记录。
 ///
 /// 落地 ADR-0021 §2.7（Layer 0 Invariant Checker）。

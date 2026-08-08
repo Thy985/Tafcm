@@ -275,6 +275,14 @@ def _print_render(event: dict):
             code_len = event.get("codeLength", 0)
             print(f"    PDFCJK loaded={loaded} fallback={fallback}"
                   f" hasCjk={has_cjk} lang={lang} codeLen={code_len}  @ {ts}")
+        case "FocusOnViewStateCreatedEvent":
+            block_id = event.get("blockId", "?")
+            print(f"    FOCUS  viewState missing for block={block_id}  @ {ts}")
+        case "CjkFontLoadEvent":
+            loaded = event.get("loaded", False)
+            err = event.get("errorMessage", "")
+            err_str = f" err={err}" if err else ""
+            print(f"    FONTLK loaded={loaded}{err_str}  @ {ts}")
         case _:
             print(f"    {etype}  @ {ts}")
 
@@ -300,6 +308,11 @@ def _find_render_anomalies(renders: list) -> list:
                 shown = event.get("shown", False)
                 has_lang = lang is not None and lang != ""
                 if has_lang != shown:
+                    anomalies.append(event)
+            case "FocusOnViewStateCreatedEvent":
+                anomalies.append(event)
+            case "CjkFontLoadEvent":
+                if not event.get("loaded", False):
                     anomalies.append(event)
     return anomalies
 

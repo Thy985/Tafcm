@@ -278,6 +278,8 @@ class ObservabilityService {
             (!isDark && themeName != kLightThemeName),
       CodeBlockLanguageChipRendered(:final language, :final shown) =>
           (language != null && language.isNotEmpty) != shown,
+      FocusOnViewStateCreatedEvent() => true,
+      CjkFontLoadEvent(:final loaded) => !loaded,
     };
   }
 
@@ -297,6 +299,10 @@ class ObservabilityService {
       ) =>
         'fontLoaded=$fontLoaded | fallback=$fallbackActive'
         ' | lang=${language ?? "null"} | codeLen=$codeLength | hasCjk=$hasCjk',
+      FocusOnViewStateCreatedEvent(:final blockId) =>
+        'blockId=$blockId',
+      CjkFontLoadEvent(:final loaded, :final errorMessage) =>
+        'loaded=$loaded | error=${errorMessage ?? "null"}',
     };
   }
 
@@ -465,6 +471,19 @@ class ObservabilityService {
               'language': language,
               'codeLength': codeLength,
               'hasCjk': hasCjk,
+              'timestamp': timestamp.toIso8601String(),
+            },
+          FocusOnViewStateCreatedEvent(:final blockId, :final timestamp) =>
+            <String, Object?>{
+              'type': 'FocusOnViewStateCreatedEvent',
+              'blockId': blockId,
+              'timestamp': timestamp.toIso8601String(),
+            },
+          CjkFontLoadEvent(:final loaded, :final errorMessage, :final timestamp) =>
+            <String, Object?>{
+              'type': 'CjkFontLoadEvent',
+              'loaded': loaded,
+              if (errorMessage != null) 'errorMessage': errorMessage,
               'timestamp': timestamp.toIso8601String(),
             },
         };
