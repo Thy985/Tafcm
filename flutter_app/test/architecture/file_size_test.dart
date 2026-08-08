@@ -34,6 +34,8 @@ void main() {
     'lib/presentation/blocks/base_block_state.dart',
 
     'lib/presentation/observability/command_replayer.dart',
+    'lib/core/observability/models.dart',
+    'lib/core/observability/observability_service.dart',
   ];
 
   test('TC-ARCH-7 lib/ all .dart files <= 400 lines (except known offenders)', () {

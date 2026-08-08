@@ -70,6 +70,7 @@ def _analyze_dir(dir_path: str):
         _print_kv("Commands", metadata.get("commandCount", 0))
         _print_kv("Transactions", metadata.get("transactionCount", 0))
         _print_kv("Interactions", metadata.get("interactionCount", 0))
+        _print_kv("Renders", metadata.get("renderCount", 0))
     else:
         print("  (not found)")
     print()
@@ -80,10 +81,12 @@ def _analyze_dir(dir_path: str):
         interactions = trace.get("interactions", [])
         commands = trace.get("commands", [])
         transactions = trace.get("transactions", [])
+        renders = trace.get("renders", [])
 
         print(f"  Interactions: {len(interactions)}")
         print(f"  Commands:     {len(commands)}")
         print(f"  Transactions: {len(transactions)}")
+        print(f"  Renders:      {len(renders)}")
         print()
 
         if interactions:
@@ -104,6 +107,19 @@ def _analyze_dir(dir_path: str):
                 print(f"  --- Rolled Back Transactions ({len(failed)}) ---")
                 for t in failed:
                     _print_transaction(t)
+                print()
+
+        if renders:
+            print("  --- Recent Render Events (last 10) ---")
+            for event in renders[-10:]:
+                _print_render(event)
+            print()
+
+            anomalies = _find_render_anomalies(renders)
+            if anomalies:
+                print(f"  ⚠ Render Anomalies ({len(anomalies)}) ---")
+                for a in anomalies:
+                    _print_render(a)
                 print()
     else:
         print("  (not found)")
@@ -234,6 +250,58 @@ def _print_transaction(t: dict):
     reason = t.get("rollbackReason", "")
     reason_str = f"  reason={reason}" if reason else ""
     print(f"    TX {tid}  [{result}]{reason_str}")
+
+
+def _print_render(event: dict):
+    """Print a single render event."""
+    etype = event.get("type", "?")
+    ts = event.get("timestamp", "?")
+    match etype:
+        case "CodeBlockThemeRendered":
+            is_dark = event.get("isDark", False)
+            theme = event.get("themeName", "?")
+            lang = event.get("language", "?")
+            print(f"    THEME  dark={is_dark} theme={theme} lang={lang}  @ {ts}")
+        case "CodeBlockLanguageChipRendered":
+            lang = event.get("language")
+            shown = event.get("shown", False)
+            mode = event.get("mode", "?")
+            print(f"    CHIP   lang={lang} shown={shown} mode={mode}  @ {ts}")
+        case "PdfCjkFontFallbackEvent":
+            loaded = event.get("fontLoaded", False)
+            fallback = event.get("fallbackActive", False)
+            has_cjk = event.get("hasCjk", False)
+            lang = event.get("language")
+            code_len = event.get("codeLength", 0)
+            print(f"    PDFCJK loaded={loaded} fallback={fallback}"
+                  f" hasCjk={has_cjk} lang={lang} codeLen={code_len}  @ {ts}")
+        case _:
+            print(f"    {etype}  @ {ts}")
+
+
+def _find_render_anomalies(renders: list) -> list:
+    """Find render events that indicate potential issues."""
+    anomalies = []
+    for event in renders:
+        etype = event.get("type", "")
+        match etype:
+            case "PdfCjkFontFallbackEvent":
+                if event.get("hasCjk") and not event.get("fallbackActive"):
+                    anomalies.append(event)
+            case "CodeBlockThemeRendered":
+                is_dark = event.get("isDark", False)
+                theme = event.get("themeName", "")
+                if is_dark and theme != "atomOneDark":
+                    anomalies.append(event)
+                elif not is_dark and theme != "github":
+                    anomalies.append(event)
+            case "CodeBlockLanguageChipRendered":
+                lang = event.get("language")
+                shown = event.get("shown", False)
+                has_lang = lang is not None and lang != ""
+                if has_lang != shown:
+                    anomalies.append(event)
+    return anomalies
 
 
 if __name__ == "__main__":

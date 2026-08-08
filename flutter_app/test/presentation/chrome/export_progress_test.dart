@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:formula_fix/core/observability/observability_service.dart';
 import 'package:formula_fix/domain/providers/export_progress_provider.dart';
 import 'package:formula_fix/domain/services/export_service.dart';
 
@@ -30,6 +31,7 @@ class _ProgressPdfExporter implements PdfExporterInterface {
     String? author,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ObservabilityService? observability,
   }) async {
     // 模拟至少 3 次回调：collecting → preRender → rendering → assembling（0/1 → 1/1）。
     onProgress?.call(const ExportProgress(

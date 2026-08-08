@@ -234,6 +234,123 @@ class UserLongPress extends EditorInteractionEvent {
   const UserLongPress({required this.target, required this.timestamp});
 }
 
+/// 语法高亮主题名称常量（用于 isRenderSignal 判定）。
+///
+/// 与 CodeBlock.buildRenderContent 中 `isDark ? atomOneDarkTheme : githubTheme`
+/// 保持同步。提取为常量避免散落硬编码导致诊断假阴性。
+const String kDarkThemeName = 'atomOneDark';
+const String kLightThemeName = 'github';
+
+/// 渲染/导出可观测事件（sealed class）。
+///
+/// 记录 UI 渲染与导出管线中的关键决策点，用于诊断：
+/// - 代码块语法高亮主题是否随 app 主题切换（问题 6.1）
+/// - 编辑态 language chip 是否正确显示/隐藏（问题 6.5）
+/// - PDF 导出代码块 CJK 字体回退是否生效（问题 6.4）
+///
+/// 与 [EditorInteractionEvent] 区分：后者记录用户语义交互，
+/// 本类记录渲染/导出管线的内部决策事件。
+sealed class RenderObservabilityEvent {
+  DateTime get timestamp;
+
+  const RenderObservabilityEvent();
+}
+
+/// 代码块语法高亮主题渲染事件（问题 6.1）。
+///
+/// 每次 [CodeBlock.buildRenderContent] 执行时记录，
+/// 捕获 app 主题（dark/light）与实际选用的 highlight theme 名称。
+/// 诊断价值：验证 dark → atomOneDarkTheme / light → githubTheme 映射正确。
+class CodeBlockThemeRendered extends RenderObservabilityEvent {
+  /// app 主题是否为 dark。
+  final bool isDark;
+
+  /// 实际选用的 highlight theme 名称。
+  final String themeName;
+
+  /// 代码块 language 标签（归一化后，如 "python" / "dart"）。
+  final String language;
+
+  @override
+  final DateTime timestamp;
+
+  const CodeBlockThemeRendered({
+    required this.isDark,
+    required this.themeName,
+    required this.language,
+    required this.timestamp,
+  });
+}
+
+/// language chip 渲染模式枚举。
+enum CodeBlockChipMode {
+  /// 编辑态（buildEditField 调用）。
+  edit,
+
+  /// 渲染态（buildRenderContent 调用）。
+  render,
+}
+
+/// 代码块编辑态 language chip 渲染事件（问题 6.5）。
+///
+/// 每次 [CodeBlock.buildEditField] 执行时记录，
+/// 捕获 language 是否存在以及 chip 是否显示。
+/// 诊断价值：验证有 language → chip 显示 / 无 language → chip 隐藏。
+class CodeBlockLanguageChipRendered extends RenderObservabilityEvent {
+  /// 原始 language 标签（null / empty 表示无 language）。
+  final String? language;
+
+  /// chip 是否实际显示。
+  final bool shown;
+
+  /// 渲染模式（编辑态 / 渲染态）。
+  final CodeBlockChipMode mode;
+
+  @override
+  final DateTime timestamp;
+
+  const CodeBlockLanguageChipRendered({
+    required this.language,
+    required this.shown,
+    required this.mode,
+    required this.timestamp,
+  });
+}
+
+/// PDF 导出代码块 CJK 字体回退事件（问题 6.4）。
+///
+/// 每次 [PdfExporter._pdfCode] 执行时记录，
+/// 捕获 CJK 字体是否加载、fontFallback 是否非空。
+/// 诊断价值：验证代码块中文注释在 PDF 中不渲染为方框。
+class PdfCjkFontFallbackEvent extends RenderObservabilityEvent {
+  /// CJK 字体是否已加载。
+  final bool fontLoaded;
+
+  /// fontFallback 列表是否非空（即 CJK 回退生效）。
+  final bool fallbackActive;
+
+  /// 代码块 language 标签（如有）。
+  final String? language;
+
+  /// 代码内容长度（脱敏：仅长度）。
+  final int codeLength;
+
+  /// 代码内容是否含 CJK 字符。
+  final bool hasCjk;
+
+  @override
+  final DateTime timestamp;
+
+  const PdfCjkFontFallbackEvent({
+    required this.fontLoaded,
+    required this.fallbackActive,
+    required this.language,
+    required this.codeLength,
+    required this.hasCjk,
+    required this.timestamp,
+  });
+}
+
 /// 不变量检查失败记录。
 ///
 /// 落地 ADR-0021 §2.7（Layer 0 Invariant Checker）。
@@ -366,12 +483,14 @@ class ObservabilityConfig {
   final int commandBufferSize;
   final int transactionBufferSize;
   final int interactionBufferSize;
+  final int renderBufferSize;
 
   const ObservabilityConfig({
     this.level = ObservabilityLevel.light,
     this.commandBufferSize = 500,
     this.transactionBufferSize = 50,
     this.interactionBufferSize = 1000,
+    this.renderBufferSize = 500,
   });
 
   /// LIGHT 模式默认配置。
@@ -380,6 +499,7 @@ class ObservabilityConfig {
     commandBufferSize: 500,
     transactionBufferSize: 50,
     interactionBufferSize: 1000,
+    renderBufferSize: 500,
   );
 
   /// FULL 模式默认配置。
@@ -388,9 +508,14 @@ class ObservabilityConfig {
     commandBufferSize: 500,
     transactionBufferSize: 50,
     interactionBufferSize: 1000,
+    renderBufferSize: 500,
   );
 
   /// OFF 模式（tree-shaking 移除）。
+  ///
+  /// buffer size 字段未显式指定（默认 500），但 OFF 模式下
+  /// `isEnabled` 为 false，所有 record* 方法直接 return，
+  /// RingBuffer 不会被创建或写入——tree-shaking 移除全部代码。
   static const off = ObservabilityConfig(
     level: ObservabilityLevel.off,
   );

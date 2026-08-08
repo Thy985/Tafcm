@@ -17,6 +17,7 @@ import 'export_pipeline.dart';
 import 'interaction_tracer.dart';
 import 'invariant_checker.dart';
 import 'models.dart';
+import 'render_tracer.dart';
 import 'trace_context.dart';
 import 'transaction_tracer.dart';
 
@@ -32,6 +33,9 @@ class ObservabilityService {
 
   /// 用户交互轨迹记录器（Phase 3.7.3）。
   final InteractionTracer interactionTracer;
+
+  /// 渲染/导出轨迹记录器（问题 6.1/6.4/6.5 可观测层）。
+  final RenderTracer renderTracer;
 
   final InvariantChecker Function() invariantCheckerFactory;
 
@@ -57,11 +61,14 @@ class ObservabilityService {
     CommandTracer? commandTracer,
     TransactionTracer? transactionTracer,
     InteractionTracer? interactionTracer,
+    RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
   })  : commandTracer = commandTracer ?? CommandTracer(),
         transactionTracer = transactionTracer ?? TransactionTracer(),
         interactionTracer = interactionTracer ?? InteractionTracer(),
+        renderTracer = renderTracer ??
+            RenderTracer(capacity: config.renderBufferSize),
         invariantCheckerFactory =
             invariantCheckerFactory ?? (() => InvariantChecker()),
         sessionId = TraceIdGenerator.sessionId() {
@@ -76,6 +83,7 @@ class ObservabilityService {
     CommandTracer? commandTracer,
     TransactionTracer? transactionTracer,
     InteractionTracer? interactionTracer,
+    RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
   }) : this(
@@ -83,6 +91,7 @@ class ObservabilityService {
           commandTracer: commandTracer,
           transactionTracer: transactionTracer,
           interactionTracer: interactionTracer,
+          renderTracer: renderTracer,
           invariantCheckerFactory: invariantCheckerFactory,
           errorSnapshotter: errorSnapshotter,
         );
@@ -92,6 +101,7 @@ class ObservabilityService {
     CommandTracer? commandTracer,
     TransactionTracer? transactionTracer,
     InteractionTracer? interactionTracer,
+    RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
   }) : this(
@@ -99,6 +109,7 @@ class ObservabilityService {
           commandTracer: commandTracer,
           transactionTracer: transactionTracer,
           interactionTracer: interactionTracer,
+          renderTracer: renderTracer,
           invariantCheckerFactory: invariantCheckerFactory,
           errorSnapshotter: errorSnapshotter,
         );
@@ -234,6 +245,61 @@ class ObservabilityService {
     return s.length <= len ? s : s.substring(0, len);
   }
 
+  // ============ Render Trace（问题 6.1/6.4/6.5 可观测层） ============
+
+  /// 记录渲染/导出事件。
+  ///
+  /// **信噪比策略**：
+  /// - LIGHT 模式：仅在 [isRenderSignal] 返回 true（异常情况）时输出 debugPrint，
+  ///   正常渲染事件静默入 RingBuffer。PdfCjkFontFallbackEvent 的降级信号
+  ///   （hasCjk && !fallbackActive）也会触发 debugPrint。
+  /// - FULL 模式：保留全量 debugPrint。
+  void recordRender(RenderObservabilityEvent event) {
+    if (!isEnabled) return;
+    if (isFull || isRenderSignal(event)) {
+      debugPrint('[OBS-Render] ${event.runtimeType}'
+          ' | ${_describeRender(event)}');
+    }
+    renderTracer.record(event);
+  }
+
+  /// 判断渲染事件是否为"信号"（LIGHT 模式应输出 debugPrint）。
+  ///
+  /// 仅在真异常时返回 true：
+  /// - PdfCjkFontFallback：含 CJK 但 fallback 未生效（降级风险）
+  /// - CodeBlockThemeRendered：主题与 themeName 不匹配（映射错误）
+  /// - CodeBlockLanguageChipRendered：有 language 但 chip 未显示 / 无 language 但 chip 显示（逻辑错误）
+  static bool isRenderSignal(RenderObservabilityEvent event) {
+    return switch (event) {
+      PdfCjkFontFallbackEvent(:final hasCjk, :final fallbackActive) =>
+        hasCjk && !fallbackActive,
+      CodeBlockThemeRendered(:final isDark, :final themeName) =>
+        (isDark && themeName != kDarkThemeName) ||
+            (!isDark && themeName != kLightThemeName),
+      CodeBlockLanguageChipRendered(:final language, :final shown) =>
+          (language != null && language.isNotEmpty) != shown,
+    };
+  }
+
+  /// 描述渲染事件（用于调试日志）。
+  String _describeRender(RenderObservabilityEvent event) {
+    return switch (event) {
+      CodeBlockThemeRendered(:final isDark, :final themeName, :final language) =>
+        'isDark=$isDark | theme=$themeName | lang=$language',
+      CodeBlockLanguageChipRendered(:final language, :final shown, :final mode) =>
+        'lang=${language ?? "null"} | shown=$shown | mode=${mode.name}',
+      PdfCjkFontFallbackEvent(
+        :final fontLoaded,
+        :final fallbackActive,
+        :final language,
+        :final codeLength,
+        :final hasCjk
+      ) =>
+        'fontLoaded=$fontLoaded | fallback=$fallbackActive'
+        ' | lang=${language ?? "null"} | codeLen=$codeLength | hasCjk=$hasCjk',
+    };
+  }
+
   // ============ Invariant Checker ============
 
   /// 运行不变量检查，返回失败列表。
@@ -293,6 +359,7 @@ class ObservabilityService {
       'commandCount': commandTracer.count,
       'transactionCount': transactionTracer.count,
       'interactionCount': interactionTracer.count,
+      'renderCount': renderTracer.count,
       'commands': commandTracer.entries.map((e) => {
         'commandName': e.commandName,
         'params': e.params,
@@ -355,6 +422,53 @@ class ObservabilityService {
           },
         };
       }).toList(),
+      'renders': renderTracer.entries.map((e) {
+        return switch (e) {
+          CodeBlockThemeRendered(
+            :final isDark,
+            :final themeName,
+            :final language,
+            :final timestamp
+          ) =>
+            <String, Object?>{
+              'type': 'CodeBlockThemeRendered',
+              'isDark': isDark,
+              'themeName': themeName,
+              'language': language,
+              'timestamp': timestamp.toIso8601String(),
+            },
+          CodeBlockLanguageChipRendered(
+            :final language,
+            :final shown,
+            :final mode,
+            :final timestamp
+          ) =>
+            <String, Object?>{
+              'type': 'CodeBlockLanguageChipRendered',
+              'language': language,
+              'shown': shown,
+              'mode': mode.name,
+              'timestamp': timestamp.toIso8601String(),
+            },
+          PdfCjkFontFallbackEvent(
+            :final fontLoaded,
+            :final fallbackActive,
+            :final language,
+            :final codeLength,
+            :final hasCjk,
+            :final timestamp
+          ) =>
+            <String, Object?>{
+              'type': 'PdfCjkFontFallbackEvent',
+              'fontLoaded': fontLoaded,
+              'fallbackActive': fallbackActive,
+              'language': language,
+              'codeLength': codeLength,
+              'hasCjk': hasCjk,
+              'timestamp': timestamp.toIso8601String(),
+            },
+        };
+      }).toList(),
     };
   }
 
@@ -376,6 +490,7 @@ class ObservabilityService {
     commandTracer.clear();
     transactionTracer.clear();
     interactionTracer.clear();
+    renderTracer.clear();
     clearTraceContext();
   }
 }

@@ -1,13 +1,13 @@
 /// ExportPipeline：诊断导出管道。
 ///
 /// 生成 `formula_fix_debug_YYYYMMDD_HHmmss.zip`，包含：
-/// - metadata.json：版本、设备、时间、observability 级别
-/// - trace.json：完整的事件流（Interaction + Command + Transaction）
+/// - metadata.json：版本、设备、时间、observability 级别、各 trace count
+/// - trace.json：完整的事件流（Interaction + Command + Transaction + Render）
 /// - snapshot.json：当前 Error Snapshot（如有）
 /// - invariant_report.json：最近一次 Invariant Checker 运行结果
 /// - README.txt：导出说明
 ///
-/// 落地 ADR-0021 §2.8（Export Pipeline）。
+/// 落地 ADR-0021 §2.8（Export Pipeline）+ ADR-0023 §2.1 扩展（Render Trace）。
 library;
 
 import 'dart:convert';
@@ -104,6 +104,7 @@ class ExportPipeline {
       'commandCount': _service.commandTracer.count,
       'transactionCount': _service.transactionTracer.count,
       'interactionCount': _service.interactionTracer.count,
+      'renderCount': _service.renderTracer.count,
     };
   }
 
@@ -176,10 +177,59 @@ class ExportPipeline {
       };
     }).toList();
 
+    final renders = _service.renderTracer.entries.map((e) {
+      return switch (e) {
+        CodeBlockThemeRendered(
+          :final isDark,
+          :final themeName,
+          :final language,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'CodeBlockThemeRendered',
+            'isDark': isDark,
+            'themeName': themeName,
+            'language': language,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        CodeBlockLanguageChipRendered(
+          :final language,
+          :final shown,
+          :final mode,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'CodeBlockLanguageChipRendered',
+            'language': language,
+            'shown': shown,
+            'mode': mode.name,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        PdfCjkFontFallbackEvent(
+          :final fontLoaded,
+          :final fallbackActive,
+          :final language,
+          :final codeLength,
+          :final hasCjk,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'PdfCjkFontFallbackEvent',
+            'fontLoaded': fontLoaded,
+            'fallbackActive': fallbackActive,
+            'language': language,
+            'codeLength': codeLength,
+            'hasCjk': hasCjk,
+            'timestamp': timestamp.toIso8601String(),
+          },
+      };
+    }).toList();
+
     return {
       'interactions': interactions,
       'commands': commands,
       'transactions': transactions,
+      'renders': renders,
     };
   }
 
@@ -205,7 +255,7 @@ class ExportPipeline {
         'This archive contains diagnostic data for debugging.\n\n'
         'Files:\n'
         '  metadata.json           - App version, device, OS, session info\n'
-        '  trace.json              - Interaction + Command + Transaction traces\n'
+        '  trace.json              - Interaction + Command + Transaction + Render traces\n'
         '  snapshot.json           - Error snapshot (if any)\n'
         '  invariant_report.json   - Invariant checker results\n\n'
         'For analysis:\n'
