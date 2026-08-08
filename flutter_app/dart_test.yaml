@@ -11,3 +11,5 @@ tags:
   golden:
     # Golden 测试组：CI 跨平台字体渲染差异 0.09% 像素，主 test job 排除。
     # 独立 golden job 暂停（if: false），本地默认全跑。
+  perf:
+    # 性能测试：依赖环境 I/O 性能，本地默认全跑，CI 用 --exclude-tags perf 排除。

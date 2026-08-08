@@ -142,3 +142,6 @@ secrets/
 
 # Tool temp files
 .workbuddy/
+
+# Debug / observability output
+debug/

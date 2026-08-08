@@ -21,11 +21,16 @@ library;
 import '../../core/editing/block_operations.dart';
 import '../../core/editing/block_serializer.dart';
 import '../../core/editing/document_editor.dart';
+import '../../core/editing/edit_operation.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
 import '../../core/editing/transaction_rollback.dart';
+import '../../core/observability/canonical_fingerprint.dart';
+
+import '../../core/observability/observability_service.dart';
 import '../../data/models/document.dart';
+import '../observability/command_observability_adapter.dart';
 import 'commands.dart';
 
 /// CommandHandler：解释 [EditorCommand] 为 [BlockOperation] 序列。
@@ -39,7 +44,50 @@ class CommandHandler {
   /// Undo / Redo 历史栈。
   final EditorHistory history;
 
-  CommandHandler({required this.editor, required this.history});
+  /// 可观测服务（可选，LIGHT 模式下默认开启）。
+  final ObservabilityService? observability;
+
+  CommandHandler({
+    required this.editor,
+    required this.history,
+    this.observability,
+  });
+
+  /// 可观测性适配器（懒初始化）。
+  late final _obsAdapter = CommandObservabilityAdapter(
+    observability: observability,
+    editor: editor,
+    history: history,
+  );
+
+  /// 计算当前 Document fingerprint。
+  String? _computeFingerprint() {
+    if (observability?.isEnabled != true) return null;
+    final blocks = editor.allIds
+        .map((id) => MapEntry<String, DocumentElement?>(id.value, editor.getBlock(id)))
+        .where((e) => e.value != null)
+        .map((e) => MapEntry(e.key, e.value!))
+        .toList();
+    return canonicalFingerprint(blocks);
+  }
+
+  /// 构造编辑器状态快照提供者（用于 Transaction Trace 的 before/after snapshot）。
+  ///
+  /// 每块取 BlockId 前 8 字符 + source 前 80 字符，拼成可读摘要。
+  StateSnapshotProvider _snapshotProvider() {
+    return () {
+      final buf = StringBuffer();
+      for (final id in editor.allIds) {
+        final element = editor.getBlock(id);
+        if (element == null) continue;
+        final source = fromElement(element);
+        final shortId = id.value.length > 8 ? id.value.substring(0, 8) : id.value;
+        final shortSource = source.length > 80 ? '${source.substring(0, 80)}...' : source;
+        buf.writeln('$shortId: $shortSource');
+      }
+      return buf.toString();
+    };
+  }
 
   /// 处理 [command]，返回是否成功。
   ///
@@ -50,27 +98,55 @@ class CommandHandler {
   /// 4. 分发到对应的 _handle* 方法
   /// 5. 成功 → builder.commit()（触发 onChange → history.push）
   /// 6. 失败 → revertBuilder(builder, editor)（原子回滚：逆序 revert 已 eager-apply 的 op）
+  /// 7. 异常 → Error Snapshot（ADR-0021 §3.7.2）
   bool handle(EditorCommand command) {
     // Prototype 阶段不接入 ComposingController，守卫跳过
     // Phase 3 正式实现时：if (composing?.isActive == true) return false;
 
+    // === Observability: 记录 before state ===
+    final beforeHash = _computeFingerprint();
+
     final builder = TransactionBuilder(
       origin: _toTransactionOrigin(command.origin),
       onChange: (tx) => history.push(tx),
+      observability: observability,
+      stateSnapshotProvider: _snapshotProvider(),
     );
     final operations = BlockOperations(editor, builder);
 
-    final success = _dispatch(command, operations, builder);
-    if (success) {
-      builder.commit(label: command.displayName);
-    } else {
-      // D3 原子性：BlockOperations 在 op.apply 成功后才加入 builder，
-      // 故 builder.ops 均为已 apply 到 editor 的 op。失败须逆序 revert 以恢复
-      // 编辑器到命令前状态（避免多原语命令中途失败残留部分变异态）。
-      revertBuilder(builder, editor);
+    bool success;
+    try {
+      success = _dispatch(command, operations, builder);
+      if (success) {
+        builder.commit(label: command.displayName);
+        _obsAdapter.runInvariantCheck();
+      } else {
+        // D3 原子性：BlockOperations 在 op.apply 成功后才加入 builder，
+        // 故 builder.ops 均为已 apply 到 editor 的 op。失败须逆序 revert 以恢复
+        // 编辑器到命令前状态（避免多原语命令中途失败残留部分变异态）。
+        // P1 信噪比修复：成功路径 false（守卫拒绝 / no-op）走良性 rollback，
+        // 不触发 ErrorSnapshot。
+        revertBuilder(builder, editor);
+      }
+    } catch (e) {
+      // === Observability: 触发 Error Snapshot（ADR-0021 §3.7.2） ===
+      _obsAdapter.captureCommandError(command, e);
+      // 确保 builder 回滚（异常时可能未 complete）
+      // P1 信噪比修复：异常路径才是真正的"非预期回滚"，传 unexpected: true
+      // 触发 ErrorSnapshot（与 TransactionBuilder.rollback 的 unexpected 参数对齐）。
+      if (!builder.isCompleted) {
+        revertBuilder(builder, editor, unexpected: true);
+      }
+      success = false;
     }
+
+    // === Observability: 记录 Command 轨迹 ===
+    final afterHash = _computeFingerprint();
+    _obsAdapter.recordCommandTrace(command, success, beforeHash, afterHash, builder.id);
+
     return success;
   }
+
 
   /// 分发 [command] 到对应处理方法。
   ///

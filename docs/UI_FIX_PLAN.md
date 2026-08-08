@@ -6,6 +6,21 @@
 > **来源**：两轮只读审计 —— ① 技术适配质量审计；② 设计还原度 + AppShell 进度审计
 > **方法**：每项含 问题 / 位置（文件:行）/ 改法 / 验证 / 建议 PR。不改动代码，待评审后分批实施。
 
+> **进度同步（2026-08-06，基于代码实况核实）**
+>
+> | PR | 项目 | 状态 | 证据 |
+> |----|------|------|------|
+> | PR-A | 暗色阴影令牌体系（P0-1） | ✅ 已合并 #109 | `app_constants.dart:71-77` 修复 |
+> | PR-B | 主屏 SafeArea（P0-3） | ✅ 已合并 #110 | 三处 `body` 移除 `SafeArea(top:true)` |
+> | PR-C | 首页 golden + Golden 矩阵扩充（P0-2 + P1-4） | ✅ 已合并 #111 | `home_screen_light_test.dart` 等 |
+> | PR-D | 响应式断点体系（P1-1） | ✅ 已合并 #112 | `kTabletBreakpoint` |
+> | PR-E | spacing/radius/字号令牌集中化（P1-2 + P1-3） | ✅ 已提交 PR #116 | `AppSpacing` 补全 7 项命名令牌 |
+> | PR-F | 组件 Widget + 死代码清理（P2-1 + P2-2） | ✅ 已实现（PR #117） | `buttons.dart` 4 组件 + `side_panel_host.dart` 已删除 |
+> | PR-G | 不抄设计稿设备装饰（P0-4） | ✅ 已合并 #108 | `home_screen.dart:31` `SafeArea(top:false, bottom:true)` |
+> | PR-Fb | PR-F 延后：接线 + 颜色 | ⬜ 待启动 | 首页 `_RoundButton`→`GhostButton`、搜索栏接 `SearchPill`、主题色 swap |
+> | PR-H | 颜色语义化长期治理（P3） | ⬜ 待启动 | 长期治理 |
+> | PR-I | Repository Safety Layer（基础设施） | 🔶 OPEN #113 | `.agent/` 安全层 |
+
 ---
 
 ## 0. 修复总览

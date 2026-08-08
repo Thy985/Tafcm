@@ -79,6 +79,11 @@ class EditorShell extends ConsumerStatefulWidget {
   /// 接到 AppBar 导出 PopupMenu；`null` 时 AppBar 不渲染导出按钮。
   final ValueChanged<ExportFormat>? onExportTo;
 
+  /// 导出诊断数据 zip 的回调（Phase 3.7.3）。
+  ///
+  /// 接到 AppBar more_vert 菜单；`null` 时菜单项不显示。
+  final VoidCallback? onExportDiagnostics;
+
   const EditorShell({
     super.key,
     required this.coordinator,
@@ -89,6 +94,7 @@ class EditorShell extends ConsumerStatefulWidget {
     this.baseDir,
     this.pickImage,
     this.onExportTo,
+    this.onExportDiagnostics,
   });
 
   @override
@@ -220,69 +226,18 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               themeMode: widget.themeMode,
               onCycleTheme: widget.onCycleTheme,
               onExportTo: widget.onExportTo,
+              onExportDiagnostics: widget.onExportDiagnostics,
             ),
-      body: Column(
-        children: [
-          Expanded(
-            // 编辑区 + 文件树侧栏（Phase 3.4.2）：默认仅编辑区占满；
-            // 点 AppBar「文件树」按钮后，左侧嵌入 FileTreePanel（VS Code Mobile 风格）。
-            child: Row(
-              children: [
-                if (isWide && _showFileTree)
-                  SizedBox(
-                    width: 260,
-                    child: ref.watch(documentsProvider).when(
-                      data: (docs) => FileTreePanel(
-                        documents: docs,
-                        currentPath: widget.currentPath,
-                        onOpenFile: _openDoc,
-                      ),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (_, __) =>
-                          const Center(child: Text('加载失败')),
-                    ),
-                  ),
-                Expanded(
-                  // 编辑区：双指缩放（onScaleUpdate）
-                  // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
-                  // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
-                  // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
-                  // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
-                  child: GestureDetector(
-                    onScaleStart: (_) => _scaleStart = _zoomScale,
-                    onScaleUpdate: (details) {
-                      if (details.scale != 1.0) {
-                        setState(() {
-                          _zoomScale =
-                              (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
-                        });
-                      }
-                    },
-                    onDoubleTap: _focusMode ? _toggleFocus : null,
-                    child: MediaQuery(
-                      data: MediaQuery.of(context)
-                          .copyWith(textScaler: TextScaler.linear(_zoomScale)),
-                      child: Workspace(
-                        coordinator: coordinator,
-                        scrollController: _scrollController,
-                        blockKeys: _blockKeys,
-                        baseDir: widget.baseDir,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
-          if (!_focusMode)
-            MarkdownToolbar(
-              coordinator: coordinator,
-              pickImage: widget.pickImage,
-            ),
-        ],
-      ),
+      body: _focusMode
+          // P1-2 修复：焦点模式 appBar:null，body 顶到屏幕顶端被状态栏遮挡。
+          // 仅焦点模式包 SafeArea(top:true) 让出状态栏；非焦点模式 AppBar
+          // 已消耗顶部 padding，再包会重复留白 / 破坏 golden 基线。
+          ? SafeArea(
+              top: true,
+              bottom: false,
+              child: _buildBodyContent(coordinator, isWide),
+            )
+          : _buildBodyContent(coordinator, isWide),
       // 焦点模式：隐藏 StatusBar（§3.3.3）
       bottomNavigationBar: _focusMode
           ? null
@@ -293,6 +248,71 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               onZoomOut: _zoomOut,
               onZoomReset: _zoomReset,
             ),
+    );
+  }
+
+  Widget _buildBodyContent(EditorCoordinator coordinator, bool isWide) {
+    return Column(
+      children: [
+        Expanded(
+          // 编辑区 + 文件树侧栏（Phase 3.4.2）：默认仅编辑区占满；
+          // 点 AppBar「文件树」按钮后，左侧嵌入 FileTreePanel（VS Code Mobile 风格）。
+          child: Row(
+            children: [
+              if (isWide && _showFileTree)
+                SizedBox(
+                  width: 260,
+                  child: ref.watch(documentsProvider).when(
+                    data: (docs) => FileTreePanel(
+                      documents: docs,
+                      currentPath: widget.currentPath,
+                      onOpenFile: _openDoc,
+                    ),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (_, __) =>
+                        const Center(child: Text('加载失败')),
+                  ),
+                ),
+              Expanded(
+                // 编辑区：双指缩放（onScaleUpdate）
+                // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
+                // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
+                // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
+                // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
+                child: GestureDetector(
+                  onScaleStart: (_) => _scaleStart = _zoomScale,
+                  onScaleUpdate: (details) {
+                    if (details.scale != 1.0) {
+                      setState(() {
+                        _zoomScale =
+                            (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
+                      });
+                    }
+                  },
+                  onDoubleTap: _focusMode ? _toggleFocus : null,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context)
+                        .copyWith(textScaler: TextScaler.linear(_zoomScale)),
+                    child: Workspace(
+                      coordinator: coordinator,
+                      scrollController: _scrollController,
+                      blockKeys: _blockKeys,
+                      baseDir: widget.baseDir,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
+        if (!_focusMode)
+          MarkdownToolbar(
+            coordinator: coordinator,
+            pickImage: widget.pickImage,
+          ),
+      ],
     );
   }
 }

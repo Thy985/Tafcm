@@ -563,14 +563,14 @@ void main() {
           origin: TransactionOrigin.programmatic,
           onChange: (tx) => history.push(tx),
         );
-        builder2.commit();  // 空 Transaction 也 push
+        builder2.commit();  // 空 Transaction → no-op（P1 信噪比修复）
 
-        expect(history.undoCount, equals(2));
-        // undo T2（空 op revert 无效果）
-        final lastTx = history.lastOrNull!;
-        final undone = history.undo(lastTx)!;
-        _revertOps(editor, undone);  // 无 op，无副作用
-        expect(editor.allSources, equals(['a', 'b']));
+        expect(history.undoCount, equals(1));  // 空 commit 不入栈
+        expect(history.canUndo, isTrue);
+        // undo T1 正常工作（空 commit 未破坏 history）
+        final undone = history.undo(history.lastOrNull!)!;
+        _revertOps(editor, undone);
+        expect(editor.allSources, equals(['a']));
       });
     });
   });

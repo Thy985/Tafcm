@@ -53,22 +53,30 @@ class EditorStatusBar extends StatelessWidget {
         height: EditorTokens.statusBarHeight,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-        children: [
-          _buildItem('块数: ${coordinator.blockCount}'),
-          const SizedBox(width: 16),
-          // Phase 3.3 §3.3.4：字数统计
-          _buildItem('字数: ${coordinator.wordCount}'),
-          const SizedBox(width: 16),
-          // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
-          _buildItem(coordinator.canUndo ? '可撤销' : '—'),
-          const SizedBox(width: 8),
-          _buildItem(coordinator.canRedo ? '可重做' : '—'),
-          const Spacer(),
-          // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
-          _buildZoomControls(),
-        ],
-      ),
+        // P1 微修复（真机 CORE-005 阻塞）：真机字体比测试环境宽，状态栏 Row 在
+        // 360dp 屏宽下溢出 12px。用 SingleChildScrollView 横向滚动兜底，宽屏
+        // 仍正常显示，窄屏可滑动而非报 RenderFlex overflow。Spacer 在无 max
+        // width 约束下不工作，改为固定 SizedBox 间距。
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildItem('块数: ${coordinator.blockCount}'),
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.4：字数统计
+              _buildItem('字数: ${coordinator.wordCount}'),
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
+              _buildItem(coordinator.canUndo ? '可撤销' : '—'),
+              const SizedBox(width: 8),
+              _buildItem(coordinator.canRedo ? '可重做' : '—'),
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
+              _buildZoomControls(),
+            ],
+          ),
+        ),
       ),
     );
   }

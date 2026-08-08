@@ -34,12 +34,17 @@ class BlockToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = EditorTokens.of(context);
     final element = coordinator.getBlock(blockId);
     final type = element == null ? null : BlockType.fromElement(element);
     final canConvert = type == BlockType.paragraph ||
         type == BlockType.heading ||
         type == BlockType.blockquote;
+
+    if (!_canMoveUp && !_canMoveDown && !_canDelete && !canConvert) {
+      return const SizedBox.shrink();
+    }
+
+    final tokens = EditorTokens.of(context);
 
     return Material(
       elevation: 2,

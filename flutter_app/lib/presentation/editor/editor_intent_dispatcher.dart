@@ -24,6 +24,7 @@ class EditorIntentDispatcher {
 
   /// 派发任意 [EditorIntent]。
   void dispatch(EditorIntent intent) {
+    coordinator.beginUserInteraction();
     switch (intent) {
       case EnterPressedIntent i:
         _dispatchEnter(i);

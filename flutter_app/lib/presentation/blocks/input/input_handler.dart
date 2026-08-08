@@ -58,7 +58,10 @@ class InputHandler {
   ///
   /// **Undo 语义**（单 Command 策略）：触发配对 / 续行时,产生 1 个 undo 步骤
   /// （[UpdateBlockSourceCommand] 携带最终 source）。用户 undo 1 次即可完全撤销。
-  void handle({
+  ///
+  /// **返回值**（P0 修复 CORE-006）：返回 true 表示已派发 Command（domain 已更新），
+  /// 返回 false 表示未触发自动行为（调用方需自行 commit 原始输入到 domain）。
+  bool handle({
     required TextEditingValue newValue,
     required TextEditingValue oldValue,
     required BlockId blockId,
@@ -82,7 +85,7 @@ class InputHandler {
       ));
       // 光标在配对符中间：insertOffset（'(' 之后,'）' 之前）
       _syncCursor(coordinator, blockId, pairCmd.insertOffset);
-      return;
+      return true;
     }
 
     // 2. 自动续列表检测（以 '\n' 结尾）
@@ -127,7 +130,11 @@ class InputHandler {
         origin: CommandOrigin.ime,
       ));
       _syncCursor(coordinator, blockId, cursorOffset);
+      return true;
     }
+
+    // 未触发自动行为
+    return false;
   }
 
   /// 同步光标位置到 [BlockViewState]（BaseBlockState.didUpdateWidget 会读取此值）。

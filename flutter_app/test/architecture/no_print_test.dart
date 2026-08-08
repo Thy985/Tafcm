@@ -50,6 +50,6 @@ void main() {
 
 /// 判断该行是否真的含 `print(` 调用（非 debugPrint / 非注释）。
 bool _isRealPrintCall(String line) {
-  final pattern = RegExp(r'(?<!debug)print\s*\(');
+  final pattern = RegExp(r'(?<![\w])print\s*\(');
   return pattern.hasMatch(line);
 }

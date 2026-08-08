@@ -65,13 +65,13 @@ void main() {
   setUp(() => coordinator = _buildCoordinator());
   tearDown(() => coordinator.dispose());
 
-  // AS-1.1 / AS-1.2：经 dispatcher 派发 EnterPressedIntent → resolver → Split，
-  // 拆分并聚焦新块（移动端回车正确通路，替代 onSubmitted 死代码）。
-  testWidgets('EnterPressedIntent 拆分块并聚焦新块（#1 经 dispatcher）',
+  // AS-1.1 / AS-1.2：经 dispatcher 派发 EnterPressedIntent → resolver → command。
+  // 非空段落回车 → InsertTextCommand（插入换行，不分块），移动端 IME 体验设计。
+  testWidgets('EnterPressedIntent 非空段落回车插入换行不分块（#1 经 dispatcher）',
       (tester) async {
     await _pump(tester);
-    final before = coordinator.blockCount;
     final first = coordinator.allIds.first;
+    final before = coordinator.blockCount;
     final offset = coordinator.sourceOf(first).length;
 
     coordinator.intents.dispatch(EnterPressedIntent(
@@ -80,10 +80,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(coordinator.blockCount, before + 1, reason: '回车应拆分出至少两块');
-    final newId = coordinator.allIds[1];
-    expect(coordinator.focusedId, newId);
-    expect(coordinator.focusedId, isNot(first));
+    expect(coordinator.blockCount, before, reason: '非空段落回车不分块');
+    expect(coordinator.sourceOf(first), contains('\n'));
   });
 
   // AS-1.3：点击尾部空白区追加新块（gesture → appendBlock）

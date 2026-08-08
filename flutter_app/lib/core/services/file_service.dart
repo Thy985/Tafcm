@@ -41,19 +41,37 @@ String decodeBytesAuto(List<int> bytes) {
 }
 
 class FileService {
+  /// 从系统文件选择器导入文件并解码为字符串。
+  ///
+  /// P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 6A）：原用
+  /// `FileType.custom + allowedExtensions:['md','txt','tex']`，file_picker 8.3.7
+  /// 在 Android 上会把它转成 `Intent(type='*/*', EXTRA_MIME_TYPES=[...])`。
+  /// 小米 HyperOS 的 SAF 实现对该配置过滤异常 → 弹窗完全空白（与 home_screen._openAnyMd
+  /// 同一根因，详见 [home_screen.dart] _openAnyMd 注释）。改用 `FileType.any` 让 SAF
+  /// 显示所有文件，Dart 层校验扩展名：非白名单时抛 [FileImportException]。
+  ///
+  /// 白名单：`md` / `txt` / `tex`。
   static Future<String> importFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['md', 'txt', 'tex'],
+      type: FileType.any,
     );
 
-    if (result != null && result.files.single.path != null) {
-      final file = File(result.files.single.path!);
-      final bytes = await file.readAsBytes();
-      return decodeBytesAuto(bytes);
+    if (result == null || result.files.single.path == null) {
+      throw FileImportException('No file selected or file is invalid');
     }
 
-    throw FileImportException('No file selected or file is invalid');
+    final path = result.files.single.path!;
+    // Dart 层扩展名校验（替代 FileType.custom 的 MIME 过滤，避免厂商 SAF 异常）。
+    final lower = path.toLowerCase();
+    if (!lower.endsWith('.md') &&
+        !lower.endsWith('.txt') &&
+        !lower.endsWith('.tex')) {
+      throw FileImportException('仅支持 .md / .txt / .tex 文件');
+    }
+
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    return decodeBytesAuto(bytes);
   }
 
   static Future<String> loadFromPath(String path) async {

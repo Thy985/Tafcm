@@ -50,12 +50,16 @@ class BlockViewState {
   /// 详见 UI-ARCHITECTURE.md §3.1.1 与 ComposingController 同步策略。
   final ComposingRegion? composingRegion;
 
+  /// 移动端长按态（长按触发 BlockToolbar，通过 coordinator 管理）。
+  final bool longPressed;
+
   const BlockViewState({
     required this.id,
     this.isFocused = false,
     this.mode = RenderMode.rendered,
     this.selection,
     this.composingRegion,
+    this.longPressed = false,
   });
 
   /// 是否处于编辑态。
@@ -66,6 +70,7 @@ class BlockViewState {
     RenderMode? mode,
     TextSelection? selection,
     Object? composingRegion = _sentinel,
+    bool? longPressed,
   }) {
     return BlockViewState(
       id: id,
@@ -75,6 +80,7 @@ class BlockViewState {
       composingRegion: identical(composingRegion, _sentinel)
           ? this.composingRegion
           : composingRegion as ComposingRegion?,
+      longPressed: longPressed ?? this.longPressed,
     );
   }
 
@@ -85,6 +91,7 @@ class BlockViewState {
         mode: mode,
         selection: selection,
         composingRegion: null,
+        longPressed: longPressed,
       );
 
   @override

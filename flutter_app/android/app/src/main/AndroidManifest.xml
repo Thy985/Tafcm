@@ -20,9 +20,38 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- P0 修复（2026-08-04）：禁用 FlutterActivity 默认 deep linking。
+                 默认值 true（见 FlutterActivityLaunchConfigs.deepLinkEnabled）会在
+                 onNewIntent 时把 Intent.data URI 作为路由推给 GoRouter，导致
+                 GoException: no routes for location: /c2c/opendata/...md?...
+                 我们通过 MethodChannel 自己处理外部 URI，不需要默认 deep linking。
+                 冷启动已通过 getInitialRoute() 返回 "/" 覆盖，本项是热启动场景的补丁。 -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- P0 修复（2026-08-04）：注册为 .md / text-markdown 文件的查看器，
+                 让应用出现在微信等第三方应用"其他应用打开"列表中。
+                 应用愿景第 4 条："任意来源 .md 文件即开即看"。
+                 支持 content://（微信/QQ 等通过 SAF 传递）和 file://（旧式文件路径）。
+                 注意：必须同时声明 mimeType 和 pathPattern，否则系统在某些 ROM
+                 上的匹配行为不一致（小米 HyperOS 实测需要 pathPattern 才能匹配）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+                <data android:mimeType="text/markdown"/>
+                <data android:mimeType="text/x-markdown"/>
+                <data android:mimeType="application/markdown"/>
+                <data android:pathPattern=".*\\.md"/>
+                <data android:pathPattern=".*\\.markdown"/>
+                <data android:pathPattern=".*\\..*\\.md"/>
+                <data android:pathPattern=".*\\..*\\.markdown"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

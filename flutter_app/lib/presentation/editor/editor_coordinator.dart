@@ -10,6 +10,9 @@ import 'package:flutter/painting.dart' show TextSelection;
 import '../../core/editing/block_types.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
+import '../../core/observability/models.dart' as obs;
+import '../../core/observability/observability_service.dart';
+import '../../core/observability/trace_context.dart';
 import '../../data/models/document.dart';
 import '../commands/command_handler.dart';
 import '../commands/editor_command.dart';
@@ -32,17 +35,22 @@ class EditorCoordinator extends ChangeNotifier
 
   /// ADR-0012：Live Editing State（实时文本 / 字数 / 脏标记），抽出独立类避免膨胀。
   late final LiveEditingState _live;
-
   /// ADR-0012 §Editor Context Preservation：最后聚焦的编辑块，不随 [clearFocus] 清空。
   BlockId? _lastFocusedId;
-
   late final DirtyStateTracker _dirty;
+  /// ADR-0021：可观测服务（可选，LIGHT 模式下默认开启）。
+  final ObservabilityService? observability;
 
   EditorCoordinator({
     required this.editor,
     required this.history,
+    this.observability,
   }) : _state = const CoordinatorState.empty() {
-    handler = CommandHandler(editor: editor, history: history);
+    handler = CommandHandler(
+      editor: editor,
+      history: history,
+      observability: observability,
+    );
     _live = LiveEditingState(editor);
     _dirty = DirtyStateTracker(() => _live.isDirty);
     _intentDispatcher = EditorIntentDispatcher(this);
@@ -63,8 +71,13 @@ class EditorCoordinator extends ChangeNotifier
       MergeWithPreviousCommand c => (null, editor.allIds.toSet()),
       _ => (null, null),
     };
+
+    // === Observability: 记录交互事件（Phase 3.7.3） ===
+    // R-C3 修复：移到 handle 之后，仅成功时记录（避免守卫拒绝后仍入 RingBuffer）
+
     final ok = handler.handle(command);
     if (ok) {
+      _recordInteractionForCommand(command);
       final result = CommandSelectionSync.apply(_state, command,
           editor: editor, oldSource: oldSource, oldIds: oldIds);
       _state = result.state;
@@ -79,34 +92,26 @@ class EditorCoordinator extends ChangeNotifier
   List<BlockId> get allIds => editor.allIds;
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
-
   /// ADR-0019：输入意图派发器。UI 事件统一经此 flush→resolve→handle。
   late final EditorIntentDispatcher _intentDispatcher;
-
   EditorIntentDispatcher get intents => _intentDispatcher;
-
   String get title => editor.title;
-
   int get wordCount => _live.wordCount;
   @override
   bool get isDirty => _dirty.isDirty;
   @override
   Stream<bool> get dirtyChanges => _dirty.dirtyChanges;
-
   @override
   void markSaved() {
     editor.markSaved();
     _live.clear(); // ADR-0012：保存即已提交，清除 live 漂移，dirty 归 false。
     notifyListeners();
   }
-
   void updateLiveSource(BlockId id, String source) {
     _live.update(id, source);
     notifyListeners();
   }
-
   String liveSourceOf(BlockId id) => _live.sourceOf(id);
-
   /// 聚焦块的 [BlockType]（null = 无聚焦，§2.8 CodeBlock 禁用工具栏）。
   BlockType? get focusedBlockType {
     final id = _state.focusedId;
@@ -114,33 +119,28 @@ class EditorCoordinator extends ChangeNotifier
     final element = editor.getBlock(id);
     return element == null ? null : BlockType.fromElement(element);
   }
-
   /// 聚焦块是否为 CodeBlock（消除 Toolbar 对 core/editing/ 的依赖）。
   bool get isFocusedOnCodeBlock => focusedBlockType == BlockType.code;
   /// 聚焦块的 selection（§2.7.1 强一致读取，Toolbar 用此值）。
   TextSelection? get focusedSelection => _state.focusedSelection;
   bool get hasSelection => _state.hasSelection;
-
   BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
-
   void updateViewState(BlockId id, BlockViewState state) {
     _state = _state.updateViewState(id, state);
     notifyListeners();
   }
-
   BlockId? get focusedId => _state.focusedId;
-
   /// 最后聚焦的编辑块（ADR-0012 §Editor Context Preservation）：实时聚焦优先，失焦后回退到 [_lastFocusedId]，chrome 层以此为编辑目标。
   BlockId? get lastFocusedId => _state.focusedId ?? _lastFocusedId;
-
   /// 聚焦指定块。旧块切回渲染态，新块切到编辑态。
   void setFocus(BlockId id) {
+    beginUserInteraction();
+    _recordInteraction(obs.UserTap(target: 'Block($id)', timestamp: DateTime.now()));
     if (_state.focusedId == id) return;
     _state = _state.focusOn(id);
     _lastFocusedId = id;
     notifyListeners();
   }
-
   /// 清除指定块的焦点（切回渲染态）。
   void clearFocus(BlockId id) {
     final next = _state.clearFocusOf(id);
@@ -148,12 +148,12 @@ class EditorCoordinator extends ChangeNotifier
     _state = next;
     notifyListeners();
   }
-
   bool get canUndo => history.canUndo;
   bool get canRedo => history.canRedo;
-
   /// Undo/Redo：回环真实事务（lastOrNull / redoLastOrNull）携带可重放 ops（修复 Phase 3.3 空 ops 问题）。
   Transaction? undo() {
+    beginUserInteraction();
+    _recordInteraction(obs.UserUndoRedo(isUndo: true, timestamp: DateTime.now()));
     final target = history.lastOrNull;
     if (target == null) return null;
     final tx = history.undo(target);
@@ -166,8 +166,9 @@ class EditorCoordinator extends ChangeNotifier
     notifyListeners();
     return tx;
   }
-
   Transaction? redo() {
+    beginUserInteraction();
+    _recordInteraction(obs.UserUndoRedo(isUndo: false, timestamp: DateTime.now()));
     final target = history.redoLastOrNull;
     if (target == null) return null;
     final tx = history.redo(target);
@@ -180,15 +181,68 @@ class EditorCoordinator extends ChangeNotifier
     notifyListeners();
     return tx;
   }
-
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
 
+  /// ADR-0021 §2.6：开始新的用户交互，生成新 traceId。
+  ///
+  /// 在 dispatch / setFocus / undo / redo 等用户交互入口调用，
+  /// 不在 handle() 内调用（一次交互可能派发多个 command，共享同一 traceId）。
+  @override
+  void beginUserInteraction() {
+    final svc = observability;
+    if (svc?.isEnabled == true) {
+      svc!.setTraceContext(EditorTraceContext(
+        sessionId: svc.sessionId,
+        traceId: TraceIdGenerator.traceId(),
+        spanId: TraceIdGenerator.commandSpanId(),
+      ));
+    }
+  }
+
+  /// 记录用户交互事件（Phase 3.7.3）。
+  void _recordInteraction(obs.EditorInteractionEvent event) {
+    observability?.recordInteraction(event);
+  }
+
+  /// 公开交互记录入口（供 [BaseBlockState] 等组件调用）。
+  void recordInteraction(obs.EditorInteractionEvent event) {
+    _recordInteraction(event);
+  }
+
+  /// 导出诊断数据 zip（Phase 3.7.3）。
+  ///
+  /// 委托给 [ObservabilityService.exportDiagnosticZip]。
+  /// 返回 zip 文件路径，失败或未启用时返回 null。
+  Future<String?> exportDiagnosticZip({String? outputDir}) {
+    if (observability == null) return Future.value(null);
+    return observability!.exportDiagnosticZip(outputDir: outputDir);
+  }
+
+  /// 根据 Command 类型记录交互事件。
+  ///
+  /// **P1 信噪比修复（2026-08-06）**：UserInput 改用 [UserInput.fromText]
+  /// 工厂，仅记录 length/hasNewline/isAscii 三项脱敏元信息，
+  /// 不再传入原始 [InsertTextCommand.text]。
+  void _recordInteractionForCommand(EditorCommand command) {
+    final now = DateTime.now();
+    switch (command) {
+      case InsertTextCommand c:
+        _recordInteraction(
+            obs.UserInput.fromText(c.text, now));
+      case WrapSelectionCommand c:
+        _recordInteraction(obs.UserFormatToggle(
+          format: '${c.prefix}${c.suffix}',
+          timestamp: now,
+        ));
+      default:
+        break;
+    }
+  }
   @override
   void notifyListeners() {
     _dirty.sync();
     super.notifyListeners();
   }
-
   @override
   void dispose() {
     _dirty.dispose();

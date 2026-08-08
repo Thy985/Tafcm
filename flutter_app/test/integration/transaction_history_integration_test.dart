@@ -504,7 +504,7 @@ void main() {
     // ============ 边界场景 ============
 
     group('边界场景', () {
-      test('空 Transaction 仍 push 入栈（undo 后无副作用）', () {
+      test('空 Transaction 不入栈（no-op）', () {
         final editor = MockDocumentEditor();
         editor.addParagraph('a');  // 初始化 editor，BlockId 不在此测试中使用
         final history = EditorHistory();
@@ -513,13 +513,11 @@ void main() {
           origin: TransactionOrigin.programmatic,
           onChange: (tx) => history.push(tx),
         );
-        builder.commit();  // 空 Transaction 也 push
+        builder.commit();  // 空 Transaction → no-op（P1 信噪比修复）
 
-        expect(history.undoCount, equals(1));
-        final undone = history.undo(history.lastOrNull!);
-        _revertOps(editor, undone!);  // 无 op，无副作用
-        expect(editor.allSources, equals(['a']));
+        expect(history.undoCount, equals(0));
         expect(history.canUndo, isFalse);
+        expect(history.lastOrNull, isNull);
       });
 
       test('history.clear 清空 undo + redo 栈', () {

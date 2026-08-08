@@ -5,7 +5,19 @@
 > **状态**：待 Phase 3.1 启动时纳入任务规划
 > **原则**：PR #44 已是 Phase 3.0 功能落地，按 AGENTS.md §6.3「禁止大规模重构与功能改动混在同一 PR」，以下项不在 #44 内修复，统一归入 Phase 3.1。
 
+> **状态汇总（2026-08-06，基于代码实况核实）**
+>
+> | 评审项 | 状态 | 备注 |
+> |--------|------|------|
+> | R1 变更通知粒度 | ✅ 弱化版已落地 / 触发制延后 | 完整 Notifier 拆分留 Phase 3.1-B 触发制 |
+> | R2 undo/redo 空 currentState | 🔶 触发制延后 | 留 Phase 3.1-C，benchmark/回归测试触发 |
+> | R3 InlineSpan 构建器性能 | 🔶 触发制延后 | 依赖 R1，Phase 3.1 触发 |
+> | R4 三种 Block 重复样板代码 | ✅ 已落地（PR #45） | `BaseBlockState` 抽象基类 |
+> | R5 replaceBlock 悄悄改 BlockId | 🔶 触发制延后 | Phase 3.1+ 视 BlockType 转换需求 |
+> | R6 command_handler 非密封 dispatch | ✅ 已落地（PR #45） | `EditorCommand` sealed class |
+
 ---
+
 
 ## 评审项清单
 
@@ -80,19 +92,19 @@
 
 ---
 
-## Phase 3.1 启动检查
+## Phase 3.1 启动检查（Phase 3.1-A 已完成 2026-08-06 核实）
 
 Phase 3.1（WYSIWYG 模式迁移）启动时，任务规划应纳入：
 
-1. **R1 通知粒度** — WYSIWYG 实时编辑的性能前置（Phase 3.1-A 做了弱化版 state 拆分，Notifier 拆分留到 3.1-B）
-2. **R3 InlineSpan 缓存** — 依赖 R1
+1. **R1 通知粒度** — WYSIWYG 实时编辑的性能前置（Phase 3.1-A 做了弱化版 state 拆分，Notifier 拆分留到 3.1-B 触发制）
+2. **R3 InlineSpan 缓存** — 依赖 R1，触发制延后
 3. **R4 BaseBlockState 抽象基类** ✅ 已落地（PR #45）
 4. **R6 sealed dispatch** ✅ 已落地（PR #45）
-5. **R2 state snapshot** — undo/redo 正确性（合同推迟到 3.1-C）
-6. **R5 BlockId 迁移** — 视 BlockType 转换需求
+5. **R2 state snapshot** — undo/redo 正确性（合同推迟到 3.1-C 触发制）
+6. **R5 BlockId 迁移** — 视 BlockType 转换需求，触发制延后
 
-建议顺序：R6 ✅ → R4 ✅ → R1（3.1-B）→ R3（依赖 R1）→ R2（3.1-C）→ R5。
+建议顺序：R6 ✅ → R4 ✅ → R1（3.1-B 触发制）→ R3（依赖 R1）→ R2（3.1-C 触发制）→ R5。
 
 ---
 
-**本文件由 AI Agent 整理，未提交，待 Human Owner 确认后纳入 Phase 3.1 规划。**
+**状态**：Phase 3.1-A 已完成并合入 main，R4/R6 已落地，R1/R2/R3/R5 转为触发制延后项（详见各评审项小节）。本 backlog 进入维护状态——仅在 R1/R2/R3/R5 任一触发条件满足时重新激活。

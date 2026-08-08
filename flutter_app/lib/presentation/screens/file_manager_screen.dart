@@ -130,7 +130,9 @@ class FileManagerScreen extends ConsumerWidget {
   Future<void> _openDoc(WidgetRef ref, Document doc, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.documentPathFor(doc.id);
-    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
+    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：push 保留返回栈，
+    // 编辑器返回按钮才能 pop 回 /files。原 context.go 替换整个栈导致 maybePop 无页可 pop。
+    if (context.mounted) context.push('/editor?path=${Uri.encodeComponent(path)}');
   }
 
   Future<void> _deleteDoc(WidgetRef ref, Document doc, BuildContext context) async {

@@ -226,9 +226,11 @@ void main() {
     expect(coordinator.blockCount, 1);
   });
 
-  testWidgets('代码块不显示转换按钮', (tester) async {
-    final editor = InMemoryDocumentEditor(title: 'code');
-    editor.insertBlock(0, const CodeElement(code: 'print("hello")'));
+  testWidgets('代码块不显示转换按钮（多块时仍有其他操作）', (tester) async {
+    // 多块场景：代码块仍有上移/下移/删除可用，仅转换按钮隐藏
+    final editor = InMemoryDocumentEditor(title: 'multi_code');
+    editor.insertBlock(0, const CodeElement(code: 'x=1'));
+    editor.insertBlock(1, ParagraphElement(children: [TextElement('Para')]));
     coordinator = EditorCoordinator(
       editor: editor,
       history: EditorHistory(maxHistorySize: 200),
@@ -241,28 +243,56 @@ void main() {
 
     // BlockType.code 不在 [paragraph,heading,blockquote]，转换按钮隐藏
     expect(find.byTooltip('转换类型'), findsNothing);
+    // 但其他操作按钮仍可见
+    expect(find.byType(BlockToolbar), findsOneWidget);
   });
 
   // ============ T1-1 触屏可达性（Release Gate G2）============
-  // 手机没有 hover：BlockToolbar / DragHandle 必须在 tap（setFocus）路径下可见。
-  // 以下用触摸指针（默认 tap 即 touch）验证，全程不产生 MouseRegion hover 事件。
+  // 移动端（shortestSide < 600）：BlockToolbar 由长按触发，tap 聚焦不显示。
+  // 桌面端（shortestSide >= 600）：hover / selected 时显示。
+  // 以下用触摸指针验证移动端长按路径。
 
-  testWidgets('触屏 tap 块 → BlockToolbar 可见（不依赖 hover）', (tester) async {
+  testWidgets('触屏长按块 → BlockToolbar 可见（移动端）', (tester) async {
+    // 设置手机视口（shortestSide < 600 → 触屏路径）
+    tester.view.physicalSize = const Size(393, 851);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     await _pumpViewport(tester);
-    // 初始无焦点、无 hover → 无工具栏
+    // 初始无焦点、无长按 → 无工具栏
     expect(find.byType(BlockToolbar), findsNothing);
 
-    // 触摸 tap 首块（BaseBlockState.onBlockTap → coordinator.setFocus）
+    // tap 聚焦首块（移动端不自动显示工具栏）
     await tester.tap(find.text('Para 1'));
     await tester.pumpAndSettle();
-
     expect(coordinator.focusedId, coordinator.allIds.first);
-    // chrome 经 focusedId 路径显示（showChrome = hover || selected）
+    expect(find.byType(BlockToolbar), findsNothing);
+
+    // 长按触发工具栏（用 startGesture 手动控制，避免 longPress 的 up 事件干扰）
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Para 1')));
+    await tester.pump(const Duration(seconds: 1)); // 超过 kLongPressTimeout
+    await tester.pump(); // 处理 setState 触发的 rebuild
     expect(find.byType(BlockToolbar), findsOneWidget);
     expect(find.byTooltip('删除'), findsOneWidget);
+    await gesture.up();
   });
 
-  testWidgets('触屏 tap 另一块 → 原块 chrome 消失、新块显示', (tester) async {
+  testWidgets('桌面端 tap 块 → BlockToolbar 可见（selected 路径）', (tester) async {
+    // 默认视口 800x600，shortestSide >= 600 → 桌面路径
+    await _pumpViewport(tester);
+    expect(find.byType(BlockToolbar), findsNothing);
+
+    await tester.tap(find.text('Para 1'));
+    await tester.pumpAndSettle();
+    expect(coordinator.focusedId, coordinator.allIds.first);
+    // 桌面端：selected 时显示工具栏
+    expect(find.byType(BlockToolbar), findsOneWidget);
+  });
+
+  testWidgets('触屏 tap 另一块 → 原块 chrome 消失、新块显示（桌面端）', (tester) async {
+    // 默认视口 800x600 → 桌面路径
     await _pumpViewport(tester);
     await tester.tap(find.text('Para 1'));
     await tester.pumpAndSettle();
@@ -276,5 +306,41 @@ void main() {
     expect(coordinator.focusedId, coordinator.allIds[1]);
     // 仍有且仅有一个工具栏（属于新聚焦块），原块 chrome 已收起
     expect(find.byType(BlockToolbar), findsOneWidget);
+  });
+
+  testWidgets('单块时 BlockToolbar 全禁用 → 整条隐藏', (tester) async {
+    final editor = InMemoryDocumentEditor(title: 'single');
+    editor.addParagraph('Only one block');
+    coordinator = EditorCoordinator(
+      editor: editor,
+      history: EditorHistory(maxHistorySize: 200),
+    );
+    await _pumpViewport(tester);
+
+    final only = coordinator.allIds.first;
+    coordinator.setFocus(only);
+    await tester.pumpAndSettle();
+
+    // 单块：上移/下移/删除全禁用 + paragraph 可转换 → 工具栏仍显示（有可用按钮）
+    expect(find.byType(BlockToolbar), findsOneWidget);
+    // 但删除按钮禁用
+    expect(coordinator.blockCount, 1);
+  });
+
+  testWidgets('单块代码块时 BlockToolbar 全禁用 → 整条隐藏', (tester) async {
+    final editor = InMemoryDocumentEditor(title: 'single_code');
+    editor.insertBlock(0, const CodeElement(code: 'print("hello")'));
+    coordinator = EditorCoordinator(
+      editor: editor,
+      history: EditorHistory(maxHistorySize: 200),
+    );
+    await _pumpViewport(tester);
+
+    final codeId = coordinator.allIds.first;
+    coordinator.setFocus(codeId);
+    await tester.pumpAndSettle();
+
+    // 单块代码：上移/下移/删除全禁用 + code 不可转换 → 全禁用 → 无可见按钮
+    expect(find.byType(IconButton), findsNothing);
   });
 }

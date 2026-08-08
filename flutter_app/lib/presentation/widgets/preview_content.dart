@@ -32,7 +32,11 @@ class PreviewContent extends StatelessWidget {
       return _buildEmpty();
     }
 
-    final elements = MarkdownParser.parse(content);
+    final elements = MarkdownParser.parse(
+      content,
+      onError: (lineIndex, error, line) =>
+          debugPrint('[PreviewContent] parse line $lineIndex failed: $error'),
+    );
     final bg = isDark ? AppColors.darkSurface : Colors.white;
 
     int orderedIndex = 0;

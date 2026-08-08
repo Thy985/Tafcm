@@ -26,8 +26,8 @@
 >
 > **仍存在项**（按 Phase 跟踪）：
 >
-> - P0-1 编辑/预览分离模式（§1.1）→ Phase 3 UI Implementation
-> - P3-34 静态状态污染测试（§8.5）→ Phase 2
+> - ~~P0-1 编辑/预览分离模式（§1.1）→ Phase 3 UI Implementation~~ ✅ 已修复（Phase 3.1-A 完成，`kEnableNewEditor=true` + 移除 `previewModeProvider`，详见 [ROADMAP §Phase 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md)）
+> - P3-34 静态状态污染测试（§8.5）→ Phase 2（部分清理：`MermaidService._cache` / `FormulaSvgService._cache` 已加 `clearCache()`；`PdfExporter._cjkFont` 仍 static）
 > - 其余 P1 / P2 体验与设计问题 → Phase 3+
 
 ---

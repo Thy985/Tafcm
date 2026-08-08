@@ -1,18 +1,17 @@
 /// BlockRenderer：Block 渲染分发器（Phase 3.0 production 路径）。
 ///
-/// 落地 Phase 3.0 Task Contract §3.3 + ADR-0009 §3.3（BlockRenderer 抽象）。
+/// 落地 Phase 3.0 Task Contract §3.3 + ADR-0009 §3.3（BlockRenderer 抽象）
+/// + [ADR-0022 Renderer Failure Policy]。
 ///
-/// **核心原则（Hard Rule 3 + Hard Rule 8）**：
-/// - **exhaustive switch**：3 种 BlockType（paragraph / heading / code）显式 case 分支
-/// - **不允许 `_ =>` fallback**：其他 6 种类型显式抛 [UnimplementedError]
+/// **核心原则（Hard Rule 3 + Hard Rule 8 + ADR-0022）**：
+/// - **exhaustive switch**：6 种已实现 BlockType 显式 case 分支
+/// - **不允许 `_ =>` fallback**：所有 [DocumentElement] 子类型必须显式 case
+/// - **未实现类型经 [FallbackBlockRenderer] 降级渲染**（ADR-0022 §2.1）：
+///   不抛 `UnimplementedError`，避免用户路径崩溃
 /// - **新增 Block 类型必须显式增加 case 分支**（避免默默退化显示）
 /// - **依赖方向**：blocks/ → editor/ → core/editing/（单向依赖）
 ///
-/// **为什么不允许 GenericBlock fallback**（Phase 3.0 Task Contract §3.3）：
-/// 若有 fallback，新增 Block 类型时不会立刻暴露未实现，可能默默退化显示。
-/// 显式抛错让 Phase 3.2+ 实现新类型时立即被测试发现。
-///
-/// **Phase 3.2 支持类型**（PR #3 后）：
+/// **Phase 3.2 已支持类型**（PR #3 后）：
 /// - [ParagraphElement] → [ParagraphBlock]
 /// - [HeadingElement] → [HeadingBlock]
 /// - [CodeElement] → [CodeBlock]
@@ -20,8 +19,10 @@
 /// - [TableElement] → [TableBlock]（Phase 3.2 §3.5 任务 3.2.4,PR #2）
 /// - [MermaidElement] → [MermaidBlock]（Phase 3.2 §3.3 任务 3.2.2,PR #3）
 ///
-/// **Phase 3.2+ 待实现类型**（PR #3 后）：listItem / taskListItem /
+/// **Phase 3.5+ 待实现类型**（PR #3 后）：listItem / taskListItem /
 /// horizontalRule / math（块级公式 WebView 渲染留 Phase 3.5+）。
+/// 这些类型目前经 [FallbackBlockRenderer] 降级为 markdown source 显示，
+/// 不 crash、不丢数据、可编辑（ADR-0022）。
 ///
 /// **行内元素不在 BlockRenderer 范围**（[ImageElement] / [LinkElement]）：
 /// 由 [ParagraphBlock] 的 inline renderer 渲染,不进入此 switch。
@@ -34,6 +35,7 @@ import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
 import 'code/code_block.dart';
+import 'fallback_block_renderer.dart';
 import 'heading/heading_block.dart';
 import 'mermaid/mermaid_block.dart';
 import 'paragraph/paragraph_block.dart';
@@ -102,14 +104,20 @@ class BlockRenderer extends StatelessWidget {
           element: me,
           coordinator: coordinator,
         ),
-      // Phase 3.2 PR #3 后：其他 4 种类型显式抛 UnimplementedError
-      // 让 Phase 3.5+ 实现新类型时立即发现（而不是默默 fallback）
-      // MathBlock（块级公式 WebView 渲染）留 Phase 3.5+（依赖 FormulaSvgService）
+      // ADR-0022 Renderer Failure Policy：
+      // 未实现专用 Renderer 的 3 种类型经 FallbackBlockRenderer 降级渲染。
+      // 不抛 UnimplementedError —— 用户路径不能因未来能力缺失而 crash。
+      // FallbackBlockRenderer 会反向序列化为 markdown source 委托给
+      // ParagraphBlock，保留可读 + 可编辑 + 不丢数据。
+      // Phase 3.5+ 实现专用 Renderer 后替换此 case。
       ListElement() ||
       TaskListItemElement() ||
       HorizontalRuleElement() =>
-        throw UnimplementedError(
-          'BlockType ${element.runtimeType} not supported in Phase 3.2 PR #3',
+        FallbackBlockRenderer(
+          state: state,
+          element: element,
+          coordinator: coordinator,
+          baseDir: baseDir,
         ),
       // EmptyLineElement 不在 BlockEditor 范围（不应到达此处）
       EmptyLineElement() => throw ArgumentError(

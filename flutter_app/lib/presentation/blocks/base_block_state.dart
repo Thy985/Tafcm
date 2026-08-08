@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show TextInputFormatter;
 
 import '../../core/editing/block_types.dart';
+import '../../core/observability/models.dart' as obs;
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import '../editor/editor_intent.dart';
@@ -143,13 +144,47 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     super.didUpdateWidget(oldWidget);
     // 检测 mode 变化（RenderMode 切换时同步 controller 文本 + 焦点）
     if (currentMode != previousMode(oldWidget)) {
+      // Phase 3.6.1 E2E 修复：从 editing 切到 rendered 时，在当前 mode 被
+      // 覆盖前先 commit 当前编辑文本。否则 _onFocusChange 中的
+      // `currentMode == RenderMode.editing` 检查会因 mode 已更新而跳过，
+      // 导致编辑内容永远不被提交到 committed source。
+      // 用 post-frame callback 避免 _commitSource 内部 notifyListeners()
+      // 在 build 阶段被调用（否则 AnimatedBuilder 的 setState 会抛异常）。
+      if (previousMode(oldWidget) == RenderMode.editing) {
+        final text = textController.text;
+        final id = blockId;
+        final coord = _coordinator;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          // P0 修复（CORE-010）：no-op guard，source 未变则不派发命令。
+          // P0 修复后非 IME 输入已立即 commit，失焦时 domain source 已是最新；
+          // 此处重复派发会产生空 Transaction 污染 undo 栈（Undo 弹空栈 → 无变化）。
+          // IME 组合态未 commit 时 text != sourceOf(id)，仍会派发以提交 IME 输入。
+          if (text == coord.sourceOf(id)) return;
+          coord.handle(UpdateBlockSourceCommand(
+            blockId: id,
+            newSource: text,
+          ));
+        });
+      }
       textController.text = _initialSource();
       _lastSyncedSource = textController.text;
       _syncSelectionFromViewState();
       // Phase 3.3 PR #3：进入 editing 时重置 oldValue（避免跨会话残留）
       _previousTextValue = textController.value;
       if (currentMode == RenderMode.editing) {
-        focusNode.requestFocus();
+        // **IME 中断修复 2（2026-08-06）**：requestFocus 延后到下一帧。
+        // SplitBlockCommand / MergeWithPreviousCommand 后，新块的
+        // TextEditingController 才刚赋值 text、同步 selection。
+        // 如果同步调用 requestFocus()，IME 会连接到"尚未完成文本同步"
+        // 的 controller，产生 composing 区域混乱或直接断开。
+        // 改为下一帧 requestFocus，先让 Flutter 完成 build + value 同步。
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (currentMode == RenderMode.editing) {
+            focusNode.requestFocus();
+          }
+        });
       }
       onModeChanged(previousMode(oldWidget));
     } else if (!_isCommitting) {
@@ -214,10 +249,26 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   ///
   /// **R4 共享逻辑**：当 focusNode 失焦且当前处于 editing 模式,
   /// commit 当前 textController 文本并清除 focus。
+  ///
+  /// **IME 中断修复 1（2026-08-06）**：
+  /// - 如果 `currentMode != RenderMode.editing`（说明 Coordinator 已经
+  ///   通过 `focusOn(newId)` 把本块切回 rendered，例如 SplitBlockCommand
+  ///   之后），不再调用 `_coordinator.clearFocus(blockId)`。否则会再次
+  ///   notifyListeners 触发 rebuild，使本帧内 IME 又失去一次连接机会。
+  ///   只保留 `_commitSource`，以提交未 commit 的 live 文本。
   void _onFocusChange() {
-    if (!focusNode.hasFocus && currentMode == RenderMode.editing) {
+    if (!focusNode.hasFocus) {
+      // 无论 mode 是否已被 Coordinator 切走，都尝试 commit 剩余 live 文本。
+      // （SplitBlockCommand 前 flushLiveSource 已经对齐，此处多为 no-op；
+      // 但外部点击失焦场景下 liveSource 还没对齐，必须走这里。）
       _commitSource();
-      _coordinator.clearFocus(blockId);
+      // 仅当逻辑模式仍为 editing 时通知 Coordinator 清焦点。
+      // 若 mode 已经是 rendered，说明 Coordinator 在 focusOn(nextId)
+      // 时已把本块切回渲染态，再次 clearFocus 会产生多余 notifyListeners
+      // 打断新块 requestFocus 的 IME 连接。
+      if (currentMode == RenderMode.editing) {
+        _coordinator.clearFocus(blockId);
+      }
     }
   }
 
@@ -225,7 +276,12 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   ///
   /// **R1 修复**：设置 [_isCommitting] 标志,防止 didUpdateWidget 把
   /// 本地输入误判为外部命令而反向同步 controller（导致光标跳位）。
+  ///
+  /// **P0 修复（CORE-006）**：增加 no-op guard，source 未变时跳过（防止空
+  /// Transaction 入栈）。非 IME 输入现在每次按键都调用此方法立即 commit，
+  /// 失焦时再次调用为 no-op。
   void _commitSource() {
+    if (textController.text == _lastSyncedSource) return;
     _isCommitting = true;
     _lastSyncedSource = textController.text;
     _coordinator.handle(UpdateBlockSourceCommand(
@@ -269,7 +325,11 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   }
 
   /// Block 点击处理：进入 editing 模式（子类可复用）。
+  ///
+  /// 防抖：若当前块已聚焦，跳过重复 setFocus（移动端手指微颤
+  /// 会在 200-300ms 内产生多次 tap，避免无意义的状态通知）。
   void onBlockTap() {
+    if (coordinator.focusedId == blockId) return;
     coordinator.setFocus(blockId);
   }
 
@@ -351,16 +411,30 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     ));
   }
 
-  /// 输入变化回调：自动配对 + 自动续列表统一入口。
+  /// 记录用户输入交互事件（Phase 3.7.3）。
+  ///
+  /// **P1 信噪比修复（2026-08-06）**：改用 [UserInput.fromText] 工厂，
+  /// 仅记录脱敏元信息（length / hasNewline / isAscii），不传原始文本。
+  void _recordUserInput(String text) {
+    coordinator.recordInteraction(
+        obs.UserInput.fromText(text, DateTime.now()));
+  }
+
+  /// 输入变化回调：自动配对 + 自动续列表 + 立即 commit 统一入口。
   ///
   /// **v1.1 Hard Rule（§2.1.1）**：必须基于 [TextEditingController.value]
   /// （含 composing）而非 String 判断。composing region 非 collapsed 时
   /// 禁止自动行为（避免 IME 组合输入态触发配对 / 续行导致状态错乱）。
   ///
+  /// **P0 修复（CORE-006/CORE-007）**：非 IME 输入立即 commit 到 domain
+  /// （产生 Transaction 入 undo 栈），不再等待失焦。IME 组合态仍走 live 层。
+  /// 这使 Undo 能撤销当前块的输入（而非其他块），且 canUndo 实时为 true。
+  ///
   /// **职责边界**（§2.6）：
   /// - BaseBlockState 只负责"守门"（isFocused / composing / isCodeBlock）
   ///   + 持有 [_previousTextValue]（oldValue 来源）
   /// - 规则检测 + Command 派发委托 [_inputHandler]（不直接实现规则）
+  /// - InputHandler 未处理时，BaseBlockState 直接 commit 原始输入
   void _onTextChanged(String text) {
     if (!isFocused) return; // 仅聚焦块处理
 
@@ -368,8 +442,12 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     final value = textController.value;
     if (value.composing != TextRange.empty) return; // IME 组合输入态,跳过
 
-    // ADR-0012：Live Editing State 实时上报（含 CodeBlock,规则委托才跳过 CodeBlock）
+    // ADR-0012：Live Editing State 实时上报（IME 组合态已在上方守卫跳过；
+    // 此处更新 live 用于 wordCount / isDirty 实时刷新）
     coordinator.updateLiveSource(blockId, text);
+
+    // Phase 3.7.3：记录用户输入交互事件
+    _recordUserInput(text);
 
     // 块首退格合并（§4.1）：composing 守卫已在方法顶部；判定抽离到
     // [detectBackspaceMerge]（block_enter_intent_formatter.dart）。
@@ -380,20 +458,29 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
         const TextSelection.collapsed(offset: 0),
       ));
       _previousTextValue = value;
+      return; // flushLiveSource 在 IntentDispatcher 中对齐 live→domain
+    }
+
+    final oldValue = _previousTextValue ?? value;
+    _previousTextValue = value;
+
+    // §2.5 CodeBlock 例外：不应用自动配对 / 自动续列表,直接 commit
+    if (coordinator.isFocusedOnCodeBlock) {
+      _commitSource();
       return;
     }
 
-    // §2.5 CodeBlock 例外：不应用自动配对 / 自动续列表
-    if (coordinator.isFocusedOnCodeBlock) return;
-
     // §2.6 委托 InputHandler（传入 oldValue 供 AutoPairRules.detect 使用）
-    final oldValue = _previousTextValue ?? value;
-    _previousTextValue = value;
-    _inputHandler.handle(
+    // P0 修复：InputHandler 返回是否已派发 Command。未派发时 BaseBlockState
+    // 直接 commit 原始输入，确保每次按键产生 Transaction 入 undo 栈。
+    final handled = _inputHandler.handle(
       newValue: value,
       oldValue: oldValue,
       blockId: blockId,
       coordinator: coordinator,
     );
+    if (!handled) {
+      _commitSource();
+    }
   }
 }

@@ -136,6 +136,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final content = await FileService.importFile();
       _controller.text = content;
       _showSnackBar('文件导入成功');
+    } on FileImportException catch (e) {
+      // P1 修复（2026-08-06）：FileImportException 已含友好中文 message
+      // （"仅支持 .md / .txt / .tex 文件" / "No file selected..."），
+      // 直接展示而非套用兜底文案，让用户知道是扩展名不支持还是取消选择。
+      debugPrint('Import rejected: $e');
+      _showSnackBar(e.message);
     } catch (e) {
       debugPrint('Import failed: $e');
       _showSnackBar('文件导入失败，请确认文件存在且为文本或 Markdown 格式');

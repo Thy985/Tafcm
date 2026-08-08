@@ -104,10 +104,11 @@ class _ToolbarButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surfaceContainer;
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
+        color: surfaceColor,
         border: Border(
           top: BorderSide(
             color: Theme.of(context).dividerColor,
@@ -115,12 +116,9 @@ class _ToolbarButtons extends StatelessWidget {
           ),
         ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: _buildButtons(context),
-        ),
+      child: _ScrollableToolbarRow(
+        surfaceColor: surfaceColor,
+        children: _buildButtons(context),
       ),
     );
   }
@@ -272,6 +270,82 @@ class _OverflowButton extends StatelessWidget {
         PopupMenuItem(value: ToolbarActionKind.ol, child: Text('有序列表')),
         PopupMenuItem(value: ToolbarActionKind.ul, child: Text('无序列表')),
         PopupMenuItem(value: ToolbarActionKind.task, child: Text('任务')),
+      ],
+    );
+  }
+}
+
+/// 横向滚动工具栏行，右缘带渐变遮罩提示可滚动。
+class _ScrollableToolbarRow extends StatefulWidget {
+  final Color surfaceColor;
+  final List<Widget> children;
+
+  const _ScrollableToolbarRow({
+    required this.surfaceColor,
+    required this.children,
+  });
+
+  @override
+  State<_ScrollableToolbarRow> createState() => _ScrollableToolbarRowState();
+}
+
+class _ScrollableToolbarRowState extends State<_ScrollableToolbarRow> {
+  final _scrollController = ScrollController();
+  bool _showRightFade = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateFade);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateFade());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateFade);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateFade() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final current = _scrollController.offset;
+    final show = current < maxScroll - 8;
+    if (show != _showRightFade) setState(() => _showRightFade = show);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(left: 8, right: 24),
+          child: Row(children: widget.children),
+        ),
+        if (_showRightFade)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 24,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      widget.surfaceColor.withOpacity(0),
+                      widget.surfaceColor,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

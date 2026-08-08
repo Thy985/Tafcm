@@ -52,7 +52,10 @@ class PdfExporter {
 
     _cjkFontLoadAttempted = true;
     try {
-      final data = await rootBundle.load('assets/fonts/NotoSansSC-Regular.ttf');
+      // P0 修复（真机问题 4）：路径与 pubspec.yaml 声明的资源名不匹配
+      //（pubspec 是 NotoSansSC.ttf，无 -Regular 后缀），导致 rootBundle.load
+      // 永远找不到资源 → CJK 字体加载失败 → PDF 中文渲染为方框/空白。
+      final data = await rootBundle.load('assets/fonts/NotoSansSC.ttf');
       _cjkFont = pw.Font.ttf(data);
       _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
       debugPrint('CJK font loaded successfully');
@@ -122,7 +125,11 @@ class PdfExporter {
       total: 1,
     ));
 
-    final elements = MarkdownParser.parse(markdown);
+    final elements = MarkdownParser.parse(
+      markdown,
+      onError: (lineIndex, error, line) =>
+          debugPrint('[PdfExporter] parse line $lineIndex failed: $error'),
+    );
 
     // 收集所有公式（含 table cell 内的）。Set 自动去重。
     final allFormulas = collectAllFormulas(elements);

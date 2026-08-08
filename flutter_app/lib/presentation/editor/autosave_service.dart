@@ -44,6 +44,13 @@ typedef AutosaveTimerFactory = Timer Function(
   void Function() callback,
 );
 
+/// P2 修复（2026-08-04）：保存失败错误回调。
+///
+/// AutosaveService 持有 save 回调但不知道 observability（保持依赖纯净）。
+/// 由 EditorPage 在构造时注入 `observability.captureError`，让磁盘满 /
+/// 权限拒绝 / 文件锁定等持久化失败进入诊断 zip。
+typedef AutosaveErrorCallback = void Function(Object error, StackTrace stack);
+
 /// 独立自动保存服务（ADR-0013）。
 ///
 /// 设计要点：
@@ -64,6 +71,8 @@ class AutosaveService {
   final Duration _debounce;
   final Duration _maxRetryDelay;
   final AutosaveTimerFactory _timerFactory;
+  /// P2 修复（2026-08-04）：可选错误回调，null 时退化为静默（向后兼容）。
+  final AutosaveErrorCallback? _onError;
 
   Timer? _timer;
   Future<void>? _inflight;
@@ -80,11 +89,13 @@ class AutosaveService {
     Duration debounce = const Duration(milliseconds: 1500),
     Duration maxRetryDelay = const Duration(seconds: 60),
     AutosaveTimerFactory timerFactory = Timer.new,
+    AutosaveErrorCallback? onError,
   })  : _source = source,
         _save = save,
         _debounce = debounce,
         _maxRetryDelay = maxRetryDelay,
-        _timerFactory = timerFactory;
+        _timerFactory = timerFactory,
+        _onError = onError;
 
   /// 状态流（idle / saving / saved / error / retrying），chrome 订阅展示轻提示。
   ///
@@ -157,9 +168,15 @@ class AutosaveService {
       // 把 markSaved 交给回调而非本服务，是因为「写盘期间是否有新编辑」只有持有快照的
       // 回调能判断（ADR-0013 并发保护：禁止 A 的 markSaved 误清 B 进行中的编辑）。
       saved = await _save();
-    } catch (e) {
+    } catch (e, st) {
       // 持久化失败（磁盘满 / 权限拒绝 / 文件锁定）：捕获异常不崩溃，
       // 进入退避重试（避免以 debounce 间隔空转成风暴）。
+      //
+      // P2 修复（2026-08-04）：通过 onError 回调把保存失败送入 observability，
+      // 让用户在诊断 zip 中看到"自动保存失败原因"——之前只能从状态栏"重试中"
+      // 推断有异常，但具体原因（FileSystemException / quota exceeded / EACCES）
+      // 完全不可见。重试行为本身保持不变（仍按指数退避）。
+      _onError?.call(e, st);
       _emit(AutosaveStatus.error);
       _emit(AutosaveStatus.retrying);
       _scheduleRetry();
