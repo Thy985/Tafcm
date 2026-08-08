@@ -315,7 +315,6 @@ PR 描述必须包含：
 
 ```
 .agent/                        AI 工程治理层
-<<<<<<< HEAD
 ├── REPO_POLICY.md             ★ 安全层总纲：四层根因模型、文件索引、事故登记
 ├── ENVIRONMENT.md             ★ 仓库物理边界事实（repo root / flutter_app 是子目录）
 ├── GIT_RULES.md               ★ git 红黄绿三级禁令 + 例外授权 + 损坏应急 SOP
@@ -329,13 +328,6 @@ PR 描述必须包含：
 ├── templates/
 │   └── task-contract.md       任务契约模板
 └── state/                     运行时状态（.gitignore 忽略，不入库）
-=======
-├── AI_POLICY.md               Agent 身份、权限、行为协议
-├── context/
-│   └── loading-rules.md       分级上下文加载规则
-└── templates/
-    └── task-contract.md        任务契约模板
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
 docs/
 ├── ARCHITECTURE.md          架构总览（当前 + 目标 + 问题 + 风险）
@@ -614,7 +606,6 @@ await tester.pump();  // Frame 2：postFrame 执行 → listener 触发
 
 ## 12. Git 版本管理硬伤与绕过（环境特异）
 
-<<<<<<< HEAD
 > **⚠️ 2026-07-30 状态变更：§12.2 的 unified workaround 已退役，不再是强制流程。**
 >
 > **权威规则以 [`.agent/GIT_RULES.md`](.agent/GIT_RULES.md) 为准**（Repository Safety Layer）。
@@ -634,10 +625,6 @@ await tester.pump();  // Frame 2：postFrame 执行 → listener 触发
 > **现行规则**：日常一律用原生 `git add` + `git commit` + `git push`。
 > 仅当原生命令确实因文件锁失败时，才按 `.agent/GIT_RULES.md` 的例外流程
 > （用户授权 + 备份 + 事后 fsck）临时启用本章方案。
-=======
-> 以下问题为本 Windows + Git Bash 环境的已确认硬伤，已在多次会话中反复验证。
-> 所有 AI Agent 必须使用 §12.2 的 unified workaround 进行 commit/push 操作。
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
 ### 12.1 main 仓库 force-push 残留 missing blob
 
@@ -674,7 +661,6 @@ done
 
 **教训出处**：PR #78 `2212aee` / `02afb030` main 均引用这 2 个 missing blob。
 
-<<<<<<< HEAD
 ### 12.2 Unified Git Workaround（⚠️ 已退役 — 仅应急回退）
 
 > **状态：RETIRED（2026-07-30）**。日常**禁止**使用；启用需满足
@@ -683,11 +669,6 @@ done
 
 历史背景：本环境曾出现 `git commit` 不可用（COMMIT_EDITMSG 锁）+ 本地 ref 存储失稳
 （子路径分支自动丢失），当时的绕过流程如下（保留供应急参考）：
-=======
-### 12.2 Unified Git Workaround（commit/push 标准流程）
-
-由于本环境 **`git commit` 不可用**（COMMIT_EDITMSG 锁）+ **本地 ref 存储失稳**（子路径分支自动丢失），所有 commit/push 操作必须走以下流程：
->>>>>>> f60831d (补 0010-SKIPPED 编号纪律占位，新增 ADR-0021 Repository Integrity Strategy v1.4)
 
 ```bash
 # 0. 准备消息文件（注意：commit-tree 传消息用 < file 喂 stdin，勿用 -F）
