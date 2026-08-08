@@ -521,6 +521,13 @@ class PdfExporter {
     // cjkFont 作为 fontFallback，使代码中的中文注释能正常渲染（问题 6.4 修复）。
     final codeFont = monoFont ?? pw.Font.courier();
     final fontFallback = cjkFont != null ? [cjkFont] : const <pw.Font>[];
+    final hasCjk = _containsCjk(code);
+    debugPrint('[OBS-Render] PdfCjkFontFallbackEvent'
+        ' | fontLoaded=${cjkFont != null}'
+        ' | fallback=${fontFallback.isNotEmpty}'
+        ' | lang=${language ?? "null"}'
+        ' | codeLen=${code.length}'
+        ' | hasCjk=$hasCjk');
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
@@ -566,6 +573,23 @@ class PdfExporter {
         ],
       ),
     );
+  }
+
+  /// 检测字符串是否含 CJK 字符（用于可观测性诊断）。
+  ///
+  /// CJK Unicode 范围：
+  /// - CJK Unified Ideographs: U+4E00–U+9FFF
+  /// - CJK Extension A: U+3400–U+4DBF
+  /// - CJK Compatibility Ideographs: U+F900–U+FAFF
+  static bool _containsCjk(String s) {
+    for (final c in s.codeUnits) {
+      if ((c >= 0x4E00 && c <= 0x9FFF) ||
+          (c >= 0x3400 && c <= 0x4DBF) ||
+          (c >= 0xF900 && c <= 0xFAFF)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static pw.Widget _pdfBlockquote(String text,
