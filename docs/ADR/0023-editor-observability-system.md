@@ -1,4 +1,4 @@
-# ADR-0021：Editor Observability System（编辑器可观测系统）
+# ADR-0023：Editor Observability System（编辑器可观测系统）
 
 - **状态**：Proposed（实施已完成 2026-08-06，待 Human Owner 签字 Accepted）
 - **日期**：2026-08-03

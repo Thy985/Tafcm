@@ -591,7 +591,7 @@ FormulaFix 当前状态：
 
 **目标**：从"验证失败"升级为"解释失败"。建立编辑器状态链路可见性，在每次 Transaction commit 后自动验证核心不变量，为开发者提供跨层（Interaction → Command → Transaction → AST）的因果链追踪能力。
 
-**核心设计**：ADR-0021，五层架构 + Invariant Checker + Export Pipeline。
+**核心设计**：ADR-0023，五层架构 + Invariant Checker + Export Pipeline。
 
 **前置条件**：Phase 3.6 全部退出。
 

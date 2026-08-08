@@ -3,7 +3,7 @@
 - **状态**：Accepted
 - **日期**：2026-08-06
 - **决策者**：Human Owner
-- **关联**：[ADR-0009 UI Architecture](./0009-ui-architecture-design.md) / [ADR-0020 Block Model](./0020-block-model.md) / [ADR-0021 Editor Observability](./0021-editor-observability-system.md)
+- **关联**：[ADR-0009 UI Architecture](./0009-ui-architecture-design.md) / [ADR-0020 Block Model](./0020-block-model.md) / [ADR-0023 Editor Observability](./0023-editor-observability-system.md)
 - **取代**：Phase 3.2 PR #3 中"`ListElement / TaskListItemElement / HorizontalRuleElement` 显式抛 `UnimplementedError`"的设计（无独立 ADR，散落在 `block_renderer.dart` docstring + `ui_exhaustive_switch_test.dart` 守门）
 
 ---
@@ -116,7 +116,7 @@ Model 层（`MarkdownParser` / `command_handler`）演化快——新增 markdow
 
 强制两层同步演进会拖慢 Model 层，或逼迫 Renderer 写半成品。Fallback 解耦两层演进速度。
 
-### 3.3 与 ADR-0021 Observability 协同
+### 3.3 与 ADR-0023 Observability 协同
 
 `FallbackBlockRenderer` 触发 `captureError`，observability 系统能告诉开发者：
 
