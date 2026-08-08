@@ -29,7 +29,7 @@ const String kAppVersion = '0.1.0+1';
 /// [ProviderScope.overrides] 注入 Riverpod，使 [observabilityProvider]
 /// 拿到的就是全局实例——全局错误捕获的 ErrorSnapshot 与用户导出的
 /// 诊断 zip 来自同一实例，确保错误不丢失。
-final ObservabilityService globalObservability = ObservabilityService();
+final ObservabilityService globalObservability = ObservabilityService.light();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

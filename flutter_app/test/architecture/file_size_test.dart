@@ -4,6 +4,7 @@
 /// Files exceeding 400 lines must be split.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,8 +32,7 @@ void main() {
     'lib/core/services/formula_pdf_renderer.dart',
     'lib/presentation/screens/editor_screen.dart',
     'lib/presentation/blocks/base_block_state.dart',
-    'lib/presentation/commands/command_handler.dart',
-    'lib/presentation/editor/editor_page.dart',
+
     'lib/presentation/observability/command_replayer.dart',
   ];
 
@@ -87,7 +87,7 @@ void main() {
     for (final entity in testDir.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final path = entity.path.replaceAll('\\', '/');
-      final lines = entity.readAsLinesSync();
+      final lines = entity.readAsLinesSync(encoding: latin1);
       if (lines.length > maxLines && !knownTestOffenders.contains(path)) {
         offenders.add('$path: ${lines.length} lines');
       }

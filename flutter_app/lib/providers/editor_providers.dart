@@ -92,5 +92,5 @@ class EditorContentNotifier extends StateNotifier<String> {
 /// 持有 [CommandTracer]、[TransactionTracer]、[InteractionTracer]、
 /// [ErrorSnapshotter] 等，通过 [EditorCoordinator] 可选注入。
 final observabilityProvider = Provider<ObservabilityService>((ref) {
-  return ObservabilityService();
+  return ObservabilityService.light();
 });

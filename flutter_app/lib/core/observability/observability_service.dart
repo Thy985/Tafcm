@@ -71,6 +71,42 @@ class ObservabilityService {
         (isEnabled ? ErrorSnapshotter(observability: this) : null);
   }
 
+  /// LIGHT 模式工厂（默认）：仅保留环形缓冲区，不写盘。
+  ObservabilityService.light({
+    CommandTracer? commandTracer,
+    TransactionTracer? transactionTracer,
+    InteractionTracer? interactionTracer,
+    InvariantChecker Function()? invariantCheckerFactory,
+    ErrorSnapshotter? errorSnapshotter,
+  }) : this(
+          config: ObservabilityConfig.light,
+          commandTracer: commandTracer,
+          transactionTracer: transactionTracer,
+          interactionTracer: interactionTracer,
+          invariantCheckerFactory: invariantCheckerFactory,
+          errorSnapshotter: errorSnapshotter,
+        );
+
+  /// FULL 模式工厂：全部记录，含 Interaction Trace + AST snapshot。
+  ObservabilityService.full({
+    CommandTracer? commandTracer,
+    TransactionTracer? transactionTracer,
+    InteractionTracer? interactionTracer,
+    InvariantChecker Function()? invariantCheckerFactory,
+    ErrorSnapshotter? errorSnapshotter,
+  }) : this(
+          config: ObservabilityConfig.full,
+          commandTracer: commandTracer,
+          transactionTracer: transactionTracer,
+          interactionTracer: interactionTracer,
+          invariantCheckerFactory: invariantCheckerFactory,
+          errorSnapshotter: errorSnapshotter,
+        );
+
+  /// OFF 模式工厂：tree-shaking 移除全部代码。
+  ObservabilityService.off()
+      : this(config: ObservabilityConfig.off);
+
   /// 错误快照捕获器（只读 getter）。
   ErrorSnapshotter? get errorSnapshotter => _errorSnapshotter;
 

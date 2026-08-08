@@ -27,11 +27,10 @@ import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
 import '../../core/editing/transaction_rollback.dart';
 import '../../core/observability/canonical_fingerprint.dart';
-import '../observability/command_replayer.dart';
-import '../../core/observability/invariant_checker.dart';
-import '../../core/observability/models.dart' as obs;
+
 import '../../core/observability/observability_service.dart';
 import '../../data/models/document.dart';
+import '../observability/command_observability_adapter.dart';
 import 'commands.dart';
 
 /// CommandHandler：解释 [EditorCommand] 为 [BlockOperation] 序列。
@@ -53,6 +52,13 @@ class CommandHandler {
     required this.history,
     this.observability,
   });
+
+  /// 可观测性适配器（懒初始化）。
+  late final _obsAdapter = CommandObservabilityAdapter(
+    observability: observability,
+    editor: editor,
+    history: history,
+  );
 
   /// 计算当前 Document fingerprint。
   String? _computeFingerprint() {
@@ -113,7 +119,7 @@ class CommandHandler {
       success = _dispatch(command, operations, builder);
       if (success) {
         builder.commit(label: command.displayName);
-        _runInvariantCheck();
+        _obsAdapter.runInvariantCheck();
       } else {
         // D3 原子性：BlockOperations 在 op.apply 成功后才加入 builder，
         // 故 builder.ops 均为已 apply 到 editor 的 op。失败须逆序 revert 以恢复
@@ -124,7 +130,7 @@ class CommandHandler {
       }
     } catch (e) {
       // === Observability: 触发 Error Snapshot（ADR-0021 §3.7.2） ===
-      _captureCommandError(command, e);
+      _obsAdapter.captureCommandError(command, e);
       // 确保 builder 回滚（异常时可能未 complete）
       // P1 信噪比修复：异常路径才是真正的"非预期回滚"，传 unexpected: true
       // 触发 ErrorSnapshot（与 TransactionBuilder.rollback 的 unexpected 参数对齐）。
@@ -136,105 +142,11 @@ class CommandHandler {
 
     // === Observability: 记录 Command 轨迹 ===
     final afterHash = _computeFingerprint();
-    _recordCommandTrace(command, success, beforeHash, afterHash, builder.id);
+    _obsAdapter.recordCommandTrace(command, success, beforeHash, afterHash, builder.id);
 
     return success;
   }
 
-  /// Transaction commit 后运行不变量检查（ADR-0021 §2.7）。
-  ///
-  /// 检查失败不阻塞编辑器运行，但自动触发 Error Snapshot。
-  void _runInvariantCheck() {
-    final svc = observability;
-    if (svc?.isEnabled != true) return;
-
-    final historyBlockIds = <String>{};
-    Transaction? lastTx = history.lastOrNull;
-    if (lastTx != null) {
-      for (final op in lastTx.ops) {
-        if (op is TextOperation) {
-          historyBlockIds.add(op.blockId.value);
-        }
-      }
-    }
-
-    final state = editor.allIds
-        .map((id) {
-          final element = editor.getBlock(id);
-          return element != null
-              ? EditorInvariantContext(
-                  blockId: id.value,
-                  element: element,
-                  historyBlockIds: historyBlockIds,
-                )
-              : null;
-        })
-        .whereType<EditorInvariantContext>()
-        .toList();
-
-    final failures = svc!.checkInvariants(state);
-    if (failures.isNotEmpty) {
-      svc.captureError(
-        type: 'InvariantViolation',
-        message: 'Invariant check failed: ${failures.map((f) => f.invariantName).join(", ")}',
-        commandName: 'InvariantChecker',
-      );
-    }
-  }
-
-  /// 捕获 Command 执行异常并生成 Error Snapshot。
-  void _captureCommandError(EditorCommand command, Object error) {
-    final svc = observability;
-    if (svc?.isEnabled != true) return;
-
-    svc!.captureError(
-      type: 'CommandExecutionError',
-      message: error.toString(),
-      commandName: command.runtimeType.toString(),
-      commandParams: {'displayName': command.displayName},
-    );
-  }
-
-  /// 记录 Command 执行轨迹到 ObservabilityService。
-  void _recordCommandTrace(
-    EditorCommand command,
-    bool success,
-    String? beforeHash,
-    String? afterHash,
-    TransactionId transactionId,
-  ) {
-    final svc = observability;
-    if (svc?.isEnabled != true) return;
-    final ctx = svc!.currentContext;
-
-    // 使用 CommandReplayer.serialize 提取完整参数以支持 Replay
-    final replayEvent = CommandReplayer.serialize(command);
-    final params = replayEvent.params;
-
-    svc.recordCommand(obs.CommandTraceEntry(
-      commandName: command.runtimeType.toString(),
-      params: params,
-      origin: _mapOrigin(command.origin),
-      timestamp: DateTime.now(),
-      transactionId: transactionId.toString(),
-      succeeded: success,
-      beforeStateHash: beforeHash,
-      afterStateHash: afterHash,
-      traceId: ctx?.traceId,
-      spanId: ctx?.spanId,
-    ));
-  }
-
-  obs.CommandOrigin _mapOrigin(CommandOrigin origin) {
-    return switch (origin) {
-      CommandOrigin.keyboard => obs.CommandOrigin.keyboard,
-      CommandOrigin.ime => obs.CommandOrigin.ime,
-      CommandOrigin.ai => obs.CommandOrigin.ai,
-      CommandOrigin.voice => obs.CommandOrigin.voice,
-      CommandOrigin.menu => obs.CommandOrigin.menu,
-      CommandOrigin.gesture => obs.CommandOrigin.gesture,
-    };
-  }
 
   /// 分发 [command] 到对应处理方法。
   ///

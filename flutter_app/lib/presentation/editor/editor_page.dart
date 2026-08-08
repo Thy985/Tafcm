@@ -16,28 +16,25 @@
 /// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/editing/editor_history.dart';
 import '../../core/parser/markdown_parser.dart';
 import '../../data/models/document.dart';
-import '../../domain/providers/export_progress_provider.dart';
-import '../../domain/services/export_service.dart';
+
 import '../../providers/asset_provider.dart';
 import '../../providers/current_path_provider.dart';
 import '../../providers/editor_providers.dart';
 import '../../providers/external_file_service_provider.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/last_opened_path_provider.dart';
-import '../theme/app_theme.dart';
 import '../widgets/export_progress_overlay.dart';
 import 'autosave_service.dart';
 import 'editor_coordinator.dart';
+import 'editor_export_actions.dart';
+import 'editor_load_helpers.dart';
 import 'editor_scope.dart';
 import 'editor_shell.dart';
 import 'in_memory_document_editor.dart';
@@ -77,6 +74,11 @@ class EditorPage extends ConsumerStatefulWidget {
 class _EditorPageState extends ConsumerState<EditorPage> {
   late final EditorCoordinator _coordinator;
   AutosaveService? _autosave;
+
+  EditorExportActions get _exportActions => EditorExportActions(
+        ref: ref,
+        coordinator: _coordinator,
+      );
 
   /// 文档是否就绪（文件异步加载完成前显示加载态）。
   bool _ready = false;
@@ -160,55 +162,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             commandParams: {'path': path},
           );
       _initSeed(widget.seedSelector);
-      _showFileLoadFailureSnackBar(path: path, error: e);
+      if (!mounted) return;
+      showFileLoadFailureSnackBar(context, path: path, error: e);
     } finally {
       if (mounted) setState(() => _ready = true);
     }
   }
 
-  /// P1 B-4：文件加载失败的 SnackBar 反馈。
-  ///
-  /// 在 _ready=true 之后调用（_coordinator 已就绪，ScaffoldMessenger 可用）。
-  /// 用户提供路径与异常类型，但不展示 stack / detail（AGENTS.md §4.4）。
-  void _showFileLoadFailureSnackBar({String? path, Object? error}) {
-    if (!mounted) return;
-    final where = path != null ? '文件 $path' : '所选文件';
-    // 简短根因描述：取异常 runtimeType + 截断 message（避免泄露敏感路径细节）。
-    final reason = error == null
-        ? '未知错误'
-        : '${error.runtimeType}: ${error.toString().split('\n').first}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('无法打开$where，已加载演示文档。\n原因：$reason'),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: '知道了',
-          onPressed: () {},
-        ),
-      ),
-    );
-  }
-
-  /// P1 B-5：构造 MarkdownParser 的 onError 回调。
-  ///
-  /// 把单行解析降级事件送入 observability（captureError），
-  /// 让用户 / 诊断 zip 能看到"哪些行解析失败、为什么失败"。
-  /// 不弹 UI——单行降级不打断用户阅读，仅在诊断数据中可见。
-  MarkdownParseErrorHandler _buildParserErrorHandler(String source) {
-    return (lineIndex, error, line) {
-      debugPrint('[EditorPage] parser line $lineIndex failed: $error');
-      ref.read(observabilityProvider).captureError(
-            type: 'MarkdownParseError',
-            message: '$error',
-            commandName: 'MarkdownParser.parse',
-            commandParams: {
-              'source': source,
-              'lineIndex': lineIndex,
-              'line': line.length > 200 ? '${line.substring(0, 200)}...' : line,
-            },
-          );
-    };
-  }
 
   /// 异步加载外部 URI 指向的 .md 文件（P0 修复 2026-08-04）。
   ///
@@ -245,7 +205,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       }
       final elements = MarkdownParser.parse(
         content,
-        onError: _buildParserErrorHandler(uri),
+        onError: buildParserErrorHandler(ref, uri),
       );
       final editor = InMemoryDocumentEditor(title: title);
       for (final element in elements) {
@@ -269,7 +229,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             commandParams: {'uri': uri},
           );
       _initSeed(widget.seedSelector);
-      _showFileLoadFailureSnackBar(path: null, error: e);
+      if (!mounted) return;
+      showFileLoadFailureSnackBar(context, path: null, error: e);
     } finally {
       if (mounted) setState(() => _ready = true);
     }
@@ -398,123 +359,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             // chrome 层不直接 import core/services。
             pickImage: ref.read(imagePickAndImportProvider),
             // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
-            onExportTo: _handleExport,
+            onExportTo: (format) => _exportActions.handleExport(context, format),
             // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
-            onExportDiagnostics: _handleExportDiagnostics,
+            onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
           ),
         ),
       ),
     );
   }
 
-  /// 导出诊断数据 zip（Phase 3.7.3）。
-  ///
-  /// 通过 [EditorCoordinator.exportDiagnosticZip] 委托到 [ObservabilityService]，
-  /// 结果（zip 路径）通过 SnackBar 展示。
-  Future<void> _handleExportDiagnostics() async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('正在导出诊断数据...')),
-    );
-    final path = await _coordinator.exportDiagnosticZip();
-    if (!mounted) return;
-    if (path != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('诊断数据已导出：$path'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: '分享',
-            onPressed: () async {
-              await Share.shareXFiles(
-                [XFile(path)],
-                subject: 'FormulaFix 诊断数据',
-              );
-            },
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('导出诊断数据失败（可观测性未启用）')),
-      );
-    }
-  }
-
-  /// 导出动作入口（Phase 3.4 Slice 7 / 3.4.4）。
-  ///
-  /// 流程：start → 调 MarkdownExporter.exportToXxx 桥接 onProgress → complete
-  /// → 写临时文件 + Share.shareXFiles（v7 API）；失败用 classifyError 分类。
-  ///
-  /// bytes 留在调用方直接写盘 / 分享，不经过 [exportProgressProvider] 状态机传输
-  /// （避免 Provider state 序列化 Uint8List 导致内存/所有权混淆）。
-  Future<void> _handleExport(ExportFormat format) async {
-    final notifier = ref.read(exportProgressProvider.notifier);
-    final markdown = _coordinator.editor.allSources.join('\n');
-    final title = _coordinator.title;
-    final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
-
-    notifier.start(format);
-    try {
-      final Uint8List bytes = switch (format) {
-        ExportFormat.pdf => await MarkdownExporter.exportToPdf(
-            markdown,
-            title: title,
-            isDark: isDark,
-            onProgress: (p) => notifier.report(p),
-          ),
-        ExportFormat.docx => await MarkdownExporter.exportToWord(
-            markdown,
-            title: title,
-            isDark: isDark,
-            onProgress: (p) => notifier.report(p),
-          ),
-        ExportFormat.txt => await MarkdownExporter.exportToTxt(
-            markdown,
-            onProgress: (p) => notifier.report(p),
-          ),
-      };
-
-      // 成功：状态机进入 ExportCompletedState。Overlay 显示"已导出"等。
-      notifier.complete(format);
-
-      // 分享：写临时文件（domain 层 allowlist，不触达 dart:io in presentation）
-      // + 系统 share sheet（share_plus 7.x API）。
-      final path = await ExportService.writeBytesToTempFile(
-        bytes,
-        format,
-        fileName: title,
-      );
-      await Share.shareXFiles(
-        [XFile(path, mimeType: _mimeFor(format))],
-        subject: title,
-      );
-    } catch (e, st) {
-      // 失败：分类 → ExportFailedState。Overlay 显示分类友好文案。
-      //
-      // P2 修复（2026-08-04）：导出失败也送入 observability（captureError）。
-      // 用户能在 Overlay 看到友好文案（"导出失败：字体缺失"），但诊断 zip
-      // 之前完全无记录——开发者收到 zip 后无法定位"哪一步失败、什么异常"。
-      // 现在捕获 + 类型标签 + 格式，让诊断 zip 可还原导出失败现场。
-      debugPrint('[EditorPage] export failed: $e\n$st');
-      ref.read(observabilityProvider).captureError(
-            type: 'ExportError',
-            message: '$e',
-            commandName: '_handleExport',
-            commandParams: {'format': format.name},
-          );
-      final info = classifyError(e);
-      notifier.fail(format, info.kind);
-    }
-  }
-
-  /// [ExportFormat] → MIME，用于 `Share.shareXFiles` 的 XFile 标注。
-  static String _mimeFor(ExportFormat format) => switch (format) {
-        ExportFormat.pdf => 'application/pdf',
-        ExportFormat.docx =>
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ExportFormat.txt => 'text/plain',
-      };
 
   /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
   /// 并导航到该文件。用 [context.pushReplacement] 替换栈顶 /editor，保留下方 /home 或 /files
