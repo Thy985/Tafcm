@@ -67,7 +67,8 @@ class ObservabilityService {
   })  : commandTracer = commandTracer ?? CommandTracer(),
         transactionTracer = transactionTracer ?? TransactionTracer(),
         interactionTracer = interactionTracer ?? InteractionTracer(),
-        renderTracer = renderTracer ?? RenderTracer(),
+        renderTracer = renderTracer ??
+            RenderTracer(capacity: config.renderBufferSize),
         invariantCheckerFactory =
             invariantCheckerFactory ?? (() => InvariantChecker()),
         sessionId = TraceIdGenerator.sessionId() {
@@ -249,9 +250,9 @@ class ObservabilityService {
   /// 记录渲染/导出事件。
   ///
   /// **信噪比策略**：
-  /// - LIGHT 模式：PdfCjkFontFallbackEvent 始终输出 debugPrint（导出低频且重要）；
-  ///   CodeBlockThemeRendered / CodeBlockLanguageChipRendered 仅在异常情况
-  ///  （themeName 不匹配 / chip 逻辑异常）时输出，正常渲染静默入 RingBuffer。
+  /// - LIGHT 模式：仅在 [isRenderSignal] 返回 true（异常情况）时输出 debugPrint，
+  ///   正常渲染事件静默入 RingBuffer。PdfCjkFontFallbackEvent 的降级信号
+  ///   （hasCjk && !fallbackActive）也会触发 debugPrint。
   /// - FULL 模式：保留全量 debugPrint。
   void recordRender(RenderObservabilityEvent event) {
     if (!isEnabled) return;
@@ -273,8 +274,8 @@ class ObservabilityService {
       PdfCjkFontFallbackEvent(:final hasCjk, :final fallbackActive) =>
         hasCjk && !fallbackActive,
       CodeBlockThemeRendered(:final isDark, :final themeName) =>
-        (isDark && themeName != 'atomOneDark') ||
-            (!isDark && themeName != 'github'),
+        (isDark && themeName != kDarkThemeName) ||
+            (!isDark && themeName != kLightThemeName),
       CodeBlockLanguageChipRendered(:final language, :final shown) =>
           (language != null && language.isNotEmpty) != shown,
     };

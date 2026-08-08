@@ -38,6 +38,7 @@ import '../../states/block_view_state.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
+
 /// 代码块（render + edit 双态，显示 language 标签 + monospace）。
 class CodeBlock extends StatefulWidget {
   /// 当前块的 UI 视图状态。
@@ -67,6 +68,12 @@ class CodeBlock extends StatefulWidget {
 /// **Phase 3.2 §3.0 方案 A 修订**：移除 build() / _buildEditing() / _buildRendered(),
 /// 仅保留 buildRenderContent + edit 态配置（monospace / newline）。
 class _CodeBlockState extends BaseBlockState<CodeBlock> {
+  /// 上次记录的主题事件 key（去重，避免 build 高频写入 RingBuffer）。
+  String? _lastThemeKey;
+
+  /// 上次记录的 chip 事件 key（去重，避免 build 高频写入 RingBuffer）。
+  String? _lastChipKey;
+
   @override
   BlockId get blockId => widget.state.id;
 
@@ -127,7 +134,7 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
     final language = widget.element.language;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final normalizedLang = _normalizeLanguage(language);
-    final themeName = isDark ? 'atomOneDark' : 'github';
+    final themeName = isDark ? obs.kDarkThemeName : obs.kLightThemeName;
     _recordThemeRendered(isDark, themeName, normalizedLang);
     final hasLanguage = language != null && language.isNotEmpty;
     _recordLanguageChip(language, hasLanguage, obs.CodeBlockChipMode.render);
@@ -169,7 +176,13 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   }
 
   /// 记录代码块主题渲染可观测事件（问题 6.1）。
+  ///
+  /// 去重：仅在 isDark / themeName / language 变化时记录，
+  /// 避免 Flutter rebuild 高频写入相同事件淘汰异常证据。
   void _recordThemeRendered(bool isDark, String themeName, String language) {
+    final key = '$isDark|$themeName|$language';
+    if (key == _lastThemeKey) return;
+    _lastThemeKey = key;
     widget.coordinator.observability?.recordRender(
       obs.CodeBlockThemeRendered(
         isDark: isDark,
@@ -181,8 +194,14 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   }
 
   /// 记录 language chip 渲染可观测事件（问题 6.5）。
+  ///
+  /// 去重：仅在 language / shown / mode 变化时记录，
+  /// 避免 Flutter rebuild 高频写入相同事件淘汰异常证据。
   void _recordLanguageChip(
       String? language, bool shown, obs.CodeBlockChipMode mode) {
+    final key = '${language ?? ''}|$shown|${mode.name}';
+    if (key == _lastChipKey) return;
+    _lastChipKey = key;
     widget.coordinator.observability?.recordRender(
       obs.CodeBlockLanguageChipRendered(
         language: language,

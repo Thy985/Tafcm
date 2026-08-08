@@ -26,6 +26,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/observability/observability_service.dart';
 import '../../data/models/document.dart';
 import 'exporters/pdf_exporter.dart';
 import 'exporters/text_exporter.dart';
@@ -100,6 +101,7 @@ class MarkdownExporter {
     String? author,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ObservabilityService? observability,
   }) {
     return _pdfExporter.export(
       markdown,
@@ -107,6 +109,7 @@ class MarkdownExporter {
       author: author,
       isDark: isDark,
       onProgress: onProgress,
+      observability: observability,
     );
   }
 
@@ -153,6 +156,7 @@ abstract interface class PdfExporterInterface {
     String? author,
     bool isDark,
     ExportProgressCallback? onProgress,
+    ObservabilityService? observability,
   });
 }
 
@@ -185,6 +189,7 @@ class DefaultPdfExporter implements PdfExporterInterface {
     String? author,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ObservabilityService? observability,
   }) {
     return PdfExporter.export(
       markdown,
@@ -192,6 +197,7 @@ class DefaultPdfExporter implements PdfExporterInterface {
       author: author,
       isDark: isDark,
       onProgress: onProgress,
+      observability: observability,
     );
   }
 }

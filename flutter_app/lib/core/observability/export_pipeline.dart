@@ -1,13 +1,13 @@
 /// ExportPipeline：诊断导出管道。
 ///
 /// 生成 `formula_fix_debug_YYYYMMDD_HHmmss.zip`，包含：
-/// - metadata.json：版本、设备、时间、observability 级别
-/// - trace.json：完整的事件流（Interaction + Command + Transaction）
+/// - metadata.json：版本、设备、时间、observability 级别、各 trace count
+/// - trace.json：完整的事件流（Interaction + Command + Transaction + Render）
 /// - snapshot.json：当前 Error Snapshot（如有）
 /// - invariant_report.json：最近一次 Invariant Checker 运行结果
 /// - README.txt：导出说明
 ///
-/// 落地 ADR-0021 §2.8（Export Pipeline）。
+/// 落地 ADR-0021 §2.8（Export Pipeline）+ ADR-0023 §2.1 扩展（Render Trace）。
 library;
 
 import 'dart:convert';

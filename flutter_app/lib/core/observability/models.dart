@@ -234,6 +234,13 @@ class UserLongPress extends EditorInteractionEvent {
   const UserLongPress({required this.target, required this.timestamp});
 }
 
+/// 语法高亮主题名称常量（用于 isRenderSignal 判定）。
+///
+/// 与 CodeBlock.buildRenderContent 中 `isDark ? atomOneDarkTheme : githubTheme`
+/// 保持同步。提取为常量避免散落硬编码导致诊断假阴性。
+const String kDarkThemeName = 'atomOneDark';
+const String kLightThemeName = 'github';
+
 /// 渲染/导出可观测事件（sealed class）。
 ///
 /// 记录 UI 渲染与导出管线中的关键决策点，用于诊断：

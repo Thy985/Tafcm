@@ -31,17 +31,6 @@ class PdfExporter {
   static DateTime? _cjkFontLoadFailedAt;
   static const Duration _fontRetryInterval = Duration(seconds: 30);
 
-  /// 可观测服务（由 main.dart 启动时通过 [attachObservability] 注入）。
-  ///
-  /// 方案 B（attachObservability）：PdfExporter 全部方法是 static，
-  /// 无法通过构造函数注入。改用静态 setter 在 App 启动时注入，
-  /// _pdfCode 内通过 _observability?.recordRender() 记录 CJK 字体回退事件。
-  static ObservabilityService? _observability;
-
-  /// 注入可观测服务（App 启动时调用）。
-  static void attachObservability(ObservabilityService? svc) {
-    _observability = svc;
-  }
 
   /// 加载 CJK 字体（用于中文等宽字符）。失败时回退 Helvetica。
   ///
@@ -127,6 +116,7 @@ class PdfExporter {
     String? author,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ObservabilityService? observability,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
@@ -234,6 +224,7 @@ class PdfExporter {
         isDark: isDark,
         monoFont: monoFont,
         cjkFont: cjk,
+        observability: observability,
       );
       if (widget != null) {
         body.add(widget);
@@ -338,6 +329,7 @@ class PdfExporter {
     bool isDark = false,
     pw.Font? monoFont,
     pw.Font? cjkFont,
+    ObservabilityService? observability,
   }) async {
     if (element is HeadingElement) {
       return _pdfHeading(element.level, element.text, isDark: isDark, cjkFont: cjkFont);
@@ -348,7 +340,7 @@ class PdfExporter {
           await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
       return _wrapListItem(paragraph, element.indent, element.ordered);
     } else if (element is CodeElement) {
-      return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont);
+      return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont, observability: observability);
     } else if (element is BlockquoteElement) {
       return _pdfBlockquote(element.text, isDark: isDark, cjkFont: cjkFont);
     } else if (element is MermaidElement) {
@@ -527,6 +519,7 @@ class PdfExporter {
     bool isDark = false,
     pw.Font? monoFont,
     pw.Font? cjkFont,
+    ObservabilityService? observability,
   }) {
     final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey100;
     final borderColor = isDark ? PdfColors.grey600 : PdfColors.grey300;
@@ -535,15 +528,17 @@ class PdfExporter {
     // cjkFont 作为 fontFallback，使代码中的中文注释能正常渲染（问题 6.4 修复）。
     final codeFont = monoFont ?? pw.Font.courier();
     final fontFallback = cjkFont != null ? [cjkFont] : const <pw.Font>[];
-    final hasCjk = _containsCjk(code);
-    _observability?.recordRender(obs.PdfCjkFontFallbackEvent(
-      fontLoaded: cjkFont != null,
-      fallbackActive: fontFallback.isNotEmpty,
-      language: language,
-      codeLength: code.length,
-      hasCjk: hasCjk,
-      timestamp: DateTime.now(),
-    ));
+    final hasCjk = containsCjk(code);
+    if (hasCjk) {
+      observability?.recordRender(obs.PdfCjkFontFallbackEvent(
+        fontLoaded: cjkFont != null,
+        fallbackActive: fontFallback.isNotEmpty,
+        language: language,
+        codeLength: code.length,
+        hasCjk: hasCjk,
+        timestamp: DateTime.now(),
+      ));
+    }
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
@@ -593,15 +588,26 @@ class PdfExporter {
 
   /// 检测字符串是否含 CJK 字符（用于可观测性诊断）。
   ///
-  /// CJK Unicode 范围：
+  /// CJK Unicode 范围（含非 BMP astral 平面）：
   /// - CJK Unified Ideographs: U+4E00–U+9FFF
   /// - CJK Extension A: U+3400–U+4DBF
   /// - CJK Compatibility Ideographs: U+F900–U+FAFF
-  static bool _containsCjk(String s) {
-    for (final c in s.codeUnits) {
-      if ((c >= 0x4E00 && c <= 0x9FFF) ||
-          (c >= 0x3400 && c <= 0x4DBF) ||
-          (c >= 0xF900 && c <= 0xFAFF)) {
+  /// - CJK Extension B: U+20000–U+2A6DF
+  /// - CJK Extension C: U+2A700–U+2B73F
+  /// - CJK Extension D: U+2B740–U+2B81F
+  /// - CJK Extension E: U+2B820–U+2CEAF
+  /// - CJK Compatibility Supplement: U+2F800–U+2FA1F
+  @visibleForTesting
+  static bool containsCjk(String s) {
+    for (final r in s.runes) {
+      if ((r >= 0x4E00 && r <= 0x9FFF) ||
+          (r >= 0x3400 && r <= 0x4DBF) ||
+          (r >= 0xF900 && r <= 0xFAFF) ||
+          (r >= 0x20000 && r <= 0x2A6DF) ||
+          (r >= 0x2A700 && r <= 0x2B73F) ||
+          (r >= 0x2B740 && r <= 0x2B81F) ||
+          (r >= 0x2B820 && r <= 0x2CEAF) ||
+          (r >= 0x2F800 && r <= 0x2FA1F)) {
         return true;
       }
     }

@@ -10,7 +10,7 @@ import 'core/services/formula_pdf_renderer.dart';
 import 'core/services/formula_svg_service.dart';
 import 'core/services/mermaid_service.dart';
 import 'core/services/storage_migration.dart';
-import 'domain/services/exporters/pdf_exporter.dart';
+
 import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mermaid_host.dart';
 import 'providers/editor_providers.dart';
@@ -65,7 +65,7 @@ void main() {
 
   MermaidService.attachErrorCallback(reportWebViewError);
   FormulaSvgService.attachErrorCallback(reportWebViewError);
-  PdfExporter.attachObservability(globalObservability);
+
 
   // P0 修复（2026-08-04）：B-2 安装全局错误钩子（Flutter 框架异常）。
   // 捕获 widget build / layout / painting 异常，release 模式下不再静默丢失。

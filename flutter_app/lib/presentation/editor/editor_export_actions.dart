@@ -84,6 +84,7 @@ class EditorExportActions {
             title: title,
             isDark: isDark,
             onProgress: (p) => notifier.report(p),
+            observability: ref.read(observabilityProvider),
           ),
         ExportFormat.docx => await MarkdownExporter.exportToWord(
             markdown,

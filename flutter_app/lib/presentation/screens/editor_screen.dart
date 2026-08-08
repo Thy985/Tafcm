@@ -213,7 +213,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       await ExportService.exportAndShare(
         markdown: content,
         format: ExportFormat.pdf,
-        exporter: (markdown) => MarkdownExporter.exportToPdf(markdown, isDark: isDark),
+        exporter: (markdown) => MarkdownExporter.exportToPdf(markdown, isDark: isDark, observability: ref.read(observabilityProvider)),
         title: title,
       );
     } on ExportFailureException catch (e) {
