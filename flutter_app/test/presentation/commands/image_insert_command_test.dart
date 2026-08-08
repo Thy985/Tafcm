@@ -1,8 +1,14 @@
-/// Slice 4 (3.4.9 图片插入) 测试：图�?Markdown 往�?+ 插入命令解析�?///
-/// 覆盖�?/// 1. parser �?serializer 往返：inline 图片 `![...](assets/...)` 正确解析�?///    [ImageElement] 且序列化还原一致；
-/// 2. [InsertTemplateCommand](insert) �?[BlockOperations.updateSource] �?///    [TextOperation] �?[toElement] �?[MarkdownParser.parseInline]，把图片语法
-///    解析�?[ImageElement]（渲染层据此�?[Image.file] 画本地图）；
-/// 3. 回归守门：[TemplateInsertMode.newBlock] 把模板包�?[TextElement]�?///    图片语法不会变成 [ImageElement] —�?因此图片插入必须�?insert 模式�?library;
+/// Slice 4 (3.4.9 图片插入) 测试：图片 Markdown 往返 + 插入命令解析。
+///
+/// 覆盖：
+/// 1. parser ↔ serializer 往返：inline 图片 `![...](assets/...)` 正确解析为
+///    [ImageElement] 且序列化还原一致；
+/// 2. [InsertTemplateCommand](insert) 走 [BlockOperations.updateSource] →
+///    [TextOperation] → [toElement] → [MarkdownParser.parseInline]，把图片语法
+///    解析为 [ImageElement]（渲染层据此用 [Image.file] 画本地图）；
+/// 3. 回归守门：[TemplateInsertMode.newBlock] 把模板包成 [TextElement]，
+///    图片语法不会变成 [ImageElement] —— 因此图片插入必须用 insert 模式。
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,8 +22,8 @@ import 'package:formula_fix/presentation/commands/editor_command.dart';
 import 'package:formula_fix/presentation/prototype/_shared/in_memory_document_editor.dart';
 
 void main() {
-  group('图片 Markdown 往返（parser �?serializer�?, () {
-    test('段落�?inline 图片解析�?ImageElement', () {
+  group('图片 Markdown 往返（parser ↔ serializer）', () {
+    test('段落内 inline 图片解析为 ImageElement', () {
       final el = toElement('![](assets/img_ab12cd34.png)', BlockType.paragraph);
       expect(el, isA<ParagraphElement>());
       final p = el as ParagraphElement;
@@ -28,7 +34,7 @@ void main() {
       expect(img.alt, '');
     });
 
-    test('�?alt 文本的图片往返一�?, () {
+    test('带 alt 文本的图片往返一致', () {
       const md = '![封面](assets/cover.png)';
       final el = toElement(md, BlockType.paragraph) as ParagraphElement;
       expect(fromElement(el), md);
@@ -41,7 +47,7 @@ void main() {
     });
   });
 
-  group('InsertTemplateCommand(image) �?ImageElement', () {
+  group('InsertTemplateCommand(image) → ImageElement', () {
     late InMemoryDocumentEditor editor;
     late EditorHistory history;
     late CommandHandler handler;
@@ -52,7 +58,7 @@ void main() {
       handler = CommandHandler(editor: editor, history: history);
     });
 
-    test('insert 模式�?![...](assets/...) 解析�?ImageElement（而非裸文本）', () {
+    test('insert 模式把 ![...](assets/...) 解析为 ImageElement（而非裸文本）', () {
       final id = editor.addParagraph('正文');
       final success = handler.handle(InsertTemplateCommand(
         blockId: id,
@@ -66,14 +72,15 @@ void main() {
       expect(el, isA<ParagraphElement>());
       final p = el as ParagraphElement;
       expect(p.children.any((c) => c is ImageElement), isTrue,
-          reason: '图片语法应被解析�?ImageElement，而非残留�?TextElement 裸文�?);
+          reason: '图片语法应被解析为 ImageElement，而非残留为 TextElement 裸文本');
       final img = p.children.whereType<ImageElement>().single;
       expect(img.url, 'assets/img_ab12cd34.png');
 
-      // 序列化回 Markdown 仍含图片语法（保�?/ 导出正确�?      expect(fromElement(p), contains('![](assets/img_ab12cd34.png)'));
+      // 序列化回 Markdown 仍含图片语法（保存 / 导出正确）
+      expect(fromElement(p), contains('![](assets/img_ab12cd34.png)'));
     });
 
-    test('newBlock 模式（回归守门）：图片语法不会变�?ImageElement', () {
+    test('newBlock 模式（回归守门）：图片语法不会变成 ImageElement', () {
       final id = editor.addParagraph('正文');
       final success = handler.handle(InsertTemplateCommand(
         blockId: id,
@@ -86,9 +93,10 @@ void main() {
       // 原块不变
       final original = editor.getBlock(id) as ParagraphElement;
       expect(original.children.any((c) => c is ImageElement), isFalse,
-          reason: 'newBlock 把模板包�?TextElement，图片不会出现在原块');
+          reason: 'newBlock 把模板包成 TextElement，图片不会出现在原块');
 
-      // 新块内容仍是裸文本（这正说明图片插入必须�?insert 模式�?      final newBlock = editor.getBlock(editor.allIds.last) as ParagraphElement;
+      // 新块内容仍是裸文本（这正说明图片插入必须用 insert 模式）
+      final newBlock = editor.getBlock(editor.allIds.last) as ParagraphElement;
       expect(newBlock.children.whereType<ImageElement>().isEmpty, isTrue);
       expect(newBlock.children.whereType<TextElement>().isNotEmpty, isTrue);
     });

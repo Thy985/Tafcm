@@ -1,7 +1,10 @@
-/// EditorIntentDispatcher 派发行为测试（PR #97 P0-1 / P0-3 验证）�?///
-/// 验证模板 / 图片插入意图�?[EditorIntentDispatcher.dispatch] 统一派发�?/// 而非 UI 层直�?[coordinator.handle]。覆盖：
-/// - InsertTemplateIntent(insert) �?当前块插入模板文�?/// - InsertTemplateIntent(newBlock) �?新建�?+ 焦点转移
-/// - dispatcher 在派发前自动 flushLiveSource�?4 防文本复活）
+/// EditorIntentDispatcher 派发行为测试（PR #97 P0-1 / P0-3 验证）。
+///
+/// 验证模板 / 图片插入意图经 [EditorIntentDispatcher.dispatch] 统一派发，
+/// 而非 UI 层直接 [coordinator.handle]。覆盖：
+/// - InsertTemplateIntent(insert) → 当前块插入模板文本
+/// - InsertTemplateIntent(newBlock) → 新建块 + 焦点转移
+/// - dispatcher 在派发前自动 flushLiveSource（#4 防文本复活）
 library;
 
 import 'package:flutter/painting.dart' show TextSelection;
@@ -39,7 +42,7 @@ void main() {
       ));
 
       expect(coordinator.sourceOf(id), contains('> '),
-          reason: 'insert 模式应将模板文本插入当前�?);
+          reason: 'insert 模式应将模板文本插入当前块');
     });
 
     test('InsertTemplateIntent(newBlock) 新建块并转移焦点', () {
@@ -48,22 +51,23 @@ void main() {
 
       coordinator.intents.dispatch(InsertTemplateIntent(
         id,
-        '| �? | �? |',
+        '| 列1 | 列2 |',
         mode: TemplateInsertMode.newBlock,
       ));
 
       expect(coordinator.blockCount, equals(2), reason: 'newBlock 应新增一个块');
       final focusedId = coordinator.focusedId;
       expect(focusedId, isNot(equals(id)), reason: '焦点应转移到新块');
-      expect(coordinator.sourceOf(focusedId!), contains('�?'),
-          reason: '新块应包含模板内�?);
+      expect(coordinator.sourceOf(focusedId!), contains('列1'),
+          reason: '新块应包含模板内容');
     });
 
-    test('InsertTemplateIntent 派发前自�?flushLiveSource�?4 防文本复活）', () {
+    test('InsertTemplateIntent 派发前自动 flushLiveSource（#4 防文本复活）', () {
       final id = editor.addParagraph('draft');
       coordinator.setFocus(id);
-      // 模拟实时打字（live 层领�?domain，未 commit�?      coordinator.updateLiveSource(id, 'draft with live edit');
-      // 此时 domain source 仍为 'draft'，live �?'draft with live edit'
+      // 模拟实时打字（live 层领先 domain，未 commit）
+      coordinator.updateLiveSource(id, 'draft with live edit');
+      // 此时 domain source 仍为 'draft'，live 为 'draft with live edit'
 
       coordinator.intents.dispatch(InsertTemplateIntent(
         id,
@@ -73,9 +77,10 @@ void main() {
         cursorOffset: 0,
       ));
 
-      // flush �?domain 应与 live 对齐，再插入图片 �?source 同时�?live 文本与图�?      final src = coordinator.sourceOf(id);
+      // flush 后 domain 应与 live 对齐，再插入图片 → source 同时含 live 文本与图片
+      final src = coordinator.sourceOf(id);
       expect(src, contains('draft with live edit'),
-          reason: 'dispatcher 应先�?live 对齐�?domain 再插�?);
+          reason: 'dispatcher 应先将 live 对齐到 domain 再插入');
       expect(src, contains('![](/assets/img_x.png)'),
           reason: '图片模板应已插入');
     });
