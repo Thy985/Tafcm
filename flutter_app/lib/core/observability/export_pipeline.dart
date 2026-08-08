@@ -222,6 +222,19 @@ class ExportPipeline {
             'hasCjk': hasCjk,
             'timestamp': timestamp.toIso8601String(),
           },
+        FocusOnViewStateCreatedEvent(:final blockId, :final timestamp) =>
+          <String, Object?>{
+            'type': 'FocusOnViewStateCreatedEvent',
+            'blockId': blockId,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        CjkFontLoadEvent(:final loaded, :final errorMessage, :final timestamp) =>
+          <String, Object?>{
+            'type': 'CjkFontLoadEvent',
+            'loaded': loaded,
+            if (errorMessage != null) 'errorMessage': errorMessage,
+            'timestamp': timestamp.toIso8601String(),
+          },
       };
     }).toList();
 

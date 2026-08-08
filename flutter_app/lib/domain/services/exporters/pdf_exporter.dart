@@ -36,7 +36,9 @@ class PdfExporter {
   ///
   /// 具备重试机制：首次失败后间隔 [_fontRetryInterval] 可再次尝试加载，
   /// 避免临时 IO 抖动导致永久降级。
-  static Future<pw.Font?> _ensureCjkFont() async {
+  static Future<pw.Font?> _ensureCjkFont({
+    ObservabilityService? observability,
+  }) async {
     if (_cjkFontLoadAttempted && _cjkFont != null) {
       return _cjkFont;
     }
@@ -60,15 +62,24 @@ class PdfExporter {
       // 永远找不到资源 → CJK 字体加载失败 → PDF 中文渲染为方框/空白。
       final data = await rootBundle.load('assets/fonts/NotoSansSC.ttf');
       _cjkFont = pw.Font.ttf(data);
-      _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
+      _cjkFontLoadFailedAt = null;
       debugPrint('CJK font loaded successfully');
+      observability?.recordRender(obs.CjkFontLoadEvent(
+        loaded: true,
+        timestamp: DateTime.now(),
+      ));
     } catch (e, st) {
-      // 详细 stack trace 记录：之前怀疑 ttf_parser.dart:126 是 Unexpected
-      // extension byte 真因；如果以后还需要诊断，保留详细输出。
       debugPrint('CJK font load failed: $e');
       debugPrint('CJK font load stack: $st');
       _cjkFont = null;
       _cjkFontLoadFailedAt = DateTime.now();
+      observability?.recordRender(obs.CjkFontLoadEvent(
+        loaded: false,
+        errorMessage: e.toString().length > 200
+            ? '${e.toString().substring(0, 200)}...'
+            : e.toString(),
+        timestamp: DateTime.now(),
+      ));
     }
     return _cjkFont;
   }
@@ -177,7 +188,7 @@ class PdfExporter {
       ));
     }
 
-    final cjk = await _ensureCjkFont();
+    final cjk = await _ensureCjkFont(observability: observability);
     // 关键：除了 base + fontFallback，还要把 cjk 直接塞进 defaultStyle.font。
     // pdf 包内嵌的 pw.Text widget 在没显式指定 style.font 时，先用
     // defaultStyle.font；只有它不支持某字符时才走 fontFallback。
