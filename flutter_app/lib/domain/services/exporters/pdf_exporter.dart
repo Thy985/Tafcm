@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../../../core/observability/models.dart' as obs;
+import '../../../core/observability/observability_service.dart';
 import '../../../core/parser/formula_extractor.dart';
 import '../../../core/parser/markdown_parser.dart';
 import '../../../core/services/formula_pdf_renderer.dart';
@@ -28,6 +30,18 @@ class PdfExporter {
   static bool _cjkFontLoadAttempted = false;
   static DateTime? _cjkFontLoadFailedAt;
   static const Duration _fontRetryInterval = Duration(seconds: 30);
+
+  /// 可观测服务（由 main.dart 启动时通过 [attachObservability] 注入）。
+  ///
+  /// 方案 B（attachObservability）：PdfExporter 全部方法是 static，
+  /// 无法通过构造函数注入。改用静态 setter 在 App 启动时注入，
+  /// _pdfCode 内通过 _observability?.recordRender() 记录 CJK 字体回退事件。
+  static ObservabilityService? _observability;
+
+  /// 注入可观测服务（App 启动时调用）。
+  static void attachObservability(ObservabilityService? svc) {
+    _observability = svc;
+  }
 
   /// 加载 CJK 字体（用于中文等宽字符）。失败时回退 Helvetica。
   ///
@@ -522,12 +536,14 @@ class PdfExporter {
     final codeFont = monoFont ?? pw.Font.courier();
     final fontFallback = cjkFont != null ? [cjkFont] : const <pw.Font>[];
     final hasCjk = _containsCjk(code);
-    debugPrint('[OBS-Render] PdfCjkFontFallbackEvent'
-        ' | fontLoaded=${cjkFont != null}'
-        ' | fallback=${fontFallback.isNotEmpty}'
-        ' | lang=${language ?? "null"}'
-        ' | codeLen=${code.length}'
-        ' | hasCjk=$hasCjk');
+    _observability?.recordRender(obs.PdfCjkFontFallbackEvent(
+      fontLoaded: cjkFont != null,
+      fallbackActive: fontFallback.isNotEmpty,
+      language: language,
+      codeLength: code.length,
+      hasCjk: hasCjk,
+      timestamp: DateTime.now(),
+    ));
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),

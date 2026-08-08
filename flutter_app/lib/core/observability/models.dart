@@ -275,6 +275,15 @@ class CodeBlockThemeRendered extends RenderObservabilityEvent {
   });
 }
 
+/// language chip 渲染模式枚举。
+enum CodeBlockChipMode {
+  /// 编辑态（buildEditField 调用）。
+  edit,
+
+  /// 渲染态（buildRenderContent 调用）。
+  render,
+}
+
 /// 代码块编辑态 language chip 渲染事件（问题 6.5）。
 ///
 /// 每次 [CodeBlock.buildEditField] 执行时记录，
@@ -287,8 +296,8 @@ class CodeBlockLanguageChipRendered extends RenderObservabilityEvent {
   /// chip 是否实际显示。
   final bool shown;
 
-  /// 渲染模式（"edit" / "render"）。
-  final String mode;
+  /// 渲染模式（编辑态 / 渲染态）。
+  final CodeBlockChipMode mode;
 
   @override
   final DateTime timestamp;
@@ -496,6 +505,10 @@ class ObservabilityConfig {
   );
 
   /// OFF 模式（tree-shaking 移除）。
+  ///
+  /// buffer size 字段未显式指定（默认 500），但 OFF 模式下
+  /// `isEnabled` 为 false，所有 record* 方法直接 return，
+  /// RingBuffer 不会被创建或写入——tree-shaking 移除全部代码。
   static const off = ObservabilityConfig(
     level: ObservabilityLevel.off,
   );

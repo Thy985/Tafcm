@@ -202,7 +202,7 @@ class ExportPipeline {
             'type': 'CodeBlockLanguageChipRendered',
             'language': language,
             'shown': shown,
-            'mode': mode,
+            'mode': mode.name,
             'timestamp': timestamp.toIso8601String(),
           },
         PdfCjkFontFallbackEvent(

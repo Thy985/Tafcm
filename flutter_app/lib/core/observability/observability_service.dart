@@ -255,7 +255,7 @@ class ObservabilityService {
   /// - FULL 模式：保留全量 debugPrint。
   void recordRender(RenderObservabilityEvent event) {
     if (!isEnabled) return;
-    if (isFull || _isRenderSignal(event)) {
+    if (isFull || isRenderSignal(event)) {
       debugPrint('[OBS-Render] ${event.runtimeType}'
           ' | ${_describeRender(event)}');
     }
@@ -263,12 +263,20 @@ class ObservabilityService {
   }
 
   /// 判断渲染事件是否为"信号"（LIGHT 模式应输出 debugPrint）。
-  bool _isRenderSignal(RenderObservabilityEvent event) {
+  ///
+  /// 仅在真异常时返回 true：
+  /// - PdfCjkFontFallback：含 CJK 但 fallback 未生效（降级风险）
+  /// - CodeBlockThemeRendered：主题与 themeName 不匹配（映射错误）
+  /// - CodeBlockLanguageChipRendered：有 language 但 chip 未显示 / 无 language 但 chip 显示（逻辑错误）
+  static bool isRenderSignal(RenderObservabilityEvent event) {
     return switch (event) {
       PdfCjkFontFallbackEvent(:final hasCjk, :final fallbackActive) =>
         hasCjk && !fallbackActive,
-      CodeBlockThemeRendered() => false,
-      CodeBlockLanguageChipRendered() => false,
+      CodeBlockThemeRendered(:final isDark, :final themeName) =>
+        (isDark && themeName != 'atomOneDark') ||
+            (!isDark && themeName != 'github'),
+      CodeBlockLanguageChipRendered(:final language, :final shown) =>
+          (language != null && language.isNotEmpty) != shown,
     };
   }
 
@@ -278,7 +286,7 @@ class ObservabilityService {
       CodeBlockThemeRendered(:final isDark, :final themeName, :final language) =>
         'isDark=$isDark | theme=$themeName | lang=$language',
       CodeBlockLanguageChipRendered(:final language, :final shown, :final mode) =>
-        'lang=${language ?? "null"} | shown=$shown | mode=$mode',
+        'lang=${language ?? "null"} | shown=$shown | mode=${mode.name}',
       PdfCjkFontFallbackEvent(
         :final fontLoaded,
         :final fallbackActive,
@@ -438,7 +446,7 @@ class ObservabilityService {
               'type': 'CodeBlockLanguageChipRendered',
               'language': language,
               'shown': shown,
-              'mode': mode,
+              'mode': mode.name,
               'timestamp': timestamp.toIso8601String(),
             },
           PdfCjkFontFallbackEvent(

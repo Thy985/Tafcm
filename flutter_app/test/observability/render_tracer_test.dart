@@ -4,6 +4,7 @@
 /// - RenderTracer 基本功能（record / clear / capacity）
 /// - ObservabilityService.recordRender() 正确记录到 RingBuffer
 /// - 三种 RenderObservabilityEvent 子类字段正确
+/// - isRenderSignal 信噪比判定（问题 3 修复：theme/chip 异常检测）
 /// - exportSnapshot() 包含 render 事件
 /// - clear() 清空 render tracer
 /// - OFF 模式不记录
@@ -142,14 +143,14 @@ void main() {
       svc.recordRender(obs.CodeBlockLanguageChipRendered(
         language: 'python',
         shown: true,
-        mode: 'edit',
+        mode: obs.CodeBlockChipMode.edit,
         timestamp: DateTime.now(),
       ));
       final event =
           svc.renderTracer.entries.last as obs.CodeBlockLanguageChipRendered;
       expect(event.language, equals('python'));
       expect(event.shown, isTrue);
-      expect(event.mode, equals('edit'));
+      expect(event.mode, equals(obs.CodeBlockChipMode.edit));
     });
 
     test('无 language → shown=false', () {
@@ -157,7 +158,7 @@ void main() {
       svc.recordRender(obs.CodeBlockLanguageChipRendered(
         language: null,
         shown: false,
-        mode: 'render',
+        mode: obs.CodeBlockChipMode.render,
         timestamp: DateTime.now(),
       ));
       final event =
@@ -203,6 +204,154 @@ void main() {
     });
   });
 
+  group('isRenderSignal 信噪比判定（问题 3 修复）', () {
+    final now = DateTime.now();
+
+    group('PdfCjkFontFallbackEvent', () {
+      test('hasCjk=true + fallbackActive=false → signal（降级风险）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.PdfCjkFontFallbackEvent(
+            fontLoaded: false,
+            fallbackActive: false,
+            language: 'python',
+            codeLength: 50,
+            hasCjk: true,
+            timestamp: now,
+          )),
+          isTrue,
+        );
+      });
+
+      test('hasCjk=false + fallbackActive=true → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.PdfCjkFontFallbackEvent(
+            fontLoaded: true,
+            fallbackActive: true,
+            language: 'python',
+            codeLength: 50,
+            hasCjk: false,
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+
+      test('hasCjk=true + fallbackActive=true → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.PdfCjkFontFallbackEvent(
+            fontLoaded: true,
+            fallbackActive: true,
+            language: 'python',
+            codeLength: 50,
+            hasCjk: true,
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+    });
+
+    group('CodeBlockThemeRendered', () {
+      test('isDark=true + themeName=atomOneDark → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockThemeRendered(
+            isDark: true,
+            themeName: 'atomOneDark',
+            language: 'python',
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+
+      test('isDark=false + themeName=github → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockThemeRendered(
+            isDark: false,
+            themeName: 'github',
+            language: 'dart',
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+
+      test('isDark=true + themeName=github → signal（映射错误）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockThemeRendered(
+            isDark: true,
+            themeName: 'github',
+            language: 'python',
+            timestamp: now,
+          )),
+          isTrue,
+        );
+      });
+
+      test('isDark=false + themeName=atomOneDark → signal（映射错误）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockThemeRendered(
+            isDark: false,
+            themeName: 'atomOneDark',
+            language: 'dart',
+            timestamp: now,
+          )),
+          isTrue,
+        );
+      });
+    });
+
+    group('CodeBlockLanguageChipRendered', () {
+      test('有 language + shown=true → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockLanguageChipRendered(
+            language: 'python',
+            shown: true,
+            mode: obs.CodeBlockChipMode.edit,
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+
+      test('无 language + shown=false → not signal（正常）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockLanguageChipRendered(
+            language: null,
+            shown: false,
+            mode: obs.CodeBlockChipMode.render,
+            timestamp: now,
+          )),
+          isFalse,
+        );
+      });
+
+      test('有 language + shown=false → signal（逻辑错误）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockLanguageChipRendered(
+            language: 'python',
+            shown: false,
+            mode: obs.CodeBlockChipMode.edit,
+            timestamp: now,
+          )),
+          isTrue,
+        );
+      });
+
+      test('无 language + shown=true → signal（逻辑错误）', () {
+        expect(
+          ObservabilityService.isRenderSignal(obs.CodeBlockLanguageChipRendered(
+            language: null,
+            shown: true,
+            mode: obs.CodeBlockChipMode.render,
+            timestamp: now,
+          )),
+          isTrue,
+        );
+      });
+    });
+  });
+
   group('exportSnapshot() 包含 render 事件', () {
     test('renderCount + renders 列表', () {
       final svc = ObservabilityService.light();
@@ -215,7 +364,7 @@ void main() {
       svc.recordRender(obs.CodeBlockLanguageChipRendered(
         language: 'python',
         shown: true,
-        mode: 'edit',
+        mode: obs.CodeBlockChipMode.edit,
         timestamp: DateTime.now(),
       ));
       svc.recordRender(obs.PdfCjkFontFallbackEvent(

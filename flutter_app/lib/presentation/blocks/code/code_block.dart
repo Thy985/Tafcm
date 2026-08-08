@@ -110,7 +110,7 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
     );
     final language = widget.element.language;
     final hasLanguage = language != null && language.isNotEmpty;
-    _recordLanguageChip(language, hasLanguage, 'edit');
+    _recordLanguageChip(language, hasLanguage, obs.CodeBlockChipMode.edit);
     if (!hasLanguage) return field;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,7 +130,7 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
     final themeName = isDark ? 'atomOneDark' : 'github';
     _recordThemeRendered(isDark, themeName, normalizedLang);
     final hasLanguage = language != null && language.isNotEmpty;
-    _recordLanguageChip(language, hasLanguage, 'render');
+    _recordLanguageChip(language, hasLanguage, obs.CodeBlockChipMode.render);
     return GestureDetector(
       onTap: onBlockTap,
       child: Container(
@@ -181,7 +181,8 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   }
 
   /// 记录 language chip 渲染可观测事件（问题 6.5）。
-  void _recordLanguageChip(String? language, bool shown, String mode) {
+  void _recordLanguageChip(
+      String? language, bool shown, obs.CodeBlockChipMode mode) {
     widget.coordinator.observability?.recordRender(
       obs.CodeBlockLanguageChipRendered(
         language: language,
