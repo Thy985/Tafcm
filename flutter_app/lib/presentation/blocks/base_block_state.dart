@@ -102,6 +102,20 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     textController.addListener(_onSelectionChanged);
     _inputHandler = InputHandler();
     _enterFormatter = EnterIntentFormatter(onEnter: _onEnterIntercepted);
+    // P0 修复（2026-08-09）：新块初始即为 editing 态时（如"添加新块"按钮
+    // 创建的新块），走 initState 而非 didUpdateWidget，需主动 requestFocus
+    // 才能弹出 IME。延后到下一帧让 TextField 完成挂载。
+    // 仅在 FocusScope 无主焦点时请求，避免干扰已打开的 PopupMenu 等模态路由。
+    if (currentMode == RenderMode.editing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && currentMode == RenderMode.editing) {
+          final scope = FocusScope.of(context);
+          if (!scope.hasFocus) {
+            focusNode.requestFocus();
+          }
+        }
+      });
+    }
   }
 
   // ============ Phase 3.3 PR #2B §2.7: selection 同步（节流）============

@@ -66,8 +66,8 @@ void main() {
   tearDown(() => coordinator.dispose());
 
   // AS-1.1 / AS-1.2：经 dispatcher 派发 EnterPressedIntent → resolver → command。
-  // 非空段落回车 → InsertTextCommand（插入换行，不分块），移动端 IME 体验设计。
-  testWidgets('EnterPressedIntent 非空段落回车插入换行不分块（#1 经 dispatcher）',
+  // 非空段落回车 → SplitBlockCommand（分块），P0 修复（2026-08-09）真机问题 5。
+  testWidgets('EnterPressedIntent 非空段落回车分块（#1 经 dispatcher）',
       (tester) async {
     await _pump(tester);
     final first = coordinator.allIds.first;
@@ -80,8 +80,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(coordinator.blockCount, before, reason: '非空段落回车不分块');
-    expect(coordinator.sourceOf(first), contains('\n'));
+    expect(coordinator.blockCount, before + 1, reason: '非空段落回车分块');
+    expect(coordinator.focusedId, coordinator.allIds.last,
+        reason: '焦点移到新块');
   });
 
   // AS-1.3：点击尾部空白区追加新块（gesture → appendBlock）

@@ -72,30 +72,13 @@ class BlockBehaviorResolver {
     final isEmpty = isSemanticallyEmpty(type, source);
     switch (type) {
       case BlockType.paragraph:
-        // 段落：空块回车 → 分块（Typora 语义：空行 Enter = 新建段）；
-        // 非空回车 → 同块插入换行，避免 FocusNode 切换打断 IME（移动端核心体验）。
-        // 未来 Phase B 接入 Shift+Enter / 上下文菜单后，再提供显式分块路径。
-        if (isEmpty) {
-          return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
-        }
-        return InsertTextCommand(
-          blockId: id,
-          text: '\n',
-          cursorOffset: 0,
-          selection: sel,
-        );
+        // P0 修复（2026-08-09）：回车始终分块（Typora 语义）。
+        // 原设计非空回车插入换行以避免 IME 中断，但用户期望回车创建新块。
+        // IME 连续性由 base_block_state.dart initState requestFocus 修复保证。
+        return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
       case BlockType.heading:
-        // 标题：空标题回车 → 分块（退出标题落为段落兄弟，Typora 语义）；
-        // 非空回车 → 同块插入换行（保留标题语义 + 不打断 IME）。
-        if (isEmpty) {
-          return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
-        }
-        return InsertTextCommand(
-          blockId: id,
-          text: '\n',
-          cursorOffset: 0,
-          selection: sel,
-        );
+        // 标题回车始终分块（标题不应多行）。
+        return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
       case BlockType.code:
         // 代码块内换行，不分块（底层 Markdown 保留 \n）。
         return InsertTextCommand(
