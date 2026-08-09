@@ -346,25 +346,31 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    return ExportProgressOverlay(
-      child: EditorScope(
-        coordinator: _coordinator,
-        child: AnimatedBuilder(
-          animation: _coordinator,
-          builder: (context, _) => EditorShell(
-            coordinator: _coordinator,
-            currentPath: currentPath,
-            onOpenFile: _openFile,
-            themeMode: mode,
-            onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
-            baseDir: baseDir,
-            // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
-            // chrome 层不直接 import core/services。
-            pickImage: ref.read(imagePickAndImportProvider),
-            // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
-            onExportTo: (format) => _exportActions.handleExport(context, format),
-            // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
-            onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go('/home');
+      },
+      child: ExportProgressOverlay(
+        child: EditorScope(
+          coordinator: _coordinator,
+          child: AnimatedBuilder(
+            animation: _coordinator,
+            builder: (context, _) => EditorShell(
+              coordinator: _coordinator,
+              currentPath: currentPath,
+              onOpenFile: _openFile,
+              themeMode: mode,
+              onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
+              baseDir: baseDir,
+              // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
+              // chrome 层不直接 import core/services。
+              pickImage: ref.read(imagePickAndImportProvider),
+              // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
+              onExportTo: (format) => _exportActions.handleExport(context, format),
+              // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
+              onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
+            ),
           ),
         ),
       ),
@@ -373,11 +379,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
 
   /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
-  /// 并导航到该文件。用 [context.pushReplacement] 替换栈顶 /editor，保留下方 /home 或 /files
-  /// 作为返回页（P1 修复 2026-08-06，phase3.5-realdevice-issues 问题 2）。
-  /// 原 `context.go` 会替换整个栈，导致编辑器返回按钮无页可 pop。
+  /// 并导航到该文件。用 [context.go] 替换整个栈，使 /editor 脱离
+  /// StatefulShellRoute（消除底部 HomeBottomBar）。返回按钮兜底 go('/home')。
   void _openFile(String path) {
     ref.read(lastOpenedPathProvider.notifier).set(path);
-    context.pushReplacement('/editor?path=${Uri.encodeComponent(path)}');
+    context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 }

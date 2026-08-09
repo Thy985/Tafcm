@@ -125,9 +125,8 @@ class HomeScreen extends ConsumerWidget {
   static Future<void> _openDoc(WidgetRef ref, Document doc, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.documentPathFor(doc.id);
-    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：用 push 保留返回栈，
-    // 编辑器返回按钮才能 pop 回 /home。原 context.go 替换整个栈导致 maybePop 无页可 pop。
-    if (context.mounted) context.push('/editor?path=${Uri.encodeComponent(path)}');
+    // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
+    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 
   static Future<void> _openAnyMd(WidgetRef ref, BuildContext context) async {
@@ -155,16 +154,16 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
     if (context.mounted) {
-      // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：push 保留返回栈。
-      context.push('/editor?path=${Uri.encodeComponent(path)}');
+      // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
+      context.go('/editor?path=${Uri.encodeComponent(path)}');
     }
   }
 
   static Future<void> _newDoc(WidgetRef ref, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
-    // P1 修复（2026-08-06，phase3.5-realdevice-issues 问题 2）：push 保留返回栈。
-    if (context.mounted) context.push('/editor?path=${Uri.encodeComponent(path)}');
+    // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
+    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 
   static void _onSearch(BuildContext context) {

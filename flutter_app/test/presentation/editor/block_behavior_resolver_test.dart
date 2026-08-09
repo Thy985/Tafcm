@@ -41,13 +41,10 @@ void main() {
   tearDown(() => coordinator.dispose());
 
   group('Enter 矩阵（§3）', () {
-    test('Paragraph（非空）→ InsertTextCommand("\\n")（同块换行，不打断 IME）', () {
+    test('Paragraph（非空）→ SplitBlockCommand（回车分块，Typora 语义）', () {
       final cmd = resolver.resolveEnter(
           coordinator, paraId, const TextSelection.collapsed(offset: 3));
-      expect(cmd, isA<InsertTextCommand>());
-      expect((cmd as InsertTextCommand).text, '\n');
-      expect(cmd.cursorOffset, 0);
-      expect(cmd.selection?.baseOffset, 3);
+      expect(cmd, isA<SplitBlockCommand>());
     });
 
     test('Paragraph（空块）→ SplitBlockCommand（空行 Enter = 新建段，Typora 语义）', () {
@@ -64,11 +61,10 @@ void main() {
       c.dispose();
     });
 
-    test('Heading（非空）→ InsertTextCommand("\\n")（同块换行，保留标题语义 + 不打断 IME）', () {
+    test('Heading（非空）→ SplitBlockCommand（回车分块，标题不应多行）', () {
       final cmd = resolver.resolveEnter(
           coordinator, headingId, const TextSelection.collapsed(offset: 2));
-      expect(cmd, isA<InsertTextCommand>());
-      expect((cmd as InsertTextCommand).text, '\n');
+      expect(cmd, isA<SplitBlockCommand>());
     });
 
     test('Heading（空块）→ SplitBlockCommand（空标题 Enter = 退出标题，落为段落兄弟）', () {
