@@ -213,24 +213,23 @@ void main() {
       expect(coordinator.sourceOf(id), equals('*world*'));
     });
 
-    testWidgets('Code 按钮有选区 → WrapSelectionCommand 包裹 `selection`',
+    testWidgets('Code 按钮 → 新建 CodeBlock（WYSIWYG，非行内反引号）',
         (tester) async {
-      final id = editor.addParagraph('code');
+      final id = editor.addParagraph('hello');
       coordinator.setFocus(id);
-      final state = coordinator.viewStateOf(id) ?? BlockViewState(id: id);
-      coordinator.updateViewState(
-        id,
-        state.copyWith(
-          selection: const TextSelection(baseOffset: 0, extentOffset: 4),
-        ),
-      );
       await tester.pumpWidget(buildTestWidget());
       await tester.pump();
 
       await tester.tap(find.byTooltip(EditorStrings.codeTooltip));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(coordinator.sourceOf(id), equals('`code`'));
+      // newBlock 模式：应创建新块（blockCount > 1）
+      expect(coordinator.blockCount, greaterThan(1));
+      // 新块应包含代码块模板
+      final sources = coordinator.allIds
+          .map((b) => coordinator.sourceOf(b) ?? '')
+          .join('\n');
+      expect(sources, contains('```dart'));
     });
   });
 

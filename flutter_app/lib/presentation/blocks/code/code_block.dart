@@ -83,6 +83,17 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   @override
   RenderMode previousMode(CodeBlock oldWidget) => oldWidget.state.mode;
 
+  /// WYSIWYG：编辑态只显示代码内容（`element.code`），不含 ``` 标记。
+  @override
+  String initialSource() => widget.element.code;
+
+  /// commit 时将编辑态代码包装回完整 Markdown 源（````lang\ncode\n````）。
+  @override
+  String editTextToSource(String text) {
+    final lang = widget.element.language ?? '';
+    return '```$lang\n$text\n```';
+  }
+
   /// edit 态 monospace / 14sp。
   @override
   TextStyle? get editFieldStyle => const TextStyle(

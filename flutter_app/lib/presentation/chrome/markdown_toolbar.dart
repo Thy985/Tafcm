@@ -21,6 +21,7 @@ import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import '../editor/editor_intent.dart';
 import 'editor_strings.dart';
+import 'templates.dart';
 import 'toolbar_components.dart';
 
 /// 图片「选择 + 导入 assets/」函数签名（ADR-0014）。
@@ -147,7 +148,7 @@ class _ToolbarButtons extends StatelessWidget {
       FormatButton(
         label: 'Code',
         tooltip: EditorStrings.codeTooltip,
-        onPressed: enabled ? () => _dispatchKind(ToolbarActionKind.code) : null,
+        onPressed: enabled ? _dispatchCodeBlock : null,
       ),
       // §6.3：`+` 模板菜单按钮（PopupMenu,8 模板）
       // ADR-0012：以 templateEnabled（lastFocusedId）为准,失焦后仍可插入。
@@ -175,6 +176,22 @@ class _ToolbarButtons extends StatelessWidget {
     final selection =
         coordinator.focusedSelection ?? const TextSelection.collapsed(offset: 0);
     coordinator.intents.dispatch(ToolbarActionIntent(blockId, kind, selection));
+  }
+
+  /// Code 按钮：插入代码块模板（替代旧行内反引号包裹）。
+  ///
+  /// 旧行为：`ToolbarActionKind.code` → 包裹选区 with `` ` ``（行内代码），
+  /// 在 WYSIWYG 编辑器中插入原始 Markdown 语法字符，用户感知为"出现很多 ````"。
+  /// 新行为：经 [InsertTemplateIntent] 以 newBlock 模式插入 [Templates.codeBlockDefault]，
+  /// 在当前块后创建独立 CodeBlock，符合 WYSIWYG 语义。
+  void _dispatchCodeBlock() {
+    final blockId = coordinator.focusedId ?? coordinator.lastFocusedId;
+    if (blockId == null) return;
+    coordinator.intents.dispatch(InsertTemplateIntent(
+      blockId,
+      Templates.codeBlockDefault,
+      mode: TemplateInsertMode.newBlock,
+    ));
   }
 
   /// 处理模板菜单选择（§6.3 + §2.5.1）。

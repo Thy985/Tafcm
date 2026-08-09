@@ -94,7 +94,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   void initState() {
     super.initState();
     _coordinator = EditorScope.of(context, listen: false);
-    textController = TextEditingController(text: _initialSource());
+    textController = TextEditingController(text: initialSource());
     _lastSyncedSource = textController.text;
     _previousTextValue = textController.value;
     focusNode = FocusNode();
@@ -174,14 +174,15 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
           // P0 修复后非 IME 输入已立即 commit，失焦时 domain source 已是最新；
           // 此处重复派发会产生空 Transaction 污染 undo 栈（Undo 弹空栈 → 无变化）。
           // IME 组合态未 commit 时 text != sourceOf(id)，仍会派发以提交 IME 输入。
-          if (text == coord.sourceOf(id)) return;
+          final markdownSource = editTextToSource(text);
+          if (markdownSource == coord.sourceOf(id)) return;
           coord.handle(UpdateBlockSourceCommand(
             blockId: id,
-            newSource: text,
+            newSource: markdownSource,
           ));
         });
       }
-      textController.text = _initialSource();
+      textController.text = initialSource();
       _lastSyncedSource = textController.text;
       _syncSelectionFromViewState();
       // Phase 3.3 PR #3：进入 editing 时重置 oldValue（避免跨会话残留）
@@ -203,7 +204,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
       onModeChanged(previousMode(oldWidget));
     } else if (!_isCommitting) {
       // R1 修复：检测外部 source 变化（如 toolbar 命令修改了 Document）
-      final newSource = _initialSource();
+      final newSource = initialSource();
       if (newSource != _lastSyncedSource) {
         textController.text = newSource;
         _lastSyncedSource = newSource;
@@ -300,7 +301,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     _lastSyncedSource = textController.text;
     _coordinator.handle(UpdateBlockSourceCommand(
       blockId: blockId,
-      newSource: textController.text,
+      newSource: editTextToSource(textController.text),
     ));
   }
 
@@ -334,8 +335,22 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   RenderMode previousMode(T oldWidget);
 
   /// 初始 source（默认从 coordinator 拿当前块 source）。
-  String _initialSource() {
+  ///
+  /// 子类可覆盖以返回**编辑态展示文本**（而非完整 Markdown 源）。
+  /// 例如 [CodeBlock] 返回 `element.code`（不含 ``` 标记），
+  /// 搭配 [editTextToSource] 在 commit 时包装回完整 Markdown。
+  @protected
+  String initialSource() {
     return coordinator.sourceOf(blockId);
+  }
+
+  /// 将编辑态文本转换为 Markdown 源（commit 时调用）。
+  ///
+  /// 默认恒等（段落 / 标题等块的编辑文本 == Markdown 源）。
+  /// [CodeBlock] 覆盖为 ```` lang\ntext\n```` 包装。
+  @protected
+  String editTextToSource(String text) {
+    return text;
   }
 
   /// Block 点击处理：进入 editing 模式（子类可复用）。
@@ -458,7 +473,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
 
     // ADR-0012：Live Editing State 实时上报（IME 组合态已在上方守卫跳过；
     // 此处更新 live 用于 wordCount / isDirty 实时刷新）
-    coordinator.updateLiveSource(blockId, text);
+    coordinator.updateLiveSource(blockId, editTextToSource(text));
 
     // Phase 3.7.3：记录用户输入交互事件
     _recordUserInput(text);
