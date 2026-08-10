@@ -1,8 +1,9 @@
 # ADR-0009: UI Architecture Design
 
-> **状态**：Proposed（草案，待 Human Owner 审批）
+> **状态**：Accepted（Human Owner 签字，Phase 2.9 Exit Gate 通过）
 > **版本**：v1.1（采纳 4 项决议 + 新增 CommandHandler 中间层）
 > **起草日期**：2026-07-20
+> **Accepted**：2026-07-2x（Phase 2.9 退出条件满足，核心接口冻结）
 > **起草人**：AI Agent（GLM-5.2）
 > **关联文档**：[ADR-0007](docs/ADR/0007-blockeditor-abstraction-design.md) / [ADR-0008](docs/ADR/0008-editor-transaction-model.md) / [Phase 2.9 Task Contract](docs/contracts/phase2.9-task-contract.md)
 

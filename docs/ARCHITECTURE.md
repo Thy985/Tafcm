@@ -2,6 +2,8 @@
 
 > 本文描述 FormulaFix 的**当前架构、目标架构、已知问题与重构风险**。  
 > 所有内容基于实际代码分析，不凭空设计。
+>
+> **状态更新（2026-08-10，Phase 3.7 完成后）**：本文为 Phase 0 末（2026-07-18）的历史快照 + Phase 1 关闭后（2026-07-19）的局部更新。§1.1/§1.3 已滞后于 Phase 3 后的实际代码结构（presentation 层已从 4 子目录扩展为 13 子目录，数据流已从"编辑/预览双模式"改为 WYSIWYG）。完整 Phase 3 后的架构见 [Component-Tree.md](Component-Tree.md) + [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) + [ADR-0009](ADR/0009-ui-architecture-design.md)。
 
 ---
 
@@ -54,10 +56,27 @@
 
 #### `lib/presentation/`
 
+> **状态更新（2026-08-10）**：Phase 3 后 presentation 层已从 4 子目录扩展为 13 子目录，详见 [Component-Tree.md](Component-Tree.md)。
+
+Phase 0 末结构（历史快照）：
 - `screens/`：编辑器 / 文件管理（`/files` 路由，已合并原 `DocumentListScreen` 死代码）
 - `widgets/`：渲染器、对话框、菜单
 - `components/`：通用组件
 - `theme/`：浅色 / 深色主题
+
+Phase 3 后实际结构（13 子目录）：
+- `editor/`：EditorShell / EditorCoordinator / EditorPage / EditorScope（Phase 3.0）
+- `blocks/`：8 种 BlockType（paragraph/heading/code/quote/table/mermaid/formula/input）+ shared/（Phase 3.2-3.5）
+- `chrome/`：AppBar / StatusBar / Toolbar（IDE 惯例分离，Phase 3.0 v1.1）
+- `panels/`：TOC / 文件树（Phase 3.4.1/3.4.2）
+- `commands/`：EditorCommand（sealed）+ CommandHandler（Phase 2.9 / 3.0）
+- `states/`：BlockViewState / CoordinatorState（Phase 2.9）
+- `theme/`：EditorTokens（ThemeExtension，Phase 3.4.5）
+- `themes/`：AppTheme（light / dark / sepia，Phase 3.4.3）
+- `observability/`：可观测性 UI（诊断导出按钮等，Phase 3.7）
+- `components/` / `widgets/`：通用组件
+- `prototype/`：Phase 2.9 Prototype Demo（4 个）
+- `screens/`：顶层 Screen
 
 #### `lib/providers/`
 
@@ -65,7 +84,9 @@
 
 ### 1.3 数据流
 
-#### 编辑流
+> **状态更新（2026-08-10）**：Phase 3.1 后已移除"编辑/预览双模式"，改为 WYSIWYG 块级编辑。下方编辑流为 Phase 0 末历史快照，实际数据流见 [Interaction-Model.md](Interaction-Model.md)。
+
+#### 编辑流（Phase 0 末历史快照）
 
 ```
 用户输入
@@ -79,6 +100,21 @@
 ```
 
 **问题**：每次按键全量重解析，文档 > 500 行时卡顿。Phase 2 增量解析后缓解。
+
+#### 编辑流（Phase 3 后 WYSIWYG）
+
+```
+用户操作（键盘 / 触摸 / IME）
+  └→ UI Event（Widget 层）
+      └→ EditorCommand（纯数据，可序列化）
+          └→ CommandHandler（意图分发 + 守卫 + Transaction 生命周期）
+              └→ TransactionBuilder → BlockOperation
+                  └→ AST（Document 模型）
+                      └→ BlockRenderer → Widget Tree（光标块 edit 态，其余 render 态）
+                          └→ AutosaveService（debounce 1.5s）→ FileRepository.write(.md)
+```
+
+详见 [Interaction-Model.md](Interaction-Model.md) + [ADR-0009](ADR/0009-ui-architecture-design.md)。
 
 #### 导出流
 
@@ -98,14 +134,21 @@
 
 ### 1.4 关键设计决策（已落地）
 
+> **状态更新（2026-08-10）**：ADR 已从 6 份扩展到 24 份，下方仅列 Phase 0-1 的基础决策。完整 ADR 索引见 [README.md ADR 索引](../README.md#adr-索引)。
+
 | 决策 | ADR |
 |------|-----|
-| 项目命名为 FormulaFix，目录结构 6 层 | [ADR-0001](file:///d:/Projects/Active/math/docs/ADR/0001-project-naming-and-structure.md) |
-| 状态管理选 Riverpod | [ADR-0002](file:///d:/Projects/Active/math/docs/ADR/0002-state-management-riverpod.md) |
-| 存储目标：.md 文件作为单一真相（**Phase 1 已达成，ADR-0003 Implemented**） | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) |
-| 解析器扩展策略：补齐缺失元素而非重写 | [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) |
-| 导出器 facade + 依赖注入 | [ADR-0005](file:///d:/Projects/Active/math/docs/ADR/0005-exporter-facade-dependency-injection.md) |
-| CI 选 GitHub Actions | [ADR-0006](file:///d:/Projects/Active/math/docs/ADR/0006-ci-github-actions.md) |
+| 项目命名为 FormulaFix，目录结构 6 层 | [ADR-0001](ADR/0001-project-naming-and-structure.md) |
+| 状态管理选 Riverpod | [ADR-0002](ADR/0002-state-management-riverpod.md) |
+| 存储目标：.md 文件作为单一真相（**Phase 1 已达成，ADR-0003 Implemented**） | [ADR-0003](ADR/0003-storage-single-source-md-files.md) |
+| 解析器扩展策略：补齐缺失元素而非重写 | [ADR-0004](ADR/0004-markdown-parser-extension-strategy.md) |
+| 导出器 facade + 依赖注入 | [ADR-0005](ADR/0005-exporter-facade-dependency-injection.md) |
+| CI 选 GitHub Actions | [ADR-0006](ADR/0006-ci-github-actions.md) |
+| BlockEditor 抽象设计（Phase 2.1） | [ADR-0007](ADR/0007-blockeditor-abstraction-design.md) |
+| 编辑器 Transaction 模型（Phase 2.6） | [ADR-0008](ADR/0008-editor-transaction-model.md) |
+| UI 架构设计（Phase 2.9，核心接口冻结） | [ADR-0009](ADR/0009-ui-architecture-design.md) |
+| Design System Token & Typography（Phase 3.4.5） | [ADR-0017](ADR/0017-design-system-alignment.md) |
+| 编辑器可观测系统（Phase 3.7） | [ADR-0023](ADR/0023-editor-observability-system.md) |
 
 ---
 
@@ -255,11 +298,11 @@
 - 重命名 PR 单独提交，不混入功能改动
 - 在 release notes 中告知用户
 
-### 4.6 pubspec 缺失风险（当前阻塞）
+### 4.6 pubspec 缺失风险（~~当前阻塞~~ 已解决）
 
 **风险**：CI 无法运行，新人无法启动。
 
-**缓解**：见 [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) Phase 0 前置任务。
+**缓解**：~~见 [ROADMAP.md](ROADMAP.md) Phase 0 前置任务。~~ ✅ 已解决（Phase 0.1，`pubspec.yaml` 已补齐含依赖最小集 + assets 声明）。
 
 ### 4.7 静态状态污染测试风险
 
@@ -273,9 +316,15 @@
 
 ## 5. 相关文档
 
-- [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) — AI 协作规范
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) — 路线图
-- [CODING_RULES.md](file:///d:/Projects/Active/math/docs/CODING_RULES.md) — 详细编码规范
-- [GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) — Git 流程
-- [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) — 现状批判
-- [ADR/](file:///d:/Projects/Active/math/docs/ADR) — 架构决策记录
+- [AGENTS.md](../AGENTS.md) — AI 协作规范
+- [ROADMAP.md](ROADMAP.md) — 路线图
+- [CODING_RULES.md](CODING_RULES.md) — 详细编码规范
+- [GIT_WORKFLOW.md](GIT_WORKFLOW.md) — Git 流程
+- [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md) — 现状批判
+- [ADR/](ADR/) — 架构决策记录（24 份）
+- [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) — UI 架构心智模型（Phase 2.9 产出，Accepted）
+- [Interaction-Model.md](Interaction-Model.md) — 交互事件模型（Phase 2.9 产出，Accepted）
+- [Component-Tree.md](Component-Tree.md) — 组件树与核心接口冻结（Phase 2.9 产出，Accepted）
+- [UI_SPEC.md](UI_SPEC.md) — UI 设计规范（产品视觉 source of truth）
+- [E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) — E2E 测试计划
+- [releases/](releases/) — 各 Phase Verification Report
