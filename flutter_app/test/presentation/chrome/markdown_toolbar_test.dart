@@ -227,7 +227,7 @@ void main() {
       expect(coordinator.blockCount, greaterThan(1));
       // 新块应包含代码块模板
       final sources = coordinator.allIds
-          .map((b) => coordinator.sourceOf(b) ?? '')
+          .map((b) => coordinator.sourceOf(b))
           .join('\n');
       expect(sources, contains('```dart'));
     });
