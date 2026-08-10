@@ -53,6 +53,15 @@ class ObservabilityService {
   /// 当前 Trace Context（由 EditorCoordinator.handle() 设置）。
   EditorTraceContext? _currentContext;
 
+  /// 最近一次不变量检查报告快照（G1 修复，2026-08-10）。
+  ///
+  /// 由 [CommandObservabilityAdapter.runInvariantCheck] 在每次 Tx commit 后更新。
+  /// 供 [ExportPipeline._buildInvariantReport] 读取真实结果（替换原占位符
+  /// `result: not_checked`）。
+  ///
+  /// **初始值**：App 启动后尚未运行任何 invariant check → null。
+  InvariantReportSnapshot? _lastInvariantReport;
+
   /// 会话 ID（App 启动时生成）。
   final String sessionId;
 
@@ -227,6 +236,8 @@ class ObservabilityService {
   ///
   /// **P1 信噪比修复（2026-08-06）**：UserInput 改为脱敏描述
   /// （length/hasNewline/isAscii），不再打印原始文本。
+  /// **G2/G3 修复（2026-08-10）**：新增 [ImeComposingStateChangedEvent] /
+  /// [SelectionChangedEvent] 描述。
   String _describeInteraction(EditorInteractionEvent event) {
     return switch (event) {
       UserTap(:final target) => 'target=$target',
@@ -236,6 +247,28 @@ class ObservabilityService {
       UserFormatToggle(:final format) => 'format=$format',
       UserUndoRedo(:final isUndo) => 'action=${isUndo ? "Undo" : "Redo"}',
       UserLongPress(:final target) => 'target=$target',
+      ImeComposingStateChangedEvent(
+        :final composingStart,
+        :final composingEnd,
+        :final sourceLength,
+        :final newState,
+        :final blockId,
+      ) =>
+        'state=${newState.name}'
+        ' | range=$composingStart..$composingEnd'
+        ' | srcLen=$sourceLength'
+        ' | blockId=${blockId ?? "null"}',
+      SelectionChangedEvent(
+        :final baseOffset,
+        :final extentOffset,
+        :final sourceLength,
+        :final blockId,
+        :final source,
+      ) =>
+        'base=$baseOffset extent=$extentOffset'
+        ' | srcLen=$sourceLength'
+        ' | blockId=$blockId'
+        ' | src=${source.name}',
     };
   }
 
@@ -344,6 +377,23 @@ class ObservabilityService {
   /// 获取最近一次错误快照。
   ErrorSnapshot? get lastErrorSnapshot => errorSnapshotter?.lastSnapshot;
 
+  // ============ Invariant Report（G1 修复）============
+
+  /// 获取最近一次不变量检查报告（G1 修复，2026-08-10）。
+  ///
+  /// 由 [CommandObservabilityAdapter.runInvariantCheck] 在 commit 后写入。
+  /// 诊断 zip 中的 `invariant_report.json` 据此生成真实结果。
+  InvariantReportSnapshot? get lastInvariantReport => _lastInvariantReport;
+
+  /// 更新最近一次不变量检查报告（仅 [CommandObservabilityAdapter] 调用）。
+  ///
+  /// 设为 package-private 语义（不导出方法，仅 setter 暴露给同包适配器）。
+  /// 为保持 API 干净，使用一个命名 setter + `@visibleForTesting` 注释。
+  void updateInvariantReport(InvariantReportSnapshot snapshot) {
+    if (!isEnabled) return;
+    _lastInvariantReport = snapshot;
+  }
+
   // ============ Export（§3.7.3） ============
 
   /// 导出诊断 zip 文件。
@@ -426,6 +476,40 @@ class ObservabilityService {
             'target': target,
             'timestamp': timestamp.toIso8601String(),
           },
+          ImeComposingStateChangedEvent(
+            :final composingStart,
+            :final composingEnd,
+            :final sourceLength,
+            :final newState,
+            :final blockId,
+            :final timestamp
+          ) =>
+            <String, Object?>{
+              'type': 'ImeComposingStateChangedEvent',
+              'composingStart': composingStart,
+              'composingEnd': composingEnd,
+              'sourceLength': sourceLength,
+              'newState': newState.name,
+              'blockId': blockId,
+              'timestamp': timestamp.toIso8601String(),
+            },
+          SelectionChangedEvent(
+            :final baseOffset,
+            :final extentOffset,
+            :final sourceLength,
+            :final blockId,
+            :final source,
+            :final timestamp
+          ) =>
+            <String, Object?>{
+              'type': 'SelectionChangedEvent',
+              'baseOffset': baseOffset,
+              'extentOffset': extentOffset,
+              'sourceLength': sourceLength,
+              'blockId': blockId,
+              'source': source.name,
+              'timestamp': timestamp.toIso8601String(),
+            },
         };
       }).toList(),
       'renders': renderTracer.entries.map((e) {
