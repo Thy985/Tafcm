@@ -44,14 +44,36 @@ abstract class ComposingHost {
   void restoreSource(String source);
 }
 
+/// Composing 状态变化观测回调（G2 修复，2026-08-10）。
+///
+/// **修复 G2**：ComposingController 在状态机转换时通过此回调通知上层，
+/// 上层（presentation/blocks/base_block_state）把回调桥接到
+/// [ObservabilityService.recordInteraction]，解决 IME composing
+/// 异常路径无独立可观测信号的问题。
+///
+/// **为什么用抽象回调而非直接依赖 ObservabilityService**：
+/// - 保持 core/editing 层纯 Dart（不依赖 core/observability）
+/// - 单元测试可用 mock 回调断言状态变化
+/// - 上层自由选择如何处理（落 trace / 上报 / 日志）
+typedef ComposingObserver = void Function({
+  required ComposingState newState,
+  required ComposingRegion composing,
+  required int sourceLength,
+  required ComposingEvent event,
+});
+
 /// ComposingController 纯 Dart 逻辑层。
 ///
 /// 落地 ADR-0007 §3.2 三铁律：
 /// - 铁律 1（不切块）：[canEditBlock] / [assertBlockMutationAllowed]
 /// - 铁律 2（commit 不丢字）：[onComposingCommit]
 /// - 铁律 3（cancel 回滚）：[onComposingCancel]
+///
+/// **G2 修复（2026-08-10）**：可选 [observer] 回调在每次状态转换后被调用，
+/// 用于把 composing 状态变化事件上报到可观测系统。
 class ComposingController {
   final ComposingHost _host;
+  final ComposingObserver? _observer;
   ComposingState _state = ComposingState.idle;
 
   /// 铁律 3 回滚备份（仅 source，不含 cursor/selection）。
@@ -61,7 +83,22 @@ class ComposingController {
   /// - ❌ cursor / selection rollback（Phase 2.6 Transaction 上下文）
   String? _sourceBeforeComposing;
 
-  ComposingController(this._host);
+  ComposingController(this._host, {ComposingObserver? observer})
+      : _observer = observer;
+
+  /// 通知观测器（内部 helper）。
+  ///
+  /// 抽成 helper 让所有状态转换走同一路径，便于测试 mock 计数。
+  void _notifyObserver(ComposingEvent event) {
+    final cb = _observer;
+    if (cb == null) return;
+    cb(
+      newState: _state,
+      composing: _host.composing,
+      sourceLength: _host.source.length,
+      event: event,
+    );
+  }
 
   /// 当前状态。
   ComposingState get state => _state;
@@ -107,6 +144,7 @@ class ComposingController {
       event: ComposingEvent.start,
     );
     _sourceBeforeComposing = _host.source;
+    _notifyObserver(ComposingEvent.start);
   }
 
   /// IME composing 更新（self-transition，评审反馈 1）。
@@ -119,6 +157,7 @@ class ComposingController {
       event: ComposingEvent.update,
     );
     // composing region 由 host 管理（对齐 TextEditingController.composingRange）
+    _notifyObserver(ComposingEvent.update);
   }
 
   /// 铁律 2：commit 时不丢字。
@@ -146,6 +185,7 @@ class ComposingController {
       event: ComposingEvent.commitComplete,
     );
     _sourceBeforeComposing = null;
+    _notifyObserver(ComposingEvent.commitComplete);
   }
 
   /// 铁律 3：cancel 时回滚。
@@ -169,5 +209,6 @@ class ComposingController {
       event: ComposingEvent.cancelComplete,
     );
     _sourceBeforeComposing = null;
+    _notifyObserver(ComposingEvent.cancelComplete);
   }
 }

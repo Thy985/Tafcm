@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import 'models.dart';
@@ -150,6 +151,40 @@ class ExportPipeline {
           'target': target,
           'timestamp': timestamp.toIso8601String(),
         },
+        ImeComposingStateChangedEvent(
+          :final composingStart,
+          :final composingEnd,
+          :final sourceLength,
+          :final newState,
+          :final blockId,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'ImeComposingStateChangedEvent',
+            'composingStart': composingStart,
+            'composingEnd': composingEnd,
+            'sourceLength': sourceLength,
+            'newState': newState.name,
+            'blockId': blockId,
+            'timestamp': timestamp.toIso8601String(),
+          },
+        SelectionChangedEvent(
+          :final baseOffset,
+          :final extentOffset,
+          :final sourceLength,
+          :final blockId,
+          :final source,
+          :final timestamp
+        ) =>
+          <String, Object?>{
+            'type': 'SelectionChangedEvent',
+            'baseOffset': baseOffset,
+            'extentOffset': extentOffset,
+            'sourceLength': sourceLength,
+            'blockId': blockId,
+            'source': source.name,
+            'timestamp': timestamp.toIso8601String(),
+          },
       };
     }).toList();
 
@@ -247,17 +282,34 @@ class ExportPipeline {
   }
 
   /// 构建 invariant_report.json。
+  ///
+  /// **G1 修复（2026-08-10）**：原实现返回硬编码 `result: not_checked`，
+  /// 现改为读取 [ObservabilityService.lastInvariantReport] 缓存的真实结果。
+  /// App 启动后尚未运行任何 invariant check → 返回 `not_checked` 占位。
   Map<String, Object?> _buildInvariantReport() {
+    final snapshot = _service.lastInvariantReport;
+    if (snapshot == null) {
+      return {
+        'lastCheckTime': null,
+        'invariants': const [
+          'CursorExists',
+          'SelectionValid',
+          'BlockTreeAcyclic',
+          'ParentChildValid',
+          'EditorNotEmpty',
+          'HistoryConsistent',
+        ],
+        'result': 'not_checked',
+        'note': 'App 启动后尚未运行任何 invariant check'
+            '（需先发生至少 1 次 Transaction commit）',
+      };
+    }
     return {
-      'lastCheckTime': DateTime.now().toIso8601String(),
-      'invariants': <String>[
-        'CursorExists',
-        'SelectionValid',
-        'BlockTreeAcyclic',
-        'ParentChildValid',
-        'HistoryConsistent',
-      ],
-      'result': 'not_checked',
+      'lastCheckTime': snapshot.checkedAt.toIso8601String(),
+      'invariants': snapshot.allNames,
+      'result': snapshot.result.name,
+      'failedNames': snapshot.failedNames,
+      if (snapshot.stateHash != null) 'stateHash': snapshot.stateHash,
     };
   }
 

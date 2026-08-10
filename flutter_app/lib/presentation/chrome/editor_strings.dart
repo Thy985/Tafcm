@@ -42,8 +42,8 @@ abstract final class EditorStrings {
   /// 三级标题按钮 tooltip。
   static const String h3Tooltip = '三级标题';
 
-  /// 行内代码按钮 tooltip。
-  static const String codeTooltip = '行内代码';
+  /// 代码块按钮 tooltip。
+  static const String codeTooltip = '代码块';
 
   /// 链接按钮 tooltip。
   static const String linkTooltip = '链接';

@@ -94,7 +94,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   void initState() {
     super.initState();
     _coordinator = EditorScope.of(context, listen: false);
-    textController = TextEditingController(text: _initialSource());
+    textController = TextEditingController(text: initialSource());
     _lastSyncedSource = textController.text;
     _previousTextValue = textController.value;
     focusNode = FocusNode();
@@ -123,12 +123,19 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 帧内节流标记（同一帧内多次 selection 变化只同步一次）。
   bool _selectionSyncScheduled = false;
 
+  /// 上次上报的 composing range（G2 节流用，避免每帧重复上报名义上的"同一 composing"）。
+  ComposingRegion? _lastReportedComposing;
+
   /// selection 变化回调：仅 focused 时同步,帧内节流。
   ///
   /// **节流策略**（§2.7）：
   /// 1. 仅 focused 时同步（非聚焦块的 selection 变化不进入全局状态）
   /// 2. 帧内节流：同一帧内多次 selection 变化只同步一次,
   ///    通过 [WidgetsBinding.instance.addPostFrameCallback] 合并
+  ///
+  /// **G3 修复（2026-08-10）**：在 postFrame 阶段记录
+  /// [obs.SelectionChangedEvent] 到 observability，捕获 selection 实时漂移。
+  /// **G2 修复（2026-08-10）**：同时上报 IME composing 状态变化。
   void _onSelectionChanged() {
     if (!mounted || !isFocused) return; // 仅 focused 时同步
     if (_selectionSyncScheduled) return; // 帧内已调度,跳过
@@ -143,7 +150,66 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
             _coordinator.viewStateOf(blockId) ?? BlockViewState(id: blockId);
         _coordinator.updateViewState(blockId, state.copyWith(selection: sel));
       }
+      // G3 修复：上报 selection 实时变化（postFrame 节流后）。
+      _recordSelectionChange(sel);
+      // G2 修复：上报 IME composing 状态变化（节流：仅在 composing region 实质变化时）。
+      _recordComposingChange();
     });
+  }
+
+  /// 上报 selection 变化到可观测系统（G3 修复，2026-08-10）。
+  ///
+  /// **设计要点**：
+  /// - 由 [_onSelectionChanged] 的 postFrame callback 调用，已天然节流到 1/帧
+  /// - 提取为独立方法便于单测（mock coordinator 验证 recordInteraction 调用）
+  /// - 越界 / 反转 selection 由 [obs.SelectionChangedEvent.isOutOfBounds] /
+  ///   [obs.SelectionChangedEvent.isReversed] 自描述,记录后由上层分析工具告警
+  void _recordSelectionChange(TextSelection sel) {
+    _coordinator.recordInteraction(
+      obs.SelectionChangedEvent(
+        baseOffset: sel.baseOffset,
+        extentOffset: sel.extentOffset,
+        sourceLength: textController.text.length,
+        blockId: blockId.value,
+        source: obs.SelectionChangeSource.tap,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
+
+  /// 上报 IME composing 状态变化到可观测系统（G2 修复，2026-08-10）。
+  ///
+  /// **节流策略**：仅在 composing region 起点/终点与上次不同时上报，避免
+  /// 每帧重复上报名义上的"同一 composing"（Android IME 在 IME 内部更新
+  /// composing range 时会触发 controller listener）。
+  ///
+  /// **为什么不直接调用 ComposingController.onComposingXxx**：Phase 2.5 边界
+  /// 下 production 代码尚未实例化 ComposingController（仅在测试中使用）。
+  /// 这里直接从 [TextEditingController.value.composing] 提取 region，
+  /// 等 Phase 2.6 正式接入 ComposingController 时，controller 的
+  /// [ComposingObserver] 回调会替换这里的报告逻辑，桥接点不变。
+  void _recordComposingChange() {
+    final composingRange = textController.value.composing;
+    final region = composingRange.isValid && !composingRange.isCollapsed
+        ? ComposingRegion(start: composingRange.start, end: composingRange.end)
+        : ComposingRegion.empty;
+    // 抑制名义上的"同一 composing"（避免每帧重复上报）
+    if (_lastReportedComposing == region) return;
+    _lastReportedComposing = region;
+
+    final newState = region.isActive
+        ? obs.ComposingState.composing
+        : obs.ComposingState.idle;
+    _coordinator.recordInteraction(
+      obs.ImeComposingStateChangedEvent(
+        composingStart: region.start,
+        composingEnd: region.end,
+        sourceLength: textController.text.length,
+        newState: newState,
+        blockId: blockId.value,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   @override
@@ -174,14 +240,15 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
           // P0 修复后非 IME 输入已立即 commit，失焦时 domain source 已是最新；
           // 此处重复派发会产生空 Transaction 污染 undo 栈（Undo 弹空栈 → 无变化）。
           // IME 组合态未 commit 时 text != sourceOf(id)，仍会派发以提交 IME 输入。
-          if (text == coord.sourceOf(id)) return;
+          final markdownSource = editTextToSource(text);
+          if (markdownSource == coord.sourceOf(id)) return;
           coord.handle(UpdateBlockSourceCommand(
             blockId: id,
-            newSource: text,
+            newSource: markdownSource,
           ));
         });
       }
-      textController.text = _initialSource();
+      textController.text = initialSource();
       _lastSyncedSource = textController.text;
       _syncSelectionFromViewState();
       // Phase 3.3 PR #3：进入 editing 时重置 oldValue（避免跨会话残留）
@@ -203,7 +270,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
       onModeChanged(previousMode(oldWidget));
     } else if (!_isCommitting) {
       // R1 修复：检测外部 source 变化（如 toolbar 命令修改了 Document）
-      final newSource = _initialSource();
+      final newSource = initialSource();
       if (newSource != _lastSyncedSource) {
         textController.text = newSource;
         _lastSyncedSource = newSource;
@@ -300,7 +367,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     _lastSyncedSource = textController.text;
     _coordinator.handle(UpdateBlockSourceCommand(
       blockId: blockId,
-      newSource: textController.text,
+      newSource: editTextToSource(textController.text),
     ));
   }
 
@@ -334,8 +401,22 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   RenderMode previousMode(T oldWidget);
 
   /// 初始 source（默认从 coordinator 拿当前块 source）。
-  String _initialSource() {
+  ///
+  /// 子类可覆盖以返回**编辑态展示文本**（而非完整 Markdown 源）。
+  /// 例如 [CodeBlock] 返回 `element.code`（不含 ``` 标记），
+  /// 搭配 [editTextToSource] 在 commit 时包装回完整 Markdown。
+  @protected
+  String initialSource() {
     return coordinator.sourceOf(blockId);
+  }
+
+  /// 将编辑态文本转换为 Markdown 源（commit 时调用）。
+  ///
+  /// 默认恒等（段落 / 标题等块的编辑文本 == Markdown 源）。
+  /// [CodeBlock] 覆盖为 ```` lang\ntext\n```` 包装。
+  @protected
+  String editTextToSource(String text) {
+    return text;
   }
 
   /// Block 点击处理：进入 editing 模式（子类可复用）。
@@ -458,7 +539,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
 
     // ADR-0012：Live Editing State 实时上报（IME 组合态已在上方守卫跳过；
     // 此处更新 live 用于 wordCount / isDirty 实时刷新）
-    coordinator.updateLiveSource(blockId, text);
+    coordinator.updateLiveSource(blockId, editTextToSource(text));
 
     // Phase 3.7.3：记录用户输入交互事件
     _recordUserInput(text);

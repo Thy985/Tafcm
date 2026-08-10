@@ -234,6 +234,125 @@ class UserLongPress extends EditorInteractionEvent {
   const UserLongPress({required this.target, required this.timestamp});
 }
 
+/// IME composing 状态变化事件（G2 修复，2026-08-10）。
+///
+/// **修复 G2**：[ComposingController] 在状态机转换时发出本事件，
+/// 解决"中文输入法组合中断/死锁/双字符提交"类 bug 无独立可观测信号的空白。
+///
+/// 诊断价值：
+/// - `idle → composing` 异常频繁 → IME 反复重连
+/// - `composing` 持续时间过长 → IME 卡死
+/// - `composing` 状态未走 `cancel/commitComplete` 即回到 `idle` → 状态机越权
+class ImeComposingStateChangedEvent extends EditorInteractionEvent {
+  /// composing region 起点（-1 = 无 composing region）。
+  final int composingStart;
+
+  /// composing region 终点（-1 = 无 composing region）。
+  final int composingEnd;
+
+  /// 当前 source 长度（用于诊断"composing 越界"）。
+  final int sourceLength;
+
+  /// 转换后的状态。
+  final ComposingState newState;
+
+  /// 当前块 ID（null = 全局）。
+  final String? blockId;
+
+  @override
+  final DateTime timestamp;
+
+  const ImeComposingStateChangedEvent({
+    required this.composingStart,
+    required this.composingEnd,
+    required this.sourceLength,
+    required this.newState,
+    required this.timestamp,
+    this.blockId,
+  });
+
+  /// composing region 长度（-1 = 无 composing）。
+  int get composingLength =>
+      composingStart < 0 || composingEnd < 0 ? -1 : composingEnd - composingStart;
+
+  /// composing region 是否越界（[composingEnd] > [sourceLength]）。
+  bool get isOutOfBounds => composingEnd > sourceLength;
+}
+
+/// Selection 实时变化事件（G3 修复，2026-08-10）。
+///
+/// **修复 G3**：在 [BaseBlockState._onSelectionChanged] 节流上报，
+/// 解决"光标跳到不存在的字符"类 bug 无独立可观测信号的空白。
+///
+/// 诊断价值：
+/// - selection 越界（extentOffset > sourceLength）→ ArrayIndexOutOfBounds 风险
+/// - 起点 > 终点（selection 反转）→ SelectionValid invariant 失败前兆
+/// - 高频 selection 抖动（500ms 内 ≥ 5 次）→ IME / 自动配对循环 bug
+class SelectionChangedEvent extends EditorInteractionEvent {
+  /// selection 起点（base offset）。
+  final int baseOffset;
+
+  /// selection 终点（extent offset）。
+  final int extentOffset;
+
+  /// 当前 source 长度。
+  final int sourceLength;
+
+  /// 当前块 ID。
+  final String blockId;
+
+  /// selection 来源（keyboard / tap / programmatic / auto_pair / undo）。
+  final SelectionChangeSource source;
+
+  @override
+  final DateTime timestamp;
+
+  const SelectionChangedEvent({
+    required this.baseOffset,
+    required this.extentOffset,
+    required this.sourceLength,
+    required this.blockId,
+    required this.source,
+    required this.timestamp,
+  });
+
+  /// 是否越界（终点 > sourceLength 或起点 < 0）。
+  bool get isOutOfBounds =>
+      baseOffset < 0 || extentOffset > sourceLength || baseOffset > extentOffset;
+
+  /// 是否反转（起点 > 终点，非法 selection）。
+  bool get isReversed => baseOffset > extentOffset;
+}
+
+/// Selection 变化来源。
+enum SelectionChangeSource {
+  /// 键盘方向键 / 选区快捷键。
+  keyboard,
+
+  /// 用户 tap 触发（点击定位 / 长按选词）。
+  tap,
+
+  /// 程序设置（command_handler / undo / IME commit）。
+  programmatic,
+
+  /// 自动配对 / 自动续列表触发的 selection 调整。
+  autoPair,
+
+  /// IME composing region 变化。
+  ime,
+}
+
+/// IME composing 状态枚举（与 [composing_state.dart] 中的 [ComposingState] 解耦以避免循环依赖）。
+///
+/// 落地 ADR-0021 G2 修复（2026-08-10）：observability 层不应反向依赖 core/editing，
+/// 故在此定义独立枚举。值必须与 [ComposingState] 保持 1:1 对应。
+enum ComposingState {
+  idle,
+  composing,
+  committing,
+  cancelling,
+}
+
 /// 语法高亮主题名称常量（用于 isRenderSignal 判定）。
 ///
 /// 与 CodeBlock.buildRenderContent 中 `isDark ? atomOneDarkTheme : githubTheme`
@@ -409,6 +528,57 @@ class InvariantFailure {
     required this.timestamp,
     this.stateHash,
   });
+}
+
+/// 不变量检查结果枚举。
+///
+/// 落地 ADR-0021 §2.7 + 修复 G1（invariant_report 占位符）。
+enum InvariantCheckResult {
+  /// 全部通过。
+  passed,
+
+  /// 部分失败（至少 1 项不变量未通过）。
+  failed,
+}
+
+/// 不变量检查报告快照。
+///
+/// **P0 修复（2026-08-10）**：缓存最近一次 [InvariantChecker.checkAll] 的结果，
+/// 供 [ExportPipeline] 生成真实诊断报告（原占位符 `result: not_checked`）。
+///
+/// 落地 ADR-0021 §2.7 扩展。
+class InvariantReportSnapshot {
+  /// 检查时间。
+  final DateTime checkedAt;
+
+  /// 检查结果（passed / failed）。
+  final InvariantCheckResult result;
+
+  /// 失败的不变量名称列表（passed 时为空）。
+  final List<String> failedNames;
+
+  /// 全部已检查的不变量名称列表（含通过的）。
+  final List<String> allNames;
+
+  /// 当前 Document 的 fingerprint（便于与 Trace 对照）。
+  final String? stateHash;
+
+  const InvariantReportSnapshot({
+    required this.checkedAt,
+    required this.result,
+    required this.failedNames,
+    required this.allNames,
+    this.stateHash,
+  });
+
+  /// 序列化为 JSON 兼容 Map。
+  Map<String, Object?> toJson() => {
+        'checkedAt': checkedAt.toIso8601String(),
+        'result': result.name,
+        'failedNames': failedNames,
+        'allNames': allNames,
+        if (stateHash != null) 'stateHash': stateHash,
+      };
 }
 
 /// Command Replay 的事件表示（可序列化/反序列化）。

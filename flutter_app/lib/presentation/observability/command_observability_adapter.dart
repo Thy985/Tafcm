@@ -32,6 +32,8 @@ class CommandObservabilityAdapter {
   /// Transaction commit 后运行不变量检查（ADR-0021 §2.7）。
   ///
   /// 检查失败不阻塞编辑器运行，但自动触发 Error Snapshot。
+  /// **G1 修复（2026-08-10）**：把检查结果写入
+  /// [ObservabilityService.lastInvariantReport]，供诊断 zip 报告读取。
   void runInvariantCheck() {
     final svc = observability;
     if (svc?.isEnabled != true) return;
@@ -61,6 +63,26 @@ class CommandObservabilityAdapter {
         .toList();
 
     final failures = svc!.checkInvariants(state);
+
+    // G1 修复：写入 InvariantReportSnapshot，替换原占位符 result=not_checked。
+    final allNames = const [
+      'CursorExists',
+      'SelectionValid',
+      'BlockTreeAcyclic',
+      'ParentChildValid',
+      'EditorNotEmpty',
+      'HistoryConsistent',
+    ];
+    final failedNames = failures.map((f) => f.invariantName).toList();
+    svc.updateInvariantReport(obs.InvariantReportSnapshot(
+      checkedAt: DateTime.now(),
+      result: failures.isEmpty
+          ? obs.InvariantCheckResult.passed
+          : obs.InvariantCheckResult.failed,
+      failedNames: failedNames,
+      allNames: allNames,
+    ));
+
     if (failures.isNotEmpty) {
       svc.captureError(
         type: 'InvariantViolation',
