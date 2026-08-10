@@ -24,11 +24,16 @@
 > | P3-33 main() 多余 async | §8.4 | `b43e5c1` 副作用 | 1.2（添加 `await StorageMigration`，async 现为必要） |
 > | P3-35 测试覆盖不足 | §8.6 | PR #23 | 1.8（314 tests / 0 regression） |
 >
-> **仍存在项**（按 Phase 跟踪）：
+> **仍存在项**（按 Phase 跟踪，2026-08-10 更新至 Phase 3.7）：
 >
-> - ~~P0-1 编辑/预览分离模式（§1.1）→ Phase 3 UI Implementation~~ ✅ 已修复（Phase 3.1-A 完成，`kEnableNewEditor=true` + 移除 `previewModeProvider`，详见 [ROADMAP §Phase 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md)）
+> - ~~P0-1 编辑/预览分离模式（§1.1）→ Phase 3 UI Implementation~~ ✅ 已修复（Phase 3.1-A 完成，`kEnableNewEditor=true` + 移除 `previewModeProvider`，详见 [ROADMAP §Phase 3.1](ROADMAP.md)）
+> - ~~P1 体验问题（预览卡片包裹 / AppBar 写死 / 全量重解析 / WebView 冷启动 / 导出无进度 / 代码块无高亮等）~~ ✅ 大部分已修复（Phase 3.2-3.7：WYSIWYG 块级编辑 / 导出进度 Overlay / 代码高亮 / 自动保存 / Design System 对齐）
 > - P3-34 静态状态污染测试（§8.5）→ Phase 2（部分清理：`MermaidService._cache` / `FormulaSvgService._cache` 已加 `clearCache()`；`PdfExporter._cjkFont` 仍 static）
-> - 其余 P1 / P2 体验与设计问题 → Phase 3+
+> - **新增仍存在项**（Phase 3.7 后剩余）：
+>   - MathBlock 双态切换 → Phase 3.5+（[ROADMAP §3.5](ROADMAP.md)）
+>   - 选区格式化菜单（Overlay 浮动菜单）→ Phase 3.4 §3.4.10（[ROADMAP §3.4.10](ROADMAP.md)）
+>   - 21 项 Typora 核心特性对齐度 < 80% → Phase 3.3+ 体验增强
+>   - 桌面快捷键 / 打字机模式 → Phase 4 Desktop Enhancement
 
 ---
 

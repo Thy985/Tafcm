@@ -408,6 +408,19 @@ AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/A
 - [ ] 测试覆盖完整
 - [ ] 文档已同步
 
+### 9.5 ADI 诊断工作流（引用 ADR-0024 §1.4）
+
+AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math/docs/ADR/0024-agent-diagnostic-interface.md)：
+
+1. **Query first** — 先 `adi latest-error --json` 获取 Observation，不凭空假设
+2. **Inspect before edit** — 改代码前先 `adi trace show <id>` 理解因果链
+3. **Replay before modify** — 改代码前先 `adi replay <id>` 确认能复现（不能复现的 bug 不应修）
+4. **Validate after modify** — 改完代码后 `adi validate --after-fix` 验证闭环
+5. **Never trust candidate_causes as truth** — `candidate_causes` 是假设非结论，修复决策需 Agent 推理
+6. **Respect invariant report** — `invariant_report.violated` 非空 = 状态损坏（真 bug）；全通过 = 渲染降级或既定行为（ADR-0022）
+
+ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入口：`dart run tools/adi/adi.dart <command>`。详见 [ADR-0024](file:///d:/Projects/Active/math/docs/ADR/0024-agent-diagnostic-interface.md) + [ADI Design Document](file:///d:/Projects/Active/math/docs/design/adi-design-v1.md)。
+
 ---
 
 ## 10. 当前阻塞项与例外说明

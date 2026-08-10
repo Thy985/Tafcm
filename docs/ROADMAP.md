@@ -620,6 +620,46 @@ FormulaFix 当前状态：
 
 ---
 
+## Phase 3.8：Agent Diagnostic Interface（ADI）
+
+> **状态**：Accepted — ADR-0024 由 AI Agent 起草于 2026-08-10，Human Owner 同日评审签字 Accepted，正式纳入 ROADMAP。实施未开始。
+
+**目标**：在 Phase 3.7（证据采集）之上，建立 **Agent Runtime Interface**——标准化暴露诊断协议给 AI Agent，让 Agent 从 Observation 出发自主完成 **发现 → 复现 → 定位 → 修复 → 验证** 闭环。
+
+**前置条件**：Phase 3.7 全部退出（已满足）+ ADR-0024 Accepted（已签字）。
+
+**核心理念**：3.7 解决了"证据采集"，ADI 解决"证据消费"——尤其是被 AI Agent 直接消费。ADI **复用而非重采** 3.7 已建成的全部能力（ObservabilityService / ErrorSnapshotter / CommandReplayer / InvariantChecker），仅做协议封装 + 存储适配 + CLI 入口。
+
+**关联文档**：
+- [ADR-0024 Agent Diagnostic Interface](./ADR/0024-agent-diagnostic-interface.md)（Accepted）
+- [ADI Design Document v1.0](./design/adi-design-v1.md)（实现细节）
+- [ADR-0023 Editor Observability System](./ADR/0023-editor-observability-system.md)（直接前置，已完成）
+
+### 任务（分阶段实施）
+
+| # | 任务 | 优先级 | 状态 |
+|---|------|--------|------|
+| 3.8.1 | **v0.1 Core**：4 个核心命令（`adi latest-error` / `adi trace show` / `adi replay` / `adi agent-context`）+ Extract `replay_engine` 到 `core/replay/` | P0 | ⏳ 待启动 |
+| 3.8.2 | **v0.1.1 工程化收尾**：`.adi/` Storage 完整实现 + `schema_version` + 架构守门 + `.gitignore` + LIGHT 隐私守门 + 6 个测试文件 | P0 | ⏳ |
+| 3.8.3 | **v0.2 验证闭环**：`adi validate --after-fix`（Replay + Invariant）+ `adi failures list`（index.json 索引）+ 保留窗口清理 | P1 | ⏳ |
+| 3.8.4 | **v0.3 Change Impact Analysis** | P2 | ⏳ 拆为独立 ADR-0026 |
+
+### 退出条件
+
+- [ ] v0.1 Core：Agent 能完成 发现 → 复现 → 定位 闭环（4 个核心命令可用）
+- [ ] v0.1.1：`.adi/` Storage 通过架构守门 + `flutter analyze` 0 warning + `flutter test` 0 regression
+- [ ] v0.2：`adi validate --after-fix` 完成 Replay + Invariant 验证闭环
+- [ ] v0.3 退出条件 → 见独立 ADR-0026
+
+### Open Questions
+
+1. ~~ADI 是否正式纳入 ROADMAP Phase 3.8？~~ ✅ 已确认纳入（Human Owner 2026-08-10 签字）
+2. `CommandReplayer` Extract 的 0 行为变化如何验证？（复用 `replay_determinism_test.dart` + Extract 前后对比）
+3. `candidate_causes` 源码反向映射实现方式？（v0.1 只给 trace chain，v0.3 实现 Source Mapper）
+4. `.adi/` 跨设备同步？（v0.1 假设 `.adi/` 已在 Agent 可访问路径，v0.2 评估自动同步）
+
+---
+
 ## Phase 4：多平台与高级功能
 
 **目标**：扩展到桌面 / Web，并加入协同等高级功能。

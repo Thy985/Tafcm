@@ -1,6 +1,6 @@
 # Interaction Model
 
-> **状态**：Proposed（草案，待 Human Owner 审批）
+> **状态**：Accepted（Human Owner 签字，Phase 2.9 Exit Gate 通过，核心接口已冻结）
 > **版本**：v1.1（采纳 CommandHandler 中间层修订）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
