@@ -1118,7 +1118,7 @@ tools/adi/test/e2e/
 - 验证聚合的"去重键 = hash(errorType+stackHash)"与"既有 status 优先"两条不变量。
 
 **E2E-ADI-004 Real Device Render Overflow（全部 6 条契约）**
-- 数据来源：3.7 `ExportPipeline` 导出（与 `debug/02/` 字节级一致），提交为合成
+- 数据来源：3.7 `ExportPipeline` 导出（内容级一致：JSON 字段/值/顺序逐一对齐 `debug/02/`，仅换行符由 git `text=auto` 归一化），提交为合成
   fixture `tools/adi/test/e2e/fixtures/real_device/`
   （`metadata.json`/`snapshot.json`/`trace.json`/`invariant_report.json`）。
 - `adi import <real_device_dir> --json` → `status=ok`，生成 `.adi/`
