@@ -1,0 +1,10 @@
+{
+  "id": "obs_fi_001",
+  "type": "GlobalError",
+  "message": "A RenderLine overflowed by 66 pixels on the right.",
+  "sessionId": "sess_fi_001",
+  "traceId": "trc_fi_001",
+  "source": "render",
+  "timestamp": "2026-08-11T12:00:00.000000",
+  "stackHash": "h_overflow_66"
+}

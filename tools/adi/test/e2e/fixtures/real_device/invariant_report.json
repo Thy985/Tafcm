@@ -1,0 +1,11 @@
+{
+  "lastCheckTime": "2026-08-11T10:21:51.734315",
+  "invariants": [
+    "CursorExists",
+    "SelectionValid",
+    "BlockTreeAcyclic",
+    "ParentChildValid",
+    "HistoryConsistent"
+  ],
+  "result": "not_checked"
+}

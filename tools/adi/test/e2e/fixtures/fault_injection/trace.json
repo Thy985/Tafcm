@@ -1,0 +1,16 @@
+{
+  "sessionId": "sess_fi_001",
+  "interactions": [
+    {"id": "int_1", "kind": "UserInput", "action": "PasteText", "target": "block_7"}
+  ],
+  "commands": [
+    {"id": "cmd_1", "commandName": "InsertTextCommand", "blockId": "block_7"}
+  ],
+  "transactions": [
+    {"id": "txn_1", "type": "TransactionCommit", "description": "BlockTree update"}
+  ],
+  "renders": [
+    {"id": "rnd_1", "renderer": "CodeBlockRenderer", "detail": "build code block"},
+    {"id": "rnd_2", "renderer": "HighlightView", "detail": "highlight long line"}
+  ]
+}

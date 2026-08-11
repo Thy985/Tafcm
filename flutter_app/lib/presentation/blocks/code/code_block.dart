@@ -31,6 +31,7 @@ import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 
 import '../../../core/editing/block_types.dart';
+import '../../../core/observability/fault_injection.dart';
 import '../../../core/observability/models.dart' as obs;
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
@@ -180,6 +181,11 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
                 fontSize: EditorTokens.codeFontSize,
               ),
             ),
+            // Fault injection (ADR-0024 §9): when enabled, inject a child that
+            // deterministically overflows its bounded parent so the observability
+            // layer captures a known RenderOverflow — no flaky real bug required.
+            if (FaultInjection.renderOverflowEnabled)
+              const SizedBox(height: 100000),
           ],
         ),
       ),
