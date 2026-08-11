@@ -1,0 +1,10 @@
+{
+  "id": "obs_004",
+  "time": "2026-08-11T09:00:04.000000",
+  "sessionId": "sess_C",
+  "traceId": "trc_003",
+  "source": "render",
+  "errorType": "NullPointer",
+  "message": "Null check operator used on a null value in BlockRenderer.",
+  "stackHash": "h_null"
+}

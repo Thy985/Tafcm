@@ -1041,4 +1041,113 @@ v0.3（Change Impact Analysis + test 子集 + Source Mapper + HTTP）已拆为�
 
 ---
 
+## 9. E2E Test Plan（Agent Diagnostic Protocol E2E）
+
+> ADI 的 6 条 MUST 契约（§1.4）是**协议级**约束，不能仅靠单元测试覆盖——需在
+> **协议闭环**层面验证：Agent 按契约顺序驱动 CLI，每个命令的输出作为下一个命令
+> 的输入。本 §9 定义 E2E 测试计划，作为本 ADR 的验收手段之一。
+
+### 9.1 定位与边界
+
+- **不是 Flutter integration_test**：E2E 驱动纯 Dart CLI（`tools/adi/adi.dart`），
+  不依赖 Flutter runtime（延续 §2.7 / §4.3.4 决策）。
+- **闭环验证对象**：Agent Interaction Contract 的 6 条 MUST——
+  Query first / Inspect before edit / Replay before modify / Validate after modify /
+  Never trust candidate_causes / Respect invariant report。
+- **数据来源**：001–003 为合成 fixture（随仓库提交）；004 为真实设备数据，
+  经 ZipImporter（v0.1 兼容层，见 §9.6）导入，当前未落地。
+
+### 9.2 测试夹具与 Runner
+
+```
+tools/adi/test/e2e/
+├── e2e_runner.dart           ← Process.run 封装：staging fixture → temp/.adi → 跑 CLI
+├── e2e_scenarios_test.dart   ← package:test 三个场景（001–003）
+└── fixtures/
+    ├── happy_path/.adi/        (合成：制造错误 + trace + replay=reproduced + invariant 全通过)
+    ├── inconclusive/.adi/      (合成：错误 + trace，但缺 replay.json → 证据不完整)
+    └── aggregation/.adi/       (合成：5 条 observation，4×RenderOverflow + 1×NullPointer)
+```
+
+**Runner 关键设计**（落地 §2.7 双模式输出契约）：
+1. `stageAdi(name)` 把 fixture 复制到系统临时目录并重命名为 `.adi/`，
+   CLI 以该临时目录为 CWD 运行（`adi.dart` 读 `<cwd>/.adi`）。
+2. 每个场景**隔离、可重复**：committed fixture 永不被修改；"修复"通过
+   runner 覆写临时副本的 `sessions/<id>/replay.json` 模拟。
+3. `runAdiJson(args)` 调用 `dart run tools/adi/adi.dart <args> --json` 并解析 stdout。
+
+### 9.3 场景总表
+
+| 场景 | 数据来源 | 覆盖契约 | 验证重点 |
+|------|---------|---------|---------|
+| E2E-ADI-001 Happy Path | 合成 | 全部 6 条 | 制造错误 → latest-error → trace → replay → 修复 → validate(pass) |
+| E2E-ADI-002 Inconclusive | 合成 | Query first / Respect invariant | 跨 session validation → 证据不完整 → inconclusive（绝不误判 pass） |
+| E2E-ADI-003 Failure Aggregation | 合成 | Replay before modify | 多次相同错误 → aggregate → failures list 合并 + status 保留 |
+| E2E-ADI-004 Real Device Render Overflow | debug/02 真机 | 全部 6 条 | 真机 sess RenderLine overflow → 经 ZipImporter → CLI 完整闭环（待 ZipImporter 落地） |
+
+### 9.4 场景细节
+
+**E2E-ADI-001 Happy Path（全部 6 条契约）**
+- `adi latest-error --json` → `status=error`，拿到 `session`/`trace`（Query first）。
+- `adi trace show <traceId> --json` → 返回原始 trace，`sessionId` 可见、5 层 span 树完整（Inspect before edit）。
+- `adi replay <sessionId> --json` → 修复前 `status=reproduced`，确认可复现（Replay before modify）。
+- 修复前 `adi validate --after-fix <sessionId> --json` → `after=still_failing`。
+- runner 覆写 `replay.json` 为 `notReproduced`（模拟代码修复生效）。
+- 修复后 `adi validate --after-fix <sessionId> --json` → `after=pass`
+  （replay 不再复现 + invariant 全通过）。
+- `candidate_causes` 不在 CLI 输出中，修复决策由 Agent 推理（Never trust candidate_causes）。
+
+**E2E-ADI-002 Inconclusive（Query first / Respect invariant）**
+- `adi latest-error` → 错误可见（Query first）。
+- `adi trace show` → trace 可见（Inspect before edit）。
+- fixture 故意**不提供** `sessions/<id>/replay.json` → `adi replay` → `status=inconclusive`。
+- `adi validate --after-fix` → invariant `failedNames=[]`（全通过），但 replay 证据缺失
+  → `after=inconclusive`，**断言 `after != pass`**。
+- 安全语义：即使所有不变量通过，只要 replay 证据不完整，就**绝不**判 pass（Respect invariant report）。
+- 跨 session 维度：验证一个与错误 session 不同的 session（无数据）→ 返回 `no_data`
+  （仅 `status` 字段，无 `after`），不被误判为 pass。注：cross-session *warning* 由
+  App 侧 `AdiValidationAdapterImpl` 强制（`crossSessionDataWarning → inconclusive`，
+  见 `adi_validation_adapter.dart`）；CLI 层以 `no_data` 兜底，二者语义一致。
+
+**E2E-ADI-003 Failure Aggregation（Replay before modify）**
+- 5 条 observation：4×`RenderOverflow`(同 stackHash) + 1×`NullPointer`。
+- `adi failures aggregate` → 2 个 failure（`aggregated=2`），RenderOverflow `occurrences=4`。
+- `adi failures list` → 列出 2 个 failure。
+- 标记 RenderOverflow failure 的 `status=fixed`，再 `adi failures aggregate` 一次
+  → `occurrences` 合并保持 4、`status` 保留为 `fixed`（不被重置为 `open`）。
+- 验证聚合的"去重键 = hash(errorType+stackHash)"与"既有 status 优先"两条不变量。
+
+### 9.5 数据来源约束
+
+- **001–003 合成 fixture** 随仓库提交于 `tools/adi/test/e2e/fixtures/`，CI 可离线运行。
+- **004 真实设备数据**：来自 3.7 `ExportPipeline` 导出（如 `debug/02/` 的
+  `snapshot.json`/`trace.json`/`metadata.json`/`invariant_report.json`）。
+  其格式与 `.adi/` 不同（见 §9.6），需经 ZipImporter 转换后才能被 CLI 消费。
+  当前（v0.1 阶段）004 暂缓，待 ZipImporter 落地后接入。
+
+### 9.6 已知差距与演进（ZipImporter 兼容层）
+
+3.7 的 `ExportPipeline` 导出是**"事故之后状态"快照**，不是运行时完整链路：
+`debug/02` 中 `commandCount=0`/`interactionCount=0` 即表明缺失
+`用户输入 → Command → Transaction → Render → Error` 全链路（证据缺失）。
+因此 ZipImporter 解决**格式兼容**，不解决**证据完整性**——它定位为 ADI 的
+**兼容/迁移层**，而非 ADI 本身。
+
+演进路线（用户 2026-08-11 确认）：
+- **v0.1**：不改 3.7，新增 `tools/adi/import_zip.dart`（`adi import <zip>`），
+  把 `ExportPipeline` 格式转写为 `.adi/`，立即可用现有真机数据验证 CLI。
+- **v0.1.1**：建立 `AdiStorage` 一等公民，新错误直接写 `.adi/`（不再经 zip）。
+- **v0.2**：废弃人工导出 zip；Agent 直接 `adi latest-error` 读运行时状态。
+
+> 本 §9 仅收录已落地的 001–003 的测试代码；004 与 ZipImporter 留待后续 PR。
+
+### 9.7 退出条件（E2E）
+
+- [x] `tools/adi/test/e2e/` 含 runner + 001–003 场景，纯 Dart 驱动 CLI
+- [x] `dart test`（tools/adi）三个场景全 PASS
+- [x] CI 新增 `adi-e2e` job 运行 `dart test tools/adi`
+- [ ] E2E-004 真机场景接入（待 ZipImporter）
+
+---
+
 *本 ADR 由 AI Agent（CodeArts / GLM-5.2）起草于 2026-08-10，基于 ADR-0023 已完成的 Phase 3.7 代码实况。Human Owner 于 2026-08-10 评审签字 Accepted。实施未开始；实施后需在 §6 退出条件逐项打勾并更新本声明。*

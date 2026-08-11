@@ -116,6 +116,36 @@ jobs:
           name: test-coverage
           path: flutter_app/coverage/
 
+  # ADI（Agent Diagnostic Interface）E2E 测试 job — 纯 Dart CLI 协议闭环验证。
+  # 见 docs/ADR/0024 §9 E2E Test Plan。tools/adi 不依赖 Flutter runtime，
+  # 仅用 Flutter action 提供的 Dart SDK 即可（`dart pub get` / `dart test`）。
+  adi-e2e:
+    name: ADI E2E (Agent Diagnostic Protocol)
+    runs-on: ubuntu-24.04
+    needs: analyze
+    defaults:
+      run:
+        working-directory: tools/adi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Dart (via Flutter SDK)
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Download dependencies
+        run: dart pub get
+
+      - name: Run analyze
+        run: dart analyze
+
+      - name: Run E2E tests
+        run: dart test --reporter expanded
+
   # Golden UI 测试 job — 常驻比对模式（GOLDEN-CI-001 已销案，2026-07-28）
   #
   # 根因（跨平台字体渲染差异 0.09% / 4007px diff）已通过 Tier 2 环境三固定
