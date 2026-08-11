@@ -15,6 +15,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 void main(List<String> args) {
   if (args.isEmpty) {
     _printUsage();
@@ -40,6 +42,8 @@ void main(List<String> args) {
       _cmdFailure(rest, jsonMode);
     case 'failures':
       _cmdFailures(rest, jsonMode);
+    case 'validate':
+      _cmdValidate(rest, jsonMode);
     default:
       stderr.writeln('Unknown command: $command');
       _printUsage();
@@ -56,7 +60,8 @@ void _printUsage() {
   stderr.writeln('  replay <id>          Replay session');
   stderr.writeln('  agent-context       Generate Agent context Markdown');
   stderr.writeln('  failure show <id>   Show failure details');
-  stderr.writeln('  failures list       List recent failures');
+  stderr.writeln('  failures list       List recent failures (aggregated)');
+  stderr.writeln('  validate --after-fix <id>  Validate fix (replay + invariant)');
 }
 
 String get _adiRoot => '${Directory.current.path}/.adi';
@@ -290,12 +295,19 @@ void _cmdFailure(List<String> rest, bool json) {
 }
 
 void _cmdFailures(List<String> rest, bool json) {
+  final sub = rest.isNotEmpty ? rest[0] : 'list';
+
+  if (sub == 'aggregate') {
+    _aggregateFailures(json);
+    return;
+  }
+
   final dir = Directory('$_adiRoot/failures');
   if (!dir.existsSync()) {
     if (json) {
       print(jsonEncode({'status': 'no_failures', 'failures': []}));
     } else {
-      print('No failures recorded.');
+      print('No failures recorded. Run `adi failures aggregate` to build from observations.');
     }
     return;
   }
@@ -306,6 +318,8 @@ void _cmdFailures(List<String> rest, bool json) {
     final f = _readJson(entity.path);
     if (f != null) failures.add(f);
   }
+  failures.sort((a, b) =>
+      (b['lastSeen'] as String? ?? '').compareTo(a['lastSeen'] as String? ?? ''));
 
   if (json) {
     print(jsonEncode({'status': 'ok', 'count': failures.length, 'failures': failures}));
@@ -313,6 +327,208 @@ void _cmdFailures(List<String> rest, bool json) {
     print('Failures (${failures.length}):');
     for (final f in failures) {
       print('  ${f["failureId"]}: ${f["errorType"]} ×${f["occurrences"]} [${f["status"]}]');
+    }
+  }
+}
+
+void _aggregateFailures(bool json) {
+  final obsDir = Directory('$_adiRoot/observations');
+  if (!obsDir.existsSync()) {
+    if (json) {
+      print(jsonEncode({'status': 'no_observations', 'aggregated': 0}));
+    } else {
+      print('No observations to aggregate.');
+    }
+    return;
+  }
+
+  final errors = <Map<String, Object?>>[];
+  for (final entity in obsDir.listSync()) {
+    if (entity is! File || !entity.path.endsWith('.json')) continue;
+    final e = _readJson(entity.path);
+    if (e != null) errors.add(e);
+  }
+
+  final byFailureId = <String, List<Map<String, Object?>>>{};
+  for (final error in errors) {
+    final errorType = error['errorType'] as String? ?? 'unknown';
+    final stackHash = error['stackHash'] as String?;
+    final fid = _computeFailureId(errorType, stackHash);
+    byFailureId.putIfAbsent(fid, () => []).add(error);
+  }
+
+  final failDir = Directory('$_adiRoot/failures');
+  if (!failDir.existsSync()) failDir.createSync(recursive: true);
+
+  for (final entry in byFailureId.entries) {
+    final fid = entry.key;
+    final records = entry.value;
+    records.sort((a, b) =>
+        (a['time'] as String? ?? '').compareTo(b['time'] as String? ?? ''));
+
+    final existing = _readJson('$_adiRoot/failures/$fid.json');
+    final existingFirstSeen = existing?['firstSeen'] as String?;
+    final existingLastSeen = existing?['lastSeen'] as String?;
+    final existingOccurrences = existing?['occurrences'] as int? ?? 0;
+    final existingStatus = existing?['status'] as String? ?? 'open';
+
+    final newFirst = records.first['time'] as String;
+    final newLast = records.last['time'] as String;
+    final firstSeen = existingFirstSeen != null && existingFirstSeen.compareTo(newFirst) < 0
+        ? existingFirstSeen
+        : newFirst;
+    final lastSeen = existingLastSeen != null && existingLastSeen.compareTo(newLast) > 0
+        ? existingLastSeen
+        : newLast;
+    final occurrences = records.length > existingOccurrences
+        ? records.length
+        : existingOccurrences;
+
+    final failure = {
+      'failureId': fid,
+      'firstSeen': firstSeen,
+      'lastSeen': lastSeen,
+      'occurrences': occurrences,
+      'errorType': records.first['errorType'],
+      'stackHash': records.first['stackHash'],
+      'traceIds': records.map((r) => r['traceId']).toSet().toList(),
+      'sessionIds': records.map((r) => r['sessionId']).toSet().toList(),
+      'status': existingStatus,
+    };
+
+    _atomicWrite('$_adiRoot/failures/$fid.json', failure);
+  }
+
+  _rebuildIndexCli(errors);
+
+  if (json) {
+    print(jsonEncode({
+      'status': 'ok',
+      'aggregated': byFailureId.length,
+      'total_observations': errors.length,
+    }));
+  } else {
+    print('Aggregated $errors.length observations into ${byFailureId.length} failures.');
+    print('Index written to .adi/index.json');
+  }
+}
+
+void _rebuildIndexCli(List<Map<String, Object?>> errors) {
+  final failDir = Directory('$_adiRoot/failures');
+  final failures = <Map<String, Object?>>[];
+  if (failDir.existsSync()) {
+    for (final entity in failDir.listSync()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      final f = _readJson(entity.path);
+      if (f != null) failures.add(f);
+    }
+  }
+  failures.sort((a, b) =>
+      (b['lastSeen'] as String? ?? '').compareTo(a['lastSeen'] as String? ?? ''));
+
+  final index = {
+    'updated_at': DateTime.now().toIso8601String(),
+    'observations': errors
+        .map((e) => {
+              'id': e['id'],
+              'errorType': e['errorType'],
+              'time': e['time'],
+              'sessionId': e['sessionId'],
+              'traceId': e['traceId'],
+            })
+        .toList(),
+    'failures': failures
+        .map((f) => {
+              'failureId': f['failureId'],
+              'errorType': f['errorType'],
+              'occurrences': f['occurrences'],
+              'status': f['status'],
+              'lastSeen': f['lastSeen'],
+            })
+        .toList(),
+  };
+  _atomicWrite('$_adiRoot/index.json', index);
+}
+
+void _atomicWrite(String path, Map<String, Object?> data) {
+  final tempPath = '$path.tmp';
+  final file = File(tempPath);
+  final raf = file.openSync(mode: FileMode.write);
+  try {
+    raf.writeStringSync(
+      const JsonEncoder.withIndent('  ').convert(data),
+    );
+    raf.flushSync();
+  } finally {
+    raf.closeSync();
+  }
+  file.renameSync(path);
+}
+
+String _computeFailureId(String errorType, String? stackHash) {
+  final input = '$errorType|${stackHash ?? ''}';
+  final digest = sha256.convert(input.codeUnits);
+  return 'f_${digest.toString().substring(0, 16)}';
+}
+
+void _cmdValidate(List<String> rest, bool json) {
+  if (rest.isEmpty || rest[0] != '--after-fix' || rest.length < 2) {
+    stderr.writeln('Usage: adi validate --after-fix <sessionId>');
+    exit(1);
+  }
+  final sessionId = rest[1];
+
+  final replayFile = File('$_adiRoot/sessions/$sessionId/replay.json');
+  final replay = _readJson(replayFile.path);
+
+  final invariantFile = File('$_adiRoot/sessions/$sessionId/invariant_report.json');
+  final invariants = _readJson(invariantFile.path);
+
+  if (replay == null && invariants == null) {
+    if (json) {
+      print(jsonEncode({
+        'status': 'no_data',
+        'message': 'No cached replay or invariant data for session $sessionId. '
+            'Run validation from the App first.',
+      }));
+    } else {
+      print('No validation data for session $sessionId.');
+      print('Run validation from the App to generate results.');
+    }
+    return;
+  }
+
+  final replayStatus = replay?['status'] as String? ?? 'inconclusive';
+  final replayOk = replayStatus != 'reproduced';
+  final violated = (invariants?['failedNames'] as List?)?.cast<String>() ?? [];
+  final checked = (invariants?['allNames'] as List?)?.cast<String>() ?? [];
+  final invariantOk = violated.isEmpty;
+
+  final after = replayStatus == 'inconclusive'
+      ? 'inconclusive'
+      : (replayOk && invariantOk ? 'pass' : 'still_failing');
+
+  final result = {
+    'before': 'unknown',
+    'after': after,
+    'replay': replay ?? {'status': 'no_data'},
+    'invariants': {
+      'violated': violated,
+      'checked': checked,
+      'allPassed': invariantOk,
+    },
+  };
+
+  if (json) {
+    print(jsonEncode(result));
+  } else {
+    print('Validation result for session $sessionId:');
+    print('  After: $after');
+    print('  Replay: $replayStatus (${replay?["commandsExecuted"] ?? 0} commands)');
+    if (violated.isEmpty) {
+      print('  Invariants: all ${checked.length} passed');
+    } else {
+      print('  Invariants: VIOLATED ${violated.join(", ")}');
     }
   }
 }

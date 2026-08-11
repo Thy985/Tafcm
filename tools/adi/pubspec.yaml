@@ -1,0 +1,9 @@
+name: adi_cli
+description: ADI CLI entry point for Agent Diagnostic Interface.
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  crypto: ^3.0.3
