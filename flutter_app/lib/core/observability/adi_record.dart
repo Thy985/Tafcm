@@ -7,6 +7,8 @@
 /// 落地 ADR-0024 §2.1（三层模型分离）。
 library;
 
+import 'package:crypto/crypto.dart';
+
 import 'error_snapshot.dart';
 
 /// ADI 持久化记录基类。
@@ -217,7 +219,12 @@ class AdiFailureRecord {
   }
 
   /// 计算 failureId 去重键。
+  ///
+  /// 使用 SHA-256 而非 [String.hashCode]，因为 hashCode 在不同 VM 运行间
+  /// 不稳定（Dart 哈希随机化），会导致同一 bug 跨 session 生成不同 failureId。
   static String computeFailureId(String errorType, String? stackHash) {
-    return 'f_${errorType.hashCode}_${stackHash?.hashCode ?? 0}';
+    final input = '$errorType|${stackHash ?? ''}';
+    final digest = sha256.convert(input.codeUnits);
+    return 'f_${digest.toString().substring(0, 16)}';
   }
 }

@@ -135,13 +135,20 @@ class AdiStorageImpl implements AdiStorage {
     });
   }
 
-  /// Crash-safe atomic write：temp → write → rename。
+  /// Crash-safe atomic write：temp → write → flush → rename。
   void _atomicWrite(String path, Map<String, Object?> data) {
     final tempPath = '$path.tmp';
-    File(tempPath).writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(data),
-    );
-    File(tempPath).renameSync(path);
+    final file = File(tempPath);
+    final raf = file.openSync(mode: FileMode.write);
+    try {
+      raf.writeStringSync(
+        const JsonEncoder.withIndent('  ').convert(data),
+      );
+      raf.flushSync();
+    } finally {
+      raf.closeSync();
+    }
+    file.renameSync(path);
   }
 
   Map<String, Object?>? _readJson(String path) {
@@ -149,7 +156,8 @@ class AdiStorageImpl implements AdiStorage {
     if (!file.existsSync()) return null;
     try {
       return jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
-    } catch (_) {
+    } catch (e) {
+      stderr.writeln('[ADI] _readJson failed for $path: $e');
       return null;
     }
   }

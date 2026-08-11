@@ -20,6 +20,9 @@ abstract class AdiReplayAdapter {
 ///
 /// 需要 Agent 提供 [ReplayCommandExecutor]（presentation 层注入），
 /// 因为 Command 反序列化依赖 EditorCommand（presentation 层类型）。
+///
+/// `executorFactory` 是工厂函数而非直接实例：每次 replay 创建新 executor，
+/// 避免上一次 replay 的残余状态污染本次重放（state isolation）。
 class AdiReplayAdapterImpl implements AdiReplayAdapter {
   final ObservabilityService _service;
   final ReplayCommandExecutor Function() executorFactory;

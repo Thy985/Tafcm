@@ -10,6 +10,8 @@ library;
 import 'package:flutter/foundation.dart';
 
 
+import 'adi_record.dart';
+import 'adi_storage.dart';
 import 'command_tracer.dart';
 import 'error_snapshot.dart';
 import 'error_snapshotter.dart';
@@ -65,6 +67,9 @@ class ObservabilityService {
   /// 会话 ID（App 启动时生成）。
   final String sessionId;
 
+  /// ADI 存储（ADR-0024）：captureError 后自动写入 .adi/。
+  final AdiStorage? _adiStorage;
+
   ObservabilityService({
     this.config = ObservabilityConfig.light,
     CommandTracer? commandTracer,
@@ -73,6 +78,7 @@ class ObservabilityService {
     RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
+    AdiStorage? adiStorage,
   })  : commandTracer = commandTracer ?? CommandTracer(),
         transactionTracer = transactionTracer ?? TransactionTracer(),
         interactionTracer = interactionTracer ?? InteractionTracer(),
@@ -80,7 +86,8 @@ class ObservabilityService {
             RenderTracer(capacity: config.renderBufferSize),
         invariantCheckerFactory =
             invariantCheckerFactory ?? (() => InvariantChecker()),
-        sessionId = TraceIdGenerator.sessionId() {
+        sessionId = TraceIdGenerator.sessionId(),
+        _adiStorage = adiStorage {
     // P0 修复（2026-08-04）：LIGHT/FULL 模式自动创建 ErrorSnapshotter。
     // 外部传入 mock 时优先用 mock（测试场景）；否则在非 OFF 模式自动创建。
     _errorSnapshotter = errorSnapshotter ??
@@ -95,6 +102,7 @@ class ObservabilityService {
     RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
+    AdiStorage? adiStorage,
   }) : this(
           config: ObservabilityConfig.light,
           commandTracer: commandTracer,
@@ -103,6 +111,7 @@ class ObservabilityService {
           renderTracer: renderTracer,
           invariantCheckerFactory: invariantCheckerFactory,
           errorSnapshotter: errorSnapshotter,
+          adiStorage: adiStorage,
         );
 
   /// FULL 模式工厂：全部记录，含 Interaction Trace + AST snapshot。
@@ -113,6 +122,7 @@ class ObservabilityService {
     RenderTracer? renderTracer,
     InvariantChecker Function()? invariantCheckerFactory,
     ErrorSnapshotter? errorSnapshotter,
+    AdiStorage? adiStorage,
   }) : this(
           config: ObservabilityConfig.full,
           commandTracer: commandTracer,
@@ -121,6 +131,7 @@ class ObservabilityService {
           renderTracer: renderTracer,
           invariantCheckerFactory: invariantCheckerFactory,
           errorSnapshotter: errorSnapshotter,
+          adiStorage: adiStorage,
         );
 
   /// OFF 模式工厂：tree-shaking 移除全部代码。
@@ -364,7 +375,7 @@ class ObservabilityService {
     int? cursorOffset,
   }) {
     if (!isEnabled) return null;
-    return errorSnapshotter?.capture(
+    final snapshot = errorSnapshotter?.capture(
       type: type,
       message: message,
       commandName: commandName,
@@ -372,6 +383,17 @@ class ObservabilityService {
       cursorBlockId: cursorBlockId,
       cursorOffset: cursorOffset,
     );
+    // ADR-0024：capture 后自动写入 .adi/ 存储。
+    if (snapshot != null && _adiStorage != null) {
+      try {
+        _adiStorage!.writeErrorRecord(
+          AdiErrorRecord.fromSnapshot(snapshot),
+        );
+      } catch (e) {
+        debugPrint('[ADI] writeErrorRecord failed: $e');
+      }
+    }
+    return snapshot;
   }
 
   /// 获取最近一次错误快照。

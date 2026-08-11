@@ -3,6 +3,12 @@
 /// 纯 Dart 脚本，不依赖 Flutter runtime。Agent 直接 `dart run tools/adi/adi.dart`。
 /// 读取 .adi/ 目录，输出人类可读或 --json machine 模式。
 ///
+/// **设计决策（ADR-0024 §2.7）**：CLI 直接读 .adi/ 文件，**不经过 QueryAdapter**。
+/// 原因：QueryAdapter 依赖 ObservabilityService（Flutter runtime + Widget 树），
+/// CLI 作为纯 Dart 脚本无法加载 Flutter runtime。CLI 与 QueryAdapter 是
+/// 同一协议的两个入口——App 内走 QueryAdapter（实时），Agent 走 CLI（离线）。
+/// 两者读同一份 .adi/ schema，输出同一组 AdiView 字段。
+///
 /// 落地 ADR-0024 §2.7（CLI Entry）。
 library;
 

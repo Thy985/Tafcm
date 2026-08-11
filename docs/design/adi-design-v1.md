@@ -296,15 +296,15 @@ class AdiQueryAdapterImpl implements AdiQueryAdapter {
 
 ```dart
 abstract class AdiReplayAdapter {
-  AdiReplayResult replay(String sessionId);
+  AdiReplayResultView replay(String sessionId);
 }
 
-class AdiReplayResult {
+class AdiReplayResultView {
   final AdiReplayStatus status;       // reproduced / notReproduced / inconclusive
   final String? failedAt;             // lib/presentation/blocks/block_renderer.dart:62
   final int commandsExecuted;
   final String resultTraceId;
-  final List<AdiReplayStep> steps;
+  final List<AdiReplayStepView> steps;
 }
 ```
 
@@ -330,7 +330,7 @@ abstract class AdiValidationAdapter {
 class AdiValidationResult {
   final String before;               // "crash" / "fallback" / "invariant_violation"
   final String after;                // "pass" / "still_failing"
-  final AdiReplayResult replayResult;
+  final AdiReplayResultView replayResult;
   final AdiInvariantSummary invariants;  // {violated: []}
 }
 ```

@@ -55,6 +55,25 @@ class AdiQueryAdapterImpl implements AdiQueryAdapter {
         ],
       );
     }
+    final entries = _service.commandTracer.entries
+        .where((e) => e.traceId == traceId)
+        .toList();
+    if (entries.isNotEmpty) {
+      return AdiTraceView(
+        id: traceId,
+        traceId: traceId,
+        sessionId: _service.sessionId,
+        spans: entries
+            .map((e) => AdiSpanNode(
+                  spanId: e.spanId ?? traceId,
+                  parentSpanId: null,
+                  layer: 'command',
+                  description: e.commandName,
+                  timestamp: e.timestamp,
+                ))
+            .toList(),
+      );
+    }
     return null;
   }
 
@@ -100,6 +119,7 @@ class AdiQueryAdapterImpl implements AdiQueryAdapter {
 
   bool _hasReplayData(String? sessionId) {
     if (sessionId == null) return false;
-    return _service.commandTracer.entries.isNotEmpty;
+    return sessionId == _service.sessionId &&
+        _service.commandTracer.entries.isNotEmpty;
   }
 }
