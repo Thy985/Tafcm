@@ -1,0 +1,14 @@
+{
+  "id": "err_20260811102149",
+  "timestamp": "2026-08-11T10:21:49.300256",
+  "type": "GlobalError",
+  "message": "A RenderLine overflowed by 66 pixels on the right.",
+  "app": {
+    "version": "0.1.0+1",
+    "device": "android",
+    "os": "android BP2A.250605.031.A3"
+  },
+  "sessionId": "sess_6b62",
+  "captureMode": "light",
+  "includeDocumentContent": false
+}

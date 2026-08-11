@@ -121,3 +121,14 @@ void writeSessionArtifact(
     const JsonEncoder.withIndent('  ').convert(data),
   );
 }
+
+/// Stages an *empty* temp dir (no `.adi/` yet). Used by E2E-004, which
+/// populates `.adi/` via the `adi import` command rather than a fixture copy.
+/// Returns a single-use temp dir to use as CWD for CLI runs.
+Directory stageEmpty() => Directory.systemTemp.createTempSync('adi_e2e_');
+
+/// Absolute path to the `real_device` fixture directory (an `ExportPipeline`
+/// package: metadata/snapshot/trace/invariant_report JSON, identical to the
+/// real `debug/02/` export).
+String realDeviceFixturePath() =>
+    '${findRepoRoot()}/tools/adi/test/e2e/fixtures/real_device';

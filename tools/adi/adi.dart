@@ -17,6 +17,8 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import 'import_zip.dart';
+
 void main(List<String> args) {
   if (args.isEmpty) {
     _printUsage();
@@ -44,6 +46,8 @@ void main(List<String> args) {
       _cmdFailures(rest, jsonMode);
     case 'validate':
       _cmdValidate(rest, jsonMode);
+    case 'import':
+      _cmdImport(rest, jsonMode);
     default:
       stderr.writeln('Unknown command: $command');
       _printUsage();
@@ -62,6 +66,7 @@ void _printUsage() {
   stderr.writeln('  failure show <id>   Show failure details');
   stderr.writeln('  failures list       List recent failures (aggregated)');
   stderr.writeln('  validate --after-fix <id>  Validate fix (replay + invariant)');
+  stderr.writeln('  import <source>     Import ExportPipeline package (.zip/dir) -> .adi/');
 }
 
 String get _adiRoot => '${Directory.current.path}/.adi';
@@ -530,5 +535,42 @@ void _cmdValidate(List<String> rest, bool json) {
     } else {
       print('  Invariants: VIOLATED ${violated.join(", ")}');
     }
+  }
+}
+
+void _cmdImport(List<String> rest, bool json) {
+  if (rest.isEmpty) {
+    stderr.writeln('Usage: adi import <source> [--out <dir>]');
+    exit(1);
+  }
+  String? outDir;
+  final positional = <String>[];
+  for (var i = 0; i < rest.length; i++) {
+    if (rest[i] == '--out' && i + 1 < rest.length) {
+      outDir = rest[++i];
+    } else {
+      positional.add(rest[i]);
+    }
+  }
+  final source = positional.first;
+  try {
+    importExport(source, outputDir: outDir);
+  } on Object catch (e) {
+    if (json) {
+      print(jsonEncode({'status': 'error', 'message': e.toString()}));
+    } else {
+      stderr.writeln('Import failed: $e');
+    }
+    exit(1);
+  }
+  final target = outDir ?? _adiRoot;
+  if (json) {
+    print(jsonEncode({
+      'status': 'ok',
+      'imported_from': source,
+      'target': target,
+    }));
+  } else {
+    print('Imported $source -> $target');
   }
 }

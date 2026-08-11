@@ -1,10 +1,18 @@
-/// ADI E2E scenarios 001-003 (synthetic, pure Dart).
+/// ADI E2E scenarios 001-004 (synthetic + real-device, pure Dart).
 ///
 /// Each scenario drives the pure-Dart `adi` CLI end-to-end to validate the
 /// ADI Agent Interaction Contract (ADR-0024 §1.4). No Flutter runtime is
-/// involved (per ADR-0024 §4.3.4). Scenario 004 (real-device Render Overflow)
-/// is documented in ADR-0024 §9 but deferred until the ZipImporter (v0.1
-/// compatible layer) lands.
+/// involved (per ADR-0024 §4.3.4).
+///
+/// - 001 Happy Path (synthetic): manufacture -> latest-error -> trace ->
+///   replay -> fix -> validate(pass).
+/// - 002 Inconclusive (synthetic): incomplete evidence -> validate inconclusive.
+/// - 003 Failure Aggregation (synthetic): duplicate errors aggregate, status
+///   preserved across re-aggregate.
+/// - 004 Real-Device Import: `adi import` the 3.7 ExportPipeline package
+///   (identical to real `debug/02/`) -> consumable `.adi/` -> query/replay/
+///   validate, asserting the safety-critical `inconclusive` (never false pass)
+///   branch when no replay evidence exists.
 ///
 /// 落地 ADR-0024 §9（E2E Test Plan）。
 import 'dart:convert';
@@ -155,6 +163,53 @@ void main() {
       ) as Map;
       expect(renderFail2['occurrences'], 4); // merged, not reset
       expect(renderFail2['status'], 'fixed'); // preserved, not overwritten
+    });
+  });
+
+  group('E2E-ADI-004 Real-Device Import', () {
+    late Directory cwd;
+
+    setUp(() => cwd = stageEmpty());
+    tearDown(() {
+      try {
+        cwd.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('import ExportPipeline package -> .adi/ -> query/replay/validate inconclusive (never false pass)', () {
+      // 1. Import the real-device export (identical on disk to `debug/02/`).
+      //    ZipImporter transcribes format only; it does NOT synthesize replay
+      //    evidence, so the safety-critical inconclusive branch stays reachable.
+      final import =
+          runAdiJson(['import', realDeviceFixturePath(), '--json'], cwd: cwd);
+      expect(import['status'], 'ok');
+      expect(Directory('${cwd.path}/.adi').existsSync(), isTrue);
+
+      // 2. Query first: latest-error surfaces the real RenderLine overflow.
+      final latest = runAdiJson(['latest-error', '--json'], cwd: cwd);
+      expect(latest['status'], 'error');
+      expect(latest['errorType'], 'GlobalError');
+      expect(latest['message'], contains('RenderLine overflowed'));
+      expect(latest['session'], 'sess_6b62');
+      final traceId = latest['trace'] as String;
+      expect(traceId, startsWith('trc_'));
+
+      // 3. Inspect before edit: trace show returns the 2 render spans.
+      final trace = runAdiJson(['trace', 'show', traceId, '--json'], cwd: cwd);
+      expect(trace['sessionId'], 'sess_6b62');
+      expect((trace['spans'] as List).length, 2);
+
+      // 4. Replay before modify: no replay evidence -> inconclusive.
+      final replay = runAdiJson(['replay', 'sess_6b62', '--json'], cwd: cwd);
+      expect(replay['status'], 'inconclusive');
+
+      // 5. Validate after modify: replay inconclusive + invariant not_checked
+      //    must resolve to `inconclusive` — NEVER a false `pass`. This is the
+      //    exact safety net ZipImporter is designed to preserve.
+      final validate =
+          runAdiJson(['validate', '--after-fix', 'sess_6b62', '--json'], cwd: cwd);
+      expect(validate['after'], 'inconclusive');
+      expect(validate['after'], isNot('pass'));
     });
   });
 }

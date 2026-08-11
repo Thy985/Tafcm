@@ -1055,7 +1055,7 @@ v0.3（Change Impact Analysis + test 子集 + Source Mapper + HTTP）已拆为�
   Query first / Inspect before edit / Replay before modify / Validate after modify /
   Never trust candidate_causes / Respect invariant report。
 - **数据来源**：001–003 为合成 fixture（随仓库提交）；004 为真实设备数据，
-  经 ZipImporter（v0.1 兼容层，见 §9.6）导入，当前未落地。
+  经 ZipImporter（v0.1 兼容层，见 §9.6）导入，已落地（见 §9.4 E2E-ADI-004）。
 
 ### 9.2 测试夹具与 Runner
 
@@ -1083,7 +1083,7 @@ tools/adi/test/e2e/
 | E2E-ADI-001 Happy Path | 合成 | 全部 6 条 | 制造错误 → latest-error → trace → replay → 修复 → validate(pass) |
 | E2E-ADI-002 Inconclusive | 合成 | Query first / Respect invariant | 跨 session validation → 证据不完整 → inconclusive（绝不误判 pass） |
 | E2E-ADI-003 Failure Aggregation | 合成 | Replay before modify | 多次相同错误 → aggregate → failures list 合并 + status 保留 |
-| E2E-ADI-004 Real Device Render Overflow | debug/02 真机 | 全部 6 条 | 真机 sess RenderLine overflow → 经 ZipImporter → CLI 完整闭环（待 ZipImporter 落地） |
+| E2E-ADI-004 Real Device Render Overflow | debug/02 真机 | 全部 6 条 | 真机 sess RenderLine overflow → 经 ZipImporter → CLI 完整闭环（已落地，见 §9.4） |
 
 ### 9.4 场景细节
 
@@ -1117,13 +1117,30 @@ tools/adi/test/e2e/
   → `occurrences` 合并保持 4、`status` 保留为 `fixed`（不被重置为 `open`）。
 - 验证聚合的"去重键 = hash(errorType+stackHash)"与"既有 status 优先"两条不变量。
 
+**E2E-ADI-004 Real Device Render Overflow（全部 6 条契约）**
+- 数据来源：3.7 `ExportPipeline` 导出（与 `debug/02/` 字节级一致），提交为合成
+  fixture `tools/adi/test/e2e/fixtures/real_device/`
+  （`metadata.json`/`snapshot.json`/`trace.json`/`invariant_report.json`）。
+- `adi import <real_device_dir> --json` → `status=ok`，生成 `.adi/`
+  （schema_version + observations + traces + sessions/<sid>/invariant_report + metadata）。
+  **不生成** `replay.json`（真机导出无 replay 证据）。
+- `adi latest-error --json` → `status=error`、`errorType=GlobalError`、message 含
+  `RenderLine overflowed`、`session=sess_6b62`（Query first）。
+- `adi trace show <traceId> --json` → 2 个 `render` span（Inspect before edit）。
+- `adi replay sess_6b62 --json` → `status=inconclusive`（无 replay 证据；Replay before modify）。
+- `adi validate --after-fix sess_6b62 --json` → replay 证据不完整 + invariant `not_checked`
+  → `after=inconclusive`，**断言 `after != pass`**（Respect invariant report + 安全网）。
+- 配套：`tools/adi/import_zip.dart` 的 `ZipImporter` 单测
+  （`tools/adi/test/import_zip_test.dart`）固定 `ExportPipeline -> .adi/` 映射契约；
+  `re-import` 幂等（merge，不重复）。
+
 ### 9.5 数据来源约束
 
 - **001–003 合成 fixture** 随仓库提交于 `tools/adi/test/e2e/fixtures/`，CI 可离线运行。
 - **004 真实设备数据**：来自 3.7 `ExportPipeline` 导出（如 `debug/02/` 的
-  `snapshot.json`/`trace.json`/`metadata.json`/`invariant_report.json`）。
-  其格式与 `.adi/` 不同（见 §9.6），需经 ZipImporter 转换后才能被 CLI 消费。
-  当前（v0.1 阶段）004 暂缓，待 ZipImporter 落地后接入。
+  `snapshot.json`/`trace.json`/`metadata.json`/`invariant_report.json`），已提交为
+  合成 fixture `tools/adi/test/e2e/fixtures/real_device/`，经 ZipImporter 转换后由 CLI 消费。
+  ZipImporter（v0.1）已落地，004 已接入。
 
 ### 9.6 已知差距与演进（ZipImporter 兼容层）
 
@@ -1136,17 +1153,19 @@ tools/adi/test/e2e/
 演进路线（用户 2026-08-11 确认）：
 - **v0.1**：不改 3.7，新增 `tools/adi/import_zip.dart`（`adi import <zip>`），
   把 `ExportPipeline` 格式转写为 `.adi/`，立即可用现有真机数据验证 CLI。
+  **（已落地：2026-08-11，本 PR 内）**
 - **v0.1.1**：建立 `AdiStorage` 一等公民，新错误直接写 `.adi/`（不再经 zip）。
 - **v0.2**：废弃人工导出 zip；Agent 直接 `adi latest-error` 读运行时状态。
 
-> 本 §9 仅收录已落地的 001–003 的测试代码；004 与 ZipImporter 留待后续 PR。
+> 本 §9 收录已落地的 001–004 全部测试代码（含 ZipImporter 单测）；004 与 ZipImporter
+> 已于 2026-08-11 同 PR 接入。
 
 ### 9.7 退出条件（E2E）
 
-- [x] `tools/adi/test/e2e/` 含 runner + 001–003 场景，纯 Dart 驱动 CLI
-- [x] `dart test`（tools/adi）三个场景全 PASS
+- [x] `tools/adi/test/e2e/` 含 runner + 001–004 场景，纯 Dart 驱动 CLI
+- [x] `dart test`（tools/adi）四个场景全 PASS
 - [x] CI 新增 `adi-e2e` job 运行 `dart test tools/adi`
-- [ ] E2E-004 真机场景接入（待 ZipImporter）
+- [x] E2E-004 真机场景接入（ZipImporter v0.1 已落地）
 
 ---
 
