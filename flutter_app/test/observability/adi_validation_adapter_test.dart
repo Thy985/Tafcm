@@ -131,6 +131,59 @@ void main() {
       expect(json.containsKey('replayResult'), isTrue);
       expect(json.containsKey('invariants'), isTrue);
     });
+
+    test('cross-session invariant 隔离：不同 sessionId → inconclusive', () {
+      service.recordCommand(CommandTraceEntry(
+        commandName: 'InsertTextCommand',
+        params: {},
+        origin: CommandOrigin.keyboard,
+        timestamp: DateTime(2026, 8, 11),
+        succeeded: true,
+        afterStateHash: 'hash_ok',
+      ));
+      service.updateInvariantReport(InvariantReportSnapshot(
+        checkedAt: DateTime(2026, 8, 11),
+        result: InvariantCheckResult.passed,
+        failedNames: [],
+        allNames: ['CursorExists'],
+      ));
+
+      final replayAdapter = AdiReplayAdapterImpl(
+        service,
+        _successExecutorFactory,
+      );
+      final adapter = AdiValidationAdapterImpl(replayAdapter, service);
+      final result = adapter.validate(sessionId: 'different_session');
+
+      expect(result.after, AdiValidationAfter.inconclusive);
+      expect(result.crossSessionDataWarning, isTrue);
+    });
+
+    test('同 session invariant 不触发 crossSessionDataWarning', () {
+      service.recordCommand(CommandTraceEntry(
+        commandName: 'InsertTextCommand',
+        params: {},
+        origin: CommandOrigin.keyboard,
+        timestamp: DateTime(2026, 8, 11),
+        succeeded: true,
+        afterStateHash: 'hash_ok',
+      ));
+      service.updateInvariantReport(InvariantReportSnapshot(
+        checkedAt: DateTime(2026, 8, 11),
+        result: InvariantCheckResult.passed,
+        failedNames: [],
+        allNames: ['CursorExists'],
+      ));
+
+      final replayAdapter = AdiReplayAdapterImpl(
+        service,
+        _successExecutorFactory,
+      );
+      final adapter = AdiValidationAdapterImpl(replayAdapter, service);
+      final result = adapter.validate(sessionId: service.sessionId);
+
+      expect(result.crossSessionDataWarning, isFalse);
+    });
   });
 }
 

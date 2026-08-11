@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'adi_aggregation.dart';
 import 'adi_record.dart';
 
 /// ADI 存储抽象接口。
@@ -168,46 +169,14 @@ class AdiStorageImpl implements AdiStorage {
     final errors = allErrorRecords();
     if (errors.isEmpty) return;
 
-    final byFailureId = <String, List<AdiErrorRecord>>{};
-    for (final error in errors) {
-      final fid = AdiFailureRecord.computeFailureId(
-        error.errorType,
-        error.stackHash,
-      );
-      byFailureId.putIfAbsent(fid, () => []).add(error);
+    final existing = <String, AdiFailureRecord>{};
+    for (final f in allFailureRecords()) {
+      existing[f.failureId] = f;
     }
 
-    for (final entry in byFailureId.entries) {
-      final fid = entry.key;
-      final records = entry.value;
-      records.sort((a, b) => a.time.compareTo(b.time));
-
-      final existing = loadFailure(fid);
-      final firstSeen = records.first.time;
-      final lastSeen = records.last.time;
-      final traceIds = records.map((r) => r.traceId).toSet().toList();
-      final sessionIds = records.map((r) => r.sessionId).toSet().toList();
-
-      final merged = AdiFailureRecord(
-        failureId: fid,
-        firstSeen: existing != null
-            ? (existing.firstSeen.isBefore(firstSeen)
-                ? existing.firstSeen
-                : firstSeen)
-            : firstSeen,
-        lastSeen: existing != null
-            ? (existing.lastSeen.isAfter(lastSeen)
-                ? existing.lastSeen
-                : lastSeen)
-            : lastSeen,
-        occurrences: records.length,
-        errorType: records.first.errorType,
-        stackHash: records.first.stackHash,
-        traceIds: traceIds,
-        sessionIds: sessionIds,
-        status: existing?.status ?? AdiFailureStatus.open,
-      );
-      writeFailureRecord(merged);
+    final aggregated = aggregateErrors(errors, existing);
+    for (final record in aggregated.values) {
+      writeFailureRecord(record);
     }
 
     _rebuildIndex();
@@ -229,28 +198,7 @@ class AdiStorageImpl implements AdiStorage {
   void _rebuildIndex() {
     final errors = allErrorRecords();
     final failures = allFailureRecords();
-    final index = <String, Object?>{
-      'updated_at': DateTime.now().toIso8601String(),
-      'observations': errors
-          .map((e) => {
-                'id': e.id,
-                'errorType': e.errorType,
-                'time': e.time.toIso8601String(),
-                'sessionId': e.sessionId,
-                'traceId': e.traceId,
-              })
-          .toList(),
-      'failures': failures
-          .map((f) => {
-                'failureId': f.failureId,
-                'errorType': f.errorType,
-                'occurrences': f.occurrences,
-                'status': f.status.name,
-                'lastSeen': f.lastSeen.toIso8601String(),
-              })
-          .toList(),
-    };
-    writeIndex(index);
+    writeIndex(buildIndex(errors, failures));
   }
 
   // ============ v0.2: LRU Retention ============
@@ -263,13 +211,21 @@ class AdiStorageImpl implements AdiStorage {
     if (!isInitialized) return 0;
     var cleaned = 0;
 
-    final sessionIds = <String>{};
-    for (final e in allErrorRecords()) {
-      sessionIds.add(e.sessionId);
+    final allErrors = allErrorRecords();
+    final sessionLatestTime = <String, DateTime>{};
+    for (final e in allErrors) {
+      final existing = sessionLatestTime[e.sessionId];
+      if (existing == null || e.time.isAfter(existing)) {
+        sessionLatestTime[e.sessionId] = e.time;
+      }
     }
-    if (sessionIds.length > maxSessions) {
-      final sorted = sessionIds.toList()..sort();
-      final toRemove = sorted.take(sessionIds.length - maxSessions).toSet();
+    if (sessionLatestTime.length > maxSessions) {
+      final sorted = sessionLatestTime.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
+      final toRemove = sorted
+          .take(sessionLatestTime.length - maxSessions)
+          .map((e) => e.key)
+          .toSet();
       final obsDir = Directory('$_rootPath/observations');
       if (obsDir.existsSync()) {
         for (final entity in obsDir.listSync()) {
@@ -306,18 +262,32 @@ class AdiStorageImpl implements AdiStorage {
             .listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.json'))
-            .toList()
-          ..sort((a, b) => b.path.compareTo(a.path));
-        var currentSize = totalSize;
+            .toList();
+        final fileTimes = <File, DateTime>{};
         for (final f in files) {
+          final json = _readJson(f.path);
+          final timeStr = json?['time'] as String?;
+          if (timeStr != null) {
+            try {
+              fileTimes[f] = DateTime.parse(timeStr);
+            } catch (_) {
+              fileTimes[f] = DateTime.fromMillisecondsSinceEpoch(0);
+            }
+          }
+        }
+        final sortedFiles = fileTimes.entries.toList()
+          ..sort((a, b) => a.value.compareTo(b.value));
+        var currentSize = totalSize;
+        for (final entry in sortedFiles) {
           if (currentSize <= maxStorageBytes) break;
-          currentSize -= f.lengthSync();
-          f.deleteSync();
+          currentSize -= entry.key.lengthSync();
+          entry.key.deleteSync();
           cleaned++;
         }
       }
     }
 
+    if (cleaned > 0) _rebuildIndex();
     return cleaned;
   }
 
@@ -348,14 +318,17 @@ class AdiStorageImpl implements AdiStorage {
       }
     }
 
+    final existing = _readJson('$_rootPath/schema_version.json');
     _atomicWrite('$_rootPath/schema_version.json', {
       'adi_version': '0.2',
       'adi_protocol_version': '1.0',
       'schema_version': target,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': existing?['created_at'] ?? DateTime.now().toIso8601String(),
+      'migrated_at': DateTime.now().toIso8601String(),
       'migrated_from': current,
     });
 
+    _rebuildIndex();
     return (from: current, to: target);
   }
 

@@ -42,6 +42,9 @@ class AdiValidationAdapterImpl implements AdiValidationAdapter {
     final replayResult = _replayAdapter.replay(sessionId);
     final invariantReport = _service.lastInvariantReport;
 
+    final crossSessionWarning =
+        invariantReport != null && _service.sessionId != sessionId;
+
     final violated = invariantReport?.failedNames ?? [];
     final checked = invariantReport?.allNames ?? [];
     final invariants = AdiInvariantView(
@@ -56,6 +59,7 @@ class AdiValidationAdapterImpl implements AdiValidationAdapter {
       replayOk: replayOk,
       invariantOk: invariantOk,
       replayStatus: replayResult.status,
+      crossSessionWarning: crossSessionWarning,
     );
 
     return AdiValidationResultView(
@@ -63,6 +67,7 @@ class AdiValidationAdapterImpl implements AdiValidationAdapter {
       after: after,
       replayResult: replayResult,
       invariants: invariants,
+      crossSessionDataWarning: crossSessionWarning,
     );
   }
 
@@ -70,8 +75,12 @@ class AdiValidationAdapterImpl implements AdiValidationAdapter {
     required bool replayOk,
     required bool invariantOk,
     required AdiReplayStatus replayStatus,
+    required bool crossSessionWarning,
   }) {
     if (replayStatus == AdiReplayStatus.inconclusive) {
+      return AdiValidationAfter.inconclusive;
+    }
+    if (crossSessionWarning) {
       return AdiValidationAfter.inconclusive;
     }
     if (replayOk && invariantOk) {

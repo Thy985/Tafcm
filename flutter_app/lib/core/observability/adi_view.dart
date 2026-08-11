@@ -256,11 +256,18 @@ class AdiValidationResultView {
   final AdiReplayResultView replayResult;
   final AdiInvariantView invariants;
 
+  /// true 表示 invariant report 可能来自不同 session（非 session-scoped）。
+  ///
+  /// 此时 [after] 为 [AdiValidationAfter.inconclusive]，
+  /// Agent 应重新在目标 session 中触发 invariant check。
+  final bool crossSessionDataWarning;
+
   const AdiValidationResultView({
     required this.before,
     required this.after,
     required this.replayResult,
     required this.invariants,
+    this.crossSessionDataWarning = false,
   });
 
   Map<String, Object?> toJson() => {
@@ -268,5 +275,6 @@ class AdiValidationResultView {
         'after': after.name,
         'replayResult': replayResult.toJson(),
         'invariants': invariants.toJson(),
+        'crossSessionDataWarning': crossSessionDataWarning,
       };
 }

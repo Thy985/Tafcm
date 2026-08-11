@@ -4,6 +4,7 @@
 /// retain（LRU 清理）/ migrateToLatest（Schema Migration）。
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -98,6 +99,94 @@ void main() {
       final failures = index['failures'] as List;
       expect(failures.length, 1);
     });
+
+    test('re-aggregation 保留 occurrences 历史不覆盖', () {
+      storage.initialize();
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_1',
+        time: DateTime(2026, 8, 1),
+        sessionId: 's1',
+        traceId: 't1',
+        source: 'test',
+        errorType: 'ErrorA',
+        message: 'msg',
+        stackHash: 'sha_a',
+      ));
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_2',
+        time: DateTime(2026, 8, 2),
+        sessionId: 's1',
+        traceId: 't2',
+        source: 'test',
+        errorType: 'ErrorA',
+        message: 'msg',
+        stackHash: 'sha_a',
+      ));
+      storage.aggregateFailures();
+      expect(
+        storage.allFailureRecords().first.occurrences,
+        2,
+      );
+
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_3',
+        time: DateTime(2026, 8, 3),
+        sessionId: 's1',
+        traceId: 't3',
+        source: 'test',
+        errorType: 'ErrorA',
+        message: 'msg',
+        stackHash: 'sha_a',
+      ));
+      storage.aggregateFailures();
+      expect(
+        storage.allFailureRecords().first.occurrences,
+        3,
+      );
+    });
+
+    test('re-aggregation 保留 fixed 状态不回退为 open', () {
+      storage.initialize();
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_1',
+        time: DateTime(2026, 8, 1),
+        sessionId: 's1',
+        traceId: 't1',
+        source: 'test',
+        errorType: 'ErrorA',
+        message: 'msg',
+        stackHash: 'sha_a',
+      ));
+      storage.aggregateFailures();
+      final fid = storage.allFailureRecords().first.failureId;
+      storage.writeFailureRecord(AdiFailureRecord(
+        failureId: fid,
+        firstSeen: DateTime(2026, 8, 1),
+        lastSeen: DateTime(2026, 8, 1),
+        occurrences: 1,
+        errorType: 'ErrorA',
+        stackHash: 'sha_a',
+        traceIds: ['t1'],
+        sessionIds: ['s1'],
+        status: AdiFailureStatus.fixed,
+      ));
+
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_2',
+        time: DateTime(2026, 8, 5),
+        sessionId: 's1',
+        traceId: 't2',
+        source: 'test',
+        errorType: 'ErrorA',
+        message: 'msg',
+        stackHash: 'sha_a',
+      ));
+      storage.aggregateFailures();
+      expect(
+        storage.allFailureRecords().first.status,
+        AdiFailureStatus.fixed,
+      );
+    });
   });
 
   group('readIndex / writeIndex', () {
@@ -152,6 +241,33 @@ void main() {
       final cleaned = storage.retain(maxSessions: 10);
       expect(cleaned, greaterThan(0));
     });
+
+    test('retain 按时间序而非字典序清理', () {
+      storage.initialize();
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_a',
+        time: DateTime(2026, 8, 10),
+        sessionId: 'sess_z',
+        traceId: 't_a',
+        source: 'test',
+        errorType: 'A',
+        message: 'm',
+      ));
+      storage.writeErrorRecord(AdiErrorRecord(
+        id: 'obs_b',
+        time: DateTime(2026, 8, 1),
+        sessionId: 'sess_a',
+        traceId: 't_b',
+        source: 'test',
+        errorType: 'B',
+        message: 'm',
+      ));
+
+      storage.retain(maxSessions: 1);
+      final remaining = storage.allErrorRecords();
+      expect(remaining.length, 1);
+      expect(remaining.first.sessionId, 'sess_z');
+    });
   });
 
   group('migrateToLatest', () {
@@ -173,6 +289,22 @@ void main() {
       expect(storage.readSchemaVersion(), 1);
       expect(Directory('$tempDir/observations').existsSync(), isTrue);
       expect(Directory('$tempDir/failures').existsSync(), isTrue);
+    });
+
+    test('migrate 幂等：多次迁移结果一致', () {
+      final root = Directory(tempDir);
+      root.createSync(recursive: true);
+      storage.migrateToLatest();
+      final schemaAfter1 = _readSchemaJson(tempDir);
+
+      storage.migrateToLatest();
+      final schemaAfter2 = _readSchemaJson(tempDir);
+
+      expect(schemaAfter2['schema_version'], 1);
+      expect(
+        schemaAfter2['created_at'],
+        schemaAfter1['created_at'],
+      );
     });
   });
 
@@ -206,4 +338,9 @@ void main() {
       expect(all.last.failureId, 'f_old');
     });
   });
+}
+
+Map<String, Object?> _readSchemaJson(String tempDir) {
+  final file = File('$tempDir/schema_version.json');
+  return jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
 }
