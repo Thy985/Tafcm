@@ -132,3 +132,14 @@ Directory stageEmpty() => Directory.systemTemp.createTempSync('adi_e2e_');
 /// real `debug/02/` export).
 String realDeviceFixturePath() =>
     '${findRepoRoot()}/tools/adi/test/e2e/fixtures/real_device';
+
+/// Absolute path to the `fault_injection` fixture directory — a *fault-injected*
+/// `ExportPipeline` package representing what a deterministic fault-injection
+/// run on a real device produces (FULL observability: the full
+/// interaction -> command -> transaction -> render -> error chain).
+///
+/// This is the v0.1 "Agent can get reliable evidence" scenario: a known failure
+/// is manufactured (not waited-for), so the ADI protocol can be proven without
+/// depending on a flaky, real-world bug. See ADR-0024 §9 + fault-injection plan.
+String faultInjectionFixturePath() =>
+    '${findRepoRoot()}/tools/adi/test/e2e/fixtures/fault_injection';

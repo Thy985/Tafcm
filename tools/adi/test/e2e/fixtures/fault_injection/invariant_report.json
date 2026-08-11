@@ -1,0 +1,6 @@
+{
+  "result": "not_checked",
+  "invariants": ["CursorExists", "SelectionValid", "BlockTreeAcyclic", "ParentChildValid", "HistoryConsistent"],
+  "checked": 0,
+  "total": 5
+}

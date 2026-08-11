@@ -23,12 +23,26 @@ void main() {
       };
       final obs = transformObservation(snapshot, {'sessionId': 'sess_6b62'}, 'sess_6b62');
       expect(obs['id'], 'err_x');
-      expect(obs['errorType'], 'GlobalError'); // type -> errorType
+      expect(obs['errorType'], 'RenderOverflow'); // classified from overflow message
+      expect(obs['errorTypeRaw'], 'GlobalError'); // raw fidelity preserved
+      expect(obs['snapshotAvailable'], isTrue);
       expect(obs['message'], contains('RenderLine overflowed'));
       expect(obs['sessionId'], 'sess_6b62');
       expect(obs['time'], '2026-08-11T10:21:49.300256');
       expect(obs['traceId'], startsWith('trc_')); // derived, stable
       expect(obs['stackHash'], isA<String>()); // derived from message
+    });
+
+    test('non-overflow message keeps raw type (no mis-classification)', () {
+      final snapshot = {
+        'id': 'err_z',
+        'type': 'GlobalError',
+        'message': 'something unrelated crashed',
+        'sessionId': 'sess_q',
+      };
+      final obs = transformObservation(snapshot, null, 'sess_q');
+      expect(obs['errorType'], 'GlobalError');
+      expect(obs['errorTypeRaw'], 'GlobalError');
     });
 
     test('falls back to metadata sessionId when snapshot lacks one', () {
@@ -43,7 +57,7 @@ void main() {
   });
 
   group('ZipImporter transformTrace', () {
-    test('flattens render spans; empty cmd/interaction/transaction -> 0', () {
+    test('flattens render spans; empty cmd/interaction/transaction -> 0 (no snapshot)', () {
       final trace = {
         'interactions': <dynamic>[],
         'commands': <dynamic>[],
@@ -53,33 +67,52 @@ void main() {
           {'type': 'CodeBlockLanguageChipRendered', 'shown': false},
         ],
       };
-      final t = transformTrace(trace, 'sess_6b62', 'trc_abc');
+      final t = transformTrace(trace, 'sess_6b62', 'trc_abc', null);
       expect(t['sessionId'], 'sess_6b62');
       expect(t['traceId'], 'trc_abc');
       final spans = t['spans'] as List;
       expect(spans.length, 2);
       expect(spans.every((s) => (s as Map)['layer'] == 'render'), isTrue);
+      // every span carries a monotonic seq for causal-chain reconstruction
+      final seqs = spans.map((s) => (s as Map)['seq']).toList();
+      expect(seqs, [0, 1]);
     });
 
-    test('combine all four layers in order', () {
+    test('combine all four layers in order, then append error link from snapshot', () {
       final trace = {
         'interactions': [
-          {'type': 'Tap'},
+          {'type': 'Tap', 'action': 'PasteText'},
         ],
         'commands': [
-          {'type': 'InsertBlock'},
+          {'type': 'InsertTextCommand'},
         ],
         'transactions': [
-          {'type': 'Commit'},
+          {'type': 'TransactionCommit', 'description': 'BlockTree update'},
         ],
         'renders': [
-          {'type': 'Paint'},
+          {'type': 'CodeBlockRenderer', 'detail': 'build'},
         ],
       };
-      final spans = (transformTrace(trace, 's', 't')['spans'] as List)
+      final snapshot = {
+        'type': 'GlobalError',
+        'message': 'A RenderLine overflowed by 66 pixels on the right.',
+      };
+      final spans = (transformTrace(trace, 's', 't', snapshot)['spans'] as List)
           .map((s) => (s as Map)['layer'])
           .toList();
-      expect(spans, ['interaction', 'command', 'transaction', 'render']);
+      expect(
+        spans,
+        ['interaction', 'command', 'transaction', 'render', 'error'],
+      );
+      // seq is monotonic across the flattened, cross-layer chain
+      final seqs = (transformTrace(trace, 's', 't', snapshot)['spans'] as List)
+          .map((s) => (s as Map)['seq'] as int)
+          .toList();
+      expect(seqs, [0, 1, 2, 3, 4]);
+      // error link description is the canonical overflow label
+      final errorSpan = (transformTrace(trace, 's', 't', snapshot)['spans'] as List)
+          .last as Map;
+      expect(errorSpan['description'], 'RenderParagraph overflow');
     });
   });
 

@@ -1,0 +1,10 @@
+{
+  "appVersion": "FormulaFix v3.8",
+  "device": "Pixel 9 (fault-injection)",
+  "os": "android BP2A.250605.031",
+  "faultMode": true,
+  "observabilityLevel": "full",
+  "sessionId": "sess_fi_001",
+  "capturedAt": "2026-08-11T12:00:00.000000",
+  "scenario": "Long code block overflow (fault-injected)"
+}

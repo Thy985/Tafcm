@@ -146,24 +146,32 @@ void _cmdLatestError(bool json) {
     return;
   }
 
+  final storedType = (record['errorType'] as String?) ?? 'Unknown';
+  final rawType = (record['errorTypeRaw'] as String?) ?? storedType;
+  final message = (record['message'] as String?) ?? '';
+  final classified = classifyErrorType(rawType, message);
+  final sessionId = record['sessionId'];
+  final traceId = record['traceId'];
   if (json) {
     print(jsonEncode({
       'status': 'error',
+      'error_type': classified,
+      'error_type_raw': rawType,
+      'session_id': sessionId,
+      'trace_id': traceId,
+      'snapshot_available': record['snapshotAvailable'] ?? true,
       'id': record['id'],
-      'errorType': record['errorType'],
-      'message': record['message'],
-      'trace': record['traceId'],
-      'session': record['sessionId'],
+      'message': message,
       'time': record['time'],
       'next_actions': [
-        'adi replay ${record['sessionId']}',
-        'adi trace show ${record['traceId']}',
+        'adi replay $sessionId',
+        'adi trace show $traceId',
       ],
     }));
   } else {
-    print('Error: ${record["errorType"]}: ${record["message"]}');
-    print('  Trace: ${record["traceId"]}  Session: ${record["sessionId"]}  Time: ${record["time"]}');
-    print('  Next: adi replay ${record["sessionId"]} | adi trace show ${record["traceId"]}');
+    print('Error: $classified ($rawType): $message');
+    print('  Trace: $traceId  Session: $sessionId  Time: ${record['time']}');
+    print('  Snapshot: available  Next: adi replay $sessionId | adi trace show $traceId');
   }
 }
 
@@ -183,16 +191,35 @@ void _cmdTrace(List<String> rest, bool json) {
     return;
   }
   if (json) {
-    print(jsonEncode(trace));
+    final spans = (trace['spans'] as List? ?? [])
+        .map((e) => e as Map<String, Object?>)
+        .toList()
+      ..sort((a, b) =>
+          ((a['seq'] as num?) ?? 0).compareTo((b['seq'] as num?) ?? 0));
+    print(jsonEncode({
+      'sessionId': trace['sessionId'],
+      'chain': spans
+          .map((s) => {
+                'layer': s['layer'],
+                'description': s['description'],
+                'spanId': s['spanId'],
+              })
+          .toList(),
+    }));
   } else {
+    final spans = (trace['spans'] as List? ?? [])
+        .map((e) => e as Map<String, Object?>)
+        .toList()
+      ..sort((a, b) =>
+          ((a['seq'] as num?) ?? 0).compareTo((b['seq'] as num?) ?? 0));
     print('Trace: $traceId');
-    print('  Session: ${trace["sessionId"]}');
-    final spans = trace['spans'] as List?;
-    if (spans != null) {
-      for (final span in spans) {
-        final s = span as Map<String, Object?>;
-        print('  [${s["layer"]}] ${s["spanId"]}: ${s["description"]}');
-      }
+    print('Session: ${trace["sessionId"]}');
+    print('Causal chain (interaction → command → transaction → render → error):');
+    for (var i = 0; i < spans.length; i++) {
+      final s = spans[i];
+      final layer = '${s["layer"]}'.padRight(12);
+      print('  $layer ${s["description"]}');
+      if (i < spans.length - 1) print('      ↓');
     }
   }
 }
@@ -214,13 +241,18 @@ void _cmdReplay(List<String> rest, bool json) {
   }
   final replayFile = File('$_adiRoot/sessions/$sessionId/replay.json');
   if (replayFile.existsSync()) {
-    final replay = _readJson(replayFile.path);
+    final replay = _readJson(replayFile.path) ?? {};
     if (json) {
-      print(jsonEncode(replay));
+      final out = <String, Object?>{...replay};
+      if (replay['failedAt'] != null) out['failed_at'] = replay['failedAt'];
+      print(jsonEncode(out));
     } else {
       print('Replay result for session $sessionId:');
-      print('  Status: ${replay?["status"] ?? "unknown"}');
-      print('  Commands: ${replay?["commandsExecuted"] ?? 0}');
+      print('  Status: ${replay["status"] ?? "unknown"}');
+      print('  Commands: ${replay["commandsExecuted"] ?? 0}');
+      if (replay['failedAt'] != null) {
+        print('  Failed at: ${replay["failedAt"]}');
+      }
     }
     return;
   }

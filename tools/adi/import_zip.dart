@@ -57,7 +57,12 @@ Future<void> importExport(String sourcePath, {String? outputDir}) async {
 
     // 3. trace (derived from the export trace, keyed by the observation's traceId)
     if (trace != null) {
-      final t = transformTrace(trace, sessionId, observation['traceId'] as String);
+      final t = transformTrace(
+        trace,
+        sessionId,
+        observation['traceId'] as String,
+        snapshot,
+      );
       _atomicWrite('${adi.path}/traces/${t["traceId"]}.json', t);
     }
   }
@@ -81,6 +86,67 @@ Future<void> importExport(String sourcePath, {String? outputDir}) async {
   }
 }
 
+/// Classify a raw snapshot error into a stable, agent-friendly ADI error type.
+///
+/// Raw snapshot `type` values (e.g. `GlobalError`, `CommandExecutionError`)
+/// are too coarse for an agent to reason about. We derive a finer category
+/// from the message when the raw type is generic. This is the mapping that
+/// turns a bare "FlutterError: overflow" into `RenderOverflow` — exactly the
+/// distinction ADR-0024 §1.4 demands ("if you only see `FlutterError:
+/// overflow`, it is NOT acceptable").
+///
+/// Already-classified raw types pass through unchanged so a real `RenderOverflow`
+/// captured by the runtime is never downgraded.
+String classifyErrorType(String rawType, String message) {
+  const known = {
+    'RenderOverflow',
+    'InvariantViolation',
+    'CommandError',
+    'TransactionRollback',
+    'Timeout',
+  };
+  if (known.contains(rawType)) return rawType;
+  final m = message.toLowerCase();
+  if (m.contains('overflowed') ||
+      m.contains('overflow') ||
+      m.contains('renderflex')) {
+    return 'RenderOverflow';
+  }
+  if (m.contains('invariant')) return 'InvariantViolation';
+  if (rawType == 'CommandExecutionError') return 'CommandError';
+  if (rawType == 'TransactionRollback') return 'TransactionRollback';
+  return rawType; // e.g. GlobalError
+}
+
+String _describeLayer(String layer, Map<String, Object?> item) {
+  switch (layer) {
+    case 'interaction':
+      final kind = '${item['kind'] ?? item['type'] ?? 'Interaction'}';
+      final actionRaw = item['action'] ?? item['target'];
+      final action = actionRaw == null ? '' : '$actionRaw';
+      return action.isEmpty ? kind : '$kind: $action';
+    case 'command':
+      return '${item['commandName'] ?? item['type'] ?? 'Command'}';
+    case 'transaction':
+      final t = item['type'] ?? 'Transaction';
+      final dRaw = item['description'];
+      final d = dRaw == null ? '' : '$dRaw';
+      return d.isEmpty ? '$t' : '$t ($d)';
+    case 'render':
+      final r = item['renderer'] ?? item['type'] ?? 'Render';
+      final dRaw = item['detail'];
+      final d = dRaw == null ? '' : '$dRaw';
+      return d.isEmpty ? '$r' : '$r ($d)';
+    default:
+      return _describe(item);
+  }
+}
+
+String _describeError(String rawType, String message) {
+  if (message.toLowerCase().contains('overflow')) return 'RenderParagraph overflow';
+  return message.isNotEmpty ? message : rawType;
+}
+
 /// Maps an `ExportPipeline` snapshot into an ADI `observation` record.
 Map<String, Object?> transformObservation(
   Map<String, Object?> snapshot,
@@ -89,11 +155,14 @@ Map<String, Object?> transformObservation(
 ) {
   final snapshotId = snapshot['id'] as String? ?? 'unknown';
   final traceId = 'trc_${_shortHash('$sessionId|$snapshotId')}';
+  final rawType = (snapshot['type'] as String?) ?? 'GlobalError';
   final message = snapshot['message'] as String? ?? '';
   final stackHash = _shortHash(message);
   return {
     'id': snapshotId,
-    'errorType': snapshot['type'] ?? 'unknown',
+    'errorType': classifyErrorType(rawType, message),
+    'errorTypeRaw': rawType,
+    'snapshotAvailable': true,
     'message': message,
     'sessionId': sessionId,
     'time': snapshot['timestamp'],
@@ -105,17 +174,32 @@ Map<String, Object?> transformObservation(
 /// Maps an `ExportPipeline` trace into an ADI `trace` (flat span list).
 ///
 /// The export distinguishes interactions/commands/transactions/renders; the
-/// CLI schema flattens them into `spans` with a `layer` discriminator.
+/// CLI schema flattens them into `spans` with a `layer` discriminator. Each
+/// span carries a monotonic `seq` so the causal chain
+/// `interaction -> command -> transaction -> render -> error` is reconstructable
+/// even after flattening. The closing `error` link is derived from the snapshot
+/// so the chain always terminates at the failure, not mid-render.
 Map<String, Object?> transformTrace(
   Map<String, Object?> trace,
   String sessionId,
   String traceId,
+  Map<String, Object?>? snapshot,
 ) {
   final spans = <Map<String, Object?>>[];
   _appendSpans(spans, trace['interactions'] as List?, 'interaction');
   _appendSpans(spans, trace['commands'] as List?, 'command');
   _appendSpans(spans, trace['transactions'] as List?, 'transaction');
   _appendSpans(spans, trace['renders'] as List?, 'render');
+  if (snapshot != null) {
+    final rawType = (snapshot['type'] as String?) ?? 'GlobalError';
+    final message = (snapshot['message'] as String?) ?? '';
+    spans.add({
+      'layer': 'error',
+      'spanId': 'error_0',
+      'description': _describeError(rawType, message),
+      'seq': spans.length,
+    });
+  }
   return {
     'sessionId': sessionId,
     'traceId': traceId,
@@ -134,7 +218,8 @@ void _appendSpans(
     spans.add({
       'layer': layer,
       'spanId': '${layer}_$i',
-      'description': _describe(item),
+      'description': _describeLayer(layer, item),
+      'seq': spans.length,
     });
   }
 }
