@@ -67,6 +67,7 @@ void main() {
         'lib/domain/services/export_service.dart',
         'lib/core/services/asset_service.dart',
         'lib/core/observability/export_pipeline.dart',
+        'lib/core/observability/adi_storage.dart',
       ];
       final hits = <String>[];
       final libDir = Directory('lib');

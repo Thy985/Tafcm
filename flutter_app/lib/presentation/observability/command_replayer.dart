@@ -8,7 +8,12 @@
 /// 纯数据类 [ReplayCommandEvent] / [ReplayResult] 已下沉到
 /// `core/observability/models.dart`，避免 core 反向依赖 presentation。
 ///
-/// 落地 ADR-0021 §2.5（Layer 5：Command Replay System）+ §3.7.4。
+/// **ADR-0024 Extract**：核心重放循环逻辑已 Extract 到
+/// `core/replay/replay_engine.dart`（[ReplayEngine]），本类实现
+/// [ReplayCommandExecutor] 接口，负责 presentation 特定的
+/// "反序列化 + 执行 + fingerprint 计算"，委托 [ReplayEngine] 驱动循环。
+///
+/// 落地 ADR-0021 §2.5（Layer 5：Command Replay System）+ §3.7.4 + ADR-0024 §2.3。
 library;
 
 import 'package:flutter/widgets.dart';
@@ -16,6 +21,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/editing/block_types.dart';
 import '../../core/observability/canonical_fingerprint.dart';
 import '../../core/observability/models.dart' hide CommandOrigin;
+import '../../core/replay/replay_engine.dart';
 import '../../data/models/document.dart';
 import '../commands/command_handler.dart';
 import '../commands/commands.dart';
@@ -38,76 +44,50 @@ import '../commands/commands.dart';
 /// final replayer = CommandReplayer(handler: handler, events: events);
 /// final results = replayer.replay();
 /// ```
-class CommandReplayer {
+class CommandReplayer implements ReplayCommandExecutor {
   final CommandHandler handler;
   final List<ReplayCommandEvent> events;
-  int _index = 0;
-  final List<ReplayResult> _results = [];
+  late final ReplayEngine _engine;
 
   CommandReplayer({
     required this.handler,
     required this.events,
-  });
+  }) {
+    _engine = ReplayEngine(executor: this, events: events);
+  }
 
   /// 当前回放位置。
-  int get index => _index;
+  int get index => _engine.index;
 
   /// 已完成的回放结果列表。
-  List<ReplayResult> get results => List.unmodifiable(_results);
+  List<ReplayResult> get results => _engine.results;
 
   /// 是否所有已回放命令均成功且 hash 匹配。
-  bool get allSucceeded =>
-      _results.isNotEmpty && _results.every((r) => r.success && r.hashMatch);
+  bool get allSucceeded => _engine.allSucceeded;
 
   /// 失败的条数。
-  int get failureCount => _results.where((r) => !r.success || !r.hashMatch).length;
+  int get failureCount => _engine.failureCount;
 
-  /// 逐条重放所有 Command。
+  /// 逐条重放所有 Command（委托 [ReplayEngine]）。
+  List<ReplayResult> replay() => _engine.replay();
+
+  /// 从指定位置开始重放（委托 [ReplayEngine]）。
+  List<ReplayResult> replayFrom(int startIndex) => _engine.replayFrom(startIndex);
+
+  /// [ReplayCommandExecutor] 实现：执行单条 replay 事件。
   ///
-  /// 返回 [ReplayResult] 列表，每条对应一个事件。
-  /// 若某条失败，继续执行后续事件（不中断），以便收集完整回放报告。
-  List<ReplayResult> replay() {
-    _results.clear();
-    _index = 0;
-
-    for (final event in events) {
-      final result = _replayOne(event, _index);
-      _results.add(result);
-      _index++;
-    }
-
-    return List.unmodifiable(_results);
-  }
-
-  /// 从指定位置开始重放。
-  ///
-  /// [startIndex]：起始事件序号（0-based）。
-  /// 用于断点续放：从失败位置的上一步重新开始。
-  List<ReplayResult> replayFrom(int startIndex) {
-    _results.clear();
-    _index = startIndex;
-
-    for (int i = startIndex; i < events.length; i++) {
-      final result = _replayOne(events[i], i);
-      _results.add(result);
-      _index = i + 1;
-    }
-
-    return List.unmodifiable(_results);
-  }
-
-  /// 重放单条 Command。
-  ReplayResult _replayOne(ReplayCommandEvent event, int index) {
+  /// 步骤 1：反序列化 [ReplayCommandEvent] → [EditorCommand]
+  /// 步骤 2：执行 [CommandHandler.handle]
+  /// 步骤 3：计算当前 Document fingerprint
+  @override
+  ReplayStepResult executeOne(ReplayCommandEvent event) {
     // 步骤 1：反序列化 Command
     EditorCommand? command;
     try {
       command = _deserializeCommand(event);
     } catch (e) {
-      return ReplayResult(
-        index: index,
-        commandName: event.commandName,
+      return ReplayStepResult(
         success: false,
-        hashMatch: false,
         error: 'Deserialization failed: $e',
       );
     }
@@ -117,27 +97,18 @@ class CommandReplayer {
     try {
       success = handler.handle(command);
     } catch (e) {
-      return ReplayResult(
-        index: index,
-        commandName: event.commandName,
+      return ReplayStepResult(
         success: false,
-        hashMatch: false,
         error: 'Execution error: $e',
       );
     }
 
-    // 步骤 3：验证 afterStateHash
+    // 步骤 3：计算 fingerprint
     final actualHash = _computeFingerprint();
-    final hashMatch = event.afterStateHash == null ||
-        actualHash == event.afterStateHash;
 
-    return ReplayResult(
-      index: index,
-      commandName: event.commandName,
+    return ReplayStepResult(
       success: success,
-      hashMatch: hashMatch,
       actualHash: actualHash,
-      expectedHash: event.afterStateHash,
     );
   }
 
