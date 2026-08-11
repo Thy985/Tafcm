@@ -221,3 +221,52 @@ class AdiReplayResultView {
             .toList(),
       };
 }
+
+/// 验证前状态分类（Agent 修复前的问题类型）。
+enum AdiValidationBefore {
+  /// 崩溃 / 异常。
+  crash,
+
+  /// 渲染降级 / fallback。
+  fallback,
+
+  /// 不变量违反（状态损坏）。
+  invariantViolation,
+
+  /// 未知 / 未分类。
+  unknown,
+}
+
+/// 验证后状态分类（Agent 修复后是否通过）。
+enum AdiValidationAfter {
+  /// 验证通过（replay 不再复现 + invariant 全通过）。
+  pass,
+
+  /// 仍然失败（replay 复现或 invariant 仍违反）。
+  stillFailing,
+
+  /// 结果不确定（数据不足）。
+  inconclusive,
+}
+
+/// 验证结果视图（对应 CLI: adi validate --after-fix）。
+class AdiValidationResultView {
+  final AdiValidationBefore before;
+  final AdiValidationAfter after;
+  final AdiReplayResultView replayResult;
+  final AdiInvariantView invariants;
+
+  const AdiValidationResultView({
+    required this.before,
+    required this.after,
+    required this.replayResult,
+    required this.invariants,
+  });
+
+  Map<String, Object?> toJson() => {
+        'before': before.name,
+        'after': after.name,
+        'replayResult': replayResult.toJson(),
+        'invariants': invariants.toJson(),
+      };
+}
