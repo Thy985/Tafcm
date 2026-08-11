@@ -1084,6 +1084,7 @@ tools/adi/test/e2e/
 | E2E-ADI-002 Inconclusive | 合成 | Query first / Respect invariant | 跨 session validation → 证据不完整 → inconclusive（绝不误判 pass） |
 | E2E-ADI-003 Failure Aggregation | 合成 | Replay before modify | 多次相同错误 → aggregate → failures list 合并 + status 保留 |
 | E2E-ADI-004 Real Device Render Overflow | debug/02 真机 | 全部 6 条 | 真机 sess RenderLine overflow → 经 ZipImporter → CLI 完整闭环（已落地，见 §9.4） |
+| E2E-ADI-005 Full Maintenance Loop | 真机 APK + 真实修复 | 全部 6 条 + 真机采集 | 真机故障 → Agent 诊断 → replay reproduced → 真实代码修复 → validate pass（**待执行**，见 §9.4） |
 
 ### 9.4 场景细节
 
@@ -1134,6 +1135,41 @@ tools/adi/test/e2e/
   （`tools/adi/test/import_zip_test.dart`）固定 `ExportPipeline -> .adi/` 映射契约；
   `re-import` 幂等（merge，不重复）。
 
+**E2E-ADI-005 Full Maintenance Loop（真机闭环验证，待执行）**
+
+> **状态**：⏳ 待执行 — 本场景验证用户提出的 v0.1/v0.2 真机测试标准：在真实设备、真实用户交互、真实错误发生后，Agent 可以依靠 ADI 完成一次完整的软件维护闭环。
+
+**与 001–004 的本质区别**：
+- 001–003 是**合成 fixture**（手工构造 JSON），验证 CLI 协议处理正确性。
+- 004 是**离线 fixture 导入**（手工构造的 `fault_injection/` fixture 冒充真机产物），验证 ZipImporter 格式兼容。
+- 005 是**真机 APK + 真实用户交互 + 真实代码修复**，验证完整维护闭环：证据采集 → Agent 诊断 → replay 复现 → 真实修复 → validate pass。
+
+**v0.1 真机测试标准（证明"Agent 能拿到可靠证据"）**：
+
+| 步 | 操作 | 验证标准 |
+|----|------|---------|
+| 1 | 真机 APK 部署 + 创建文档 + 插入 CodeBlock + 粘贴超长无空格字符串 | 真实触发 RenderLine overflow |
+| 2 | `adb pull` 导出诊断 zip | zip 非空 + 含 metadata/snapshot/trace/invariant_report |
+| 3 | `adi import <zip> --json` | `status=ok` + 生成 `.adi/` |
+| 4 | `adi latest-error --json` | `error_type=RenderOverflow`（分类后）+ `snapshot_available=true` + `session_id`/`trace_id` 存在 |
+| 5 | `adi trace show <trace_id> --json` | chain 6 层完整：interaction → command → transaction → render → render → error（**非手工构造**，真机采集） |
+
+**v0.2 真机测试标准（证明"Agent 能完成完整维护闭环"）**：
+
+| 步 | 操作 | 验证标准 |
+|----|------|---------|
+| 1 | 制造 Bug（如 CodeBlockRenderer 删除 SingleChildScrollView） | 真实代码 fault |
+| 2 | 真机输入超长字符串 | 真实触发 overflow |
+| 3 | `adi latest-error` | Agent 拿到 `sess_xxx`（无需人工解释"发生了什么"） |
+| 4 | `adi replay sess_xxx` | `status=reproduced`（**非 inconclusive** — 要求真机采集时同步录制 replay 序列） |
+| 5 | Agent 真实代码修复（恢复 SingleChildScrollView） | 真实 commit，非覆写 replay.json 模拟 |
+| 6 | `adi validate --after-fix sess_xxx` | `after=pass`（Replay + Invariant + Regression 全 PASS） |
+
+**前置条件**：
+- `flutter_app/integration_test/adi_fault_injection_test.dart` 入库（PR #136 遗漏，本 PR 补提交）
+- 真机采集时同步录制 replay 序列（当前 `fault_injection` fixture 缺 replay 证据，导致 E2E-004 replay inconclusive — 005 必须解决此缺口）
+- CI 增加 integration_test job（当前 CI 仅 `flutter build apk`，不跑 integration_test）
+
 ### 9.5 数据来源约束
 
 - **001–003 合成 fixture** 随仓库提交于 `tools/adi/test/e2e/fixtures/`，CI 可离线运行。
@@ -1166,6 +1202,10 @@ tools/adi/test/e2e/
 - [x] `dart test`（tools/adi）四个场景全 PASS
 - [x] CI 新增 `adi-e2e` job 运行 `dart test tools/adi`
 - [x] E2E-004 真机场景接入（ZipImporter v0.1 已落地）
+- [ ] **E2E-005 真机闭环验证**：真机 APK 采集成功 + `adi trace show` 返回真机采集 6 层链路（非手工构造 fixture）
+- [ ] **E2E-005 replay reproduced**：`adi replay` 真机 session → `reproduced`（非 inconclusive，要求真机采集同步录制 replay 序列）
+- [ ] **E2E-005 validate pass**：Agent 真实代码修复后 `adi validate --after-fix` → `pass`（Replay + Invariant + Regression 全 PASS）
+- [ ] **`integration_test/adi_fault_injection_test.dart` 入库 + CI 接入**（PR #136 遗漏，本 PR 补提交）
 
 ---
 

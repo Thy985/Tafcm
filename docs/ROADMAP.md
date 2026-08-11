@@ -622,7 +622,7 @@ FormulaFix 当前状态：
 
 ## Phase 3.8：Agent Diagnostic Interface（ADI）
 
-> **状态**：Accepted — ADR-0024 由 AI Agent 起草于 2026-08-10，Human Owner 同日评审签字 Accepted，正式纳入 ROADMAP。实施未开始。
+> **状态**：Accepted — ADR-0024 由 AI Agent 起草于 2026-08-10，Human Owner 同日评审签字 Accepted，正式纳入 ROADMAP。v0.1 Core + v0.1.1 + v0.2 已合入 main（PR #133/#134/#135/#136）；**真机闭环验证待执行**（见 3.8.5）。
 
 **目标**：在 Phase 3.7（证据采集）之上，建立 **Agent Runtime Interface**——标准化暴露诊断协议给 AI Agent，让 Agent 从 Observation 出发自主完成 **发现 → 复现 → 定位 → 修复 → 验证** 闭环。
 
@@ -639,16 +639,19 @@ FormulaFix 当前状态：
 
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
-| 3.8.1 | **v0.1 Core**：4 个核心命令（`adi latest-error` / `adi trace show` / `adi replay` / `adi agent-context`）+ Extract `replay_engine` 到 `core/replay/` | P0 | ⏳ 待启动 |
-| 3.8.2 | **v0.1.1 工程化收尾**：`.adi/` Storage 完整实现 + `schema_version` + 架构守门 + `.gitignore` + LIGHT 隐私守门 + 6 个测试文件 | P0 | ⏳ |
-| 3.8.3 | **v0.2 验证闭环**：`adi validate --after-fix`（Replay + Invariant）+ `adi failures list`（index.json 索引）+ 保留窗口清理 | P1 | ⏳ |
+| 3.8.1 | **v0.1 Core**：4 个核心命令（`adi latest-error` / `adi trace show` / `adi replay` / `adi agent-context`）+ Extract `replay_engine` 到 `core/replay/` | P0 | ✅ PR #133（2026-08-11） |
+| 3.8.2 | **v0.1.1 工程化收尾**：`.adi/` Storage 完整实现 + `schema_version` + 架构守门 + `.gitignore` + LIGHT 隐私守门 + 6 个测试文件 | P0 | ✅ PR #134 |
+| 3.8.3 | **v0.2 验证闭环**：`adi validate --after-fix`（Replay + Invariant）+ `adi failures list`（index.json 索引）+ 保留窗口清理 | P1 | ✅ PR #134 |
 | 3.8.4 | **v0.3 Change Impact Analysis** | P2 | ⏳ 拆为独立 ADR-0026 |
+| 3.8.5 | **真机闭环验证**：真机 APK 采集 + `adi replay` reproduced + `adi validate --after-fix` pass（见 ADR-0024 §9 E2E-ADI-005） | P0 | ⏳ 待执行 |
 
 ### 退出条件
 
-- [ ] v0.1 Core：Agent 能完成 发现 → 复现 → 定位 闭环（4 个核心命令可用）
-- [ ] v0.1.1：`.adi/` Storage 通过架构守门 + `flutter analyze` 0 warning + `flutter test` 0 regression
-- [ ] v0.2：`adi validate --after-fix` 完成 Replay + Invariant 验证闭环
+- [x] v0.1 Core：Agent 能完成 发现 → 复现 → 定位 闭环（4 个核心命令可用）— PR #133
+- [x] v0.1.1：`.adi/` Storage 通过架构守门 + `flutter analyze` 0 warning + `flutter test` 0 regression — PR #134
+- [x] v0.2：`adi validate --after-fix` 完成 Replay + Invariant 验证闭环 — PR #134
+- [ ] **真机闭环验证（v0.1 标准）**：真机 APK 采集成功（非 `flutter test`）+ zip 经 `adi import` 可消费 + `adi trace show` 返回完整 6 层链路（interaction → command → transaction → render → error，非手工构造 fixture）
+- [ ] **真机闭环验证（v0.2 标准）**：`adi replay` 真机 session → `reproduced`（非 inconclusive）+ Agent 真实代码修复（非覆写 replay.json 模拟）+ `adi validate --after-fix` → `pass`（Replay + Invariant + Regression 全 PASS）
 - [ ] v0.3 退出条件 → 见独立 ADR-0026
 
 ### Open Questions
