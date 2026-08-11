@@ -1,0 +1,4 @@
+{
+  "failedNames": [],
+  "allNames": ["CursorExists", "SelectionValid", "BlockTreeAcyclic", "ParentChildValid", "HistoryConsistent"]
+}

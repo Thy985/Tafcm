@@ -1,0 +1,10 @@
+{
+  "sessionId": "sess_A",
+  "spans": [
+    {"layer": "interaction", "spanId": "sp_1", "description": "User typed '- [ ] todo' at block 3"},
+    {"layer": "command", "spanId": "sp_2", "description": "InsertBlockCommand(blockId=3)"},
+    {"layer": "transaction", "spanId": "sp_3", "description": "commit BlockInsert transaction"},
+    {"layer": "render", "spanId": "sp_4", "description": "RenderLine measured width 466 > bounds 400"},
+    {"layer": "error", "spanId": "sp_5", "description": "RenderOverflow overflow=66px on right"}
+  ]
+}
