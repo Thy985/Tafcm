@@ -17,9 +17,9 @@ set -euo pipefail
 LABEL_MAP_bug="bug"
 LABEL_MAP_security="security"
 LABEL_MAP_performance="performance"
-LABEL_MAP_tech-debt="tech-debt"
+LABEL_MAP_tech_debt="tech-debt"
 LABEL_MAP_refactor="refactor"
-LABEL_MAP_feature-request="enhancement"
+LABEL_MAP_feature_request="enhancement"
 LABEL_MAP_documentation="documentation"
 
 # ---------- 参数 ----------
@@ -140,7 +140,7 @@ for ((i=0; i<COUNT; i++)); do
   src_ref="$(jq -r ".findings[$i].source_ref // \"\"" "$FINDINGS")"
 
   # 标签白名单（D4）— 间接展开动态变量名
-  _lvar="LABEL_MAP_$cat"
+  _lvar="LABEL_MAP_${cat//-/_}"
   label="${!_lvar:-}"
   if [ -z "$label" ]; then
     log "  ✗ findings[$i] category 无映射标签（$cat），跳过"
