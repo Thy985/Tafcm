@@ -220,7 +220,7 @@ jobs:
       - name: Run executor (Trusted Executor, D4/D5/D6/D7)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run || 'true') || 'false' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true || 'false' }}
           HIGH_THRESHOLD: '0.8'
           MED_THRESHOLD: '0.5'
           REPO: ${{ github.repository }}

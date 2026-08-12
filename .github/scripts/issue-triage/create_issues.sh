@@ -28,6 +28,20 @@ LABEL_MAP_documentation="documentation"
 : "${HISTORY_OUT:=.tmp/issue-triage/history.json}"
 : "${DRY_RUN:=0}"
 : "${GH_MOCK:=0}"
+# 归一化：workflow 经 env 传入的是布尔型字符串 "true"/"false"，
+# 下方守卫（[ "$DRY_RUN" = "1" ] / [ "$DRY_RUN" = "0" ]）只认整数形态。
+# 若不做归一化，DRY_RUN="true" 既不等于 "1" 也不等于 "0"：
+#   - dry-run 安全网失效 → "true" 落到 else 分支直接走真实写路径（误建 Issue）
+#   - PR 回帖守卫（= "0"）永不被触发
+# 统一映射为 1/0，消除上述歧义。
+case "$DRY_RUN" in
+  true|1) DRY_RUN=1 ;;
+  *)      DRY_RUN=0 ;;
+esac
+case "$GH_MOCK" in
+  true|1) GH_MOCK=1 ;;
+  *)      GH_MOCK=0 ;;
+esac
 : "${HIGH_THRESHOLD:=0.8}"
 : "${MED_THRESHOLD:=0.5}"
 : "${REPO:=Thy985/fixmath}"
