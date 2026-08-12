@@ -55,7 +55,7 @@ fetch_pr() {
     -f query='query($owner:String!,$name:String!,$number:Int!) {
       repository(owner:$owner,name:$name){
         pullRequest(number:$number){
-          title createdBy{login} authorAssociation
+          title author{login} authorAssociation
           baseRefName headRefName changedFiles
           commits{ totalCount }
           reviewThreads(first:100){
@@ -109,7 +109,7 @@ BASE_REF="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.baseRefName //
 HEAD_REF="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.headRefName // ""')"
 CHANGED_FILES="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.changedFiles // 0')"
 COMMITS="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.commits.totalCount // 0')"
-CREATED_BY="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.createdBy.login // ""')"
+CREATED_BY="$(echo "$PR_JSON" | jq -r '.data.repository.pullRequest.author.login // ""')"
 IS_FORK="false"; [ "$PR_ASSOC" = "NONE" ] && IS_FORK="true"
 
 {
