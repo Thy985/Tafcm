@@ -163,6 +163,7 @@ jobs:
           claude_args: |
             --model MiniMax-M3
             --allowedTools "Read,Glob,Grep,Write"
+          classify_inline_comments: false
 
       - name: Verify findings.json
         run: 'test -s findings.json || { echo "FAIL: findings.json empty"; exit 1; }'
