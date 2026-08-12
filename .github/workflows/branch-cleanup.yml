@@ -36,7 +36,9 @@ jobs:
           # 白名单：前缀匹配，永不删除（release 线等长期分支）。
           PROTECTED_PREFIX="release/"
           # 可删前缀：短生命周期分支（合入后即清理）。
-          DELETE_PREFIX="feature/ fix/ experiment/"
+          # 对应 AGENTS.md §5.2 分支规范：feat/<scope>-<desc> / fix/<scope>-<desc> / docs/<desc>，
+          # 兼容旧命名的 feature/ 与 experiment/。
+          DELETE_PREFIX="feat/ fix/ docs/ feature/ experiment/"
 
           # 当前开放 PR 的源分支 —— 有未合并工作的分支保留。
           OPEN_BRANCHES="$(gh pr list --state open --json headRefName -q '.[].headRefName')"
@@ -60,16 +62,36 @@ jobs:
             return 1
           }
 
+          # 快路径：普通 merge 合入的分支（提交可达性判定）。
           MERGED="$(git branch -r --merged origin/main | sed 's|origin/||' | grep -v '^HEAD$' || true)"
+          # 兜底路径：squash / rebase 合入的分支，--merged 无法命中（patch 不等价），
+          # 改用 GitHub PR 事实判定——存在「已合并 PR」即视为已交付，允许清理。
+          CANDIDATES="$(git branch -r --no-merged origin/main | sed 's|origin/||' | grep -v '^HEAD$' || true)"
           DELETED=0
-          for b in $MERGED; do
-            if should_delete "$b"; then
-              if git push origin --delete "$b" 2>/dev/null; then
-                echo "deleted: $b"
-                DELETED=$((DELETED + 1))
-              else
-                echo "skip (push failed): $b"
+
+          try_delete() {
+            local b="$1"
+            if ! should_delete "$b"; then
+              return
+            fi
+            # 兜底路径分支必须有关联且已合并的 PR，防止误删有未交付工作的分支。
+            if ! echo " $MERGED " | grep -q " $b "; then
+              local merged_pr
+              merged_pr="$(gh pr list --head "$b" --state merged --json number -q '.[0].number' 2>/dev/null || true)"
+              if [ -z "$merged_pr" ]; then
+                echo "skip (no merged PR): $b"
+                return
               fi
             fi
+            if git push origin --delete "$b" 2>/dev/null; then
+              echo "deleted: $b"
+              DELETED=$((DELETED + 1))
+            else
+              echo "skip (push failed): $b"
+            fi
+          }
+
+          for b in $MERGED $CANDIDATES; do
+            try_delete "$b"
           done
           echo "cleanup done, deleted=$DELETED"
