@@ -32,6 +32,9 @@ _REQUIRED_FINDING = frozenset({
 _REQUIRED_SOURCE = frozenset({"type", "pr", "branch", "base", "trust_level", "fetched_at"})
 _KEBAB = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
+# GitHub Issue body 上限约 65k 字符（C4：防止注入导致超长 body 撑爆 gh API / 浪费 token）
+MAX_BODY_LEN = 65000
+
 
 def _fail(msg):
     print(f"VALIDATE FAIL: {msg}")
@@ -84,6 +87,8 @@ def validate_finding(f):
         errors.append("mentions 必须是数组")
     if "source_ref" in f and not isinstance(f["source_ref"], str):
         errors.append("source_ref 必须是字符串")
+    if "body" in f and isinstance(f["body"], str) and len(f["body"]) > MAX_BODY_LEN:
+        errors.append(f"body 超过 {MAX_BODY_LEN} 字符上限（GitHub Issue body 上限）")
     return (len(errors) == 0, errors)
 
 

@@ -101,6 +101,60 @@ body: <body，截断至 800 字符>
 ---
 
 # Git Log（type 含 branch 或合并信号）
+```
+
+- **所有字段必须 top-level 键值对齐，禁止自由 schema。**
+- **业务规则**：提取阶段只捞 `isResolved == false` 的线程（天然过滤已解决讨论）；`isOutdated` 线程保留但强制打标，供 Claude 降权。
+- **解耦**：schema 变更是契约变更，必须走 ADR 修订；脚本改动不得静默改 schema。
+
+### D3. 分类契约（Taxonomy）
+
+Claude 输出 `category` 仅限以下**可行动类别**（create 阶段会据类别兜底打标签）：
+
+```
+bug            → 确定会引发错误行为/异常/崩溃
+security       → 权限、鉴权、敏感数据、注入、凭证等（优先级独立于 severity）
+performance    → 延迟/吞吐/资源占用
+tech-debt      → 需重构/清理的既有实现债务（TODO/FIXME/死代码/重复逻辑）
+refactor       → 结构性重构建议（可独立为任务）
+feature-request→ 缺失的必要功能
+documentation  → 文档缺失/错误
+```
+
+以下类别供 Claude **内部筛除**，**禁止**据此自动建 Issue：`invalid`（误报/无效）、`duplicate`（去重由 D6 处理，模型不得自行建重复）。分类标注 `security` 时强制要求 `severity` 至少 `medium`，`confidence` 按 D5 上浮一档，避免安全问题被误判为低优先 improvement。
+
+### D4. 标签与 Mentions 契约
+
+- **标签白名单**（create 阶段只允许这些）：
+  - 直接映射：`bug` `security` `performance` `tech-debt` `refactor` `enhancement`(feat) `documentation`
+  - 缺失标签由 `create_issues.sh` 自动 `gh label create` 补齐（当前仓库缺 `security` `performance` `tech-debt` `refactor`）。
+- **Mention 白名单**：Claude 输出的 `mentions` 仅为**候选**；create 阶段按 `仓库 contributors ∪ {核心开发者}` 过滤，不在白名单的一律丢弃。仓库活跃开发者经 `git shortlog` 维护（当前核心：`Thy985` / 唐怀远）。
+- 正式 Issue 上 @ 通过正文末尾 `CC: @login` 追加（已过滤），避免任意注入 @ 陌生人。
+
+### D5. 置信度三态决策（Confidence Policy）
+
+错误成本不对称：**少建一个 Issue 成本低，多建一个垃圾 Issue 污染仓库**。据此：
+
+| confidence | 决策 | 落地动作 |
+|---|---|---|
+| `>= 0.8` | **High → 自动创建** | `gh issue create` |
+| `[0.5, 0.8)` | **Medium → 建议** | 仅当有 PR 上下文时，在 PR 回帖生成「建议 Issue」清单（含全文）；无 PR 时并入 summary 报告 |
+| `< 0.5` | **Low → 丢弃** | 仅记录进 summary，不落任何 GitHub 副作用 |
+
+- 阈值通过 workflow input / repository variable（`ISSUE_TRIAGE_HIGH_THRESHOLD`、`ISSUE_TRIAGE_MEDIUM_THRESHOLD`）可调，默认 `0.8` / `0.5`。
+- **首版上线建议 `dry_run=true`**：逐条人工校准阈值后再放开自动创建，防止「Claude 分类很好但 Issue 污染仓库」的不可逆后果。
+
+### D6. 去重契约（Deterministic Dedup）
+
+- **fingerprint（结构指纹，由执行器计算）**：`create_issues.sh` 对每条 finding 计算 `sha256(category-component-root_cause)[:16]`。
+  ⚠️ **契约对齐说明（D2/HIGH）**：本实现为**结构指纹**而非 ADR 早期描述的「Claude 输出的语义 kebab-case 指纹」。结构指纹仅能识别完全相同的 `category+component+root_cause` 三元组；**无法**识别「Authentication timeout after idle」与「Login timeout on idle session」这类同义异写的语义重复。语义层去重由 D6 步骤 2（标题近似匹配）兜底，但仍非严格语义等价。
+- **状态存储（Phase B 临时方案）**：去重记忆以 workflow artifact（`issue-triage-history`，retention=90d）在 run 间传递，**不**落库到仓库。90 天后 artifact 过期，旧 fingerprint 视为新发现，可能重复建 Issue（见 C5/A5 风险）。
+- **状态存储（Phase C 目标）**：升级为仓库内 `.issue-triage/history.json` 落库（commit-bot 写入，不入 `.gitignore`），作为长期记忆；其与仓库的写入走独立 PR/直接更新语义（见 D8 治理）。
+- **去重判定（先结构后标题）**：
+  1. `history` 中已存在相同 `fingerprint` → 跳过（记录 `duplicate-of`）。
+  2. `gh issue list --search "in:title ..."` 命中已开 Issue 标题相似 → 跳过。
+  3. 两者都未命中才允许创建。
+- **跨 run 缺口（C5/A5）**：Phase B 下 artifact 过期后跨 run 去重失效，需 Phase C 落库后方可彻底解决。
 
 ### D7. 权限与 Job 拆分（Permission Boundary）
 
@@ -182,58 +236,8 @@ job: create（写）
 ## 审批
 
 - [ ] Human Owner 签字（Accepted）
-- [ ] 关联 PR：`feat/issue-triage-workflow`（含本 ADR + 实现脚本 + 工作流）
+- [ ] 关联 PR：`feat/issue-triage-workflow-clean`（PR #139，含本 ADR + 实现脚本 + 工作流）
 - <short_sha> <author>: <subject>
   <body 首 200 字符>
-```
 
-- 所有字段必须 top-level 键值对齐，禁止自由 schema。
-- **业务规则**：提取阶段只捞 `isResolved == false` 的线程（天然过滤已解决讨论）；`isOutdated` 线程保留但强制打标，供 Claude 降权。
-- 解耦：schema 变更是契约变更，必须走 ADR 修订；脚本改动不得静默改 schema。
-
-### D3. 分类契约（Taxonomy）
-
-Claude 输出 `category` 仅限以下**可行动类别**（create 阶段会据类别兜底打标签）：
-
-```
-bug            → 确定会引发错误行为/异常/崩溃
-security       → 权限、鉴权、敏感数据、注入、凭证等（优先级独立于 severity）
-performance    → 延迟/吞吐/资源占用
-tech-debt      → 需重构/清理的既有实现债务（TODO/FIXME/死代码/重复逻辑）
-refactor       → 结构性重构建议（可独立为任务）
-feature-request→ 缺失的必要功能
-documentation  → 文档缺失/错误
-```
-
-以下类别供 Claude **内部筛除**，**禁止**据此自动建 Issue：`invalid`（误报/无效）、`duplicate`（去重由 D6 处理，模型不得自行建重复）。分类标注 `security` 时强制要求 `severity` 至少 `medium`，`confidence` 按 D5 上浮一档，避免安全问题被误判为低优先 improvement。
-
-### D4. 标签与 Mentions 契约
-
-- **标签白名单**（create 阶段只允许这些）：
-  - 直接映射：`bug` `security` `performance` `tech-debt` `refactor` `enhancement`(feat) `documentation`
-  - 缺失标签由 `create_issues.sh` 自动 `gh label create` 补齐（当前仓库缺 `security` `performance` `tech-debt` `refactor`）。
-- **Mention 白名单**：Claude 输出的 `mentions` 仅为**候选**；create 阶段按 `仓库 contributors ∪ {核心开发者}` 过滤，不在白名单的一律丢弃。仓库活跃开发者经 `git shortlog` 维护（当前核心：`Thy985` / 唐怀远）。
-- 正式 Issue 上 @ 通过正文末尾 `CC: @login` 追加（已过滤），避免任意注入 @ 陌生人。
-
-### D5. 置信度三态决策（Confidence Policy）
-
-错误成本不对称：**少建一个 Issue 成本低，多建一个垃圾 Issue 污染仓库**。据此：
-
-| confidence | 决策 | 落地动作 |
-|---|---|---|
-| `>= 0.8` | **High → 自动创建** | `gh issue create` |
-| `[0.5, 0.8)` | **Medium → 建议** | 仅当有 PR 上下文时，在 PR 回帖生成「建议 Issue」清单（含全文）；无 PR 时并入 summary 报告 |
-| `< 0.5` | **Low → 丢弃** | 仅记录进 summary，不落任何 GitHub 副作用 |
-
-- 阈值通过 workflow input / repository variable（`ISSUE_TRIAGE_HIGH_THRESHOLD`、`ISSUE_TRIAGE_MEDIUM_THRESHOLD`）可调，默认 `0.8` / `0.5`。
-- **首版上线建议 `dry_run=true`**：逐条人工校准阈值后再放开自动创建，防止「Claude 分类很好但 Issue 污染仓库」的不可逆后果。
-
-### D6. 去重契约（Semantic Dedup）
-
-- **fingerprint（语义指纹）**：Claude 对每条 finding 输出一个稳定 kebab-case `fingerprint`（如 `auth-timeout-after-idle`），同一问题在不同 PR/提交产出相同或近义指纹。
-- **状态存根 `.issue-triage/history.json`**：每次运行后把 `{issue_id, fingerprint, key_title, source, created_at}` 追加进仓库内 `.issue-triage/history.json`。
-- **去重判定（先语义后精确）**：
-  1. `history.json` 中已存在相同 `fingerprint` → 跳过（记录 `duplicate-of`）。
-  2. `gh issue list --search "in:title ..."` 命中已开 Issue 标题相似 → 跳过。
-  3. 两者都未命中才允许创建。
-- `history.json` 不入 `.gitignore`（作为长期记忆落库）；其与仓库的写入走独立 PR/直接更新语义（见 D8 治理）。
+> **G1 合规说明**：本 ADR 属 Human-Owner 专属文件（AGENTS.md §6.4）。AI 协作开发者**不代签**；须经独立 Human Owner 勾选上方「签字」框并合并后方可置为 Accepted。状态由 `Proposed` 改为 `Accepted`。

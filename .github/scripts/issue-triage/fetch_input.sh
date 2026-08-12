@@ -140,10 +140,14 @@ IS_FORK="false"; [ "$PR_ASSOC" = "NONE" ] && IS_FORK="true"
 } > "$OUT"
 
 # 将 JSON 线程转为 markdown（仅未解决）
-python3 - "$OUT" "$PR_JSON" <<'PYEOF'
+# C6: 通过临时文件传 PR_JSON，避免超长 JSON（reviewThreads(100)+comments(100)）超过 argv ARG_MAX 而失败
+TMP_PR_JSON="$(mktemp)"
+printf '%s' "$PR_JSON" > "$TMP_PR_JSON"
+python3 - "$OUT" "$TMP_PR_JSON" <<'PYEOF'
 import json, sys
 out = sys.argv[1]
-raw = json.loads(sys.argv[2])
+with open(sys.argv[2], encoding="utf-8") as fh:
+    raw = json.load(fh)
 nodes = raw.get("data", {}).get("repository", {}).get("pullRequest", {}).get("reviewThreads", {}).get("nodes", [])
 lines = []
 for i, t in enumerate([n for n in nodes if n.get("isResolved") is False], start=1):
@@ -161,5 +165,6 @@ for i, t in enumerate([n for n in nodes if n.get("isResolved") is False], start=
 with open(out, "a", encoding="utf-8") as fh:
     fh.write("\n".join(lines) + "\n")
 PYEOF
+rm -f "$TMP_PR_JSON"
 
 echo "context.md 已生成（PR #${PR_NUMBER}，$(wc -l < "$OUT") 行）"

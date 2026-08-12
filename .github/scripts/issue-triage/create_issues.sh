@@ -81,6 +81,15 @@ ensure_label() {
   fi
 }
 
+# 已开 Issue 标题近似命中 → 视为重复（D6 第二步）
+# 必须在主循环调用前定义（bash 运行时解析）
+title_exists() {
+  [ "$GH_MOCK" = "1" ] && return 1
+  local q="$1" n
+  n="$(gh issue list -R "$REPO" --state open --search "in:title \"$q\"" --json number --jq 'length' 2>/dev/null || echo 0)"
+  [ "$n" -gt 0 ]
+}
+
 
 # ---------- 读取 source 上下文 ----------
 TRUST_LEVEL="$(jq -r '.source.trust_level // "maintainer"' "$FINDINGS")"
@@ -231,11 +240,3 @@ fi
 if [ "$DRY_RUN" = "1" ]; then
   log "DRY-RUN：未执行任何写操作（不建 Issue / 不回帖 / 不上传 history 工件）"
 fi
-
-title_exists() {
-  # 已开 Issue 标题近似命中 → 视为重复（D6 第二步）
-  [ "$GH_MOCK" = "1" ] && return 1
-  local q="$1" n
-  n="$(gh issue list -R "$REPO" --state open --search "in:title \"$q\"" --json number --jq 'length' 2>/dev/null || echo 0)"
-  [ "$n" -gt 0 ]
-}
