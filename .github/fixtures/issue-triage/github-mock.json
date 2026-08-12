@@ -1,0 +1,44 @@
+{
+  "_comment": "Issue Triage create_issues.sh GH_MOCK=1 回放数据 — 3 场景",
+  "findings": [
+    {
+      "_scene": "duplicate-fingerprint (上一 run 已记录)",
+      "category": "bug",
+      "component": "parser",
+      "root_cause": "markdown-inline-code",
+      "symptom": "inline code not parsed",
+      "confidence": 0.9,
+      "severity": "high",
+      "priority": "medium",
+      "title": "Markdown inline code parsing broken in BlockLexer",
+      "body": "BlockLexer._parseInline 缺少 inline code 分支。",
+      "mentions": ["author"]
+    },
+    {
+      "_scene": "fork-medium-no-action (trust_level=fork, confidence=0.65)",
+      "category": "security",
+      "component": "auth",
+      "root_cause": "idle timeout",
+      "symptom": "session expiry after idle",
+      "confidence": 0.65,
+      "severity": "high",
+      "priority": "high",
+      "title": "Idle session does not invalidate token",
+      "body": "External fork PR: session stays alive long after idle timeout window.",
+      "mentions": []
+    },
+    {
+      "_scene": "security-priority-high (internal maintainer)",
+      "category": "security",
+      "component": "network",
+      "root_cause": "ssl hostname verification",
+      "symptom": "SSL pinning bypass in HTTP client",
+      "confidence": 0.72,
+      "severity": "high",
+      "priority": "high",
+      "title": "HTTP client disables SSL hostname verification",
+      "body": "OkHttpClient.Builder.hostnameVerifier set to allowAll.",
+      "mentions": ["maintainer"]
+    }
+  ]
+}

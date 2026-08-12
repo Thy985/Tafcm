@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Thy985/fixmath/.github/schemas/findings.schema.json",
+  "title": "Issue Triage findings.json",
+  "description": "Claude(Untrusted Reasoner) 的结构化输出契约。fingerprint 由 create 阶段据此计算，不出现于此。",
+  "type": "object",
+  "required": ["schema_version", "source", "summary", "findings"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "analyzer": { "type": "string" },
+    "source": {
+      "type": "object",
+      "required": ["type", "pr", "branch", "base", "trust_level", "fetched_at"],
+      "properties": {
+        "type": { "enum": ["pull_request_review", "pull_request_review_comment", "branch_scan"] },
+        "pr": { "type": ["integer", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "base": { "type": ["string", "null"] },
+        "trust_level": { "enum": ["maintainer", "member", "contributor", "fork"] },
+        "fetched_at": { "type": "string" }
+      }
+    },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/finding" }
+    }
+  },
+  "definitions": {
+    "finding": {
+      "type": "object",
+      "required": [
+        "id", "title", "body", "category", "severity", "priority",
+        "confidence", "component", "root_cause", "labels", "mentions", "source_ref"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string" },
+        "category": {
+          "enum": ["bug", "security", "performance", "tech-debt", "refactor", "feature-request", "documentation"]
+        },
+        "severity": { "enum": ["critical", "high", "medium", "low"] },
+        "priority": { "enum": ["critical", "high", "medium", "low"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "component": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "root_cause": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "symptom": { "type": ["string", "null"] },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "mentions": { "type": "array", "items": { "type": "string" } },
+        "source_ref": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

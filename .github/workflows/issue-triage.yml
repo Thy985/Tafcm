@@ -1,0 +1,227 @@
+# Issue Triage 工作流（ADR-0025 落地）
+#
+# D1: 权限分域（analyze 零写权；create 零 contents:write；history 走 Artifact workflow state）
+# D6: history 用 workflow artifact 而非 contents:write（run-to-run 共享去重记忆）
+# D10: concurrency 按 PR/branch 分组，避免同事件双触发
+#
+# 触发：
+#   - pull_request_review / pull_request_review_comment: 真事件
+#   - workflow_dispatch: 手动干跑（CI 守门、回归、应急演练）
+#
+# 产出（仅 create job 持有写权）：
+#   - 工件: issue-triage-context / issue-triage-findings / issue-triage-history / issue-triage-audit
+#   - 副作用: gh issue create / gh pr comment（dry_run=true 时零副作用）
+name: issue-triage
+
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'pr | branch'
+        type: choice
+        required: true
+        default: 'branch'
+      pr_number:
+        description: 'PR number (source=pr 时使用)'
+        type: string
+        required: false
+        default: ''
+      target_branch:
+        description: 'target branch (source=branch 时使用)'
+        type: string
+        required: false
+        default: ''
+      base_branch:
+        description: 'base branch (source=branch 时使用)'
+        type: string
+        required: false
+        default: 'main'
+      dry_run:
+        description: 'true|false；为 true 时 create job 零 GitHub 副作用（仅日志 + 工件）'
+        type: boolean
+        required: false
+        default: true
+
+# D10: concurrency 按 PR 或 ref 分组（不含 event_name），避免双事件并发跑两次 analyze
+concurrency:
+  group: issue-triage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+# workflow-level 最小权限；job-level 按需扩
+permissions:
+  contents: read
+
+jobs:
+  # ============ 提取：fetch_input.sh → context.md ============
+  extract:
+    name: extract (deterministic)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve PR / branch context
+        id: src
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PR: ${{ inputs.pr_number }}
+        run: |
+          # 真事件：直接取 event payload
+          if [ "$EVENT_NAME" = "pull_request_review" ] || [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
+            echo "type=$EVENT_NAME" >> "$GITHUB_OUTPUT"
+            echo "pr=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          elif [ "$INPUT_PR" != "" ]; then
+            # dispatch(source=pr)：手工指定 PR
+            echo "type=pull_request_review" >> "$GITHUB_OUTPUT"
+            echo "pr=$INPUT_PR" >> "$GITHUB_OUTPUT"
+          else
+            # dispatch(source=branch)：默认走 branch_scan
+            echo "type=branch_scan" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run extractor (Deterministic Extractor, ADR D2)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.src.outputs.pr }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+        run: bash .github/scripts/issue-triage/fetch_input.sh
+
+      - name: Verify context.md produced
+        run: 'test -s .tmp/issue-triage/context.md || { echo "FAIL: context.md empty"; exit 1; }'
+
+      - name: "Upload context.md (D6: cross-job transport)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-triage-context
+          path: .tmp/issue-triage/context.md
+          retention-days: 1
+          if-no-files-found: error
+
+  # ============ 分析：context.md → findings.json ============
+  # D1: analyze job 仅读，**无任何 ...: write**
+  analyze:
+    name: analyze (untrusted reasoner)
+    needs: extract
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Download context.md
+        uses: actions/download-artifact@v4
+        with:
+          name: issue-triage-context
+          path: .tmp/issue-triage/
+
+      - name: Run Claude Code analyze
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          prompt: |
+            你是 ADR-0025 定义的 Issue Triage Analyzer（Untrusted Reasoner）。
+            输入：.tmp/issue-triage/context.md
+            输出：findings.json（schema 参考 .github/schemas/findings.schema.json）
+            约束：
+              · category ∈ {bug, security, performance, tech-debt, refactor, feature-request, documentation}
+              · severity/priority ∈ {critical, high, medium, low}
+              · confidence ∈ [0, 1]
+              · component / root_cause 为非空 kebab-case
+              · labels / mentions 为数组；labels 仅允许 ADR §白名单枚举
+              · source_ref 必填且格式为「PR #N · file:line」或「sha · file:line」或「PR #N」
+              · fingerprint 由执行器计算，**不**要输出 fingerprint 字段
+              · 输出 JSON-only，**不**写任何仓库文件，**不**发任何评论
+              · 若 trust_level=fork，强制 confidence 上限 0.6（即便模型自评更高也要降级）
+          claude_args: |
+            --model claude-sonnet-4-5
+            --allowedTools ""
+          output_file: findings.json
+
+      - name: Verify findings.json
+        run: 'test -s findings.json || { echo "FAIL: findings.json empty"; exit 1; }'
+
+      - name: Schema validation (D7, fail-fast)
+        run: |
+          python .github/scripts/issue-triage/validate_findings.py \
+            findings.json \
+            .github/schemas/findings.schema.json
+
+      - name: Upload findings.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-triage-findings
+          path: findings.json
+          retention-days: 90
+          if-no-files-found: error
+
+  # ============ 执行：findings.json → Issue / 评论 ============
+  # D1 + D6: create job 零 contents:write；history 走 artifact workflow state
+  create:
+    name: create (trusted executor)
+    needs: analyze
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read                # 零 contents:write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download findings.json
+        uses: actions/download-artifact@v4
+        with:
+          name: issue-triage-findings
+          path: .tmp/issue-triage/
+
+      - name: Download history artifact (D6, 首次运行可能缺失)
+        uses: actions/download-artifact@v4
+        with:
+          name: issue-triage-history
+          path: .tmp/issue-triage/
+        continue-on-error: true
+
+      - name: Re-validate findings.json at executor boundary (D7)
+        run: |
+          python .github/scripts/issue-triage/validate_findings.py \
+            .tmp/issue-triage/findings.json \
+            .github/schemas/findings.schema.json
+
+      - name: Run executor (Trusted Executor, D4/D5/D6/D7)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+          HIGH_THRESHOLD: '0.8'
+          MED_THRESHOLD: '0.5'
+          REPO: ${{ github.repository }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          bash .github/scripts/issue-triage/create_issues.sh
+
+      - name: Upload history artifact (D6, 90d retention)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-triage-history
+          path: .tmp/issue-triage/history.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload audit log (findings + history)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-triage-audit
+          path: |
+            .tmp/issue-triage/findings.json
+            .tmp/issue-triage/history.json
+          retention-days: 90
+          if-no-files-found: warn
