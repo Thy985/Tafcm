@@ -122,7 +122,7 @@ jobs:
           path: .tmp/issue-triage/
 
       # D9: Anthropic 推理层配置与 claude-review.yml 对齐（同一 minimaxi 代理 + DEEPSEEK_API_KEY）
-      #     模型使用 deepseek-v4-flash（与 claude-review 一致），analyze 仅读、无写权
+      #     模型使用 MiniMax-M3，analyze 仅读、无写权
       - name: Run Claude Code analyze
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -154,7 +154,7 @@ jobs:
               · 输出 JSON-only，**不**写任何仓库文件，**不**发任何评论
               · 若 trust_level=fork，强制 confidence 上限 0.6（即便模型自评更高也要降级）
           claude_args: |
-            --model deepseek-v4-flash
+            --model MiniMax-M3
             --allowedTools "Read,Glob,Grep,Write"
           output_file: findings.json
 
