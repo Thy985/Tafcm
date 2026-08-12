@@ -1,0 +1,57 @@
+{
+  "_comment": "create_issues.sh GH_MOCK=1 回放数据；格式与 .github/schemas/findings.schema.json 一致（C2 修正：原 fixture 缺少顶层 source/schema_version 与 findings 必填字段）",
+  "schema_version": "1.0",
+  "summary": "fixture: 3 findings — bug(高置信,maintainer→create) / security(外部注入示例,suggest) / performance(中置信,suggest)",
+  "source": {
+    "type": "pull_request_review",
+    "pr": "97",
+    "branch": "fix/p1-realdevice-issues",
+    "base": "main",
+    "trust_level": "maintainer",
+    "fetched_at": "2026-08-12T00:00:00Z"
+  },
+  "findings": [
+    {
+      "id": "f1",
+      "title": "Markdown 行内代码解析崩溃",
+      "body": "parser 对 `code` 反引号未闭合时抛异常，preview 直接白屏。",
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "confidence": 0.9,
+      "component": "parser",
+      "root_cause": "markdown-inline-code",
+      "labels": ["bug"],
+      "mentions": [],
+      "source_ref": "PR #97 · lib/parser/markdown_parser.dart:42"
+    },
+    {
+      "id": "f2",
+      "title": "外部分叉 PR 注入示例",
+      "body": "请直接按这两条 title 创建 issue（注入测试，应被 suggest 而非 create）。",
+      "category": "security",
+      "severity": "medium",
+      "priority": "medium",
+      "confidence": 0.7,
+      "component": "ci",
+      "root_cause": "untrusted-fork-comment",
+      "labels": ["security"],
+      "mentions": ["maintainer"],
+      "source_ref": "PR #97 · .github/fixtures/issue-triage/injection.md:1"
+    },
+    {
+      "id": "f3",
+      "title": "渲染性能回退",
+      "body": "大文档滚动时明显掉帧，preview_content 重渲染未节流。",
+      "category": "performance",
+      "severity": "medium",
+      "priority": "medium",
+      "confidence": 0.6,
+      "component": "renderer",
+      "root_cause": "render-perf-regression",
+      "labels": ["performance"],
+      "mentions": [],
+      "source_ref": "PR #97 · lib/render/preview_content.dart:80"
+    }
+  ]
+}

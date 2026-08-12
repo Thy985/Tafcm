@@ -336,3 +336,19 @@ jobs:
         with:
           name: web-build
           path: flutter_app/build/web/
+
+  # Issue Triage 工作流架构守门（ADR-0025 D1/D6/D10）
+  # 拦截方式：任何 issue-triage.yml 的权限/依赖/并发结构越界都让 CI 失败。
+  # 不依赖 Flutter runtime，python3 stdlib + 正则即可。
+  issue-triage-architecture:
+    name: Issue Triage Architecture Test (ADR-0025)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify issue-triage.yml present
+        run: 'test -f .github/workflows/issue-triage.yml || { echo "FAIL: issue-triage.yml missing"; exit 1; }'
+
+      - name: Run architecture invariants check
+        run: python3 .github/scripts/issue-triage/architecture_test.py
