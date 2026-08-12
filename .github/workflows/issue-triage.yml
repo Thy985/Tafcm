@@ -121,11 +121,14 @@ jobs:
           name: issue-triage-context
           path: .tmp/issue-triage/
 
+      # D9: Anthropic 推理层配置与 claude-review.yml 对齐（同一 minimaxi 代理 + DEEPSEEK_API_KEY）
+      #     模型使用 MiniMax-M3，analyze 仅读、无写权
       - name: Run Claude Code analyze
         id: claude
         uses: anthropics/claude-code-action@v1
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: "https://api.minimaxi.com/anthropic"
+          ANTHROPIC_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         with:
           prompt: |
             你是 ADR-0025 定义的 Issue Triage Analyzer（Untrusted Reasoner）。
@@ -151,7 +154,7 @@ jobs:
               · 输出 JSON-only，**不**写任何仓库文件，**不**发任何评论
               · 若 trust_level=fork，强制 confidence 上限 0.6（即便模型自评更高也要降级）
           claude_args: |
-            --model claude-sonnet-4-5
+            --model MiniMax-M3
             --allowedTools "Read,Glob,Grep,Write"
           output_file: findings.json
 
@@ -205,10 +208,12 @@ jobs:
             .tmp/issue-triage/findings.json \
             .github/schemas/findings.schema.json
 
+      # D1: 真事件（pull_request_review*）自动执行（DRY_RUN=false）；
+      #     手动 workflow_dispatch 默认 dry-run（inputs.dry_run 默认 true），需显式 false 才落库
       - name: Run executor (Trusted Executor, D4/D5/D6/D7)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run || 'true') || 'false' }}
           HIGH_THRESHOLD: '0.8'
           MED_THRESHOLD: '0.5'
           REPO: ${{ github.repository }}
