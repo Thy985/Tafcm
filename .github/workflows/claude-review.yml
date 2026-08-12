@@ -62,19 +62,19 @@ jobs:
           if [ "$TOTAL" -le 30 ] && [ "$FILES" -le 3 ]; then
             echo "level=0" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 0 快速检查" >> "$GITHUB_OUTPUT"
-            echo "max_turns=10" >> "$GITHUB_OUTPUT"
+            echo "max_turns=30" >> "$GITHUB_OUTPUT"
           elif [ "$TOTAL" -le 300 ] && [ "$FILES" -le 15 ]; then
             echo "level=1" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 1 普通代码 Review" >> "$GITHUB_OUTPUT"
-            echo "max_turns=20" >> "$GITHUB_OUTPUT"
+            echo "max_turns=50" >> "$GITHUB_OUTPUT"
           elif [ "$TOTAL" -le 1000 ] && [ "$FILES" -le 30 ]; then
             echo "level=2" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 2 设计 Review" >> "$GITHUB_OUTPUT"
-            echo "max_turns=30" >> "$GITHUB_OUTPUT"
+            echo "max_turns=60" >> "$GITHUB_OUTPUT"
           else
             echo "level=3" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 3 架构 Review" >> "$GITHUB_OUTPUT"
-            echo "max_turns=40" >> "$GITHUB_OUTPUT"
+            echo "max_turns=70" >> "$GITHUB_OUTPUT"
           fi
 
           echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(cat "$GITHUB_OUTPUT" | grep level_name | cut -d= -f2)"
