@@ -3,6 +3,9 @@
 
 不变量：
   1. analyze job 权限块不得包含任何 ': write' 字符串（ADR D1：零写权）
+     — 唯一例外：id-token: write（OIDC 身份令牌授予，用于 claude-code-action
+       向 LLM 代理换取短时鉴权 JWT；它不授予对 repo/issues/PR 的任何写能力，
+       与 ADR D1「推理器零写权」的安全语义正交，故显式放行）
   2. create job 权限块不得包含 'contents: write'（ADR D1：仓库文件零写入）
      — 允许 issues: write / pull-requests: write（ADR D1 显式授予）
   3. workflow-level permissions 块不得含 ': write'（除白名单字段）
@@ -20,6 +23,10 @@ YML_PATH = Path(".github/workflows/issue-triage.yml")
 
 # create job 允许的写权限白名单（ADR D1 显式授权）
 CREATE_JOB_ALLOWED_WRITES = frozenset({"issues", "pull-requests"})
+
+# analyze job 允许的写权限白名单：id-token 是 OIDC 身份令牌授予，
+# 非仓库/issue/PR 写权，不违反 ADR D1「推理器零写权」语义，故放行。
+ANALYZE_JOB_ALLOWED_WRITES = frozenset({"id-token"})
 
 
 def _read() -> str:
@@ -124,7 +131,10 @@ def main() -> int:
     if analyze_block is None:
         errs.append("FAIL: missing analyze job block")
     else:
-        errs.extend(check_no_write(analyze_block, "analyze"))
+        errs.extend(check_no_write(
+            analyze_block, "analyze",
+            allowed=ANALYZE_JOB_ALLOWED_WRITES,
+        ))
 
     # create job：允许 issues: write + pull-requests: write，
     # 禁止 contents: write 与其他
