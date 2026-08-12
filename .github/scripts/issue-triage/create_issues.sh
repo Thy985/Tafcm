@@ -204,9 +204,7 @@ CC: $(printf '%s\n' $MENTIONS | sed 's/^/@/' | tr '\n' ' ' | sed 's/ $//')"
         log "  [dry/mock] 将创建 Issue: $title  (label=$label, conf=$conf)"
         ISSUE_ID="MOCK-$i"
       else
-        local _url
-        _url="$(gh issue create -R "$REPO" --title "$title" --body "$ISSUE_BODY" --label "$label")"
-        ISSUE_ID="$(printf '%s' "$_url" | grep -oE '[0-9]+$')"
+        ISSUE_ID="$(gh issue create -R "$REPO" --title "$title" --body "$ISSUE_BODY" --label "$label" | grep -oE '[0-9]+$')"
         log "  ✓ 已创建 Issue #$ISSUE_ID: $title"
       fi
       CREATED=$((CREATED+1))
