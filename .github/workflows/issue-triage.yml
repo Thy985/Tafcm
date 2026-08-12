@@ -26,6 +26,9 @@ on:
         type: choice
         required: true
         default: 'branch'
+        options:
+          - pr
+          - branch
       pr_number:
         description: 'PR number (source=pr 时使用)'
         type: string
@@ -115,6 +118,9 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download context.md
         uses: actions/download-artifact@v4
         with:
@@ -151,12 +157,11 @@ jobs:
               · labels 仅允许 ADR §D4 白名单枚举；mentions 仅候选（执行器按白名单过滤）
               · source_ref 必填且格式为「PR #N · file:line」或「sha · file:line」或「PR #N」
               · fingerprint 由执行器计算，**不**要输出 fingerprint 字段
-              · 输出 JSON-only，**不**写任何仓库文件，**不**发任何评论
+              · 输出 JSON-only，将结果写入 `findings.json`（仅此一个文件，置于工作区根目录），**不**发任何评论
               · 若 trust_level=fork，强制 confidence 上限 0.6（即便模型自评更高也要降级）
           claude_args: |
             --model MiniMax-M3
             --allowedTools "Read,Glob,Grep,Write"
-          output_file: findings.json
 
       - name: Verify findings.json
         run: 'test -s findings.json || { echo "FAIL: findings.json empty"; exit 1; }'
