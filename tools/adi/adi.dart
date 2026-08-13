@@ -203,8 +203,10 @@ void _cmdTrace(List<String> rest, bool json) {
                 'layer': s['layer'],
                 'description': s['description'],
                 'spanId': s['spanId'],
+                'parent': s['parent'],
               })
           .toList(),
+      'causality': _traceCausality(spans),
     }));
   } else {
     final spans = (trace['spans'] as List? ?? [])
@@ -221,7 +223,65 @@ void _cmdTrace(List<String> rest, bool json) {
       print('  $layer ${s["description"]}');
       if (i < spans.length - 1) print('      ↓');
     }
+    final caus = _traceCausality(spans);
+    final valid = caus['valid'] == true;
+    print('  Causality: ${valid ? "VALID" : "INVALID"} '
+        '(root=${caus['rootSpanId']}, failure=${caus['failureSpanId']}, '
+        'reachable=${caus['reachable']}, orphans=${caus['orphanSpanIds']})');
   }
+}
+
+/// Trace Causality Integrity (revised AS-R1.5): a trace is causally sound iff
+/// it has a single root span (no parent), a failure/terminal span reachable
+/// from the root by following `parent` pointers, and no orphan spans (a span
+/// whose `parent` does not exist). This validates *causality*, not *shape* — a
+/// trace with 3 spans or 6 spans is fine as long as the causal chain holds.
+Map<String, Object?> _traceCausality(List<Map<String, Object?>> spans) {
+  final byId = <String?, Map<String, Object?>>{};
+  for (final s in spans) byId[s['spanId'] as String?] = s;
+
+  String? rootId;
+  for (final s in spans) {
+    if (s['parent'] == null) rootId ??= s['spanId'] as String?;
+  }
+
+  String? failureId;
+  for (final s in spans) {
+    if ((s['layer'] as String? ?? '') == 'error') {
+      failureId ??= s['spanId'] as String?;
+    }
+  }
+  failureId ??= spans.isNotEmpty ? spans.last['spanId'] as String? : null;
+
+  var reachable = false;
+  if (rootId != null && failureId != null) {
+    String? cur = failureId;
+    final seen = <String?>{};
+    while (cur != null && !seen.contains(cur)) {
+      seen.add(cur);
+      if (cur == rootId) {
+        reachable = true;
+        break;
+      }
+      cur = byId[cur]?['parent'] as String?;
+    }
+  }
+
+  final orphanIds = <String>[];
+  for (final s in spans) {
+    final p = s['parent'];
+    if (p != null && !byId.containsKey(p)) {
+      orphanIds.add(s['spanId'] as String);
+    }
+  }
+
+  return {
+    'rootSpanId': rootId,
+    'failureSpanId': failureId,
+    'reachable': reachable,
+    'orphanSpanIds': orphanIds,
+    'valid': rootId != null && failureId != null && reachable && orphanIds.isEmpty,
+  };
 }
 
 void _cmdReplay(List<String> rest, bool json) {

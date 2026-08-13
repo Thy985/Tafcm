@@ -186,19 +186,30 @@ Map<String, Object?> transformTrace(
   Map<String, Object?>? snapshot,
 ) {
   final spans = <Map<String, Object?>>[];
-  _appendSpans(spans, trace['interactions'] as List?, 'interaction');
-  _appendSpans(spans, trace['commands'] as List?, 'command');
-  _appendSpans(spans, trace['transactions'] as List?, 'transaction');
-  _appendSpans(spans, trace['renders'] as List?, 'render');
+  // Link every span to its predecessor so the causal chain
+  // interaction -> command -> transaction -> render -> error is explicit.
+  // The first span has `parent: null` (root); the error span closes the chain.
+  String? prevSpanId;
+  void link(Map<String, Object?> span) {
+    span['parent'] = prevSpanId;
+    prevSpanId = span['spanId'] as String?;
+  }
+
+  _appendSpans(spans, trace['interactions'] as List?, 'interaction', link);
+  _appendSpans(spans, trace['commands'] as List?, 'command', link);
+  _appendSpans(spans, trace['transactions'] as List?, 'transaction', link);
+  _appendSpans(spans, trace['renders'] as List?, 'render', link);
   if (snapshot != null) {
     final rawType = (snapshot['type'] as String?) ?? 'GlobalError';
     final message = (snapshot['message'] as String?) ?? '';
-    spans.add({
+    final errorSpan = <String, Object?>{
       'layer': 'error',
       'spanId': 'error_0',
       'description': _describeError(rawType, message),
       'seq': spans.length,
-    });
+    };
+    link(errorSpan);
+    spans.add(errorSpan);
   }
   return {
     'sessionId': sessionId,
@@ -211,16 +222,19 @@ void _appendSpans(
   List<Map<String, Object?>> spans,
   List<dynamic>? items,
   String layer,
+  void Function(Map<String, Object?>) onAdd,
 ) {
   if (items == null) return;
   for (var i = 0; i < items.length; i++) {
     final item = items[i] as Map<String, Object?>;
-    spans.add({
+    final span = <String, Object?>{
       'layer': layer,
       'spanId': '${layer}_$i',
       'description': _describeLayer(layer, item),
       'seq': spans.length,
-    });
+    };
+    onAdd(span);
+    spans.add(span);
   }
 }
 
