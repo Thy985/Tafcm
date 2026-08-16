@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
+import 'package:formula_fix/core/observability/adi_replay_adapter.dart';
 import 'package:formula_fix/core/observability/adi_storage.dart';
 import 'package:formula_fix/core/observability/fault_injection.dart';
 import 'package:formula_fix/core/observability/models.dart' as obs;
@@ -26,9 +27,11 @@ import 'package:formula_fix/core/observability/observability_service.dart';
 import 'package:formula_fix/core/observability/trace_context.dart';
 import 'package:formula_fix/data/models/document.dart';
 import 'package:formula_fix/presentation/blocks/code/code_block.dart';
+import 'package:formula_fix/presentation/commands/command_handler.dart';
 import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
 import 'package:formula_fix/presentation/editor/editor_scope.dart';
 import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
+import 'package:formula_fix/presentation/observability/command_replayer.dart';
 import 'package:formula_fix/presentation/states/block_view_state.dart';
 import 'package:formula_fix/presentation/themes/editor_tokens.dart';
 import 'package:integration_test/integration_test.dart';
@@ -162,6 +165,19 @@ void main() {
     expect((exported['transactions'] as List).isNotEmpty, isTrue);
     expect((exported['renders'] as List).isNotEmpty, isTrue,
         reason: 'CodeBlock must have recorded a render span before overflow');
+
+    // 9.5. AS-RG.1：真机采集侧运行 ReplayEngine 并缓存 replay 结果，
+    //      使导出 zip 携带 replay 证据（replay.json + commands.jsonl），
+    //      否则 CLI 侧 `adi replay` 永远是 inconclusive（无法 reproduced）。
+    final replayHandler = CommandHandler(editor: editor, history: EditorHistory());
+    final replayResult = AdiReplayAdapterImpl(
+      service,
+      () => CommandReplayer(handler: replayHandler, events: const []),
+    ).replay(service.sessionId);
+    expect(replayResult.commandsExecuted, greaterThan(0),
+        reason: 'AS-RG.1: replay must execute the recorded command');
+    expect(service.lastReplayResult, isNotNull,
+        reason: 'AS-RG.1: replay result must be cached for zip export');
 
     // 10. Export the diagnostic zip on-device; log the path so it can be
     //     `adb pull`-ed and fed to the ADI CLI (`adi import <zip>`).

@@ -80,9 +80,22 @@ Future<void> importExport(String sourcePath, {String? outputDir}) async {
     if (metadata != null) {
       _atomicWrite('${sessionDir.path}/metadata.json', metadata);
     }
-    // NOTE: replay.json is intentionally NOT synthesized. A real-device
-    // export carries no replay evidence, so `adi validate` must resolve to
-    // `inconclusive` rather than a false `pass`.
+
+    // AS-RG.1：透传 App 端实际运行的 Replay 证据（若有）。
+    // - commands.jsonl：ExportPipeline 录制的 replay 序列（仅当命令被记录）。
+    // - replay.json：App 端运行 ReplayEngine 后缓存的结果（仅当 replay 已跑）。
+    // 透传而非合成：zip 无 replay 证据时保持 `inconclusive` 安全网，
+    // 绝不伪造 pass（见 transformInvariant 的 note）。
+    final replaySeq = File('${srcDir.path}/commands.jsonl');
+    if (replaySeq.existsSync()) {
+      final target = File('${sessionDir.path}/commands.jsonl')
+        ..createSync(recursive: true);
+      target.writeAsStringSync(replaySeq.readAsStringSync());
+    }
+    final replayResult = _readJson('${srcDir.path}/replay.json');
+    if (replayResult != null) {
+      _atomicWrite('${sessionDir.path}/replay.json', replayResult);
+    }
   }
 }
 

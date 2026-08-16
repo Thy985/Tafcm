@@ -599,6 +599,24 @@ class ObservabilityService {
 
   // ============ Command Replay（§3.7.4） ============
 
+  /// 最近一次 Replay 运行结果（AS-RG.1 缺口补齐）。
+  ///
+  /// App 端运行 ReplayEngine 后经 [cacheReplayResult] 缓存；
+  /// [ExportPipeline] 导出 zip 时写入 `replay.json`，供 `adi import` 透传。
+  /// 未运行过 replay 时为 null（CLI 侧保持 `inconclusive` 安全网）。
+  Map<String, Object?>? _lastReplayResult;
+
+  /// 最近一次 Replay 运行结果（JSON 兼容 Map），无则为 null。
+  Map<String, Object?>? get lastReplayResult => _lastReplayResult;
+
+  /// 缓存 Replay 运行结果。
+  ///
+  /// 供 App 端（真机测试 / replay adapter 调用方）在跑完 ReplayEngine 后调用，
+  /// 使导出 zip 携带 replay 证据（AS-RG.1）。
+  void cacheReplayResult(Map<String, Object?> result) {
+    _lastReplayResult = result;
+  }
+
   /// 导出 Command 事件流（用于 Replay）。
   ///
   /// 返回 [ReplayCommandEvent] 列表，可序列化为 JSON 供

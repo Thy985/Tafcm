@@ -31,6 +31,17 @@ class AdiReplayAdapterImpl implements AdiReplayAdapter {
 
   @override
   AdiReplayResultView replay(String sessionId) {
+    final view = _runReplay(sessionId);
+
+    // AS-RG.1：replay 结果自动缓存到 service，ExportPipeline 导出 zip 时
+    // 会写入 replay.json，供 `adi import` 透传（CLI 侧不再永远是 inconclusive）。
+    _service.cacheReplayResult(view.toJson());
+
+    return view;
+  }
+
+  /// 执行重放并产出 [AdiReplayResultView]。
+  AdiReplayResultView _runReplay(String sessionId) {
     final events = _service.exportCommandStream();
     if (events.isEmpty) {
       return AdiReplayResultView(
