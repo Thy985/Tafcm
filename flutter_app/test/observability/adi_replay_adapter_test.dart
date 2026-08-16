@@ -73,6 +73,28 @@ void main() {
 
       expect(result.resultTraceId.startsWith('replay_'), isTrue);
     });
+
+    test('AS-RG.1：replay 结果自动缓存到 service（供 zip 导出携带 replay.json）', () {
+      service.recordCommand(CommandTraceEntry(
+        commandName: 'InsertTextCommand',
+        params: {'blockId': 'b1', 'text': 'hello'},
+        origin: CommandOrigin.keyboard,
+        timestamp: DateTime(2026, 8, 11),
+        succeeded: true,
+        beforeStateHash: 'hash_before',
+        afterStateHash: 'hash_after',
+      ));
+
+      final adapter = AdiReplayAdapterImpl(service, _successExecutorFactory);
+      final result = adapter.replay(service.sessionId);
+
+      // AS-RG.1：replay 完成后 service.lastReplayResult 必须被填充，
+      // ExportPipeline.export() 据此写入 zip 的 replay.json。
+      final cached = service.lastReplayResult;
+      expect(cached, isNotNull);
+      expect(cached!['status'], result.status.name);
+      expect(cached['commandsExecuted'], result.commandsExecuted);
+    });
   });
 }
 

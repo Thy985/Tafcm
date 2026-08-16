@@ -80,9 +80,22 @@ Future<void> importExport(String sourcePath, {String? outputDir}) async {
     if (metadata != null) {
       _atomicWrite('${sessionDir.path}/metadata.json', metadata);
     }
-    // NOTE: replay.json is intentionally NOT synthesized. A real-device
-    // export carries no replay evidence, so `adi validate` must resolve to
-    // `inconclusive` rather than a false `pass`.
+
+    // AS-RG.1：透传 App 端实际运行的 Replay 证据（若有）。
+    // - commands.jsonl：ExportPipeline 录制的 replay 序列（仅当命令被记录）。
+    // - replay.json：App 端运行 ReplayEngine 后缓存的结果（仅当 replay 已跑）。
+    // 透传而非合成：zip 无 replay 证据时保持 `inconclusive` 安全网，
+    // 绝不伪造 pass（见 transformInvariant 的 note）。
+    final replaySeq = File('${srcDir.path}/commands.jsonl');
+    if (replaySeq.existsSync()) {
+      final target = File('${sessionDir.path}/commands.jsonl')
+        ..createSync(recursive: true);
+      target.writeAsStringSync(replaySeq.readAsStringSync());
+    }
+    final replayResult = _readJson('${srcDir.path}/replay.json');
+    if (replayResult != null) {
+      _atomicWrite('${sessionDir.path}/replay.json', replayResult);
+    }
   }
 }
 
@@ -186,19 +199,30 @@ Map<String, Object?> transformTrace(
   Map<String, Object?>? snapshot,
 ) {
   final spans = <Map<String, Object?>>[];
-  _appendSpans(spans, trace['interactions'] as List?, 'interaction');
-  _appendSpans(spans, trace['commands'] as List?, 'command');
-  _appendSpans(spans, trace['transactions'] as List?, 'transaction');
-  _appendSpans(spans, trace['renders'] as List?, 'render');
+  // Link every span to its predecessor so the causal chain
+  // interaction -> command -> transaction -> render -> error is explicit.
+  // The first span has `parent: null` (root); the error span closes the chain.
+  String? prevSpanId;
+  void link(Map<String, Object?> span) {
+    span['parent'] = prevSpanId;
+    prevSpanId = span['spanId'] as String?;
+  }
+
+  _appendSpans(spans, trace['interactions'] as List?, 'interaction', link);
+  _appendSpans(spans, trace['commands'] as List?, 'command', link);
+  _appendSpans(spans, trace['transactions'] as List?, 'transaction', link);
+  _appendSpans(spans, trace['renders'] as List?, 'render', link);
   if (snapshot != null) {
     final rawType = (snapshot['type'] as String?) ?? 'GlobalError';
     final message = (snapshot['message'] as String?) ?? '';
-    spans.add({
+    final errorSpan = <String, Object?>{
       'layer': 'error',
       'spanId': 'error_0',
       'description': _describeError(rawType, message),
       'seq': spans.length,
-    });
+    };
+    link(errorSpan);
+    spans.add(errorSpan);
   }
   return {
     'sessionId': sessionId,
@@ -211,16 +235,19 @@ void _appendSpans(
   List<Map<String, Object?>> spans,
   List<dynamic>? items,
   String layer,
+  void Function(Map<String, Object?>) onAdd,
 ) {
   if (items == null) return;
   for (var i = 0; i < items.length; i++) {
     final item = items[i] as Map<String, Object?>;
-    spans.add({
+    final span = <String, Object?>{
       'layer': layer,
       'spanId': '${layer}_$i',
       'description': _describeLayer(layer, item),
       'seq': spans.length,
-    });
+    };
+    onAdd(span);
+    spans.add(span);
   }
 }
 

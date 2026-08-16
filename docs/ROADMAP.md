@@ -643,7 +643,7 @@ FormulaFix 当前状态：
 | 3.8.2 | **v0.1.1 工程化收尾**：`.adi/` Storage 完整实现 + `schema_version` + 架构守门 + `.gitignore` + LIGHT 隐私守门 + 6 个测试文件 | P0 | ✅ PR #134 |
 | 3.8.3 | **v0.2 验证闭环**：`adi validate --after-fix`（Replay + Invariant）+ `adi failures list`（index.json 索引）+ 保留窗口清理 | P1 | ✅ PR #134 |
 | 3.8.4 | **v0.3 Change Impact Analysis** | P2 | ⏳ 拆为独立 ADR-0026 |
-| 3.8.5 | **真机闭环验证**：真机 APK 采集 + `adi replay` reproduced + `adi validate --after-fix` pass（见 ADR-0024 §9 E2E-ADI-005） | P0 | ⏳ 待执行 |
+| 3.8.5 | **真机闭环验证**：真机 APK 采集 + `adi replay` reproduced + `adi validate --after-fix` pass（见 ADR-0024 §9 E2E-ADI-005） | P0 | 🟡 首次执行：v0.1 标准 5 步全 PASS；v0.2 `replay→reproduced` 受 AS-RG.1（replay 证据录制）阻塞，安全网行为验证正确。详见 [E2E-ADI-005 真机闭环验证报告](file:///d:/Projects/Active/math2/docs/releases/adi-e2e-005-realdevice-verification-report.md) |
 
 ### 退出条件
 

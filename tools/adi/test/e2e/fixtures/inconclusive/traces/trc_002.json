@@ -1,8 +1,8 @@
 {
   "sessionId": "sess_B",
   "spans": [
-    {"layer": "interaction", "spanId": "sp_1", "description": "User typed '- [ ] todo'"},
-    {"layer": "render", "spanId": "sp_2", "description": "RenderLine measured width 466 > bounds 400"},
-    {"layer": "error", "spanId": "sp_3", "description": "RenderOverflow overflow=66px on right"}
+    {"layer": "interaction", "spanId": "sp_1", "parent": null, "description": "User typed '- [ ] todo'"},
+    {"layer": "render", "spanId": "sp_2", "parent": "sp_1", "description": "RenderLine measured width 466 > bounds 400"},
+    {"layer": "error", "spanId": "sp_3", "parent": "sp_2", "description": "RenderOverflow overflow=66px on right"}
   ]
 }

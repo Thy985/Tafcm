@@ -1,10 +1,10 @@
 {
   "sessionId": "sess_A",
   "spans": [
-    {"layer": "interaction", "spanId": "sp_1", "description": "User typed '- [ ] todo' at block 3"},
-    {"layer": "command", "spanId": "sp_2", "description": "InsertBlockCommand(blockId=3)"},
-    {"layer": "transaction", "spanId": "sp_3", "description": "commit BlockInsert transaction"},
-    {"layer": "render", "spanId": "sp_4", "description": "RenderLine measured width 466 > bounds 400"},
-    {"layer": "error", "spanId": "sp_5", "description": "RenderOverflow overflow=66px on right"}
+    {"layer": "interaction", "spanId": "sp_1", "parent": null, "description": "User typed '- [ ] todo' at block 3"},
+    {"layer": "command", "spanId": "sp_2", "parent": "sp_1", "description": "InsertBlockCommand(blockId=3)"},
+    {"layer": "transaction", "spanId": "sp_3", "parent": "sp_2", "description": "commit BlockInsert transaction"},
+    {"layer": "render", "spanId": "sp_4", "parent": "sp_3", "description": "RenderLine measured width 466 > bounds 400"},
+    {"layer": "error", "spanId": "sp_5", "parent": "sp_4", "description": "RenderOverflow overflow=66px on right"}
   ]
 }

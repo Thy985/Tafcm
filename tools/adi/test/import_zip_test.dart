@@ -231,6 +231,35 @@ void main() {
           .length;
       expect(count, 1); // err_x.json single entry
     });
+
+    test('AS-RG.1：zip 含 replay 证据时透传 commands.jsonl + replay.json', () async {
+      // ExportPipeline（AS-RG.1 后）会在 zip 中携带 replay 序列与 App 端结果。
+      _write(src.path, 'commands.jsonl',
+          {'_placeholder': true}); // overwritten below as raw text
+      File('${src.path}/commands.jsonl').writeAsStringSync(
+        '{"commandName":"InsertTextCommand","params":{"blockId":"b1","text":"hello"},"origin":"keyboard","beforeStateHash":"hb","afterStateHash":"ha"}\n',
+      );
+      _write(src.path, 'replay.json', {
+        'status': 'reproduced',
+        'commandsExecuted': 1,
+        'failedAt': 'step 0: InsertTextCommand',
+      });
+
+      await importExport(src.path, outputDir: out.path);
+
+      final adi = Directory('${out.path}/.adi');
+      // 透传：App 端实际运行的 replay 结果落到 session 目录，CLI `adi replay`
+      // 可读到 reproduced（不再是 inconclusive）。
+      final replay = _read('${adi.path}/sessions/sess_6b62/replay.json');
+      expect(replay['status'], 'reproduced');
+      expect(replay['commandsExecuted'], 1);
+
+      // 透传：replay 序列原样保留供诊断/复现。
+      final seq = File('${adi.path}/sessions/sess_6b62/commands.jsonl')
+          .readAsStringSync();
+      expect(seq, contains('InsertTextCommand'));
+      expect(seq, contains('"afterStateHash":"ha"'));
+    });
   });
 }
 

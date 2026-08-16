@@ -65,6 +65,26 @@ class ExportPipeline {
       final invariantReport = _buildInvariantReport();
       _addJsonFile(archive, 'invariant_report.json', encoder, invariantReport);
 
+      // commands.jsonl — Replay 序列（AS-RG.1：真机采集同步录制）
+      final replayEvents = _service.exportCommandStream();
+      if (replayEvents.isNotEmpty) {
+        final jsonl = replayEvents
+            .map((e) => jsonEncode(e.toJson()))
+            .join('\n');
+        archive.addFile(ArchiveFile(
+          'commands.jsonl',
+          utf8.encode(jsonl).length,
+          utf8.encode(jsonl),
+        ));
+      }
+
+      // replay.json — App 端实际运行的 Replay 结果（若有缓存）
+      // AS-RG.1：使 `adi import` 可透传 replay 证据，reproduced 才成立。
+      final replayResult = _service.lastReplayResult;
+      if (replayResult != null) {
+        _addJsonFile(archive, 'replay.json', encoder, replayResult);
+      }
+
       // README.txt
       archive.addFile(ArchiveFile(
         'README.txt',
@@ -322,7 +342,9 @@ class ExportPipeline {
         '  metadata.json           - App version, device, OS, session info\n'
         '  trace.json              - Interaction + Command + Transaction + Render traces\n'
         '  snapshot.json           - Error snapshot (if any)\n'
-        '  invariant_report.json   - Invariant checker results\n\n'
+        '  invariant_report.json   - Invariant checker results\n'
+        '  commands.jsonl          - Replay sequence (AS-RG.1, if commands recorded)\n'
+        '  replay.json             - App-side replay result (if replay was run)\n\n'
         'For analysis:\n'
         '  python tools/ffx-analyze/analyze.py this_file.zip\n';
   }
