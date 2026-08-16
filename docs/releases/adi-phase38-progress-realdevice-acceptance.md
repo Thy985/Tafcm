@@ -30,7 +30,7 @@
 | **E2E-001~004 离线套件** | ✅ **已实现且 PASS** | 15 个提交测试全绿（与 ADR §9.7 的 "✅" 一致，初版误判为矛盾） |
 | **MCP wrapper（Agent 消费端）** | ✅ **本轮补齐** | 新增 `tools/adi/mcp_server.dart`（stdio JSON-RPC，复用同一套 CLI 命令） |
 | **Trace Causality Integrity（AS-R1.5）** | ✅ **本轮补齐** | 为 trace 注入因果 `parent` 链 + `causality` 校验对象；新增 4 个 causality 测试 |
-| **E2E-ADI-005 真机闭环验证** | ⏳ 待执行 | 代码前提已具备；真机设备/构建需另行安排 |
+| **E2E-ADI-005 真机闭环验证** | 🟡 **首次执行：v0.1 全过，v0.2 受 AS-RG.1 阻塞** | 2026-08-16 真机（Xiaomi 24117RK2CC / Android 16）执行：v0.1 标准 5 步全 PASS（zip 采集→import→latest-error→6 层链路）；v0.2 `replay→reproduced` 受 replay 证据缺口阻塞（安全网 `validate→inconclusive` 行为验证正确）。详见 [E2E-ADI-005 真机闭环验证报告](./adi-e2e-005-realdevice-verification-report.md) |
 | **本地 Dart 工具链环境** | ❌ **存在系统性故障** | `dart`/`flutter` wrapper 崩溃、telemetry 写拒、`.dart_tool` 锁文件、temp `.dill` 被拦。详见 §9 |
 
 **一句话结论**：ADI 交付物（CLI + import_zip + MCP + E2E-001~004 + Trace Causality）现已完整且测试全绿；当前真正的阻塞不是"ADI 是否存在"，而是 **(a) 本地环境变量身环境故障需治理，(b) E2E-ADI-005 真机执行尚未排期**。
