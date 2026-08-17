@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+testpaths = ["cli_anything/ffx/tests"]
+python_files = ["test_*.py"]
