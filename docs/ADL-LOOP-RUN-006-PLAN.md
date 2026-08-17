@@ -199,3 +199,82 @@ Phase 6: 还原 code_block.dart
    session 目录，无 session 合并逻辑。
 6. **agent.py 增加 `--simulator` 两阶段模式**（--reason-only / --validate-only，
    validate 阶段从 .adi 重新 observe），保持 C1/C2/C3 与 P1-P6 断言不变。
+
+---
+
+## 9. 最终能力状态与 Run #007 验收预告（2026-08-17 执行后增补）
+
+### 9.1 Run #006 最终能力状态（诚实分级）
+
+| 能力 | 状态 | 说明 |
+|------|------|------|
+| ADI diagnostic loop | ✅ | latest-error / trace-show / replay 全链路在真实 runtime 可观测 |
+| Real Flutter runtime repair | ✅ | Android 模拟器真实 engine：RenderOverflow → 修复 → 新 APK 无 overflow |
+| Agent-driven source patch | ✅ | evidence-driven deterministic harness 产生真实 git diff |
+| Fresh-build verification | ✅ | 新 APK 重编译修复后源码，非内存态切换 |
+| Invariant validation | ✅ | validate 后 invariants.allPassed=true |
+| FFX API capability regression | ✅ | `ffx project create/info` 未退化（FFX capability layer 层） |
+| **Real product capability E2E** | ⏳ | 待 Run #007：FormulaFix 真实产品能力（parser/export/undo 等真机完整链路） |
+| **Real LLM agent** | ⏳ | 执行者为确定性 harness 非 LLM；LLM 接入需专门验证实验 |
+
+**结论声明**：Run #006 验证的是 **Autonomous Harness Loop**（真实 runtime 上的
+自主修复协议闭环），**不是** LLM autonomous repair。
+
+### 9.2 已知限制：before=unknown（Run #007 验收项 F2）
+
+执行中 `validate.before=unknown` 的根因：`tools/adi/adi.dart` 的 `_cmdValidate`
+硬编码 `'before': 'unknown'`（约 610 行），未把同一 session 的 observation
+存在性绑定进结果。`unknown → pass` 弱于 `reproduced → not_reproduced`。
+
+**Run #007 验收标准（形式化条件，F1-F7 全 true）**：
+
+```text
+F1 = failure observed                   （.adi/observations 存在）
+F2 = before replay reproduced           （validate.before=reproduced）
+F3 = production patch                   （git diff 可审计，非测试文件）
+F4 = fresh runtime                      （新 APK 重编译，非内存态）
+F5 = after replay not_reproduced        （validate.after=not_reproduced）
+F6 = invariants pass                    （validate.invariants.allPassed=true）
+F7 = capability regression pass         （FFX API + 真实产品 capability E2E）
+```
+
+Run #006 已满足 F1/F3/F4/F5/F6/F7；F2 为 Run #007 的验收项。
+
+### 9.3 Phase 3.9 预告：Product Capability & Behavioral Audit
+
+**方向**：Phase 3.8 技术 Gate 收官后，不再继续堆 ADI 能力，而是用已跑通的
+ADL Loop **审计 FormulaFix 本身**。三条线：
+
+```text
+               FormulaFix Audit
+                      │
+        ┌─────────────┼─────────────┐
+        ↓             ↓             ↓
+   Capability      Behavior       Experience
+      Audit          Audit          Audit
+        │             │             │
+       FFX        E2E + ADI      真机/Golden/
+                                  Gesture/IME
+```
+
+- **Capability Audit**（先行，可自动化）：Markdown / Parser / Serializer /
+  Formula / CodeBlock / List / Export / Autosave / Undo-Redo —— 问「能不能正确做」
+- **Behavior Audit**（E2E + ADI）：Enter / Backspace / Undo / Redo / Selection /
+  Focus / IME / Block split-merge —— 问「用户这么操作后行为是否正确」
+- **Experience Audit**（真机/Golden/手势）：焦点 / 键盘 / 滚动 / 布局 / 小屏 /
+  主题 / 输入延迟 —— 问「真的像 Typora/Obsidian/VSCode 那样自然吗」
+
+**执行要点**：
+1. Capability Audit 先行（可自动化、可量化），Behavior/Experience 后置
+2. 审计项契约：`{capability, 触发方式, 期望行为, ADI 观察点}` —— 发现问题
+   才能自动进入 ADL Loop
+3. **Regression Asset 是闭环关键**：每个 ADI 发现的 bug 必须产出一个
+   regression test，让 Loop 从「修 bug」升级为「积累质量资产」
+
+**反哺链完整形态**：
+
+```text
+Product Audit → Capability/UX → Failure → ADI → Agent Repair
+→ Fresh Build → Replay + Invariant → Capability E2E → Regression Asset
+→ Product Audit again（闭环）
+```
