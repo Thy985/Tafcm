@@ -2,8 +2,8 @@
 
 **日期**: 2026-08-17
 **前置**: Run #001-005 已验证 ADI 诊断链 / 持久化 / 闭环编排 / fault-injection 闭环 / 真实源码修复可验证性
-**状态**: ✅ Agent 自主修复闭环通过（C1 ∧ C2 ∧ C3 ∧ P1..P6 全 true）
-**关键边界**: 修复动作由 Agent harness（ffx CLI 驱动）完成，非确定性脚本
+**状态**: ✅ **Autonomous Harness Loop verified**（C1 ∧ C2 ∧ C3 ∧ P1..P6 全 true）
+**关键边界**: 执行者为确定性规则型 Agent harness（ffx CLI 驱动），非 LLM、非确定性脚本
 **下一步**: Phase 3.8 收官 —— ADI 进入 Agent Engineering Loop 常态化使用
 
 ---
@@ -19,7 +19,7 @@ Run #006 把该技术链的**执行者**从确定性脚本（`run005_apply_fix.d
 | 条件 | 含义 | 验证方式 |
 |------|------|---------|
 | **C1** | Agent 自己发现问题 | 输入仅 capability 测试路径，**不含 bug 位置**；证据全部来自 `ffx adi latest-error / trace-show / replay` |
-| **C2** | Agent 自己决定修改 | 从 evidence 推理（error_type + trace span 名 → grep 定位源码 → 读码识别 bug 块），产生**真实 git diff**（非预置脚本） |
+| **C2** | **Agent-driven patch decision**（Agent 驱动补丁决策，evidence-driven deterministic） | 从 evidence 推理（error_type + trace span 名 → grep 定位源码 → 读码识别 bug 块），产生**真实 git diff**（非预置脚本） |
 | **C3** | Agent 自己判断修复成功 | 仅依据 `ffx adi validate --after-fix`（before=reproduced → after=not_reproduced）+ invariants + capability E2E |
 
 ---
@@ -142,6 +142,24 @@ TC-ARCH-7 行数门禁：capability 测试 320 行（< 400）
 
 ---
 
+## Run #006 最终能力状态
+
+| 能力 | 状态 | 说明 |
+|------|------|------|
+| ADI diagnostic loop | ✅ | latest-error / trace-show / replay 全链路在真实 runtime 可观测 |
+| Real Flutter runtime repair | ✅ | Android 模拟器真实 engine：RenderOverflow → 修复 → 新 APK 无 overflow |
+| Agent-driven source patch | ✅ | evidence-driven deterministic harness 产生真实 git diff（可审计、可重复） |
+| Fresh-build verification | ✅ | 新 APK 重编译修复后源码，非内存态切换 |
+| Invariant validation | ✅ | validate 后 invariants.allPassed=true |
+| FFX API capability regression | ✅ | `ffx project create/info` 未退化（FFX capability layer 层） |
+| **Real product capability E2E** | ⏳ | 尚未验证 FormulaFix 真实产品能力（parser/export/undo 等在真机完整链路） |
+| **Real LLM agent** | ⏳ | 执行者为确定性 harness 非 LLM；LLM 接入需专门验证实验 |
+
+**结论声明**：Run #006 验证的是 **Autonomous Harness Loop**（真实 runtime 上的自主修复协议闭环），
+**不是** LLM autonomous repair。通用 LLM Agent 与真实产品 Capability E2E 均待 Run #007+ 验证。
+
+---
+
 ## 遗留与下一步
 
 1. **LLM Agent 接入（未验证的开放方向，非"即完成"）**：本 harness 是**确定性规则推理**（正则提取组件名 → grep 定位 → 移除特定块），**不是 LLM**。当前只证明了协议链路（C1/C2/C3 + P1-P6 可审计），「接入真实 LLM（依据 observation 生成 patch）」这条路径**从未验证过**——LLM 能否依据 observation 正确生成 patch、生成质量如何、能否自主走完闭环，都是未知数。正确表述应为：**接入真实 LLM 是一个需要专门设计验证实验的开放方向**（验证 LLM 的 patch 生成正确性、与 `verify_evidence` 审计的兼容性、全闭环成功率），**只有在验证通过后才能宣称产品级 Agent Engineering Loop 完成**。
@@ -217,3 +235,33 @@ status:     autonomous_agent_repair_proven（模拟器真实 runtime 闭环 ✅�
 Agent 经 ffx CLI 观察真实 RenderOverflow → 自主推理改码（git diff 可审计）→
 新 APK 重编译后故障不再复现 → validate 判定 after=pass。
 与 widget test 版共同构成「协议链路 + 真实引擎」双重验证。
+
+---
+
+## 已知限制：before=unknown（Run #007 验收预告）
+
+最终结果中 `before=unknown` 并非数据缺失，而是 **`tools/adi/adi.dart` 的
+`_cmdValidate` 硬编码了 `'before': 'unknown'`**（约 610 行
+`'before': 'unknown'`）——observation 明明存在于 `.adi/observations/` 且
+replay 已缓存，但 validate 命令未把 before 状态绑定进结果。
+
+`unknown → pass` 在逻辑上弱于 `reproduced → not_reproduced`。Run #007
+前的小修复：validate 读取同一 session 的 observation 存在性 + errorType
+匹配 → 推导 `before=reproduced`（或在驱动脚本中把 before replay 快照
+写入 session 目录）。
+
+**Run #007 验收标准（形式化条件，F1-F7 全 true）**：
+
+```text
+F1 = failure observed                   （.adi/observations 存在）
+F2 = before replay reproduced           （validate.before=reproduced）
+F3 = production patch                   （git diff 可审计，非测试文件）
+F4 = fresh runtime                      （新 APK 重编译，非内存态）
+F5 = after replay not_reproduced        （validate.after=not_reproduced）
+F6 = invariants pass                    （validate.invariants.allPassed=true）
+F7 = capability regression pass         （FFX API + 真实产品 capability E2E）
+```
+
+当前 Run #006 满足 F1/F3/F4/F5/F6/F7；F2（before=reproduced 绑定）为
+Run #007 的验收项。这也是从「协议链路可验证」走向「形式化闭环证明」
+的最后一公里。
