@@ -1,0 +1,2 @@
+[console_scripts]
+ffx = cli_anything.ffx.ffx_cli:cli
