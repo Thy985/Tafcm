@@ -151,3 +151,42 @@ PASS = C1 ∧ C2 ∧ C3 ∧ P1 ∧ P2 ∧ P3 ∧ P4 ∧ P5 ∧ P6
   对本次 bug 是确定的；真实环境需 Agent（LLM）介入，本 harness 证明**协议链路**而非 LLM 智能。
 - **CI 安全**：capability 测试由 dart-define 门控，默认跳过；驱动脚本写真实 .adi 前先备份。
 - **与 Run #007+ 的关系**：本 Run 证明「Agent 可自主完成闭环」的协议层，LLM 推理质量是产品层问题。
+
+---
+
+## 8. 模拟器实测方案（2026-08-17 增补）
+
+widget test 双进程已在主机验证闭环；模拟器实测把 capability 换成
+**integration_test**（真实 Flutter runtime），证据经 zip 同步回主机 .adi：
+
+```text
+Phase 0: 备份 code_block.dart
+Phase 1: flutter test integration_test/run006_capability_test.dart -d emulator-5554
+         --dart-define=ADL_RUN006_BEFORE=true
+         → 真实 runtime 渲染 CodeBlock（FaultInjection gate 存在）→ 真实 RenderOverflow
+         → FlutterError.onError 捕获 → exportDiagnosticZip 导出设备端 zip
+Phase 2: adb pull <device zip> → ffx adi import（或 dart run tools/adi/adi.dart import）
+         → 证据合并进 tools/adi/.adi（observations/traces/sessions/replay）
+Phase 3: Agent 闭环（run006_agent.py --simulator，跳过 widget capability）：
+         ffx adi latest-error → trace-show → replay → 推理 → 改码（真实 git diff）
+Phase 4: flutter test integration_test/run006_capability_test.dart -d emulator-5554
+         --dart-define=ADL_RUN006_AFTER=true --dart-define=ADL_SESSION_ID=<session>
+         → 新 APK 重编译修复后源码 → 无 overflow → 导出 zip（replay=not_reproduced）
+         → adb pull → ffx adi import（覆盖同一 session replay）
+Phase 5: ffx adi validate --after-fix <session> → after=pass
+Phase 6: 还原 code_block.dart
+```
+
+### 关键设计决策
+
+1. **capability 复用 FaultInjection gate**（SizedBox(height:100000)，与 widget 版同一 bug）：
+   Agent 的 `reason_and_patch` 推理逻辑**零改动**——运行环境从 widget test
+   换成模拟器真实 runtime，但 bug 本体与修复动作一致。
+2. **证据同步 = zip 链路**（复用 AS-RG.1）：模拟器上 `.adi` 在设备端
+   （getApplicationDocumentsDirectory），主机 ffx 读 `tools/adi/.adi`；
+   通过 exportDiagnosticZip → adb pull → `ffx adi import` 完成设备→主机同步。
+3. **agent.py 增加 `--simulator` 模式**：跳过 run_before/after_capability
+   （改由外部 integration_test + import 完成），只执行 observe → reason_and_patch
+   → validate → capability_e2e，保持 C1/C2/C3 与 P1-P6 断言不变。
+4. **真机证据更接近真实产品**：模拟器上 overflow 由真实渲染管线触发
+   （非 FakeAsync zone），与 adi_real_fault_test 同等级（后者已实测通过）。

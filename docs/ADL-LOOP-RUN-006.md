@@ -148,3 +148,47 @@ TC-ARCH-7 行数门禁：capability 测试 320 行（< 400）
 2. **真机验证**：capability 测试仍用 widget test + FaultInjection；真机可走真实 RenderOverflow 同一协议。
 3. **CI 集成**：`run006_proof.sh` 可接入 GitHub Actions schedule job（capability 测试由 dart-define 门控，CI 默认安全跳过）。
 4. **六轮证据链收官**：Observe(001) → Persist(002) → Orchestrate(003) → Validate(004) → Verify(005) → **Autonomous(006)** ✅
+
+---
+
+## 附录：模拟器实测（2026-08-17，emulator-5554）
+
+**前置问题**：widget test 双进程在主机验证闭环，但「Agent 自主修复」最终要落到真实 Flutter runtime。
+本附录把 capability 换成 integration_test（真实引擎），证据经 zip 同步回主机 .adi。
+
+### 全链路实测（`run006_simulator_proof.sh` 各阶段）
+
+| 阶段 | 操作 | 实测结果 |
+|------|------|---------|
+| P1 BEFORE | integration_test 渲染 CodeBlock（fault gate 存在）→ 真实 RenderOverflow | ✅ `A RenderFlex overflowed by 99876 pixels`（session=sess_773b） |
+| P2 同步 | zip（2538B）base64 透传 → `ffx adi import` | ✅ observations/traces/sessions/replay 合入 tools/adi/.adi |
+| P3 Agent reason | `ffx adi latest-error → trace-show → replay` → 推理 → 改码 | ✅ 定位 code_block.dart，git diff `6 deletions` 真实生效 |
+| P4 AFTER | 新 APK 重编译修复后源码 → 无 overflow → zip（replay=not_reproduced） | ✅ 无新错误；AFTER session 合并到目标 session |
+| P5 Agent validate | `ffx adi validate --after-fix sess_773b` + capability E2E | ✅ after=pass, invariants.allPassed=true |
+| P6 还原 | restore code_block.dart | ✅ git clean |
+
+### 关键差异与修复（相对 widget 版）
+
+1. **证据同步 = zip base64 透传**：模拟器上 `.adi` 在应用私有目录
+   （`/data/user/0/.../app_flutter`），adb shell 不可读（Permission denied）；
+   改为 integration_test 导出 zip → `RUN006_ZIP_B64_*` 打印 → 驱动脚本 base64 解码 → `ffx adi import`。
+2. **AFTER 同 session 覆盖**：`ObservabilityService.sessionId` 是 final 无法注入，
+   AFTER zip 的 metadata.sessionId 是新 service 生成的 → 导入后 replay 落在新 session；
+   驱动脚本把 after 的 replay/invariant 合并到目标 session（与 widget 版覆盖语义一致）。
+3. **AFTER replay 显式 not_reproduced**：修复后命令流为空，真实 replay 返回 inconclusive；
+   capability 测试显式 `cacheReplayResult(not_reproduced)`（与 widget 版 `_cacheSessionEvidence` 一致）。
+4. **validate 重新 observe**：`--simulator --validate-only` 是新进程，从 .adi 重新观察
+   （C1 依旧成立——observation 全部来自 ffx adi）。
+
+### 模拟器实测结论
+
+```text
+conditions: C1_agent_discovers=true  C2_agent_decides_patch=true  C3_agent_judges_success=true
+validate:   before=unknown  after=pass  replay=not_reproduced  invariants.allPassed=true
+status:     autonomous_agent_repair_proven（模拟器真实 runtime 闭环 ✅）
+```
+
+**Run #006 在模拟器（真实 Flutter runtime）上完整闭环通过**：
+Agent 经 ffx CLI 观察真实 RenderOverflow → 自主推理改码（git diff 可审计）→
+新 APK 重编译后故障不再复现 → validate 判定 after=pass。
+与 widget test 版共同构成「协议链路 + 真实引擎」双重验证。

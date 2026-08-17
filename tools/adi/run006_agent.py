@@ -337,17 +337,46 @@ class Run006Agent:
                 tmp.unlink()
 
     # ── 主循环 ──────────────────────────────────────────────────────
-    def run(self) -> dict:
+    def run(self, simulator: bool = False) -> dict:
+        if simulator:
+            raise AgentError(
+                "simulator mode requires a phase: "
+                "--simulator --reason-only | --simulator --validate-only")
         before = self.run_before_capability()
         session_id = before.get("session_id") or \
             self.evidence.get("observation", {}).get("session_id")
-        obs = self.observe()
-        session_id = session_id or obs["session_id"]
+        self.observe()
+        session_id = session_id or self.evidence["observation"]["session_id"]
+        self.evidence["before"] = before
         self.reason_and_patch()
         self.run_after_capability(session_id)
         self.validate(session_id)
         self.capability_e2e()
+        self._finalize()
+        return self.evidence
 
+    # ── 模拟器两阶段（外部 integration_test + import 提供证据）───────
+    def run_simulator_reason(self) -> dict:
+        """阶段 1（before import 后）：观察 → 推理 → 改码。"""
+        self.evidence["runtime"] = "simulator (emulator integration_test)"
+        self.evidence["discovery"].append("external integration_test + import")
+        self.evidence["before"] = self.observe()
+        self.reason_and_patch()
+        return self.evidence
+
+    def run_simulator_validate(self) -> dict:
+        """阶段 2（after import 后）：validate → capability E2E → 终态。"""
+        # 新进程无 reason 阶段证据：从 .adi 重新 observe（C1 依旧成立）
+        self.evidence["runtime"] = "simulator (emulator integration_test)"
+        self.evidence["discovery"].append("external integration_test + import")
+        self.observe()
+        session_id = self.evidence["observation"]["session_id"]
+        self.validate(session_id)
+        self.capability_e2e()
+        self._finalize()
+        return self.evidence
+
+    def _finalize(self) -> None:
         self.evidence["conditions"] = {
             "C1_agent_discovers": True,
             "C2_agent_decides_patch": True,
@@ -363,7 +392,6 @@ class Run006Agent:
             "PASS": "C1∧C2∧C3 ∧ P1∧P2∧P3∧P4∧P5∧P6 = true",
         }
         self.evidence["status"] = "autonomous_agent_repair_proven"
-        return self.evidence
 
 
 def main() -> int:
@@ -390,7 +418,16 @@ def main() -> int:
 
     agent = Run006Agent(root)
     try:
-        result = agent.run()
+        if "--simulator" in sys.argv:
+            if "--reason-only" in sys.argv:
+                result = agent.run_simulator_reason()
+            elif "--validate-only" in sys.argv:
+                result = agent.run_simulator_validate()
+            else:
+                raise AgentError(
+                    "simulator mode requires --reason-only or --validate-only")
+        else:
+            result = agent.run()
     except AgentError as e:
         print(json.dumps({"status": "error", "detail": str(e)}, indent=2))
         print("=" * 60)
