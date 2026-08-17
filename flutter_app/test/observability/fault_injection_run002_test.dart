@@ -130,7 +130,7 @@ void main() {
       expect((exported['renders'] as List).isNotEmpty, isTrue);
 
       print('\n=== RUN #002 PART A (capture) ===');
-      print('snapshot: ${snapshot!.type} -> ${classifyErrorType(snapshot.type, snapshot.message)}');
+      print('snapshot: ${snapshot.type} -> ${classifyErrorType(snapshot.type, snapshot.message)}');
       final ints = exported['interactions'] as List;
       final cmds = exported['commands'] as List;
       final txs = exported['transactions'] as List;
