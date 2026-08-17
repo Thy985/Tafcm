@@ -606,7 +606,7 @@ void _cmdValidate(List<String> rest, bool json) {
       : (replayOk && invariantOk ? 'pass' : 'still_failing');
 
   final result = {
-    'before': 'unknown',
+    'before': _deriveBeforeStatus(sessionId),
     'after': after,
     'replay': replay ?? {'status': 'no_data'},
     'invariants': {
@@ -628,6 +628,23 @@ void _cmdValidate(List<String> rest, bool json) {
       print('  Invariants: VIOLATED ${violated.join(", ")}');
     }
   }
+}
+
+/// 推导 before 状态（Run #007 F2）：同一 session 在 .adi/observations/ 中
+/// 存在错误记录 → before=reproduced；否则保持 unknown。
+String _deriveBeforeStatus(String sessionId) {
+  final dir = Directory('$_adiRoot/observations');
+  if (!dir.existsSync()) return 'unknown';
+  final files = dir
+      .listSync()
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.json'))
+      .toList();
+  for (final f in files) {
+    final record = _readJson(f.path);
+    if (record?['sessionId'] == sessionId) return 'reproduced';
+  }
+  return 'unknown';
 }
 
 void _cmdImport(List<String> rest, bool json) {

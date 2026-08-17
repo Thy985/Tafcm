@@ -220,25 +220,32 @@ Phase 6: 还原 code_block.dart
 **结论声明**：Run #006 验证的是 **Autonomous Harness Loop**（真实 runtime 上的
 自主修复协议闭环），**不是** LLM autonomous repair。
 
-### 9.2 已知限制：before=unknown（Run #007 验收项 F2）
+### 9.2 已知限制：before=unknown（Run #007 已修复 ✅）
 
-执行中 `validate.before=unknown` 的根因：`tools/adi/adi.dart` 的 `_cmdValidate`
+Run #006 执行中 `validate.before=unknown` 的根因：`tools/adi/adi.dart` 的 `_cmdValidate`
 硬编码 `'before': 'unknown'`（约 610 行），未把同一 session 的 observation
 存在性绑定进结果。`unknown → pass` 弱于 `reproduced → not_reproduced`。
 
-**Run #007 验收标准（形式化条件，F1-F7 全 true）**：
+**Run #007 已修复并验收**（2026-08-17）：新增 `_deriveBeforeStatus(sessionId)`
+从 `.adi/observations/` 推导 before 状态，模拟器全闭环重测通过：
 
 ```text
-F1 = failure observed                   （.adi/observations 存在）
-F2 = before replay reproduced           （validate.before=reproduced）
-F3 = production patch                   （git diff 可审计，非测试文件）
-F4 = fresh runtime                      （新 APK 重编译，非内存态）
-F5 = after replay not_reproduced        （validate.after=not_reproduced）
-F6 = invariants pass                    （validate.invariants.allPassed=true）
-F7 = capability regression pass         （FFX API + 真实产品 capability E2E）
+validate:   before=reproduced  after=pass  replay=not_reproduced  invariants_all_passed=true
 ```
 
-Run #006 已满足 F1/F3/F4/F5/F6/F7；F2 为 Run #007 的验收项。
+**Run #007 验收标准（形式化条件，F1-F7 全 true，已通过）**：
+
+```text
+F1 = failure observed                   ✅（.adi/observations 存在）
+F2 = before replay reproduced           ✅（validate.before=reproduced，Run #007 修复）
+F3 = production patch                   ✅（git diff 可审计，非测试文件）
+F4 = fresh runtime                      ✅（新 APK 重编译，非内存态）
+F5 = after replay not_reproduced        ✅（validate.after=not_reproduced）
+F6 = invariants pass                    ✅（validate.invariants.allPassed=true）
+F7 = capability regression pass         ✅（FFX API + 真实产品 capability E2E）
+```
+
+详见 [ADL-LOOP-RUN-007.md](ADL-LOOP-RUN-007.md)。
 
 ### 9.3 Phase 3.9 预告：Product Capability & Behavioral Audit
 
