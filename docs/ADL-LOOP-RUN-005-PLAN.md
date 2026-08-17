@@ -1,173 +1,316 @@
-# ADL Loop Run #005 — 真实生产代码修复闭环方案
+# ADL Loop Run #005 — Real Production Code Repair Proof
 
 **日期**: 2026-08-17
 **前置**: Run #001-004 已验证 ADI 架构和 fault injection 闭环
-**状态**: 方案设计（Run #004 尝试了真实代码修改，遇到 Flutter widget test 根本限制）
+**状态**: 方案设计（Run #004 遇到 widget test 根本限制，本计划修正闭环定义）
 
 ---
 
-## Run #004 的发现
+## 核心修正：闭环需要三个独立证明层
 
-Run #004 尝试在 `code_block.dart` 中直接添加真实 bug：
-```dart
-const SizedBox(height: 100000),  // 真实生产代码 bug
-```
+Run #004 证明了故障注入闭环协议。但缺少最关键的一环：**Agent 修改了真实生产代码 + 重新构建后真实产品行为恢复**。
 
-**结果**: 测试超时，Flutter test binding 报告 `_pendingExceptionDetails != null`。
+定义三个独立证明层：
 
-**根本原因**: 在 Flutter widget test 中，一旦有未处理的 overflow error：
-- 每次 `pump()` 都会触发新的 overflow
-- `FlutterError.onError` 的恢复时序无法阻止重复触发
-- binding 检测到 pending exceptions 后抛出 assertion 失败
+| 层 | 验证什么 | 方法 | 对应谓词 |
+|----|---------|------|---------|
+| **B: Patch Authenticity** | Agent 真的改了生产代码吗？ | git diff 审计 | P2 |
+| **A: Runtime E2E** | 改完代码后产品行为真的恢复了吗？ | 真机/flutter drive | P3, P5 |
+| **C: Pipeline/Protocol** | ADI/Replay/Validation 管道没坏吗？ | 现有测试 | P1, P4, P6 |
 
-这与 fault injection 不同：fault injection 的 bug 只触发一次（因为 `FaultInjection.enabled` 在 pump 后立即被禁用），而真实代码中的 bug 在每次 rebuild 时都会触发。
+三者缺一不可，不是替代方案。
 
 ---
 
-## Run #005 的三个可行方案
-
-### 方案 A: 真机集成测试（推荐）
-
-使用 `flutter drive` 或 Patrol 在真实/模拟设备上运行：
-
-```bash
-# 1. 在代码中引入真实 bug
-# flutter_app/lib/presentation/blocks/code/code_block.dart
-#   添加: const SizedBox(height: 100000),
-
-# 2. 编译并安装到模拟器
-flutter build apk --debug
-adb install app-debug.apk
-
-# 3. 运行故障注入测试（使用 FaultInjection 机制）
-flutter test test/observability/fault_injection_run005_test.dart
-
-# 4. Agent 读取 ADI 证据
-ffx adi latest-error
-ffx adi replay sess_xxx
-ffx adi trace-show trc_xxx
-
-# 5. Agent 修改生产代码（移除 buggy SizedBox）
-# flutter_app/lib/presentation/blocks/code/code_block.dart
-#   删除: const SizedBox(height: 100000),
-
-# 6. 重新编译安装
-flutter build apk --debug
-adb install app-debug.apk
-
-# 7. ADI validate
-ffx adi validate --after-fix sess_xxx
-# 期望: {"after": "not_reproduced", ...}
-
-# 8. Capability E2E
-ffx project inject code --lang dart --code 'void main(){}'
-ffx project info -p doc.json
-# 期望: word_count > 0, code_block_count >= 1
-```
-
-**优点**: 真实 Flutter runtime，真实 crash
-**缺点**: 需要模拟器运行，耗时较长
-
-### 方案 B: Unit Test 直接修改代码
-
-不走 widget test，直接在 unit test 中修改源码文件内容：
-
-```dart
-test('Phase 3: Agent modifies production code', () {
-  final bugFile = File('lib/presentation/blocks/code/code_block.dart');
-  final content = bugFile.readAsStringSync();
-  
-  // Simulate agent fix
-  final fixedContent = content.replaceAll(
-    '// BUG: unbounded height\n            const SizedBox(height: 100000),',
-    '',
-  );
-  
-  // Verify fix
-  expect(fixedContent.contains('const SizedBox(height: 100000)'), isFalse);
-  
-  // Write fix back
-  bugFile.writeAsStringSync(fixedContent);
-});
-```
-
-然后在另一个 test 中验证修复后的行为：
-
-```dart
-test('Phase 4: Post-fix behavior verified', () {
-  // Re-read the fixed code
-  final bugFile = File('lib/presentation/blocks/code/code_block.dart');
-  final content = bugFile.readAsStringSync();
-  
-  // Verify no bug
-  expect(content.contains('const SizedBox(height: 100000)'), isFalse);
-  
-  // Clean up (restore original)
-  bugFile.writeAsStringSync(originalContent);
-});
-```
-
-**优点**: 不依赖 widget test，速度快
-**缺点**: 没有经过真实 Flutter render，只是代码层面验证
-
-### 方案 C: 静态分析 + ADI 证据链
-
-结合方案 B 的代码修改和方案 A 的 ADI 证据：
-
-1. Phase 1-2: 使用 fault injection 捕获 overflow（与 Run #004 相同）
-2. Phase 3: Agent 直接修改 `code_block.dart` 生产代码
-3. Phase 4: 静态分析验证修复后的代码不包含 bug
-4. Phase 5: 重新运行 Run #004 测试验证无 overflow
-5. Phase 6: Export evidence
-
----
-
-## Run #005 成功标准
-
-必须同时满足以下 5 条谓词：
+## Run #005 成功标准（6 条谓词，全部必须为 true）
 
 ```json
 {
   "P1_before_reproduced": true,
-  "P2_agent_changed_production_code": true,
-  "P3_after_not_reproduced": true,
+  "P2_agent_patch_authenticity": true,
+  "P3_real_runtime_after_fix": true,
   "P4_invariants_pass": true,
-  "P5_capability_e2e_pass": true
+  "P5_replay_not_reproduced": true,
+  "P6_capability_regression_pass": true
+}
+
+PASS = P1 ∧ P2 ∧ P3 ∧ P4 ∧ P5 ∧ P6
+```
+
+### 各谓词精确定义
+
+| 谓词 | 定义 | 验证方法 | 来源 |
+|------|------|---------|------|
+| **P1** | 修复前 replay 复现 bug | `adi replay → status: reproduced` | C 层 |
+| **P2** | Agent 修改了生产代码（非测试代码） | `git diff` 包含生产源码修改，排除测试文件 | B 层 |
+| **P3** | 修复后真实产品行为恢复 | 真机/integration test 验证无 overflow | A 层 |
+| **P4** | 系统不变量通过 | `invariants.allPassed == true` | C 层 |
+| **P5** | 修复后 replay 不复现 | `adi validate → after: not_reproduced` | C 层 |
+| **P6** | 产品能力未退化 | 原有 CLI 命令仍正常执行 | C 层 |
+
+**关键区分**：
+- P2 证明「Agent 做了什么」
+- P3 证明「做对了」
+- 两者缺一不可
+
+---
+
+## Phase 0: 建立已知坏状态
+
+```bash
+# 在 code_block.dart 中引入真实 bug（永久 commit）
+# 这不是测试代码，是生产代码的 intentional regression
+
+# 修改 flutter_app/lib/presentation/blocks/code/code_block.dart:
+# 在 Column children 末尾添加：
+const SizedBox(height: 100000),  // BUG: unbounded height
+
+# Commit 此修改
+git add flutter_app/lib/presentation/blocks/code/code_block.dart
+git commit -m "test(run005): introduce known RenderOverflow bug in CodeBlock"
+
+# 记录 commit hash
+BAD_COMMIT=$(git rev-parse HEAD)
+```
+
+这样「Agent 修改源码」变成 Git 可审计的事实，不是测试内模拟。
+
+---
+
+## Phase 1: 真实产品触发 bug（A 层）
+
+```bash
+# 启动模拟器，安装 bug 版本 APK
+flutter build apk --debug
+adb install app-debug.apk
+
+# 运行真实设备测试（flutter drive 或 Patrol）
+# 注意：不使用 widget test，使用真实 Flutter runtime
+flutter drive \
+  --target=test/integration_test/run005_bug_repro_test.dart \
+  --device-id=emulator-5554
+
+# ADI 捕获真实 crash
+ffx --json adi latest-error
+# 期望: {"status":"error","error_type":"RenderOverflow",
+#         "session_id":"sess_xxx","trace_id":"trc_xxx"}
+
+ffx --json adi replay sess_xxx
+# 期望: {"status":"reproduced","failedAt":"step 0:..."}
+
+# P1 验证
+assert replay_status == "reproduced"  → P1 = true
+```
+
+**与 Run #004 的关键区别**：
+- Run #004: widget test + FaultInjection 模拟 overflow
+- Run #005 Phase 1: 真机 + 真实 RenderOverflow（来自生产代码 bug）
+
+---
+
+## Phase 2: Agent 真正修改生产代码（B 层）
+
+Agent 根据 ADI 证据自主修复：
+
+```bash
+# Agent 读取证据
+ffx --json adi trace-show trc_xxx
+# → 定位到 code_block.dart 的 RenderParagraph overflow
+
+# Agent 查看源码
+cat flutter_app/lib/presentation/blocks/code/code_block.dart
+# → 发现 const SizedBox(height: 100000) 在 Column children 中
+
+# Agent 修改生产代码（移除 bug）
+sed -i '/const SizedBox(height: 100000)/d' \
+  flutter_app/lib/presentation/blocks/code/code_block.dart
+
+# Agent 验证 diff
+git diff flutter_app/lib/presentation/blocks/code/code_block.dart
+# 期望: 仅修改 code_block.dart，移除 SizedBox(height: 100000)
+
+# Agent 提交修复
+git add flutter_app/lib/presentation/blocks/code/code_block.dart
+git commit -m "fix(code_block): remove unbounded SizedBox causing RenderOverflow"
+
+# P2 验证（自动化检查）
+diff_files=$(git diff --name-only HEAD~1 HEAD)
+assert "flutter_app/lib/presentation/blocks/code/code_block.dart" in diff_files
+assert diff_contains("SizedBox(height: 100000)") == false
+assert no_test_file_modified()  # Agent 不能只改测试
+→ P2 = true
+```
+
+**与 Run #004 的关键区别**：
+- Run #004: 测试代码中设置 `FaultInjection.enabled = false`
+- Run #005 Phase 2: Agent 修改 `code_block.dart` 生产源码 + git diff 审计
+
+---
+
+## Phase 3: 重新构建并部署（A 层）
+
+```bash
+# 重新编译（确保构建缓存不干扰）
+flutter clean
+flutter build apk --debug
+
+# 重新安装到模拟器
+adb uninstall com.formulafix.formula_fix
+adb install app-debug.apk
+
+# 启动 App 验证安装成功
+adb shell am start -n com.formulafix.formula_fix/.MainActivity
+```
+
+**与 Run #004 的关键区别**：
+- Run #004: 没有重新构建，只是内存状态改变
+- Run #005 Phase 3: 完整 rebuild + reinstall，证明修复在真实 runtime 中生效
+
+---
+
+## Phase 4: 重新验证故障不再复现（A + C 层）
+
+```bash
+# 方法 1: 使用相同 session 的 replay（理想情况）
+ffx --json adi replay sess_xxx
+# 期望: {"status": "not_reproduced"}
+
+# 方法 2: 如果没有 cached replay，运行新测试
+flutter drive \
+  --target=test/integration_test/run005_postfix_test.dart \
+  --device-id=emulator-5554
+# 期望: 无 overflow，CodeBlock 正常渲染
+
+# ADI validate
+ffx --json adi validate --after-fix sess_xxx
+# 期望: {"after": "not_reproduced", "invariants": {"allPassed": true}}
+
+# P3, P4, P5 验证
+assert replay_status == "not_reproduced"  → P3 = true, P5 = true
+assert invariants_all_passed == true      → P4 = true
+```
+
+---
+
+## Phase 5: CLI Capability 回归验证（C 层）
+
+```bash
+# 验证产品能力未退化
+ffx --json project create -o /tmp/doc.json -n "TestDoc"
+ffx --json project inject code -p /tmp/doc.json --lang dart --code 'void main(){}'
+ffx --json project info -p /tmp/doc.json
+# 期望: word_count > 0, code_block_count >= 1, status = "ok"
+
+# P6 验证
+assert project_info["word_count"] > 0      → P6 = true
+assert project_info["code_block_count"] >= 1 → P6 = true
+```
+
+---
+
+## Phase 6: 完整证据导出
+
+```bash
+# 汇总所有证据
+git log --oneline -3                    # 记录 bug commit + fix commit
+git diff HEAD~1 HEAD                    # 记录生产代码修改
+ffx --json adi doctor                   # 系统健康
+ffx --json adi latest-error --json      # 原始错误证据
+ffx --json adi validate --after-fix sess_xxx  # 修复验证
+
+# 结构化输出
+{
+  "run": "005",
+  "status": "real_production_code_repair_proven",
+  "predicates": {
+    "P1_before_reproduced": true,
+    "P2_agent_patch_authenticity": true,
+    "P3_real_runtime_after_fix": true,
+    "P4_invariants_pass": true,
+    "P5_replay_not_reproduced": true,
+    "P6_capability_regression_pass": true
+  },
+  "bug_commit": "<bad_commit_sha>",
+  "fix_commit": "<good_commit_sha>",
+  "evidence_path": ".adi/..."
 }
 ```
 
-**P2 是 Run #004 缺失的核心**: Agent 必须修改真实的 `.dart` 源文件，不能只是设置 `FaultInjection.enabled = false`。
+---
+
+## 当前环境的可行性评估
+
+### 问题
+
+Run #004 尝试直接修改生产代码并在 widget test 中验证，遇到了 **Flutter widget test 的根本限制**：
+
+```
+真实 overflow 在生产代码中
+  ↓
+每次 pump() 触发新的 RenderOverflow
+  ↓
+FlutterError.onError 恢复时序问题
+  ↓
+binding._pendingExceptionDetails assertion 失败
+  ↓
+测试超时
+```
+
+这是因为 widget test 的 `FakeAsync` zone 中，widget tree 的每个 rebuild 都会重新触发 layout overflow。
+
+### 解决方案
+
+**Run #005 必须使用 integration test（flutter drive）而非 widget test**：
+
+```bash
+# 正确的测试方式
+flutter drive \
+  --target=test/integration_test/run005_test.dart \
+  --device-id=emulator-5554
+```
+
+Integration test 在真实 Flutter runtime 上运行，不受 FakeAsync zone 限制。overflow error 由真实 Flutter framework 处理，不会触发 binding 超时。
 
 ---
 
-## 建议
+## Run #005 vs Run #006 边界
 
-由于当前环境限制（widget test 无法稳定捕获真实代码 overflow），**Run #005 应该采用方案 B 或 C**：
+| | Run #005 | Run #006 |
+|--|---------|---------|
+| **核心目标** | 真实源码修复证明 | 完整 Agent 自主修复 E2E |
+| **修改方式** | Agent 手动修改生产代码 | Agent 全程自主（诊断→修复→验证） |
+| **Runtime** | 真机/flutter drive | 真机 + 可能 headless |
+| **Capability** | CLI API regression | 真实 Flutter runtime E2E |
+| **成功标准** | 6 predicates | 6 predicates + autonomous replay |
 
-1. 修改生产代码引入 bug（实际写文件）
-2. 用 fault injection 验证 ADI 能捕获
-3. Agent 修改生产代码修复 bug（实际写文件）
-4. 验证修复后代码不再包含 bug
-5. 重新运行 Run #004 测试确认无 overflow
-6. Export evidence
-
-这样可以证明 Agent **修改了真实生产代码**，同时避免 widget test 的根本限制。
+**Run #005** 回答：「Agent 能否根据 ADI 证据修改真实生产代码并证明修复有效？」
+**Run #006** 回答：「Agent 能否在无人工干预下完成完整自修复闭环？」
 
 ---
 
-## 执行计划
+## 当前状态：Phase 3.8 里程碑总结
 
-### 立即执行
+```text
+3.7 Observability System
+  ✅ 证据采集层（ObservabilityService, AdiStorage, RingBuffer）
 
-1. 修改 `code_block.dart` 引入真实 bug
-2. 运行 Run #004 测试确认能捕获
-3. Agent 修改 `code_block.dart` 修复 bug
-4. 验证修复后代码正确
-5. 重新运行所有测试确认无回归
-6. Export evidence
+3.8 Agent Diagnostic Interface
+  ✅ Run #001: ADI 诊断链（doctor → latest-error → trace → replay）
+  ✅ Run #002: Fault → AdiStorage 持久化
+  ✅ Run #003: 闭环编排架构（5 phases）
+  ✅ Run #004: Fault injection 闭环协议（before=reproduced → after=pass）
+  ⏳ Run #005: 真实生产代码修复（待集成测试环境就绪）
+  ⏳ Run #006: 完整 Agent 自主修复 E2E
 
-### 未来增强
+架构 Gate: PASSED（Run #004）
+真实修复 Gate: PENDING（Run #005）
+```
 
-1. 添加 debug toggle 使 App 在 debug 模式下使用 `ObservabilityService.full()`
-2. 在 CI 中添加 `flutter drive` 步骤
-3. Run #006: 在真机上验证完整闭环
+---
+
+## 下一步行动
+
+1. **立即**: 添加 `flutter drive` 配置到 `.github/workflows/ci.yml`
+2. **短期**: 创建 `test/integration_test/run005_bug_repro_test.dart`
+3. **中期**: 实现 Run #005（引入真实 bug → ADI 捕获 → Agent 修复 → 重新构建 → 验证）
+4. **长期**: Run #006 完整 Agent 自主修复闭环
