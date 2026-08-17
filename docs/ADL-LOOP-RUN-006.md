@@ -151,34 +151,59 @@ TC-ARCH-7 行数门禁：capability 测试 320 行（< 400）
 
 ---
 
-## 附录：模拟器实测（2026-08-17，emulator-5554）
+## 附录：模拟器实测（2026-08-17，emulator-5554，无 zip 同步）
 
 **前置问题**：widget test 双进程在主机验证闭环，但「Agent 自主修复」最终要落到真实 Flutter runtime。
-本附录把 capability 换成 integration_test（真实引擎），证据经 zip 同步回主机 .adi。
+本附录把 capability 换成 integration_test（真实引擎）。
 
-### 全链路实测（`run006_simulator_proof.sh` 各阶段）
+### 无 zip 同步方案（相对首版简化的核心改进）
+
+首版模拟器实现走 `exportDiagnosticZip → base64 整包 → ffx adi import` 三层。
+实测中发现：**zip 这一步完全可以省掉** —— 设备端 `.adi` 由 `AdiStorageImpl`
+直接写入，其 observation 字段（errorType/message/sessionId/traceId）与
+`ffx adi` 期望**完全兼容**（无需 import 转换）。改为：
+
+```text
+设备端 AdiStorageImpl 写 .adi（observations/sessions/failures/schema）
+  + capability 显式补写 traces/<traceId>.json（ffx trace-show 需要）
+  + 显式写 sessions/<sid>/replay.json + invariant_report.json
+  → RUN006_FILE_<PHASE>=<relpath>=<base64> 逐文件透传
+  → 驱动脚本解码直接落盘 tools/adi/.adi/<relpath>
+```
+
+省掉了：zip 打包、zip 解码、`ffx adi import` 转换三层。
+
+> 说明：为什么不用 `adb pull` 设备 .adi 目录？`flutter test integration_test`
+> 结束后会**卸载应用**（`pm list packages` 无包），`/data/user/0/` 私有目录与
+> `getExternalFilesDir` 的 `Android/data/<pkg>` 目录随卸载一并清除，公共
+> /sdcard 无写权限（targetSdk 高、无 MANAGE_EXTERNAL_STORAGE）。因此
+> 逐文件 base64 透传（测试运行期间打印）是唯一可靠的设备→主机通道。
+
+### 全链路实测（分阶段执行，无 zip）
 
 | 阶段 | 操作 | 实测结果 |
 |------|------|---------|
-| P1 BEFORE | integration_test 渲染 CodeBlock（fault gate 存在）→ 真实 RenderOverflow | ✅ `A RenderFlex overflowed by 99876 pixels`（session=sess_773b） |
-| P2 同步 | zip（2538B）base64 透传 → `ffx adi import` | ✅ observations/traces/sessions/replay 合入 tools/adi/.adi |
+| P1 BEFORE | integration_test 渲染 CodeBlock（fault gate 存在）→ 真实 RenderOverflow | ✅ `A RenderFlex overflowed`（session=sess_f022），5 个 .adi 文件透传 |
+| P2 落盘 | RUN006_FILE_BEFORE 行解码 → 直接写入 tools/adi/.adi | ✅ observations/traces/sessions/failures 齐全 |
 | P3 Agent reason | `ffx adi latest-error → trace-show → replay` → 推理 → 改码 | ✅ 定位 code_block.dart，git diff `6 deletions` 真实生效 |
-| P4 AFTER | 新 APK 重编译修复后源码 → 无 overflow → zip（replay=not_reproduced） | ✅ 无新错误；AFTER session 合并到目标 session |
-| P5 Agent validate | `ffx adi validate --after-fix sess_773b` + capability E2E | ✅ after=pass, invariants.allPassed=true |
+| P4 AFTER | 新 APK 重编译修复后源码 → 无 overflow → 直接覆盖 ADL_SESSION_ID 的 replay.json | ✅ 无新错误，replay=not_reproduced（4 个文件透传落盘） |
+| P5 Agent validate | `ffx adi validate --after-fix sess_f022` + capability E2E | ✅ after=pass, invariants.allPassed=true |
 | P6 还原 | restore code_block.dart | ✅ git clean |
 
-### 关键差异与修复（相对 widget 版）
+### 关键设计（相对首版 zip 方案的差异）
 
-1. **证据同步 = zip base64 透传**：模拟器上 `.adi` 在应用私有目录
-   （`/data/user/0/.../app_flutter`），adb shell 不可读（Permission denied）；
-   改为 integration_test 导出 zip → `RUN006_ZIP_B64_*` 打印 → 驱动脚本 base64 解码 → `ffx adi import`。
-2. **AFTER 同 session 覆盖**：`ObservabilityService.sessionId` 是 final 无法注入，
-   AFTER zip 的 metadata.sessionId 是新 service 生成的 → 导入后 replay 落在新 session；
-   驱动脚本把 after 的 replay/invariant 合并到目标 session（与 widget 版覆盖语义一致）。
-3. **AFTER replay 显式 not_reproduced**：修复后命令流为空，真实 replay 返回 inconclusive；
-   capability 测试显式 `cacheReplayResult(not_reproduced)`（与 widget 版 `_cacheSessionEvidence` 一致）。
-4. **validate 重新 observe**：`--simulator --validate-only` 是新进程，从 .adi 重新观察
-   （C1 依旧成立——observation 全部来自 ffx adi）。
+1. **逐文件 base64 透传**替代整包 zip：`RUN006_FILE_<PHASE>=<relpath>=<b64>`，
+   驱动脚本 `decode_adi_files` 解码落盘，无 zip/import。
+2. **traces 由 capability 显式补写**：设备端 AdiStorageImpl 不写 traces 目录，
+   必须由测试写 `traces/<traceId>.json`（含 CodeBlockThemeRendered span），
+   否则 Agent 的 trace-show 返回 not_found 导致 C2 推理失败。
+3. **AFTER 直接覆盖 ADL_SESSION_ID**：`ObservabilityService.sessionId` 是 final
+   无法注入，capability 直接把 replay/invariant 写到 Agent 观察到的目标
+   session 目录（驱动脚本传入 ADL_SESSION_ID），无 session 合并逻辑。
+4. **AFTER replay 显式 not_reproduced**：修复后命令流为空，真实 replay 返回
+   inconclusive；capability 显式 `cacheReplayResult(not_reproduced)`。
+5. **validate 重新 observe**：`--simulator --validate-only` 是新进程，从 .adi
+   重新观察（C1 依旧成立——observation 全部来自 ffx adi）。
 
 ### 模拟器实测结论
 
@@ -188,7 +213,7 @@ validate:   before=unknown  after=pass  replay=not_reproduced  invariants.allPas
 status:     autonomous_agent_repair_proven（模拟器真实 runtime 闭环 ✅）
 ```
 
-**Run #006 在模拟器（真实 Flutter runtime）上完整闭环通过**：
+**Run #006 在模拟器（真实 Flutter runtime）上完整闭环通过，且无 zip 链路**：
 Agent 经 ffx CLI 观察真实 RenderOverflow → 自主推理改码（git diff 可审计）→
 新 APK 重编译后故障不再复现 → validate 判定 after=pass。
 与 widget test 版共同构成「协议链路 + 真实引擎」双重验证。

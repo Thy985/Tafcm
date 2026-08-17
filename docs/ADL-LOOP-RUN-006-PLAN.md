@@ -154,25 +154,27 @@ PASS = C1 ∧ C2 ∧ C3 ∧ P1 ∧ P2 ∧ P3 ∧ P4 ∧ P5 ∧ P6
 
 ---
 
-## 8. 模拟器实测方案（2026-08-17 增补）
+## 8. 模拟器实测方案（2026-08-17 增补，无 zip 同步）
 
 widget test 双进程已在主机验证闭环；模拟器实测把 capability 换成
-**integration_test**（真实 Flutter runtime），证据经 zip 同步回主机 .adi：
+**integration_test**（真实 Flutter runtime），证据经**逐文件 base64 透传**
+同步回主机 .adi（**省掉 zip 打包/解码/import 三层**）：
 
 ```text
 Phase 0: 备份 code_block.dart
 Phase 1: flutter test integration_test/run006_capability_test.dart -d emulator-5554
          --dart-define=ADL_RUN006_BEFORE=true
          → 真实 runtime 渲染 CodeBlock（FaultInjection gate 存在）→ 真实 RenderOverflow
-         → FlutterError.onError 捕获 → exportDiagnosticZip 导出设备端 zip
-Phase 2: adb pull <device zip> → ffx adi import（或 dart run tools/adi/adi.dart import）
-         → 证据合并进 tools/adi/.adi（observations/traces/sessions/replay）
-Phase 3: Agent 闭环（run006_agent.py --simulator，跳过 widget capability）：
+         → FlutterError.onError 捕获 → AdiStorageImpl 写设备端 .adi
+         → 显式补写 traces/<traceId>.json + sessions/<sid>/replay.json(reproduced)
+         → RUN006_FILE_BEFORE=<relpath>=<base64> 逐文件透传
+Phase 2: 驱动脚本解码直接落盘 tools/adi/.adi/<relpath>（无 zip、无 adi import）
+Phase 3: Agent 闭环（run006_agent.py --simulator --reason-only）：
          ffx adi latest-error → trace-show → replay → 推理 → 改码（真实 git diff）
 Phase 4: flutter test integration_test/run006_capability_test.dart -d emulator-5554
          --dart-define=ADL_RUN006_AFTER=true --dart-define=ADL_SESSION_ID=<session>
-         → 新 APK 重编译修复后源码 → 无 overflow → 导出 zip（replay=not_reproduced）
-         → adb pull → ffx adi import（覆盖同一 session replay）
+         → 新 APK 重编译修复后源码 → 无 overflow → 直接覆盖目标 session 的
+           replay.json(not_reproduced) → RUN006_FILE_AFTER=... 逐文件透传落盘
 Phase 5: ffx adi validate --after-fix <session> → after=pass
 Phase 6: 还原 code_block.dart
 ```
@@ -182,11 +184,18 @@ Phase 6: 还原 code_block.dart
 1. **capability 复用 FaultInjection gate**（SizedBox(height:100000)，与 widget 版同一 bug）：
    Agent 的 `reason_and_patch` 推理逻辑**零改动**——运行环境从 widget test
    换成模拟器真实 runtime，但 bug 本体与修复动作一致。
-2. **证据同步 = zip 链路**（复用 AS-RG.1）：模拟器上 `.adi` 在设备端
-   （getApplicationDocumentsDirectory），主机 ffx 读 `tools/adi/.adi`；
-   通过 exportDiagnosticZip → adb pull → `ffx adi import` 完成设备→主机同步。
-3. **agent.py 增加 `--simulator` 模式**：跳过 run_before/after_capability
-   （改由外部 integration_test + import 完成），只执行 observe → reason_and_patch
-   → validate → capability_e2e，保持 C1/C2/C3 与 P1-P6 断言不变。
-4. **真机证据更接近真实产品**：模拟器上 overflow 由真实渲染管线触发
-   （非 FakeAsync zone），与 adi_real_fault_test 同等级（后者已实测通过）。
+2. **逐文件 base64 透传替代 zip**：设备端 `.adi` 由 AdiStorageImpl 直接写入，
+   observation 字段与 ffx 期望**完全兼容**（无需 import 转换）。省掉
+   exportDiagnosticZip / zip 解码 / `ffx adi import` 三层。
+3. **为什么不用 adb pull 目录**：`flutter test integration_test` 结束后卸载应用
+   （`pm list packages` 无包），私有目录与 `getExternalFilesDir` 的
+   `Android/data/<pkg>` 随卸载清除，公共 /sdcard 无写权限；
+   逐文件 base64 透传（测试运行期间打印）是唯一可靠的设备→主机通道。
+4. **traces 由 capability 显式补写**：设备端 AdiStorageImpl 不写 traces 目录，
+   测试必须写 `traces/<traceId>.json`（含 CodeBlockThemeRendered span），
+   否则 Agent 的 trace-show 返回 not_found 导致 C2 推理失败。
+5. **AFTER 直接覆盖 ADL_SESSION_ID**：`ObservabilityService.sessionId` 是 final
+   无法注入，capability 直接把 replay/invariant 写到 Agent 观察到的目标
+   session 目录，无 session 合并逻辑。
+6. **agent.py 增加 `--simulator` 两阶段模式**（--reason-only / --validate-only，
+   validate 阶段从 .adi 重新 observe），保持 C1/C2/C3 与 P1-P6 断言不变。
