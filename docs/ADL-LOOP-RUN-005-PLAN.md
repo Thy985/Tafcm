@@ -10,6 +10,12 @@
 
 Run #004 证明了故障注入闭环协议。但缺少最关键的一环：**Agent 修改了真实生产代码 + 重新构建后真实产品行为恢复**。
 
+> **定位声明（2026-08-17 修订）**：本计划与 Run #005 执行证明的是
+> **Production Code Repair Verifiability Proof**（真实生产代码修复的**可验证性**），
+> **不是** Agent Autonomous Repair。修复动作由确定性脚本 `run005_apply_fix.dart`
+> 执行，P2 只能证明「生产源码确实被修改」，不能证明「Agent 从 Observation
+> 推理出修改并自主执行」——后者是 Run #006 的职责（见「Run #005 vs Run #006 边界」）。
+
 定义三个独立证明层：
 
 | 层 | 验证什么 | 方法 | 对应谓词 |
@@ -108,9 +114,13 @@ assert replay_status == "reproduced"  → P1 = true
 
 ---
 
-## Phase 2: Agent 真正修改生产代码（B 层）
+## Phase 2: 生产代码修改（B 层）
 
-Agent 根据 ADI 证据自主修复：
+> **执行注记（2026-08-17）**：实际执行中修复动作由确定性脚本
+> `run005_apply_fix.dart` 完成，**不是** Agent 从 Observation 推理后自主执行。
+> 下面的命令序列描述的是计划中的「Agent 操作」形态，对应 Run #006 的自主修复目标。
+
+Agent 根据 ADI 证据修改生产代码（计划形态）：
 
 ```bash
 # Agent 读取证据
@@ -277,14 +287,14 @@ Integration test 在真实 Flutter runtime 上运行，不受 FakeAsync zone 限
 
 | | Run #005 | Run #006 |
 |--|---------|---------|
-| **核心目标** | 真实源码修复证明 | 完整 Agent 自主修复 E2E |
-| **修改方式** | Agent 手动修改生产代码 | Agent 全程自主（诊断→修复→验证） |
-| **Runtime** | 真机/flutter drive | 真机 + 可能 headless |
+| **核心目标** | 真实源码修复证明（Verifiability） | 完整 Agent 自主修复 E2E（Autonomy） |
+| **修改方式** | 确定性脚本 `run005_apply_fix.dart` 修改 | Agent 全程自主（诊断→修复→验证） |
+| **Runtime** | 真机/flutter drive（实际：双进程 widget test） | 真机 + 可能 headless |
 | **Capability** | CLI API regression | 真实 Flutter runtime E2E |
 | **成功标准** | 6 predicates | 6 predicates + autonomous replay |
 
-**Run #005** 回答：「Agent 能否根据 ADI 证据修改真实生产代码并证明修复有效？」
-**Run #006** 回答：「Agent 能否在无人工干预下完成完整自修复闭环？」
+**Run #005** 回答：「真实生产代码修复的**技术链是否可验证**？」——证明「生产源码修改 + 新进程重编译 + 故障不再复现」成立，但**不宣称 Agent 自主推理修复**（修复动作由确定性脚本执行）。
+**Run #006** 回答：「Agent 能否在无人工干预下完成完整自修复闭环？」——满足三个无人工介入条件：Agent 自己发现问题（仅见 `ffx ... failed`）、自己决定修改（产生真实 git diff）、自己判断修复成功（依据 ADI before/after + invariants + capability）。
 
 ---
 
@@ -299,12 +309,18 @@ Integration test 在真实 Flutter runtime 上运行，不受 FakeAsync zone 限
   ✅ Run #002: Fault → AdiStorage 持久化
   ✅ Run #003: 闭环编排架构（5 phases）
   ✅ Run #004: Fault injection 闭环协议（before=reproduced → after=pass）
-  ⏳ Run #005: 真实生产代码修复（待集成测试环境就绪）
+  ✅ Run #005: 真实生产代码修复（双进程证明，见 ADL-LOOP-RUN-005.md）
   ⏳ Run #006: 完整 Agent 自主修复 E2E
 
 架构 Gate: PASSED（Run #004）
-真实修复 Gate: PENDING（Run #005）
+真实修复 Gate: PASSED（Run #005，2026-08-17）
 ```
+
+> **执行注记（2026-08-17）**：Run #005 实际采用 widget test + 双进程方案
+> （`tools/adi/run005_proof.sh`）而非 integration test（flutter drive）——
+> 计划文档原要求真机/flutter drive，实施中发现双进程 widget test 可达成
+> 相同「重编译后真实运行时验证」语义，且 CI 更稳定、无设备依赖。
+> 详细证据见 [ADL-LOOP-RUN-005.md](ADL-LOOP-RUN-005.md)。
 
 ---
 
