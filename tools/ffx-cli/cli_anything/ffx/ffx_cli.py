@@ -170,10 +170,125 @@ def inject(ctx, project_path, dry_run, inject_type,
         else:
             proj["content"] = new_content
             proj["updated_at"] = proj_mod._now_iso()
+            proj_mod.snapshot_project(proj)
             proj_mod._atomic_write(project_path, proj)
-            result = {"status": "ok", "injected_type": inject_type}
+            result = {"status": "ok", "injected_type": inject_type, "history_size": len(proj.get("_session", {}).get("history", []))}
 
         pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("save")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.option("-o", "--output", "out_path", default=None, help="Output path (defaults to project_path)")
+@click.pass_context
+def save(ctx, project_path, out_path):
+    """Save (persist) project state to disk."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        target = out_path or project_path
+        saved = proj_mod.save_project(target, proj)
+        pretty_print({"status": "saved", "path": saved}, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("undo")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.pass_context
+def undo(ctx, project_path):
+    """Undo the last content change (requires prior snapshot)."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        result = proj_mod.undo_project(proj)
+        if result is None:
+            pretty_print({"status": "no_history", "message": "Nothing to undo"}, _effective_json(ctx))
+        else:
+            proj_mod._atomic_write(project_path, proj)
+            info = proj_mod.info_project(proj)
+            pretty_print({"status": "undone", **info}, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("redo")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.pass_context
+def redo(ctx, project_path):
+    """Redo the last undone change."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        result = proj_mod.redo_project(proj)
+        if result is None:
+            pretty_print({"status": "nothing_to_redo", "message": "Redo stack is empty"}, _effective_json(ctx))
+        else:
+            proj_mod._atomic_write(project_path, proj)
+            info = proj_mod.info_project(proj)
+            pretty_print({"status": "redone", **info}, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("snapshot")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.pass_context
+def snapshot(ctx, project_path):
+    """Push current state onto history stack (prepare for undo)."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        proj_mod.snapshot_project(proj)
+        proj_mod._atomic_write(project_path, proj)
+        status = proj_mod.session_status(proj)
+        pretty_print({"status": "snapshot_saved", **status}, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("export")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.argument("output_md", type=click.Path(exists=False))
+@click.pass_context
+def export(ctx, project_path, output_md):
+    """Export project content to a .md file."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        out = proj_mod.export_markdown(proj, output_md)
+        pretty_print({"status": "exported", "output": out}, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("diff")
+@click.argument("path_a", type=click.Path(exists=True))
+@click.argument("path_b", type=click.Path(exists=True))
+@click.pass_context
+def diff(ctx, path_a, path_b):
+    """Compare two markdown files and show stat differences."""
+    try:
+        result = proj_mod.diff_markdown(path_a, path_b)
+        pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@project.command("status")
+@click.option("-p", "--project", "project_path", required=True, help="Path to project JSON")
+@click.pass_context
+def status(ctx, project_path):
+    """Show project metadata and session status."""
+    try:
+        proj = proj_mod.open_project(project_path)
+        info = proj_mod.info_project(proj)
+        sess = proj_mod.session_status(proj)
+        pretty_print({"info": info, "session": sess}, _effective_json(ctx))
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -459,6 +574,35 @@ def health(ctx):
 
 @diag.command()
 @click.pass_context
+def health(ctx):
+    """Overall project health summary."""
+    try:
+        root = find_flutter_root() or str(Path.cwd())
+        root_p = Path(root)
+        dart = _which("dart")
+        flutter = _which("flutter")
+        python = _which("python3") or _which("python")
+        has_adi = (root_p / "tools" / "adi" / "adi.dart").is_file()
+        has_ffx_analyze = (root_p / "tools" / "ffx-analyze" / "analyze.py").is_file()
+
+        result = {
+            "project_root": root,
+            "dart_sdk": {"available": dart is not None, "path": dart},
+            "flutter_sdk": {"available": flutter is not None, "path": flutter},
+            "python": {"available": python is not None, "path": python},
+            "adi_cli": {"available": has_adi, "path": str(root_p / "tools" / "adi" / "adi.dart")},
+            "ffx_analyze": {"available": has_ffx_analyze, "path": str(root_p / "tools" / "ffx-analyze" / "analyze.py")},
+            "pubspec": (root_p / "flutter_app" / "pubspec.yaml").is_file(),
+            "cli_available": has_adi,
+        }
+        pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@diag.command()
+@click.pass_context
 def version(ctx):
     """Show ffx-cli and project versions."""
     try:
@@ -469,6 +613,32 @@ def version(ctx):
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             "project_root": str(Path.cwd()),
         }
+        pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@diag.command()
+@click.pass_context
+def traces(ctx):
+    """List trace IDs in .adi/traces/."""
+    try:
+        root = find_flutter_root() or str(Path.cwd())
+        result = adi_mod.list_traces(cwd=root)
+        pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@diag.command()
+@click.pass_context
+def sessions(ctx):
+    """List session IDs in .adi/sessions/."""
+    try:
+        root = find_flutter_root() or str(Path.cwd())
+        result = adi_mod.list_sessions(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
@@ -494,10 +664,10 @@ def _which(name: str):
 def _print_help(ctx, use_json):
     if use_json:
         cmds = {
-            "project": "Project management (create, info, inject)",
+            "project": "Project management (create, info, inject, save, undo, redo, snapshot, export, diff, status)",
             "analyze": "Analyze markdown files and ADRs",
             "adi": "ADI diagnostic commands (doctor, trace, replay, ...)",
-            "diag": "Project diagnostics (health, version)",
+            "diag": "Project diagnostics (health, version, traces, sessions)",
         }
         print(json.dumps({"mode": "repl", "commands": cmds, "hint": "use --help for details"}))
     else:
