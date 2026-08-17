@@ -55,7 +55,8 @@ void main() {
       // Pre-fix validation: still failing.
       final before =
           runAdiJson(['validate', '--after-fix', 'sess_A', '--json'], cwd: cwd);
-      expect(before['before'], 'unknown');
+      expect(before['before'], 'reproduced',
+          reason: 'observation 存在（obs_001 sessionId=sess_A）→ before 已知');
       expect(before['after'], 'still_failing');
 
       // Apply the Agent code fix (simulated by flipping the replay result).
@@ -65,7 +66,8 @@ void main() {
       // Validate after modify: no longer reproduces + invariants pass → pass.
       final after =
           runAdiJson(['validate', '--after-fix', 'sess_A', '--json'], cwd: cwd);
-      expect(after['before'], 'unknown');
+      expect(after['before'], 'reproduced',
+          reason: 'observation 仍存在 → before=reproduced（与 RUN-007 §三种状态验证对齐）');
       expect(after['after'], 'pass');
     });
   });
