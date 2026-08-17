@@ -138,6 +138,9 @@ secrets/
 **/symbols/
 **/obfuscate/
 
+# Agent 工具配置与运行日志（Claude Code hooks 等，不入库）
+.claude/
+
 # Tool temp files
 .workbuddy/
 
