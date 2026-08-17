@@ -375,9 +375,12 @@ def failure_show(ctx, failure_id, project_root):
 
 @adi.command()
 @click.argument("session_id")
+@click.option("--after-fix", "after_fix", is_flag=True, default=False,
+              help="Validate after fix (replay + invariant); adi.dart requires "
+                   "this flag, ffx always validates after-fix")
 @click.option("--root", "project_root", default=None, help="Project root")
 @click.pass_context
-def validate(ctx, session_id, project_root):
+def validate(ctx, session_id, after_fix, project_root):
     """Validate after fix (replay + invariant)."""
     try:
         root = project_root or find_flutter_root()
