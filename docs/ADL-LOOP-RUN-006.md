@@ -144,7 +144,7 @@ TC-ARCH-7 行数门禁：capability 测试 320 行（< 400）
 
 ## 遗留与下一步
 
-1. **LLM Agent 接入**：本 harness 是确定性推理（协议链路证明）；接入真实 LLM（依据 observation 生成 patch）即完成产品级 Agent Engineering Loop。
+1. **LLM Agent 接入（未验证的开放方向，非"即完成"）**：本 harness 是**确定性规则推理**（正则提取组件名 → grep 定位 → 移除特定块），**不是 LLM**。当前只证明了协议链路（C1/C2/C3 + P1-P6 可审计），「接入真实 LLM（依据 observation 生成 patch）」这条路径**从未验证过**——LLM 能否依据 observation 正确生成 patch、生成质量如何、能否自主走完闭环，都是未知数。正确表述应为：**接入真实 LLM 是一个需要专门设计验证实验的开放方向**（验证 LLM 的 patch 生成正确性、与 `verify_evidence` 审计的兼容性、全闭环成功率），**只有在验证通过后才能宣称产品级 Agent Engineering Loop 完成**。
 2. **真机验证**：capability 测试仍用 widget test + FaultInjection；真机可走真实 RenderOverflow 同一协议。
 3. **CI 集成**：`run006_proof.sh` 可接入 GitHub Actions schedule job（capability 测试由 dart-define 门控，CI 默认安全跳过）。
 4. **六轮证据链收官**：Observe(001) → Persist(002) → Orchestrate(003) → Validate(004) → Verify(005) → **Autonomous(006)** ✅
