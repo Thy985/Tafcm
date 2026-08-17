@@ -1,9 +1,10 @@
-# ADL Loop Run #004 — Agent 自修复闭环完整验证
+# ADL Loop Run #004 — Deterministic Fault-Injection Closed Loop Verified
 
 **日期**: 2026-08-17
 **前置**: Run #001-003 已证明 ADI 诊断链和闭环编排架构可行
-**状态**: ✅ Agent 自修复闭环完整验证通过
-**里程碑**: Phase 3.8 正式 Gate 通过
+**状态**: ✅ ADI 架构验证通过 | ⚠️ Fault injection 模式（非真实代码修复）
+**关键边界**: `Phase 3 fix = FaultInjection.enabled = false`（开关式修复），非源码修改
+**下一步**: Run #005 — 真实源码修改 + 重新构建 + 真实 Capability E2E
 
 ---
 
