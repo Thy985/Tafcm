@@ -84,7 +84,10 @@ class WordOoxmlBuilder {
     final buf = StringBuffer();
     for (final entry in formulaRels.entries) {
       final info = entry.value;
-      if (info == null) continue; // 渲染失败的公式没有 PNG，跳过
+      // BUG-WORD-001 修复（与 _renderInlineRuns 同条件）：渲染失败
+      // （widthEmu<=0）的公式没有 PNG 落盘，跳过 rel 生成——否则
+      // rels 指向不存在的 media/formula_N.png（dangling relationship）。
+      if (info == null || info.widthEmu <= 0) continue;
       final i = info.relId.replaceFirst('rIdImage', '');
       buf.write(
         '<Relationship Id="${info.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/formula_$i.png"/>',
@@ -367,7 +370,10 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
         );
       } else if (c is FormulaElement) {
         final info = formulaRels[c.latex];
-        if (info != null) {
+        // BUG-WORD-001 修复：widthEmu<=0 表示渲染失败（无 PNG 落盘），
+        // 走 fallback latex 文本而非空图片引用——否则 Word/WPS 打开时
+        // rels 指向不存在的 media/formula_N.png → 公式空白丢失。
+        if (info != null && info.widthEmu > 0) {
           runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
         } else {
           runs.write(_formulaFallback(c.latex));

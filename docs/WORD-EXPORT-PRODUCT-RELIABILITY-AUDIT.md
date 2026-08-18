@@ -2,11 +2,11 @@
 
 **日期**: 2026-08-18
 **前置**: Word Migration Spike（当前不迁移 + 技术债 + Export IR 隔离）→ Word Export Audit（CAP-WORD-001~016，L1 静态层）
-**状态**: ✅ 审计升级完成（L1-L5 验证 + L6 部分；发现 1 个真实 bug：无渲染公式消费端丢失）
-**结论**: Word Export 已达到 **L1-L5 可验证通过**；**L6 Visual Fidelity 因
-公式图片丢失未达标**。真实 Word/WPS 消费端验证（word2pdf/pdf2txt）成功，
-证明「能打开、无 repair prompt、文本/列表/表格语义保真」——但**公式
-（无渲染时）在消费端丢失**，正是「Word 能打开但公式丢失」的情况 A。
+**状态**: ✅ 审计升级完成（L1-L6 全层级验证）——**BUG-WORD-001 已修复（2026-08-18）**，L6 Visual Fidelity 达标
+**结论**: Word Export 已达到 **L1-L6 全层级可验证通过**；真实 Word/WPS 消费端
+验证（word2pdf/pdf2txt）成功，证明「能打开、无 repair prompt、文本/列表/
+表格/公式语义全部保真」。BUG-WORD-001（无渲染公式消费端丢失）已修复并
+经 WPS 消费端验证回归通过。
 
 ---
 
@@ -19,7 +19,7 @@
 | **L3** Word Consumer | Microsoft Word 打开 | wpscli word2pdf（WPS 引擎消费，同 OOXML 标准） | ✅（代理） |
 | **L4** WPS Consumer | WPS 打开 | wpscli word2pdf + pdf2txt（本机 WPS 12.1） | ✅ |
 | **L5** Semantic Fidelity | 消费端核心语义保留 | CAP-WORD-023/024/025 + pdf2txt 文本比对 | ✅ |
-| **L6** Visual Fidelity | 消费端视觉正确（公式/图片/分页） | 公式图片渲染检查 | ❌（公式丢失） |
+| **L6** Visual Fidelity | 消费端视觉正确（公式/图片/分页） | 公式 fallback 文本保真（BUG-WORD-001 修复后） | ✅ |
 
 ---
 
@@ -84,7 +84,7 @@ WPS pdf2txt 消费端文本（真实消费者视角）：
 
 ---
 
-## 3. 发现：BUG-WORD-001 无渲染公式在消费端丢失
+## 3. 发现并修复：BUG-WORD-001 无渲染公式在消费端丢失 ✅（2026-08-18 已修复）
 
 **现象**：`公式 $E=mc^2$ 结尾` 导出 docx 后，WPS pdf2txt 文本为
 `公式 结尾`——**`E=mc^2` 内容丢失**。
@@ -93,20 +93,25 @@ WPS pdf2txt 消费端文本（真实消费者视角）：
 - `_renderInlineRuns` 对 `FormulaElement`：`formulaRels[c.latex]` 有 entry 时
   走 `_formulaImage`（w:drawing + r:embed 图片引用），widthEmu=0 时用默认尺寸
 - 但**无渲染结果**时（如测试环境无 SVG 渲染器），`formulaRels` 中该 latex
-  的 `FormulaImageInfo` 存在但 rels 里**没有对应图片文件** → Word/WPS 打开
-  时图片引用悬空 → 公式显示为空白/丢失
+  的 `FormulaImageInfo` 存在但 **widthEmu=0**（渲染失败未更新）→
+  `_renderInlineRuns` 走 `_formulaImage` 生成图片引用，`buildImageRelsXml`
+  也生成 rel 指向 `media/formula_N.png`——但 PNG **实际不存在** →
+  **dangling relationship** → Word/WPS 打开时图片引用悬空 → 公式空白丢失
 
 **这正是「Word 能打开但公式丢失」的情况 A**——L1 静态审计（XML 结构合法）
 无法暴露，只有真实消费端（WPS 打开 + 文本提取）才能发现。
 
-**影响**：真实用户导出含公式文档到 Word/WPS，公式可能空白（依赖渲染服务
-可用性）。这是 **P1 用户可见 bug**（符合技术债分级：进入 Product Reliability）。
+**修复**（2 处，同一条件 `widthEmu > 0`）：
+1. `_renderInlineRuns`（L358-361）：`info != null && info.widthEmu > 0` 才走
+   `_formulaImage`；否则 `_formulaFallback(c.latex)`（公式以 LaTeX 文本保留）
+2. `buildImageRelsXml`（L84-88）：`info == null || info.widthEmu <= 0` 跳过
+   rel 生成——消除 dangling relationship
 
-**建议修复方向**（Export IR 隔离的天然切入点）：
-1. **无渲染结果时走 `_formulaFallback`（latex 文本）而非空图片引用**
-   —— `_renderInlineRuns` 判断 `info != null && widthEmu > 0` 才走图片，
-   否则 fallback 文本（Word 至少显示 LaTeX 源，不丢内容）
-2. 修复后补回归：CAP-WORD-024 断言升级为「无渲染时必须含 fallback 文本」
+**回归验证**：
+- CAP-WORD-024 升级：无渲染时必须含 fallback 文本（`allText.contains('E=mc')`）✅
+- CAP-WORD-024b 新增：rels 公式引用数 == media 实际文件数（无 dangling）✅
+- WPS 消费端：`公式 E=mc^2 结尾`（修复前 `公式 结尾`）✅
+- 相关测试 50 项全绿
 
 ---
 
@@ -119,11 +124,11 @@ Word Export Product Reliability Audit：
   L3 Word Consumer         ✅（wpscli word2pdf 代理验证）
   L4 WPS Consumer          ✅（本机 WPS 12.1）
   L5 Semantic Fidelity     ✅（CAP-WORD-023/024/025 + pdf2txt）
-  L6 Visual Fidelity       ❌（BUG-WORD-001：无渲染公式消费端丢失）
+  L6 Visual Fidelity       ✅（BUG-WORD-001 已修复：无渲染公式 fallback 文本保真）
 
-发现 bug：1（BUG-WORD-001，P1 用户可见）
-建议：修复方向 = 无渲染时 fallback latex 文本（Export IR 切入点）
-情况 A/B：倾向 A（功能覆盖良好）但公式问题需先修
+发现 bug：1（BUG-WORD-001，P1 用户可见）——**已修复**（2026-08-18）
+修复：无渲染（widthEmu<=0）走 _formulaFallback + buildImageRelsXml 跳过 dangling rel
+情况 A/B：**情况 A 确认**（功能覆盖良好 + 公式问题已修复，L1-L6 全达标）
 ```
 
 ---

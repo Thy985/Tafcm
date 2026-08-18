@@ -100,18 +100,33 @@ void main() {
           reason: '中文文本应保留: $model');
     });
 
-    test('CAP-WORD-024：公式语义保留（图片引用 / OMML / fallback 任一）', () async {
+    test('CAP-WORD-024：公式语义保留（BUG-WORD-001 修复后无渲染必含 fallback 文本）',
+        () async {
       const md = r'公式 $E=mc^2$ 结尾';
       final model = await _semanticOf(md);
-      // 公式语义保留方式（真实实现：公式 → SVG 渲染 → PNG 图片嵌入，
-      // 用 w:drawing + r:embed 图片引用；无渲染时走 fallback 文本）。
-      // 语义级断言：文档中公式「内容」或「图片引用」任一存在。
-      final hasImageRef = model.allText.contains('r:embed') ||
-          model.paragraphCount >= 1; // w:drawing 在段落内
-      final hasOMML = model.formulaCount >= 1;
-      final hasFallback = model.allText.contains('E=mc');
-      expect(hasOMML || hasImageRef || hasFallback, isTrue,
-          reason: '公式语义应保留（OMML/图片引用/fallback）: $model');
+      // 测试环境无 SVG/PNG 渲染器 → formulaRels entry widthEmu=0（渲染失败）。
+      // BUG-WORD-001 修复：widthEmu<=0 必须走 _formulaFallback(latex)，
+      // 公式内容以文本形式保留（E=mc^2 出现在 w:t 中），而非空图片引用。
+      expect(model.allText, contains('E=mc'),
+          reason: '无渲染时公式必须以 fallback 文本保留（BUG-WORD-001 回归）: $model');
+      // 修复前：公式走空图片引用（w:drawing 指向不存在 media）→ allText 无 E=mc
+    });
+
+    test('CAP-WORD-024b：无渲染时文档中无悬空公式图片引用（rels 无 dangling）',
+        () async {
+      const md = r'公式 $E=mc^2$ 结尾';
+      final bytes = await WordExporter.export(md, title: 'semantic-no-dangling');
+      final archive = ZipDecoder().decodeBytes(bytes);
+      // 渲染失败（widthEmu=0）的公式不应生成 rel 指向不存在 media
+      final relsFile = archive.files
+          .firstWhere((f) => f.name == 'word/_rels/document.xml.rels');
+      final relsXml = utf8.decode(relsFile.content as List<int>);
+      // 若文档中无公式图片 rel，则不会有 media/formula_*.png 引用
+      final formulaRels = RegExp(r'media/formula_\d+\.png').allMatches(relsXml).length;
+      final mediaFiles = archive.files.where((f) => f.name.contains('media/formula')).length;
+      expect(formulaRels, mediaFiles,
+          reason: 'rels 中公式图片引用数应等于实际 media 文件数（无 dangling）: '
+              'rels=$formulaRels media=$mediaFiles');
     });
 
     test('CAP-WORD-025：复杂混合文档语义模型稳定（两次导出一致）', () async {
