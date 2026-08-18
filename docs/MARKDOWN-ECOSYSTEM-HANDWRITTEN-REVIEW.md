@@ -32,7 +32,7 @@
 
 | 项 | 当前实现 | 生态替代 | 评估 |
 |----|---------|---------|------|
-| Markdown → AST 解析 | `core/parser/markdown_parser.dart`（~500 行手写） | `markdown` 包（Dart） | **建议保留手写**：自定义元素扩展（Formula/Mermaid/TaskList）、降级容错（单行错误降级 Paragraph）、GBK 兼容均已深度定制；生态库难以匹配。Run #008 fuzz 已修复 6 个真实 bug，质量可控 |
+| Markdown → AST 解析 | `core/parser/markdown_parser.dart`（~500 行手写） | `markdown` 包（Dart 7.3.1，长期维护，CommonMark/GFM 持续演进） | **暂不替换；必须完成标准生态 Parser Spike 后再决定**（2026-08-18 修正）。Phase 3.9 fuzz 找到 3 个真实 bug，恰好说明手写 Parser 已是需持续维护的复杂基础设施；markdown 包支持 BlockSyntax/InlineSyntax/扩展集合，可将 Formula/Mermaid 领域语义挂在上面。见 §2.1 Spike 计划 |
 | 行内解析（Bold/Italic/Formula/InlineCode 组合） | 同上 `_parseInline` | `markdown` 包 inline 解析 | 同上，深度定制（`**混*合**` 嵌套语义与生态不同） |
 
 ### 1.2 Markdown 序列化（Serializer）—— 手写 ✅ 建议保留
@@ -89,7 +89,8 @@
 
 ```text
 手写实现盘点（8 项）：
-  ✅ 建议保留（有架构理由）  4 项：Parser / Serializer / 富文本编辑器渲染 / SVG 公式
+  🔶 Parser 暂不替换（2026-08-18 修正）——须先完成标准生态 Parser Spike 再决定
+  ✅ 建议保留（有架构理由）  3 项：Serializer / 富文本编辑器渲染 / SVG 公式
   ✅ 已用生态                2 项：代码高亮 / PDF 基础 + MathJax/Mermaid JS
   ⚠️ 建议评估生态替代        2 项：Word 导出（docx 包）/ 公式渲染（katex_flutter，可选）
 
@@ -97,9 +98,61 @@
   ⚠️ Word 导出改用 `docx` 包 —— 手写 OOXML 维护成本高，生态包成熟
      （需验证：公式 OMML / 表格 / 中文兼容性 / Word 与 WPS 打开）
 
-核心判断：Parser/Serializer/编辑器渲染保留手写是**架构决策**（编辑模型定制），
-非"生态不可用"；Word 导出是**唯一明确的生态替代机会**。
+核心判断（2026-08-18 修正）：Parser 是否保留手写**不再是经验判断**，
+而是需实验决策的开放问题——Phase 3.9 fuzz 找到 3 个真实 bug 恰恰说明
+手写 Parser 已是需持续维护的复杂基础设施；markdown 包（7.3.1）支持
+BlockSyntax/InlineSyntax/扩展集合，可能替代「CommonMark/GFM 语法识别」
+这一层。见 §2.1 Migration Spike 计划。
 ```
+
+### 2.1 Migration Spike 计划（Parser 替换评估）
+
+**目标架构**（替代「markdown → HTML → Flutter」的不适合路线）：
+
+```text
+                    Markdown
+                       │
+                       ▼
+             package:markdown
+             CommonMark / GFM
+                       │
+              Adapter / Mapper
+                       │
+                       ▼
+              FormulaFix AST
+                       │
+              ┌────────┴────────┐
+              │                 │
+          Editor Core        Serializer
+```
+
+markdown 包不能直接替代整个编辑内核，但很可能替代**语法识别层**——
+官方包支持自定义 BlockSyntax/InlineSyntax/扩展集合，Formula/Mermaid/TaskList
+领域语义可挂在上面，不必重新实现 Markdown 词法与解析状态机。
+
+**A/B 基准**（复用现有 fuzz corpus，含 BUG-1 多行硬换行 / BUG-2 `|pipe|`
+数据丢失 / BUG-3 list flush 顺序 / CommonMark edge cases / GFM / TaskList /
+Nested list / Code fence / Escaping / Unicode / CRLF）：
+
+```text
+CurrentParser ──► FormulaFix AST
+package:markdown ──► Adapter ──► FormulaFix AST
+```
+
+**比较 7 维度**：
+
+1. **解析成功率**（同语料不抛异常）
+2. **AST 结构等价率**（与 CurrentParser 输出结构比对）
+3. **parse → serialize → parse 收敛**（round-trip 不动点）
+4. **GFM 覆盖**（checkbox/list/table 等语法支持度）
+5. **自定义 Formula/Mermaid/TaskList 扩展成本**（BlockSyntax/InlineSyntax 挂载行数）
+6. **异常降级行为**（单行错误降级 Paragraph 等，与 ADR-0007/0024 一致）
+7. **性能**（同语料耗时）
+
+**决策规则**：若标准 parser 解决大部分通用 Markdown 边界、Adapter 仅需
+几百行领域映射 → 减少手写 Parser；若导致大量特殊转换 / 失去编辑语义 /
+Selection-Block Identity 难映射 / 自定义语法越挂越多 → 保留手写 Parser
+（但这是**实验后的架构决策**，而非凭经验）。
 
 ---
 
@@ -107,7 +160,7 @@
 
 | 功能域 | 当前实现 | 生态替代 | 切换建议 | 原因 |
 |--------|---------|---------|---------|------|
-| Markdown 解析 | 手写 ~500 行 | `markdown` 包 | ❌ 保留 | 深度定制 + fuzz 已验证 |
+| Markdown 解析 | 手写 ~500 行 | `markdown` 包（7.3.1） | 🔶 暂不替换 | 须先完成 §2.1 Migration Spike（A/B 7 维度）再决定 |
 | Markdown 序列化 | 手写 | 无生态 | ❌ 保留 | 生态缺失 |
 | 编辑器富文本 | 手写 blocks | flutter_markdown | ❌ 保留 | 编辑器非渲染器 |
 | 公式渲染 | flutter_math_fork | katex_flutter | ⚠️ 可选 | 当前已满足 |
