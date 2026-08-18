@@ -93,7 +93,13 @@ def audit_docx(path: str | Path) -> dict[str, Any]:
     result["wps_compatibility"] = wps_status
     result["details"]["wps"] = wps_detail
 
-    # LibreOffice consumer：多引擎交叉验证（Level B，可选增强）
+    # wpscli 深度验证：消费端 PDF 元数据（分页正确性）+ 消费端文本（语义）
+    wps_meta = _wps_pdf_metadata_check(p)
+    wps_text = _wps_text_semantic_check(p)
+    result["details"]["wps_pdf_metadata"] = wps_meta
+    result["details"]["wps_semantic_text"] = wps_text
+
+    # LibreOffice consumer：多引擎交叉验证（Level B，可选二级引擎）
     lo_status, lo_detail = _libreoffice_consumer_check(p)
     result["libreoffice_compatibility"] = lo_status
     result["details"]["libreoffice"] = lo_detail
@@ -200,6 +206,96 @@ def _wps_consumer_check(docx_path: Path) -> tuple[str, str]:
             return "fail", out[-300:]
         except Exception as e:  # noqa: BLE001
             return "fail", f"wps convert error: {e}"
+
+
+def _wps_pdf_metadata_check(docx_path: Path) -> dict[str, Any]:
+    """用 WPS pdfinfo 读取转换后 PDF 元数据（页数/扫描提示）。
+
+    wpscli 管道：word2pdf → pdfinfo（消费端分页正确性证据）。
+    返回 dict（status + page_count + is_scan_document 等）。
+    """
+    import json as jsonlib
+    import subprocess
+    import tempfile
+
+    wpscli = _find_wpscli()
+    base = {"status": "unknown", "page_count": None, "is_scan_document": None}
+    if not wpscli:
+        return base
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            pdf = str(Path(td) / "out.pdf")
+            r1 = subprocess.run(
+                [wpscli, "word2pdf", str(docx_path), "--output", pdf, "--json"],
+                capture_output=True, text=True, timeout=90,
+            )
+            if r1.returncode != 0:
+                base["status"] = "fail"
+                base["error"] = (r1.stdout + r1.stderr)[-200:]
+                return base
+            r2 = subprocess.run(
+                [wpscli, "pdfinfo", pdf, "--json"],
+                capture_output=True, text=True, timeout=60,
+            )
+            out = r2.stdout.strip()
+            # pdfinfo JSON 行：{"type":"completed","page_count":1,"is_scan_document":false,...}
+            start = out.find("{")
+            if start >= 0:
+                data = jsonlib.loads(out[start:])
+                base["status"] = "pass"
+                base["page_count"] = data.get("page_count")
+                base["is_scan_document"] = data.get("is_scan_document")
+                return base
+            base["status"] = "fail"
+            base["error"] = out[-200:]
+            return base
+        except Exception as e:  # noqa: BLE001
+            base["status"] = "fail"
+            base["error"] = str(e)
+            return base
+
+
+def _wps_text_semantic_check(docx_path: Path) -> dict[str, Any]:
+    """用 WPS pdf2txt 提取消费端文本（真实消费者视角的语义）。
+
+    wpscli 管道：word2pdf → pdf2txt；返回 text_preview + text_count。
+    """
+    import subprocess
+    import tempfile
+
+    wpscli = _find_wpscli()
+    base = {"status": "unknown", "text_count": 0, "text_preview": ""}
+    if not wpscli:
+        return base
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            pdf = str(Path(td) / "out.pdf")
+            r1 = subprocess.run(
+                [wpscli, "word2pdf", str(docx_path), "--output", pdf, "--json"],
+                capture_output=True, text=True, timeout=90,
+            )
+            if r1.returncode != 0:
+                base["status"] = "fail"
+                base["error"] = (r1.stdout + r1.stderr)[-200:]
+                return base
+            txt = str(Path(td) / "out.txt")
+            r2 = subprocess.run(
+                [wpscli, "pdf2txt", pdf, "--output", txt, "--json"],
+                capture_output=True, text=True, timeout=90,
+            )
+            if r2.returncode != 0:
+                base["status"] = "fail"
+                base["error"] = (r2.stdout + r2.stderr)[-200:]
+                return base
+            content = Path(txt).read_text(encoding="utf-8", errors="replace")
+            base["status"] = "pass" if content.strip() else "fail"
+            base["text_count"] = len(content.split())
+            base["text_preview"] = content[:120]
+            return base
+        except Exception as e:  # noqa: BLE001
+            base["status"] = "fail"
+            base["error"] = str(e)
+            return base
 
 
 def _find_dangling_rels(rels_xml: str, zip_names: set[str]) -> list[str]:
