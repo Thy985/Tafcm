@@ -2,10 +2,12 @@
 
 **日期**: 2026-08-18
 **前置**: Word Migration Spike（当前依赖基线下不迁移 + 技术债 + Export IR 隔离）
-**状态**: ✅ 审计完成（16 项审计，15 项通过 + 1 项断言过严修正，**未发现真实 bug**）
-**结论**: **情况 A（倾向）** —— 现有手写 OOXML 功能覆盖良好、XML 结构完整、
-边界健壮，可作为临时稳定后端继续维护；Word Export 技术债分级维持（P1 bug
-待 Product Reliability、P2 Export IR 隔离按计划推进）。
+**状态**: ✅ 审计完成（16 项静态审计，15 项通过 + 1 项断言过严修正）
+**结论（2026-08-18 降级修正）**: **在当前 XML/OOXML 静态审计范围内未发现
+实现错误；但真实 Word/WPS 消费端兼容性尚未验证（L2-L6），不能据此判定
+Word Export 无问题。** 本报告仅覆盖 L1 Artifact Integrity 层；L2 真实
+打开 / L3 内容视觉 Fidelity / L4 语义 Fidelity 待 CAP-WORD-017~025 验证
+（见 §5 升级计划）。
 
 ---
 
@@ -70,8 +72,9 @@ fallback 基线）。
 
 ```text
 Word Export Audit 结论：
-  ✅ 未发现真实 bug（16 项审计，1 项断言过严已修正）
-  ✅ 情况 A 倾向：现有 OOXML 可作为临时稳定后端继续维护
+  ✅ 静态审计（L1）范围内未发现实现错误（16 项，1 项断言过严已修正）
+  ⚠️ 真实 Word/WPS 消费端（L2-L6）未验证——不能据此判定 Word Export 无问题
+  🔶 情况 A/B 判定**延后**：待 CAP-WORD-017~025（消费端验证）完成后再定
   ⚠️ Word/WPS 真实打开兼容性未验证（代理断言）→ 建议 Product Reliability 补充
   🔶 Word Export 技术债分级维持：
      P1：已知 bug（用户可见）→ Product Reliability
