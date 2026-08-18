@@ -104,10 +104,39 @@ Regression Asset: roundtrip_fuzz_test.dart（1000 轮常驻 CI）
 
 ## 遗留与下一步
 
-1. **Batch 2 候选**：Behavior Audit（Enter/Backspace/Undo/Redo/Selection/
-   Focus/IME 操作语义）或扩展 fuzz 语料（嵌套列表、表格 cell 内公式、
-   Mermaid 块、CRLF 混合）。
-2. **fuzz 覆盖率扩展**：当前 1000 轮固定 seed；可加多 seed 参数化运行
-   （CI 用固定 seed，本地可扫描更多）。
-3. **CAP-003/006**（table/mermaid）本轮由 fuzz 随机覆盖 + 一致性测试
-   间接覆盖；如需要可加专项审计。
+1. **Batch 2（Behavior Audit，2026-08-18 已执行）**：Enter/Backspace/Block
+   split-merge 操作语义（split/merge 29 项 + CommandHandler 分派 35 项）+ 
+   IME/composing/selection/focus（9 文件 99 项）**全部通过，未发现新 bug**。
+2. **Batch 3 候选**：fuzz 覆盖率扩展（嵌套列表、表格 cell 内公式、Mermaid 块、
+   CRLF 混合、多 seed 参数化）；或 Experience Audit（真机/Golden/手势）。
+3. **CAP-003/006**（table/mermaid）由 fuzz 随机覆盖 + 一致性测试间接覆盖；
+   如需专项审计可加入 Batch 3。
+
+---
+
+## 附录：Batch 2 Behavior Audit（2026-08-18）
+
+Batch 1（Capability）聚焦「能不能正确做」；Batch 2（Behavior）聚焦
+「用户这么操作后系统行为是否正确」。
+
+### 审计范围与结果
+
+| 行为域 | 覆盖 | 结果 |
+|--------|------|------|
+| Block split/merge | block_operations_split_transform / split_undo / split_merge_domain | ✅ 29 项全绿 |
+| Enter/Backspace 操作语义 | CommandHandler 分派（SplitBlockCommand / MergeWithPreviousCommand / DeleteBlockCommand / InsertTextCommand / PairInsertCommand 等） | ✅ 35 项全绿 |
+| IME composing 状态机 | composing_controller / composing_state / ime_mutation_forbidden | ✅ 全绿 |
+| Selection/Focus | selection_cursor_domain / selection_sync / coordinator_state_focuson | ✅ 全绿 |
+| IME 事件观测 | p0_ime_composing_event / p0_selection_changed_event（ADI 观测面） | ✅ 全绿 |
+| IME 事务集成 | ime_transaction_integration | ✅ 全绿 |
+
+**合计：163 项全绿，未发现新 bug**（Batch 1 的 3 个 parser bug 已修复，
+Batch 2 未触发新回归）。
+
+### Batch 2 结论
+
+```text
+Behavior Audit: 操作语义 + IME/Selection/Focus 共 163 项全绿 ✅
+发现 bug: 0（Batch 1 修复的 3 个 parser bug 无回归）
+Regression Asset: 无新增（Batch 1 roundtrip_fuzz_test.dart 已常驻）
+```
