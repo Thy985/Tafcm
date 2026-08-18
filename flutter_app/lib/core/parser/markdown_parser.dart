@@ -273,11 +273,11 @@ class MarkdownParser {
         if (trimmedLine.startsWith('|')) {
           flushParagraph();
           flushListItems();
-          
+
           if (_isTableSeparatorRow(trimmedLine)) {
             continue;
           }
-          
+
           final cells = _parseTableRow(trimmedLine);
           if (cells != null && cells.isNotEmpty) {
             if (currentTable == null) {
@@ -285,8 +285,13 @@ class MarkdownParser {
             } else {
               currentTable!.rows.add(cells);
             }
+            continue;
           }
-          continue;
+          // `|` 开头但非合法表格行（如 `|pipe| xxx` 不以 `|` 结尾）：
+          // 不吞行，降级为普通段落继续解析（CAP-008 fuzz 审计发现）。
+          if (currentTable != null) {
+            flushTable();
+          }
         } else if (currentTable != null) {
           flushTable();
         }
@@ -300,8 +305,17 @@ class MarkdownParser {
           continue;
         }
 
+        // 普通段落行：先 flush 挂起的列表，否则列表会被延迟到文档末尾
+        // （顺序错误，CAP-008 fuzz 审计发现）。
+        flushListItems();
         // ignore: prefer_const_constructors — children 需可变，下方 addAll 追加 inline
         pendingParagraph ??= ParagraphElement(children: <InlineElement>[]);
+        if (pendingParagraph!.children.isNotEmpty) {
+          // 多行段落合并时保留行间换行（Markdown hard-break 语义）。
+          // 此前 addAll 直接拼接丢失 '\n'，导致 parse→serialize→parse
+          // round-trip 结构不一致（CAP-008 fuzz 审计发现）。
+          pendingParagraph!.children.add(const TextElement('\n'));
+        }
         final inline = _parseInline(trimmedLine);
         pendingParagraph!.children.addAll(inline);
       } catch (e) {
