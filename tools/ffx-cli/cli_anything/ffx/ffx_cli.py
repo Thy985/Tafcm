@@ -380,6 +380,35 @@ def _count_files(dir_path: Path, pattern: str) -> int:
     return len(list(dir_path.glob(f"**/{pattern}")))
 
 
+# ── export audit（Agent-native DOCX QA）───────────────────────────────
+
+@analyze.command("audit")
+@click.argument("path", type=click.Path())
+@click.pass_context
+def audit(ctx, path):
+    """Audit an exported artifact (DOCX OOXML integrity + semantic model).
+
+    Agent-native Export QA（docs/DOCX-QA-PIPELINE.md Level A）：
+    不依赖 Microsoft Word；解包 .docx 校验 OOXML 结构 + 提取语义模型，
+    输出 JSON 质量报告（artifact_integrity / semantic_fidelity 等）。
+    """
+    try:
+        from cli_anything.ffx.core import docx_qa as docx_mod
+
+        suffix = Path(path).suffix.lower()
+        if suffix == ".docx":
+            result = docx_mod.audit_docx(path)
+        else:
+            result = {
+                "path": path,
+                "error": f"unsupported format: {suffix or '(none)'} (expect .docx)",
+            }
+        pretty_print(result, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 # ── adi group ─────────────────────────────────────────────────────────
 
 @cli.group()
