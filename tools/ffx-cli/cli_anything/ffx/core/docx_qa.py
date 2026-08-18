@@ -93,7 +93,70 @@ def audit_docx(path: str | Path) -> dict[str, Any]:
     result["wps_compatibility"] = wps_status
     result["details"]["wps"] = wps_detail
 
+    # LibreOffice consumer：多引擎交叉验证（Level B，可选增强）
+    lo_status, lo_detail = _libreoffice_consumer_check(p)
+    result["libreoffice_compatibility"] = lo_status
+    result["details"]["libreoffice"] = lo_detail
+
+    # office_compatibility 多引擎汇总：
+    #   pass   = 至少一个真实消费端（WPS/LibreOffice）转换成功
+    #   warn   = 至少一个引擎 fail（转换报错）
+    #   unknown= 无任何消费端可用（未验证，非失败）
+    engine_statuses = [wps_status, lo_status]
+    if "pass" in engine_statuses:
+        result["office_compatibility"] = "pass"
+    elif "fail" in engine_statuses:
+        result["office_compatibility"] = "warn"
+    else:
+        result["office_compatibility"] = "unknown"
+
     return result
+
+
+def _find_soffice() -> str | None:
+    """探测 LibreOffice soffice.exe（常见安装路径）。"""
+    import glob
+
+    candidates = [
+        Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+        Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        Path(os.environ.get("PROGRAMFILES", "")) / "LibreOffice" / "program" / "soffice.exe",
+        Path(os.environ.get("PROGRAMFILES(X86)", "")) / "LibreOffice" / "program" / "soffice.exe",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    # 兜底：PATH 中查找
+    hits = glob.glob(str(Path(".") / "soffice.exe")) or []
+    return hits[0] if hits else None
+
+
+def _libreoffice_consumer_check(docx_path: Path) -> tuple[str, str]:
+    """用 LibreOffice headless 转换 docx → pdf。返回 (status, detail)。
+
+    status ∈ {pass, fail, unknown}：pass = 转换成功（多引擎交叉验证通过）；
+    unknown = 主机无 LibreOffice（非失败，仅未验证）。
+    """
+    import subprocess
+    import tempfile
+
+    soffice = _find_soffice()
+    if not soffice:
+        return "unknown", "soffice not found (LibreOffice 未安装，跳过)"
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            r = subprocess.run(
+                [
+                    soffice, "--headless", "--convert-to", "pdf",
+                    "--outdir", td, str(docx_path),
+                ],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r.returncode == 0:
+                return "pass", f"libreoffice headless convert ok (soffice={soffice})"
+            return "fail", (r.stdout + r.stderr)[-300:]
+        except Exception as e:  # noqa: BLE001
+            return "fail", f"libreoffice convert error: {e}"
 
 
 def _find_wpscli() -> str | None:

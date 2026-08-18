@@ -53,7 +53,7 @@ Level A 全部
 |---|--------|------|---------|------|
 | CAP-WORD-A | OOXML Integrity | A | ZIP 解包 + CRC + [Content_Types] + document/styles/settings + rels 无 dangling | ✅（word_export_zip_integrity_test，5 项） |
 | CAP-WORD-B | WPS Consumer | A | WPS 12.1 word2pdf 转换成功 + 无 repair prompt | ✅（wpscli 实测 + ffx export audit 集成） |
-| CAP-WORD-C | LibreOffice Consumer | B | LibreOffice headless 打开/转换（主机未装，待装后跑） | ⏳ |
+| CAP-WORD-C | LibreOffice Consumer | B | LibreOffice headless 打开/转换（soffice --convert-to pdf；audit 已支持探测，本机未装，装后自动跑） | ✅（代码已实现，本机待装） |
 | CAP-WORD-D | Agent DOCX Skill Inspection | A | Agent 解包 → XML 校验 → 内容/结构检查 → 报告（ffx export audit） | ✅（已实现，见 §8） |
 | CAP-WORD-E | Semantic Fidelity | A | 标题/中文/列表/表格/公式语义保留（extractor + pdf2txt） | ✅（word_export_semantic_fidelity_test，4 项） |
 | CAP-WORD-F | Visual PDF/Screenshot | A/B | word2pdf 产物 + 截图/像素比对 | ⏳（PDF 已可生成，截图比对待补） |
