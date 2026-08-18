@@ -226,43 +226,14 @@ void main() {
 
   group('CAP-008 round-trip fuzz', () {
     test('$rounds 轮随机语料（seed=$seed）：不崩溃 + 二次 round-trip 不动点', () {
-      final gen = MarkdownCorpusGenerator(seed);
-      var fixpointViolations = 0;
-      String? firstViolation;
+      runFuzzScan(seed, rounds);
+    });
 
-      for (var round = 0; round < rounds; round++) {
-        final md = gen.generate();
-
-        // 1. resilience：parse 不崩溃
-        final elements1 = MarkdownParser.parse(md);
-        expect(elements1, isNotNull, reason: 'round=$round md=${md.toString()}');
-
-        // 2. round-trip：parse → serialize → parse → serialize 收敛不动点
-        final md1 = MarkdownSerializer.serialize(elements1);
-        final elements2 = MarkdownParser.parse(md1);
-        final md2 = MarkdownSerializer.serialize(elements2);
-
-        if (md2 != md1) {
-          fixpointViolations++;
-          if (firstViolation == null) {
-            firstViolation = 'round=$round\n'
-                'input md:\n$md\n'
-                'md1:\n$md1\n'
-                'md2:\n$md2\n';
-          }
-        }
-
-        // 3. 结构等价：parse(md) 与 parse(md1) 语义一致
-        if (!_elementsEqual(elements1, elements2)) {
-          fail('round=$round AST 结构不一致\n'
-              'input md:\n$md\n'
-              'serialized:\n$md1\n');
-        }
+    test('multi-seed 扫描（5 seed × 200 轮）：CI 自动覆盖多 seed', () {
+      // 与默认 seed 互补，防止单一随机流掩盖解析路径差异。
+      for (final s in [1, 42, 20260818, 9999, 314159]) {
+        runFuzzScan(s, 200);
       }
-
-      // 不动点允许少数已知规范化差异（如空行压缩），但必须 < 1% 且记录
-      expect(fixpointViolations, lessThan(10),
-          reason: 'fixpoint 违反应 < 1%（10/1000）；首个违规：\n$firstViolation');
     });
 
     test('AST 结构比较器本身可用（手写语料 sanity）', () {
@@ -272,4 +243,45 @@ void main() {
       expect(_elementsEqual(e1, e2), isTrue);
     });
   });
+}
+
+/// 单 seed 扫描主体：不崩溃 + 二次 round-trip 不动点 + AST 结构等价。
+void runFuzzScan(int seed, int rounds) {
+  final gen = MarkdownCorpusGenerator(seed);
+  var fixpointViolations = 0;
+  String? firstViolation;
+
+  for (var round = 0; round < rounds; round++) {
+    final md = gen.generate();
+
+    // 1. resilience：parse 不崩溃
+    final elements1 = MarkdownParser.parse(md);
+    expect(elements1, isNotNull, reason: 'seed=$seed round=$round md=${md.toString()}');
+
+    // 2. round-trip：parse → serialize → parse → serialize 收敛不动点
+    final md1 = MarkdownSerializer.serialize(elements1);
+    final elements2 = MarkdownParser.parse(md1);
+    final md2 = MarkdownSerializer.serialize(elements2);
+
+    if (md2 != md1) {
+      fixpointViolations++;
+      if (firstViolation == null) {
+        firstViolation = 'seed=$seed round=$round\n'
+            'input md:\n$md\n'
+            'md1:\n$md1\n'
+            'md2:\n$md2\n';
+      }
+    }
+
+    // 3. 结构等价：parse(md) 与 parse(md1) 语义一致
+    if (!_elementsEqual(elements1, elements2)) {
+      fail('seed=$seed round=$round AST 结构不一致\n'
+          'input md:\n$md\n'
+          'serialized:\n$md1\n');
+    }
+  }
+
+  // 不动点允许少数已知规范化差异（如空行压缩），但必须 < 1% 且记录
+  expect(fixpointViolations, lessThan(10),
+      reason: 'seed=$seed fixpoint 违反应 < 1%（10/$rounds）；首个违规：\n$firstViolation');
 }
