@@ -56,7 +56,7 @@ Level A 全部
 | CAP-WORD-C | LibreOffice Consumer | B | LibreOffice headless 打开/转换（soffice --convert-to pdf；audit 已支持探测，可选二级引擎，本机未装） | ✅（代码已实现，可选） |
 | CAP-WORD-D | Agent DOCX Skill Inspection | A | Agent 解包 → XML 校验 → 内容/结构检查 → 报告（ffx export audit） | ✅（已实现，见 §8） |
 | CAP-WORD-E | Semantic Fidelity | A | 标题/中文/列表/表格/公式语义保留（extractor + pdf2txt） | ✅（word_export_semantic_fidelity_test，4 项） |
-| CAP-WORD-F | Visual PDF/Screenshot | A/B | word2pdf 产物（2 页）+ pdfinfo 元数据 + visual JSON（golden=pending_review） | ✅（PDF 捕获方案；word2photo/pdf2photo 需 WPS 会员，截图待会员环境或人工打开 PDF 审阅） |
+| CAP-WORD-F | Visual PDF/Screenshot | A/B | word2pdf 产物（2 页）+ pdfinfo 元数据 + **officecli view screenshot（真实 PNG，无会员限制）** + view issues（结构化问题） | ✅（PDF 捕获 + officecli PNG + issues 分析；wps word2photo 需会员已由 officecli 替代） |
 | CAP-WORD-G | Microsoft Word Desktop | C | Word 打开 + 无 repair + 渲染验证 | ⏳（Release Gate，有 Word 环境才跑；Word 线已冻结，非当前主线） |
 
 ### Word 线收口声明（2026-08-19）
@@ -173,6 +173,37 @@ DOCX 质量由 Agent-native inspection + 多消费者验证完成；只有 Word 
 ```bash
 ffx --json analyze audit <path.docx>
 ```
+
+### 8.1 OfficeCLI 集成（CAP-WORD-F 视觉升级，2026-08-19）
+
+docx_qa.py 新增 OfficeCLI（iOfficeAI，Agent-native Office 工具）探测与验证：
+
+```text
+_find_officecli()          探测 officecli.exe（PATH / D:/Temp/officecli /
+                           LOCALAPPDATA / Program Files）
+_officecli_visual_check()  view screenshot --page 1 → PNG（无会员限制，
+                           替代 wpscli word2photo 的会员门槛）
+_officecli_issues_check()  view issues --json → 结构化问题清单
+                           （id/severity/path/message，Agent 可自愈）
+```
+
+audit 输出新增：
+
+```json
+{
+  "visual_fidelity": "review",
+  "details": {
+    "officecli_visual": {"status": "pass", "png_path": "...page_1.png", "page_count": 1},
+    "officecli_issues": {"status": "pass", "issue_count": 14,
+      "issues": [{"id": "S1", "severity": 1, "path": "/body/p[3]", "message": "Empty paragraph"}]},
+    "visual_note": "officecli view screenshot 已捕获（Agent/人工审阅）"
+  }
+}
+```
+
+**关键收益**：CAP-WORD-F 从「PDF 捕获 + golden=pending_review」升级为
+**真实 PNG 截图 + 结构化问题分析**——Agent 可直接读图审阅排版（render →
+look → fix 闭环），且 view issues 提供结构化问题供自愈。
 
 Agent-native DOCX QA 命令（tools/ffx-cli/cli_anything/ffx/core/docx_qa.py）：
 

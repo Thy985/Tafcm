@@ -104,6 +104,15 @@ def audit_docx(path: str | Path) -> dict[str, Any]:
     result["libreoffice_compatibility"] = lo_status
     result["details"]["libreoffice"] = lo_detail
 
+    # OfficeCLI：Agent-native 视觉验证 + 结构化问题分析（CAP-WORD-F 补充）
+    oc_visual = _officecli_visual_check(p)
+    oc_issues = _officecli_issues_check(p)
+    result["details"]["officecli_visual"] = oc_visual
+    result["details"]["officecli_issues"] = oc_issues
+    if oc_visual.get("status") == "pass":
+        result["visual_fidelity"] = "review"
+        result["details"]["visual_note"] = "officecli view screenshot 已捕获（Agent/人工审阅）"
+
     # office_compatibility 多引擎汇总：
     #   pass   = 至少一个真实消费端（WPS/LibreOffice）转换成功
     #   warn   = 至少一个引擎 fail（转换报错）
@@ -163,6 +172,99 @@ def _libreoffice_consumer_check(docx_path: Path) -> tuple[str, str]:
             return "fail", (r.stdout + r.stderr)[-300:]
         except Exception as e:  # noqa: BLE001
             return "fail", f"libreoffice convert error: {e}"
+
+
+def _find_officecli() -> str | None:
+    """探测 OfficeCLI（officecli.exe）——常见安装路径 + 本机实测路径。"""
+    import glob
+    import shutil
+
+    # PATH / 常见安装目录
+    found = shutil.which("officecli") or shutil.which("officecli.exe")
+    if found:
+        return found
+    candidates = [
+        Path("D:/Temp/officecli/officecli.exe"),
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "OfficeCLI" / "officecli.exe",
+        Path("C:/Program Files/OfficeCLI/officecli.exe"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    # 兜底：glob 搜索（受限）
+    hits = sorted(glob.glob("**/officecli.exe", recursive=True))[:1]
+    return hits[0] if hits else None
+
+
+def _officecli_visual_check(docx_path: Path) -> dict[str, Any]:
+    """用 OfficeCLI view screenshot 渲染 docx → PNG（CAP-WORD-F 视觉捕获）。
+
+    status ∈ {pass, fail, unknown}：pass = PNG 已生成（Agent/人工可审阅）；
+    unknown = 主机无 OfficeCLI（非失败，仅未验证）。
+    """
+    import subprocess
+    import tempfile
+
+    officecli = _find_officecli()
+    base = {"status": "unknown", "png_path": None, "page_count": None}
+    if not officecli:
+        return base
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            png = str(Path(td) / "page_1.png")
+            r = subprocess.run(
+                [officecli, "view", str(docx_path), "screenshot", "--page", "1", "--out", png],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r.returncode == 0 and Path(png).exists():
+                size = Path(png).stat().st_size
+                base["status"] = "pass" if size > 0 else "fail"
+                base["png_path"] = png
+                base["page_count"] = 1
+                return base
+            return {"status": "fail", "error": (r.stdout + r.stderr)[-200:]}
+        except Exception as e:  # noqa: BLE001
+            return {"status": "fail", "error": str(e)}
+
+
+def _officecli_issues_check(docx_path: Path) -> dict[str, Any]:
+    """用 OfficeCLI view issues 获取结构化问题清单（Agent 可自愈）。
+
+    status ∈ {pass, fail, unknown}：pass = issues 查询成功（含问题数）；
+    unknown = 主机无 OfficeCLI。
+    """
+    import json as jsonlib
+    import subprocess
+
+    officecli = _find_officecli()
+    base = {"status": "unknown", "issue_count": None, "issues": []}
+    if not officecli:
+        return base
+    try:
+        r = subprocess.run(
+            [officecli, "view", str(docx_path), "issues", "--json"],
+            capture_output=True, text=True, timeout=120,
+        )
+        out = r.stdout.strip()
+        start = out.find("{")
+        if r.returncode == 0 and start >= 0:
+            data = jsonlib.loads(out[start:])
+            issues = data.get("data", {}).get("issues", [])
+            base["status"] = "pass"
+            base["issue_count"] = len(issues)
+            base["issues"] = [
+                {"id": i.get("id"), "severity": i.get("severity"),
+                 "path": i.get("path"), "message": i.get("message")}
+                for i in issues[:20]  # 截断，避免超长
+            ]
+            return base
+        base["status"] = "fail"
+        base["error"] = out[-200:]
+        return base
+    except Exception as e:  # noqa: BLE001
+        base["status"] = "fail"
+        base["error"] = str(e)
+        return base
 
 
 def _find_wpscli() -> str | None:
