@@ -38,9 +38,8 @@ class MarkdownCorpusGenerator {
     '| a | b |\n|---|---|\n| 1 | 2 |',
     '---', r'$$E=mc^2$$', '***',
     // Batch 3 扩展：表格 cell 内公式 / Mermaid / 多级嵌套。
-    // 注意：不放嵌套列表块 —— 当前 ListElement AST 是"拍平"设计
-    // （嵌套子项合并进父项文本，见 markdown_parser_test 列表嵌套组），
-    // round-trip 不保真（已知限制，Batch 4 专项候选：ListElement 嵌套 AST 重构）。
+    // ADR-0029 落地后（Run #008 Batch 4）恢复嵌套列表语料：
+    // ListElement.nested 结构使嵌套 round-trip 保真，不再豁免。
     r'| $x$ | **bold** |',
     '| a | \$\\frac{1}{2}\$ |\n|---|---|\n| \$\\alpha\$ | `code` |',
     '```mermaid\ngraph TD\nA-->B\n```',
@@ -52,6 +51,11 @@ class MarkdownCorpusGenerator {
     '1. one\n1. two\n1. three',
     '- a\n- b\n- c',
     '| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |',
+    '- parent\n  - child\n    - grandchild',
+    '- a\n- b\n  - b1\n- c',
+    '1. one\n2. two\n   - nested\n3. three',
+    '- [ ] todo\n- [x] done\n  - sub',
+    '- 中文列表项\n  - 嵌套中文',
   ];
 
   String _pick(List<String> pool) => pool[_rng.nextInt(pool.length)];

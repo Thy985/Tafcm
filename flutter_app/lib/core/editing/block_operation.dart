@@ -2,7 +2,6 @@
 ///
 /// 落地 ADR-0007 §4.1（五原语）+ §4.3（transform）+ ADR-0008 §2（apply/revert 幂等纯函数）。
 part of 'edit_operation.dart';
-
 /// 6 类块级操作的类型标识。
 ///
 /// Phase 2.7 新增 [transform]：基于 source 的 BlockType 重映射
@@ -15,9 +14,7 @@ enum BlockOpType {
   move,
   transform,
 }
-
 /// 块级操作：结构变化。
-///
 /// 每次 §4.1 五原语调用 = 1 个 [BlockOperation]。
 /// apply 前必须先调用 [ComposingController.assertBlockMutationAllowed]
 /// （由 [TransactionBuilder.add] 自动执行，ADR-0008 §5 铁律 1）。
@@ -27,7 +24,6 @@ enum BlockOpType {
 class BlockOperation extends EditOperation {
   /// 操作类型。
   final BlockOpType opType;
-
   /// 操作的目标 [BlockId]（apply 前存在）。
   ///
   /// 对 insert：插入位置的参考块 id（before/after 此块插入）。
@@ -257,6 +253,10 @@ class BlockOperation extends EditOperation {
       final rightList = right as ListElement;
       if (leftList.ordered != rightList.ordered) {
         return BlockType.paragraph;  // 异 ordered 回退
+      }
+      // ADR-0029：含 nested 子项不合并（防丢子项）
+      if (leftList.nested.isNotEmpty || rightList.nested.isNotEmpty) {
+        return BlockType.paragraph;
       }
       return BlockType.listItem;
     }

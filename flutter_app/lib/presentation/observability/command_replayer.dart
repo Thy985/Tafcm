@@ -418,6 +418,10 @@ class CommandReplayer implements ReplayCommandExecutor {
         ordered: m['ordered'] as bool? ?? false,
         indent: m['indent'] as int? ?? 0,
         children: _parseInlines(m['children']),
+        nested: (m['nested'] as List?)
+                ?.map((e) => _parseListElement(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
       ),
       'code' => CodeElement(
         code: m['code'] as String? ?? '',
@@ -449,6 +453,19 @@ class CommandReplayer implements ReplayCommandExecutor {
   static List<InlineElement> _parseInlines(Object? value) {
     if (value is! List) return [];
     return value.map((e) => _parseInline(e)).toList();
+  }
+
+  /// ADR-0029：解析嵌套 ListElement（serialize 时 ListElement.toJson 含 nested）。
+  static ListElement _parseListElement(Map<String, Object?> m) {
+    return ListElement(
+      ordered: m['ordered'] as bool? ?? false,
+      indent: m['indent'] as int? ?? 0,
+      children: _parseInlines(m['children']),
+      nested: (m['nested'] as List?)
+              ?.map((e) => _parseListElement(e as Map<String, Object?>))
+              .toList() ??
+          const [],
+    );
   }
 
   static InlineElement _parseInline(Object? value) {

@@ -112,11 +112,35 @@ class MarkdownParser {
       }
     }
 
+    /// ADR-0029：平铺列表项按 indent 递归构建嵌套树。
+    /// 每项收集「indent > 自身」的连续后续项作为 nested（递归）。
+    List<ListElement> buildNestedTree(List<ListElement> flat) {
+      final result = <ListElement>[];
+      var i = 0;
+      while (i < flat.length) {
+        final item = flat[i];
+        var j = i + 1;
+        while (j < flat.length && flat[j].indent > item.indent) {
+          j++;
+        }
+        final children = j > i + 1
+            ? buildNestedTree(flat.sublist(i + 1, j))
+            : const <ListElement>[];
+        result.add(ListElement(
+          children: item.children,
+          ordered: item.ordered,
+          indent: item.indent,
+          nested: children,
+        ));
+        i = j;
+      }
+      return result;
+    }
+
     void flushListItems() {
       if (pendingListItems.isEmpty) return;
-      for (final item in pendingListItems) {
-        elements.add(item);
-      }
+      // ADR-0029：平铺项按 indent 递归构建嵌套树（不再拍平合并子项）。
+      elements.addAll(buildNestedTree(pendingListItems));
       pendingListItems.clear();
     }
 
@@ -236,33 +260,13 @@ class MarkdownParser {
 
           final inlineChildren = _parseInline(itemText);
 
-          if (indent > 0 && pendingListItems.isNotEmpty) {
-            final lastItem = pendingListItems.removeLast();
-            final mergedText = lastItem.children
-                .whereType<TextElement>()
-                .map((c) => c.text)
-                .join();
-            final lastInlineText = mergedText.isEmpty
-                ? ''
-                : '$mergedText\n${'  ' * indent}${inlineChildren
-                    .whereType<TextElement>()
-                    .map((c) => c.text)
-                    .join()}';
-            final reParsed = lastInlineText.isEmpty
-                ? <InlineElement>[]
-                : _parseInline(lastInlineText);
-            pendingListItems.add(ListElement(
-              children: reParsed,
-              ordered: lastItem.ordered,
-              indent: indent,
-            ));
-          } else {
-            pendingListItems.add(ListElement(
-              children: inlineChildren,
-              ordered: isOrdered,
-              indent: indent,
-            ));
-          }
+          // ADR-0029：平铺收集（保留 indent），flush 时按缩进构建嵌套树；
+          // 不再把缩进子项拍平合并进父项文本（BUG-5 round-trip 不保真根因）。
+          pendingListItems.add(ListElement(
+            children: inlineChildren,
+            ordered: isOrdered,
+            indent: indent,
+          ));
           continue;
         }
 

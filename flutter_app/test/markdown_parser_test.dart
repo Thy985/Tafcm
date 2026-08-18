@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/parser/markdown_parser.dart';
+import 'package:formula_fix/core/parser/markdown_serializer.dart';
 import 'package:formula_fix/data/models/document.dart';
 
 void main() {
@@ -124,27 +125,53 @@ void main() {
     });
 
     group('列表嵌套', () {
-      test('解析嵌套列表', () {
+      test('解析嵌套列表（ADR-0029 嵌套结构）', () {
         final elements = MarkdownParser.parse(
           '- 水果\n  - 苹果\n  - 香蕉',
         );
         final items = elements.whereType<ListElement>().toList();
         expect(items.length, 1);
-        final nestedText = items[0].children
+        // 根项：indent=0，children 只含本项文本（不再拍平合并子项）
+        expect(items[0].indent, 0);
+        final rootText = items[0].children
             .whereType<TextElement>()
             .map((t) => t.text)
             .join();
-        expect(nestedText, contains('苹果'));
-        expect(items[0].indent, 1);
+        expect(rootText, '水果');
+        // 嵌套子项：2 个，indent=1，含 苹果/香蕉
+        expect(items[0].nested.length, 2);
+        final nestedTexts = items[0].nested
+            .expand((n) => n.children)
+            .whereType<TextElement>()
+            .map((t) => t.text)
+            .join();
+        expect(nestedTexts, contains('苹果'));
+        expect(nestedTexts, contains('香蕉'));
+        expect(items[0].nested[0].indent, 1);
       });
 
-      test('解析有序嵌套列表', () {
+      test('解析有序嵌套列表（ADR-0029 嵌套结构）', () {
         final elements = MarkdownParser.parse(
           '1. 项目\n  1. 子项目',
         );
         final items = elements.whereType<ListElement>().toList();
         expect(items.length, 1);
         expect(items[0].ordered, true);
+        expect(items[0].nested.length, 1);
+        expect(items[0].nested[0].ordered, true);
+      });
+
+      test('嵌套列表 round-trip 保真（BUG-5 回归）', () {
+        const md = '- 水果\n  - 苹果\n  - 香蕉';
+        final e1 = MarkdownParser.parse(md);
+        final s1 = MarkdownSerializer.serialize(e1);
+        final e2 = MarkdownParser.parse(s1);
+        final items1 = e1.whereType<ListElement>().toList();
+        final items2 = e2.whereType<ListElement>().toList();
+        expect(items1.length, 1);
+        expect(items2.length, 1);
+        expect(items2[0].nested.length, items1[0].nested.length,
+            reason: 'serialize: $s1');
       });
     });
 
