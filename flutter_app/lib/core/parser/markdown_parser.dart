@@ -94,7 +94,8 @@ class MarkdownParser {
     final List<ListElement> pendingListItems = [];
 
     void flushCodeBlock() {
-      if (codeLines.isEmpty) return;
+      // 空代码块（```mermaid\n```）也要产出元素 —— round-trip 保真
+      // （Batch 5 Mermaid 审计发现：原 isEmpty 守卫导致空块整体丢失）。
       final code = codeLines.join('\n');
       if (codeLanguage?.toLowerCase() == 'mermaid') {
         elements.add(MermaidElement(code: code));

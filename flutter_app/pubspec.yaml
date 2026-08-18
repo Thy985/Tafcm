@@ -53,6 +53,8 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   patrol: ^4.0.0
+  # Migration Spike（§2.1）：评估 package:markdown 替代语法识别层
+  markdown: ^7.3.1
   flutter_inappwebview_platform_interface: 1.3.0+1
   path_provider_platform_interface: ^2.1.0
 

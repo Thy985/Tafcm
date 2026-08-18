@@ -111,10 +111,69 @@ Regression Asset: roundtrip_fuzz_test.dart（1000 轮常驻 CI）
    （表格 cell 内公式 / Mermaid / 多行 code / 多列 table / CRLF 混合）+ 
    多 seed 参数化（FUZZ_SEED / FUZZ_ROUNDS dart-define）→ **发现并修复
    CRLF 任务列表 bug**（见附录 Batch 3）。
-3. **Batch 4 候选**：ListElement 嵌套 AST 重构（当前拍平设计 round-trip
-   不保真，见附录 BUG-5）；或 Experience Audit（真机/Golden/手势）。
-4. **CAP-003/006**（table/mermaid）由 fuzz 随机覆盖 + 一致性测试间接覆盖；
-   如需专项审计可加入 Batch 4。
+3. **Batch 4（ListElement 嵌套 AST，2026-08-18 已执行 + PR #154 已合并）**：
+   ADR-0029 落地，修复 BUG-5（嵌套列表 round-trip 不保真），fuzz 恢复嵌套语料。
+4. **Batch 5（专项审计扩展，2026-08-18 已执行）**：fuzz 多 seed CI 化 +
+   Mermaid 专项（修复空代码块丢弃 bug）+ 表格 cell 公式专项 + undo-redo
+   行为 fuzz（见附录 Batch 5）。
+5. **Batch 6 候选**：Experience Audit（真机/Golden/手势/主题/输入延迟）。
+
+---
+
+## 附录：Batch 5 专项审计扩展（2026-08-18）
+
+### 1. fuzz 多 seed CI 化（roundtrip_fuzz_test.dart）
+
+主循环抽取为 `runFuzzScan(seed, rounds)`，新增 **multi-seed 扫描测试**
+（5 seed × 200 轮：1 / 42 / 20260818 / 9999 / 314159）——CI 全量
+自动覆盖多 seed，无需 workflow 改动；本地仍可 `--dart-define=FUZZ_SEED`
+精细扫描。
+
+### 2. Mermaid 专项审计（mermaid_audit_test.dart，新增 7 项）
+
+| 审计项 | 结果 |
+|--------|------|
+| round-trip 保真（graph/flowchart/sequence/class + 中文节点） | ✅ |
+| 空 Mermaid 块 | ✅ **发现并修复 BUG-6** |
+| 无语言标注 code block 不误判 | ✅ |
+| ```mermaid + 尾随空格 | ✅ |
+| CRLF 混合 | ✅ |
+| 内容含反引号/尖括号/公式符号 | ✅ |
+| 相邻块交互（列表/段落紧邻） | ✅ |
+
+**BUG-6（修复）**：空代码块（```` ```mermaid\n``` ````）被
+`flushCodeBlock` 的 `if (codeLines.isEmpty) return;` 整体丢弃
+（0 元素）→ round-trip 数据丢失。修复：移除 isEmpty 守卫，
+空块也产出 `MermaidElement(code: '')` / `CodeElement`。
+
+### 3. 表格 cell 内公式专项审计（table_formula_audit_test.dart，新增 6 项）
+
+| 审计项 | 结果 |
+|--------|------|
+| round-trip 保真（cell 内公式） | ✅ |
+| 公式 + 粗体/行内代码混合 | ✅ |
+| 公式含竖线（\| 转义容错，不崩溃） | ✅ |
+| 空 cell / 单 cell 表格 | ✅ |
+| 分隔行含公式样式不误判 | ✅ |
+| 含公式 cell 的多行表格 | ✅ |
+
+**无新 bug**——表格 cell 内公式 round-trip 全保真。
+
+### 4. undo-redo 行为 fuzz（undo_redo_fuzz_test.dart，新增 2 项）
+
+随机 BlockOperation 序列（insert/delete/merge/split）apply → undo 全部
+→ redo 全部 → 状态一致性断言（含二次 undo 幂等）+ 5 seed × 40 步扫描。
+**无新 bug**。
+
+### Batch 5 结论
+
+```text
+fuzz 多 seed CI 化        ✅ multi-seed 扫描测试（5 seed × 200 轮）
+Mermaid 专项              ✅ 7 项全绿（发现并修复 BUG-6 空块丢弃）
+表格 cell 公式专项        ✅ 6 项全绿（无新 bug）
+undo-redo 行为 fuzz       ✅ 2 项全绿（5 seed × 40 步，无新 bug）
+发现 bug: 1（BUG-6 空代码块丢弃，已修复）
+```
 
 ---
 
