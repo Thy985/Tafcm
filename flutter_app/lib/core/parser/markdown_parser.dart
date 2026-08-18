@@ -196,7 +196,11 @@ class MarkdownParser {
         final trimmedLine = line.trim();
 
         // 任务列表：- [ ] / - [x]（ADR-0004 块级扩展，仅新增元素）
-        final taskMatch = RegExp(r'^\s*- \[( |x|X)\]\s+(.+)$').firstMatch(line);
+        // 用 trimmedLine 匹配：CRLF 输入下原始 line 尾部含 '\r'，
+        // '.' 不匹配 '\r' 导致 taskMatch 失败 → 误解析为普通列表项
+        // （Batch 3 CRLF fuzz 发现）。
+        final taskMatch =
+            RegExp(r'^\s*- \[( |x|X)\]\s+(.+)$').firstMatch(trimmedLine);
         if (taskMatch != null) {
           flushParagraph();
           flushListItems();

@@ -37,6 +37,21 @@ class MarkdownCorpusGenerator {
     '> quote', '```\ncode\n```', '```dart\nvoid main(){}\n```',
     '| a | b |\n|---|---|\n| 1 | 2 |',
     '---', r'$$E=mc^2$$', '***',
+    // Batch 3 扩展：表格 cell 内公式 / Mermaid / 多级嵌套。
+    // 注意：不放嵌套列表块 —— 当前 ListElement AST 是"拍平"设计
+    // （嵌套子项合并进父项文本，见 markdown_parser_test 列表嵌套组），
+    // round-trip 不保真（已知限制，Batch 4 专项候选：ListElement 嵌套 AST 重构）。
+    r'| $x$ | **bold** |',
+    '| a | \$\\frac{1}{2}\$ |\n|---|---|\n| \$\\alpha\$ | `code` |',
+    '```mermaid\ngraph TD\nA-->B\n```',
+    '> quote line1\n> quote line2',
+    r'$$\\sum_{i=1}^{n} i$$',
+    '| h1 | h2 |\n|----|----|\n| a  | b  |',
+    '```\nmultiline\ncode\nblock\n```',
+    '```python\nprint("x")\n```',
+    '1. one\n1. two\n1. three',
+    '- a\n- b\n- c',
+    '| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |',
   ];
 
   String _pick(List<String> pool) => pool[_rng.nextInt(pool.length)];
@@ -62,6 +77,8 @@ class MarkdownCorpusGenerator {
   /// 注意：不生成空行 —— EmptyLineElement 是块间分隔符，
   /// MarkdownSerializer 契约要求调用方过滤（block_serializer.dart:76），
   /// 不参与 round-trip 序列化。
+  ///
+  /// Batch 3：偶发 CRLF 混合换行（Windows 文件常见；parser 应无残留 \r）。
   String generate() {
     final lines = <String>[];
     final n = 1 + _rng.nextInt(12);
@@ -77,7 +94,12 @@ class MarkdownCorpusGenerator {
         lines.add(_pick(_blocks));
       }
     }
-    return lines.join('\n');
+    final joined = lines.join('\n');
+    // CRLF 混合：偶发把部分换行替换为 \r\n（约 15% 概率文档）
+    if (_rng.nextDouble() < 0.15) {
+      return joined.replaceAll('\n', '\r\n');
+    }
+    return joined;
   }
 }
 
@@ -192,13 +214,19 @@ bool _rowsEqual(List<List<String>> a, List<List<String>> b) {
 }
 
 void main() {
+  // 参数化：CI 默认固定 seed + 1000 轮；本地可传
+  // --dart-define=FUZZ_SEED=<n> --dart-define=FUZZ_ROUNDS=<n> 扫描多 seed。
+  const seedStr = String.fromEnvironment('FUZZ_SEED', defaultValue: '20260817');
+  const rounds = int.fromEnvironment('FUZZ_ROUNDS', defaultValue: 1000);
+  final seed = int.tryParse(seedStr) ?? 20260817;
+
   group('CAP-008 round-trip fuzz', () {
-    test('1000 轮随机语料：不崩溃 + 二次 round-trip 不动点', () {
-      final gen = MarkdownCorpusGenerator();
+    test('$rounds 轮随机语料（seed=$seed）：不崩溃 + 二次 round-trip 不动点', () {
+      final gen = MarkdownCorpusGenerator(seed);
       var fixpointViolations = 0;
       String? firstViolation;
 
-      for (var round = 0; round < 1000; round++) {
+      for (var round = 0; round < rounds; round++) {
         final md = gen.generate();
 
         // 1. resilience：parse 不崩溃
