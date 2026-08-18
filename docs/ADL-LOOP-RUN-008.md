@@ -107,10 +107,84 @@ Regression Asset: roundtrip_fuzz_test.dart（1000 轮常驻 CI）
 1. **Batch 2（Behavior Audit，2026-08-18 已执行）**：Enter/Backspace/Block
    split-merge 操作语义（split/merge 29 项 + CommandHandler 分派 35 项）+ 
    IME/composing/selection/focus（9 文件 99 项）**全部通过，未发现新 bug**。
-2. **Batch 3 候选**：fuzz 覆盖率扩展（嵌套列表、表格 cell 内公式、Mermaid 块、
-   CRLF 混合、多 seed 参数化）；或 Experience Audit（真机/Golden/手势）。
-3. **CAP-003/006**（table/mermaid）由 fuzz 随机覆盖 + 一致性测试间接覆盖；
-   如需专项审计可加入 Batch 3。
+2. **Batch 3（fuzz 扩展 + 多 seed，2026-08-18 已执行）**：语料池扩展
+   （表格 cell 内公式 / Mermaid / 多行 code / 多列 table / CRLF 混合）+ 
+   多 seed 参数化（FUZZ_SEED / FUZZ_ROUNDS dart-define）→ **发现并修复
+   CRLF 任务列表 bug**（见附录 Batch 3）。
+3. **Batch 4 候选**：ListElement 嵌套 AST 重构（当前拍平设计 round-trip
+   不保真，见附录 BUG-5）；或 Experience Audit（真机/Golden/手势）。
+4. **CAP-003/006**（table/mermaid）由 fuzz 随机覆盖 + 一致性测试间接覆盖；
+   如需专项审计可加入 Batch 4。
+
+---
+
+## 附录：Batch 3 fuzz 扩展 + 多 seed（2026-08-18）
+
+### 语料池扩展
+
+`roundtrip_fuzz_test.dart` `_blocks` 池新增（Batch 3）：
+
+```text
+表格 cell 内公式（| $x$ | **bold** | / | $\\frac{1}{2}$ |）
+Mermaid 块（```mermaid graph TD A-->B ```）
+多行 code（```\nmultiline\ncode\nblock\n```）
+多列 table（| a | b | c |）
+有序/无序多行列表（1. one\n1. two / - a\n- b）
+CRLF 混合（~15% 概率整篇 \r\n）
+```
+
+注意：**不放嵌套列表块** —— 当前 ListElement AST 是「拍平」设计
+（嵌套子项合并进父项文本，`markdown_parser_test` 列表嵌套组锁定），
+round-trip 不保真（BUG-5，见下）。
+
+### 多 seed 参数化
+
+```dart
+// CI 默认：seed=20260817, 1000 轮
+// 本地扫描：--dart-define=FUZZ_SEED=<n> --dart-define=FUZZ_ROUNDS=<n>
+const seedStr = String.fromEnvironment('FUZZ_SEED', defaultValue: '20260817');
+const rounds = int.fromEnvironment('FUZZ_ROUNDS', defaultValue: 1000);
+```
+
+本地 3 个 seed（7 / 20260818 / 9999）各 300 轮扫描全部通过。
+
+### BUG-4（修复）：CRLF 任务列表误解析为普通列表项
+
+**现象**：`- [x] task\r\n`（CRLF 输入）解析为 `ListElement` 而非
+`TaskListItemElement`；LF 输入正常。round=64 的 CRLF 混合文档
+parse→serialize→parse 结构不一致。
+
+**根因**：taskMatch 正则 `^\s*- \[( |x|X)\]\s+(.+)$` 匹配原始 `line`
+（尾部含 `\r`），`.` 不匹配 `\r` → taskMatch 失败 → 落入普通列表分支。
+
+**修复**（`markdown_parser.dart`）：taskMatch 改用 `trimmedLine` 匹配
+（与列表分支一致，trim 已去除 `\r`）。
+
+**验证**：CRLF `- [x] task\r\n` → TaskListItemElement ✅；parser 全组合
+160 项全绿；fuzz 默认 seed 1000 轮 + 3 个扫描 seed 全绿。
+
+### BUG-5（已知限制，Batch 4 候选）：ListElement 嵌套 AST 拍平
+
+**现象**：`- 水果\n  - 苹果\n  - 香蕉`（现有测试锁定的合并行为）round-trip
+后 `苹果`/`香蕉` 变 ParagraphElement——嵌套子项被合并进父项文本，结构
+信息在 AST 中丢失，serialize 后不可逆。
+
+**根因**：`ListElement` AST 无嵌套子项结构（只有 children + ordered +
+indent），parser 把缩进子项文本拼入父项 children（`markdown_parser_test`
+列表嵌套组锁定此行为）。
+
+**处置**：已知限制，fuzz 语料豁免嵌套列表块；**Batch 4 专项候选：
+ListElement 嵌套 AST 重构**（需同步更新 BlockEditor 编辑模型，超审计
+范围，按 AGENTS.md §6.3.3 不混入本 PR）。
+
+### Batch 3 结论
+
+```text
+fuzz 扩展 + 多 seed: 语料池 4 类新增 + CRLF 混合 + 3 seed 扫描全绿 ✅
+发现 bug: 1（BUG-4 CRLF 任务列表，已修复）
+已知限制: 1（BUG-5 嵌套列表 AST 拍平，Batch 4 候选）
+Regression Asset: roundtrip_fuzz_test.dart 语料扩展 + 多 seed 参数化
+```
 
 ---
 
