@@ -30,7 +30,14 @@ def open_project(path: str) -> dict[str, Any]:
     if not p.is_file():
         raise FileNotFoundError(f"Project not found: {path}")
     with open(p, encoding="utf-8") as f:
-        return json.load(f)
+        project = json.load(f)
+    # Restore _session state if it was previously saved
+    if _SESSION_KEY in project:
+        sess = project[_SESSION_KEY]
+        if isinstance(sess, dict):
+            sess.setdefault("history", [])
+            sess.setdefault("redo_stack", [])
+    return project
 
 
 def info_project(project: dict[str, Any]) -> dict[str, Any]:
@@ -109,7 +116,138 @@ def inject_image(content: str, alt: str, url: str) -> str:
     return content.rstrip() + f"\n\n![{alt}]({url})\n"
 
 
-# ── internals ───────────────────────────────────────────────────────
+# ── session operations ────────────────────────────────────────────────
+
+_SESSION_KEY = "_session"
+_HISTORY_LIMIT = 50
+
+
+def _ensure_session(project: dict[str, Any]) -> dict[str, Any]:
+    """Ensure project has a session dict with history/redo stacks."""
+    if _SESSION_KEY not in project:
+        project[_SESSION_KEY] = {"history": [], "redo_stack": []}
+    return project[_SESSION_KEY]
+
+
+def save_project(path: str, project: dict[str, Any]) -> str:
+    """Persist project to disk. Returns the saved path."""
+    _atomic_write(path, project)
+    return path
+
+
+def load_project(path: str) -> dict[str, Any]:
+    """Load a project from disk (alias for open_project)."""
+    return open_project(path)
+
+
+def snapshot_project(project: dict[str, Any]) -> None:
+    """Push current content onto the history stack for undo support."""
+    sess = _ensure_session(project)
+    snapshot = {
+        "content": project.get("content", ""),
+        "updated_at": project.get("updated_at", _now_iso()),
+    }
+    sess["history"].append(snapshot)
+    sess["redo_stack"] = []
+    if len(sess["history"]) > _HISTORY_LIMIT:
+        sess["history"] = sess["history"][-_HISTORY_LIMIT:]
+
+
+def undo_project(project: dict[str, Any]) -> dict[str, Any] | None:
+    """Undo the last content change. Returns updated project or None."""
+    sess = _ensure_session(project)
+    if not sess["history"]:
+        return None
+    prev = sess["history"].pop()
+    sess["redo_stack"].append({
+        "content": project.get("content", ""),
+        "updated_at": project.get("updated_at", _now_iso()),
+    })
+    project["content"] = prev["content"]
+    project["updated_at"] = prev["updated_at"]
+    project["modified"] = True
+    return project
+
+
+def redo_project(project: dict[str, Any]) -> dict[str, Any] | None:
+    """Redo the last undone change. Returns updated project or None."""
+    sess = _ensure_session(project)
+    if not sess["redo_stack"]:
+        return None
+    next_state = sess["redo_stack"].pop()
+    sess["history"].append({
+        "content": project.get("content", ""),
+        "updated_at": project.get("updated_at", _now_iso()),
+    })
+    project["content"] = next_state["content"]
+    project["updated_at"] = next_state["updated_at"]
+    project["modified"] = True
+    return project
+
+
+def session_status(project: dict[str, Any]) -> dict[str, Any]:
+    """Return session history stats."""
+    sess = _ensure_session(project)
+    return {
+        "history_size": len(sess["history"]),
+        "redo_size": len(sess["redo_stack"]),
+        "max_history": _HISTORY_LIMIT,
+        "can_undo": len(sess["history"]) > 0,
+        "can_redo": len(sess["redo_stack"]) > 0,
+    }
+
+
+# ── export ────────────────────────────────────────────────────────────
+
+def export_markdown(project: dict[str, Any], output_path: str) -> str:
+    """Export project content to a .md file on disk."""
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    content = project.get("content", "")
+    title = project.get("title", "").strip()
+    if title:
+        content = f"# {title}\n\n" + content
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(content)
+    return str(p)
+
+
+# ── diff ──────────────────────────────────────────────────────────────
+
+def diff_markdown(path_a: str, path_b: str) -> dict[str, Any]:
+    """Compare two markdown files and return stats differences."""
+    def _read(path: str) -> tuple[int, dict[str, int]]:
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        stats = _analyze_content(content)
+        return len(content), stats
+
+    size_a, stats_a = _read(path_a)
+    size_b, stats_b = _read(path_b)
+
+    diff_keys = ["word_count", "char_count", "heading_count", "formula_count",
+                 "mermaid_count", "code_block_count", "list_item_count",
+                 "task_item_count", "table_count", "image_count"]
+    diffs = {}
+    for k in diff_keys:
+        delta = stats_b.get(k, 0) - stats_a.get(k, 0)
+        if delta != 0:
+            diffs[k] = delta
+
+    return {
+        "file_a": path_a,
+        "file_b": path_b,
+        "size_a": size_a,
+        "size_b": size_b,
+        "size_delta": size_b - size_a,
+        "stats_a": stats_a,
+        "stats_b": stats_b,
+        "diffs": diffs,
+        "has_changes": len(diffs) > 0,
+    }
+
+
+# ── internals ────────────────────────────────────────────────────────
 
 _FORMULA_RE = re.compile(r"\$\$[^$]*\$\$|\$[^$\n]+\$", re.DOTALL)
 _MERMAID_RE = re.compile(r"```mermaid\s*\n.*?\n```", re.DOTALL)

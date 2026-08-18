@@ -749,4 +749,192 @@ printf "$NEWSHA\n" > .git/refs/remotes/origin/feat/phase3.4-xxx
 
 ---
 
-**本文档由首席架构工程师维护，版本 v0.3，生效日期 2026-07-27。**
+## 12. Bug Fix Protocol（强制）
+
+> **来源**：Claude Code 洞察报告（2026-08-17）—— 用户在 10+ 个会话中以 "fix bug" 发起请求却未提供任何细节，导致整段会话时间浪费在 onboarding 和证据收集上，从未达成任何诊断或修复。
+>
+> **本章节优先级高于所有其他条款**：AI Agent 必须在收到 bug 报告时先执行 §12.1，否则视为违反协议。
+
+### 12.1 Before Investigation — 强制信息收集
+
+收到 "fix bug" / "修 bug" / "解决 XX 问题" 类请求时，**MUST** 先确认拥有以下至少一项：
+
+| 必需信息 | 示例 |
+|---------|------|
+| (1) 错误输出 / Stack Trace | CI log 关键行、运行时异常堆栈 |
+| (2) Failing Test 或复现步骤 | `flutter test test/parser/...` 失败、具体操作步骤 |
+| (3) 受影响文件或组件 | `lib/core/parser/markdown_parser.dart`、`EditorPage` |
+
+若以上均缺失，**必须询问用户**，禁止自行猜测或开始调查：
+
+```
+我需要以下信息才能开始调查：
+1. [ ] 错误输出 / stack trace（CI log 关键行、运行时异常）
+2. [ ] 复现步骤或 failing test
+3. [ ] 受影响文件或组件（如有）
+
+请补充任意一项，我立刻开始诊断。
+```
+
+### 12.2 Debugging Protocol（拿到信息后）
+
+```
+Reproduce → Collect Evidence → Find Root Cause → Fix → Regression Protection
+```
+
+1. **Reproduce**：先跑 failing test 或手动复现，确认问题存在
+2. **Collect Evidence**：读相关代码 + 读相关 ADR + 查 CI log + 检查 git blame
+3. **Find Root Cause**：写出原因（X）+ 证据（Y）+ 方案（Z），禁止跳步
+4. **Fix**：最小改动原则，一个 PR 只修一个问题
+5. **Regression Protection**：补测试或更新 TEST_SKIP_REGISTRY
+
+### 12.3 例外情况
+
+以下情况可跳过 §12.1 信息收集直接行动：
+
+| 例外类型 | 例 | 必要条件 |
+|---------|----|---------|
+| Typo / 拼写修复 | 一行错别字 / 一个变量名拼错 | 改动 ≤ 1 个文件 / ≤ 5 行 |
+| 纯文档措辞调整 | README / 注释错字 | 不影响契约 / 不影响架构表述 |
+| 已显式授权的紧急修复 | hotfix / 现网事故兜底 | 用户在当前对话中显式说出 "skip bug protocol" 并说明紧急理由 |
+
+出现上述例外时，须在最终回复里声明已跳过 §12.1 并写明对应例外。
+
+---
+
+## 13. Testing
+
+> **来源**：Claude Code 洞察报告 —— 长会话被 Classifier 写入超时、Flutter E2E 测试超时打断，导致闭环未完成。
+
+### 13.1 验证基线
+
+所有工作按以下基准验证：
+
+| 命令 | 用途 | 备注 |
+|------|------|------|
+| `flutter analyze --no-fatal-infos --fatal-warnings` | Analyze 门禁 | 必须用此精确命令，裸 `flutter analyze` 不把 warning 当 error |
+| `flutter test` | 全量 unit/widget test | 约 175 tests，需 3-5 min |
+| `flutter test test/<dir>/<file>_test.dart` | 单文件测试 | 短耗时，适合迭代验证 |
+| `ffx test` | ffx-cli 测试 | 40 passing，改 CLI 后必跑 |
+| `ffx adi doctor` | ADI 自检 | 跑 ADI 前必做 |
+
+### 13.2 已知超时风险
+
+- **Classifier 写入超时**：`adi validate` / `adi aggregate` 可能卡在写入 step，等待 >120s → 中断重试
+- **Flutter E2E（integration_test）**：单文件约 50s，全轮约 18min；Gradle 偶发网络抖动（`Connection reset`）→ 重跑即过
+- **Golden test diff**：见 `flutter_app/test/golden/failures/` 目录，已登记 skip
+
+### 13.3 长测试运行策略
+
+> 会话超时风险高时，使用后台运行 + Monitor 模式：
+
+```bash
+# 后台跑全量 test，完成后通知
+cd flutter_app && flutter test 2>&1 | tee /tmp/flutter_test.log
+# 或用 Monitor 工具持续观察
+```
+
+---
+
+## 14. Project Architecture
+
+### 14.1 整体结构
+
+```
+D:\Projects\Active\math2\
+├── flutter_app/                  # FormulaFix Flutter App（主项目）
+│   ├── lib/                      # 业务代码（六层架构）
+│   │   ├── main.dart
+│   │   ├── core/                 # 基础设施（parser / renderers / services / router / utils）
+│   │   ├── data/                 # 数据模型（Document / Template）
+│   │   ├── domain/               # 业务领域（导出服务 / 业务 Provider）
+│   │   ├── providers/            # 全局 Riverpod Provider
+│   │   └── presentation/         # UI 组件、屏幕、主题
+│   ├── test/                     # Unit + Widget tests（175 个）
+│   ├── integration_test/         # E2E tests（Android 模拟器）
+│   ├── docs/                     # Flutter 侧文档
+│   └── pubspec.yaml
+├── tools/
+│   ├── ffx-cli/                  # Python CLI（诊断 + ADI wrapper + markdown analysis）
+│   │   └── cli_anything/ffx/
+│   │       ├── ffx_cli.py        # Click 入口，--json/--project/--dry-run/--root
+│   │       ├── core/
+│   │       │   ├── project.py    # 项目 CRUD
+│   │       │   ├── adi_wrapper.py # ADI (adi.dart) 封装
+│   │       │   └── session.py    # Session 状态管理
+│   │       └── tests/
+│   │           ├── test_core.py  # 40 passing
+│   │           ├── test_full_e2e.py
+│   │           └── test_run006_evidence.py
+│   └── adi/                      # Agent Diagnostic Interface（Dart）
+│       └── adi.dart
+├── .agent/                       # AI 工程治理层
+│   ├── AI_POLICY.md              # Agent 身份 / 权限 / 行为协议
+│   ├── COMMAND_SAFETY.md         # 危险命令清单
+│   ├── ENVIRONMENT.md            # 仓库物理边界事实
+│   ├── GIT_POLICY.md             # 分支/PR/merge 权限边界
+│   ├── GIT_RULES.md              # git 红黄绿三级禁令
+│   └── REPO_POLICY.md            # 安全层总纲
+├── docs/
+│   ├── ADR/                      # 26 篇架构决策记录
+│   ├── ARCHITECTURE.md
+│   ├── ROADMAP.md
+│   └── CRITICAL_REVIEW.md
+└── AGENTS.md                     # AI 协作开发强制规范（本文件）
+```
+
+### 14.2 技术栈速查
+
+| 层级 | 技术 |
+|------|------|
+| 主 App | Flutter 3.44.6 / Dart >=3.0.0 / Riverpod 2.4.9 / go_router 12.x |
+| CLI 工具 | Python 3.10+ / Click 8.x / pytest 9.x |
+| 测试 | flutter_test / patrol（E2E）/ pytest |
+| CI | GitHub Actions（ubuntu-24.04 / Flutter 3.44.6） |
+| 诊断 | ADI (Agent Diagnostic Interface) / ffx-cli |
+
+---
+
+## 15. CLI Conventions（ffx-cli）
+
+> **来源**：洞察报告显示 Click 的 `--json` flag 传播有多次回归，路径解析也踩过坑。
+
+### 15.1 Flag 顺序规则
+
+Click 框架要求 **flags 必须在前，subcommand 在后**：
+
+```bash
+# ✅ 正确
+ffx --json project info -p project.json
+ffx --json --root /path/to/project health
+ffx --dry-run project create -o output.json
+
+# ❌ 错误（flag 在 subcommand 之后不会被识别）
+ffx project info --json -p project.json
+```
+
+### 15.2 通用验证命令
+
+修改 ffx-cli 后**必须**执行：
+
+```bash
+# 跑全量 CLI 测试（40 passing）
+cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/ -v
+
+# 或单测某个模块
+python -m pytest cli_anything/ffx/tests/test_core.py -v
+```
+
+### 15.3 已知历史坑（避免重踩）
+
+| 问题 | 现象 | 教训 |
+|------|------|------|
+| `--json` 未传播 | 子命令输出不是 JSON | 必须用 `_effective_json(ctx)` 向上遍历 parent ctx |
+| `_atomic_write` 路径错 | 写到错误目录 | 先 `Path(out_path).parent.mkdir(parents=True, exist_ok=True)` |
+| `inject` 缺 type arg | `TypeError: inject_formula() missing 1 required positional argument` | Click option 加 `type=str` |
+| `find_flutter_root` 找错目录 | 指向非公式项目 | 向上查找 `pubspec.yaml`，检查 `name: formula_fix` |
+
+---
+
+**本文档由首席架构工程师维护，版本 v0.4，生效日期 2026-08-17。**
+<!-- 新增 §12-15：Bug Fix Protocol / Testing / Project Architecture / CLI Conventions -->

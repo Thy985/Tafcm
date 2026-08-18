@@ -114,3 +114,29 @@ def import_zip(source: str, output_dir: Optional[str] = None, cwd: Optional[str]
     if output_dir:
         args += ["--out", output_dir]
     return _run_adi(args, cwd=cwd)
+
+
+def list_traces(cwd: Optional[str] = None) -> dict[str, Any]:
+    """List trace IDs in .adi/traces/ without reading each file."""
+    adir = _find_adi_cwd(cwd)[1]
+    traces_dir = Path(adir) / ".adi" / "traces"
+    if not traces_dir.is_dir():
+        return {"status": "empty", "traces": []}
+    traces = []
+    for f in sorted(traces_dir.glob("*.json")):
+        tid = f.stem  # e.g. "trc_5b98ca4687546592"
+        traces.append(tid)
+    return {"status": "ok", "count": len(traces), "traces": traces}
+
+
+def list_sessions(cwd: Optional[str] = None) -> dict[str, Any]:
+    """List session IDs in .adi/sessions/."""
+    adir = _find_adi_cwd(cwd)[1]
+    sessions_dir = Path(adir) / ".adi" / "sessions"
+    if not sessions_dir.is_dir():
+        return {"status": "empty", "sessions": []}
+    sessions = []
+    for d in sorted(sessions_dir.iterdir()):
+        if d.is_dir():
+            sessions.append(d.name)
+    return {"status": "ok", "count": len(sessions), "sessions": sessions}
