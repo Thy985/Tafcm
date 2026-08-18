@@ -81,13 +81,15 @@ void main() {
     });
 
     test('nested list indent preserved', () {
-      // 单独测试 nested indent：`  - nested` 应被 merge 进 parent 但保留 indent=1
+      // ADR-0029：`  - nested` 作为 parent 的 nested 子项（indent=1），
+      // 根项 indent=0（不再拍平合并进父项文本）
       const source = '- parent\n  - nested';
       final ast = MarkdownParser.parse(source);
       final lists = ast.whereType<ListElement>().toList();
       expect(lists.length, equals(1));
-      // 合并后 indent 应为 1（parser 的 merge 行为）
-      expect(lists[0].indent, equals(1));
+      expect(lists[0].indent, equals(0));
+      expect(lists[0].nested.length, equals(1));
+      expect(lists[0].nested[0].indent, equals(1));
     });
   });
 
