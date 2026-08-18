@@ -19,11 +19,15 @@ class ListElement extends DocumentElement {
   final List<InlineElement> children;
   final bool ordered;
   final int indent;
+  /// 嵌套子项（ADR-0029）：`- a\n  - b` 中 `b` 为 `a` 的 nested。
+  /// 默认空列表，兼容现有构造。
+  final List<ListElement> nested;
 
   const ListElement({
     required this.children,
     this.ordered = false,
     this.indent = 0,
+    this.nested = const [],
   });
 }
 

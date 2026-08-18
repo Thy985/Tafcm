@@ -258,6 +258,10 @@ class BlockOperation extends EditOperation {
       if (leftList.ordered != rightList.ordered) {
         return BlockType.paragraph;  // 异 ordered 回退
       }
+      // ADR-0029：nested 结构不同的列表项不合并（避免丢失嵌套子项）
+      if (leftList.nested.isNotEmpty || rightList.nested.isNotEmpty) {
+        return BlockType.paragraph;
+      }
       return BlockType.listItem;
     }
     return BlockType.paragraph;  // 不兼容回退

@@ -114,7 +114,14 @@ class TextExporter {
       return _inlineToText(element.children);
     } else if (element is ListElement) {
       final text = _inlineToText(element.children);
-      return '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}$text';
+      final self = '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}$text';
+      if (element.nested.isEmpty) return self;
+      // ADR-0029：递归导出嵌套子项
+      final nestedLines = element.nested.map((n) {
+        final nt = _inlineToText(n.children);
+        return '${'  ' * n.indent}${n.ordered ? '${n.indent + 1}. ' : '- '}$nt';
+      });
+      return [self, ...nestedLines].join('\n');
     } else if (element is CodeElement) {
       return '```${element.language ?? ''}\n${element.code}\n```';
     } else if (element is BlockquoteElement) {

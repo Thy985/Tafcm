@@ -56,9 +56,12 @@ String fromElement(DocumentElement element) {
       return '${'#' * level} $text';
     case ParagraphElement(:final children):
       return InlineSerializer.serialize(children);
-    case ListElement(:final children, :final ordered, :final indent):
+    case ListElement(:final children, :final ordered, :final indent, :final nested):
       final prefix = ordered ? '1. ' : '- ';
-      return '${'  ' * indent}$prefix${InlineSerializer.serialize(children)}';
+      final self = '${'  ' * indent}$prefix${InlineSerializer.serialize(children)}';
+      if (nested.isEmpty) return self;
+      // ADR-0029：递归序列化嵌套子项（其自身 indent 字段含正确缩进）
+      return [self, ...nested.map(fromElement)].join('\n');
     case TaskListItemElement(:final children, :final checked, :final indent):
       final mark = checked ? 'x' : ' ';
       return '${'  ' * indent}- [$mark] ${InlineSerializer.serialize(children)}';
