@@ -56,11 +56,32 @@ Level A 全部
 | CAP-WORD-C | LibreOffice Consumer | B | LibreOffice headless 打开/转换（soffice --convert-to pdf；audit 已支持探测，可选二级引擎，本机未装） | ✅（代码已实现，可选） |
 | CAP-WORD-D | Agent DOCX Skill Inspection | A | Agent 解包 → XML 校验 → 内容/结构检查 → 报告（ffx export audit） | ✅（已实现，见 §8） |
 | CAP-WORD-E | Semantic Fidelity | A | 标题/中文/列表/表格/公式语义保留（extractor + pdf2txt） | ✅（word_export_semantic_fidelity_test，4 项） |
-| CAP-WORD-F | Visual PDF/Screenshot | A/B | word2pdf 产物 + 截图/像素比对 | ⏳（PDF 已可生成，截图比对待补） |
-| CAP-WORD-G | Microsoft Word Desktop | C | Word 打开 + 无 repair + 渲染验证 | ⏳（Release Gate，有 Word 环境才跑） |
+| CAP-WORD-F | Visual PDF/Screenshot | A/B | word2pdf 产物（2 页）+ pdfinfo 元数据 + visual JSON（golden=pending_review） | ✅（PDF 捕获方案；word2photo/pdf2photo 需 WPS 会员，截图待会员环境或人工打开 PDF 审阅） |
+| CAP-WORD-G | Microsoft Word Desktop | C | Word 打开 + 无 repair + 渲染验证 | ⏳（Release Gate，有 Word 环境才跑；Word 线已冻结，非当前主线） |
+
+### Word 线收口声明（2026-08-19）
+
+```text
+Word Export 状态：未知风险 → 受控风险（已收口，冻结深挖）
+
+已闭环（全部 ✅，有真实消费端证据）：
+  Artifact Integrity       ✅  OOXML/ZIP/rels 结构
+  DOCX Semantic            ✅  标题/列表/表格/公式语义
+  WPS Consumer             ✅  wpscli word2pdf 转换成功
+  WPS PDF Metadata         ✅  pdfinfo 页数/扫描提示
+  WPS Consumer Text        ✅  pdf2txt 消费端文本（公式保真）
+  Export Regression        ✅  50 项测试 + CAP-WORD-017 模拟机
+  Visual（PDF 捕获）        ✅/Review  word2pdf 2 页 + golden=pending_review
+
+未闭环（非当前主线，后续视需要再评估）：
+  Microsoft Word Desktop   UNKNOWN  Release Gate（Level C，有 Word 环境才跑）
+  像素级截图                ⏳  word2photo/pdf2photo 需 WPS 会员
+
+冻结决定：Word Export 不再深挖；QA 能力已沉淀为 ffx export audit
+（Agent-native，任意文档可跑）。后续优先级转至 Phase 3.9 Behavior Audit。
+```
 
 ## 4. JSON 质量报告模型
-
 `ffx export audit --format docx` 输出：
 
 ```json
