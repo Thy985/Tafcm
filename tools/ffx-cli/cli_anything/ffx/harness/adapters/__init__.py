@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from .markdown import MarkdownAdapter
+from .serializer import SerializerAdapter
 
-# 显式注册（P0.1 单能力；后续可按目录扫描自动发现，核心逻辑不变）
+# 显式注册（P0.1 双能力：markdown + serializer——serializer 提供跨能力
+# 回归对比的第 2 个 capability，REGRESSION path 前置）
 _ADAPTERS: dict[str, type] = {
     MarkdownAdapter.id: MarkdownAdapter,
+    SerializerAdapter.id: SerializerAdapter,
 }
 
 

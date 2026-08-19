@@ -180,7 +180,31 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
         "after_count": len(after_ev),
     }
 
+    # REGRESSION path（D5 修复 2026-08-20）：registry ≥2 时，遍历其他
+    # capability 各自 verify——任一 fail = 修复引入了回归；全 pass = 未回归。
     regression: dict[str, Any] = {"status": "n/a", "detail": "only 1 capability in registry (P0.1)"}
+    from cli_anything.ffx.harness.adapters import available as _available
+
+    others = [c for c in _available() if c != capability]
+    if others:
+        reg_results: dict[str, str] = {}
+        reg_failed: list[str] = []
+        for other in others:
+            other_report, other_exit = verify(other)
+            other_status = other_report.get("status", "unknown")
+            reg_results[other] = other_status
+            if other_status == "fail":
+                reg_failed.append(other)
+        regression = {
+            "status": "pass" if not reg_failed else "fail",
+            "detail": (
+                f"regression check over {others}: {reg_results}"
+                if not reg_failed
+                else f"REGRESSION: {reg_failed} failed after fix ({reg_results})"
+            ),
+            "checked": others,
+            "results": reg_results,
+        }
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
