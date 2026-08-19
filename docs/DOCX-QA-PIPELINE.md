@@ -51,7 +51,7 @@ Level A 全部
 
 | # | 验收项 | 层级 | 验证内容 | 状态 |
 |---|--------|------|---------|------|
-| CAP-WORD-A | OOXML Integrity | A | ZIP 解包 + CRC + [Content_Types] + document/styles/settings + rels 无 dangling | ✅（word_export_zip_integrity_test，5 项） |
+| CAP-WORD-A | OOXML Integrity | A | ZIP 解包 + CRC + [Content_Types] + document/styles/settings + rels 无 dangling + **解析器级 well-formed（XmlDocument.parse 全部 XML parts + 嵌套深度 + 属性解码）** | ✅（word_export_zip_integrity_test，8 项含 CAP-WORD-018b） |
 | CAP-WORD-B | WPS Consumer | A | WPS 12.1 wpscli 深度验证：word2pdf 转换 + pdfinfo 元数据 + pdf2txt 消费端文本 | ✅（wpscli 实测 + ffx export audit 集成） |
 | CAP-WORD-C | LibreOffice Consumer | B | LibreOffice headless 打开/转换（soffice --convert-to pdf；audit 已支持探测，可选二级引擎，本机未装） | ✅（代码已实现，可选） |
 | CAP-WORD-D | Agent DOCX Skill Inspection | A | Agent 解包 → XML 校验 → 内容/结构检查 → 报告（ffx export audit） | ✅（已实现，见 §8） |

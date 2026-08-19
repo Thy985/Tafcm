@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/domain/services/exporters/word_exporter.dart';
+import 'package:xml/xml.dart' as xml;
 
 /// 导出真实 docx 并解包，返回 (zip, 文件表)。
 Future<(Archive, Map<String, ArchiveFile>)> _exportAndUnzip(String md) async {
@@ -102,6 +103,86 @@ void main() {
       final xml = utf8.decode(files['word/document.xml']!.content as List<int>);
       expect(xml, contains('中文标题'));
       expect(xml, contains('中文段落内容'));
+    });
+  });
+
+  group('CAP-WORD-018b 解析器级验证（XmlDocument.parse well-formed）', () {
+    test('全部 XML parts 解析器级 well-formed（非字符串代理）', () async {
+      const md = '# 标题\n\n中文段落 **粗体**\n\n- 列表项A\n- 列表项B\n\n'
+          '| 列1 | 列2 |\n|---|---|\n| 1 | 2 |\n\n公式 \$E=mc^2\$ 结尾';
+      final (_, files) = await _exportAndUnzip(md);
+
+      const xmlParts = [
+        '[Content_Types].xml',
+        'word/document.xml',
+        'word/styles.xml',
+        'word/settings.xml',
+        'word/_rels/document.xml.rels',
+      ];
+      for (final part in xmlParts) {
+        final content = files[part];
+        expect(content, isNotNull, reason: '$part 必须存在');
+        final raw = utf8.decode(content!.content as List<int>);
+        // 解析器级验证：XmlDocument.parse 对 well-formed 输入成功，
+        // 对非法输入抛 XmlParserException/XmlTagException —— 比字符串
+        // contains 代理检查严格得多（能发现未闭合标签/属性缺引号/实体非法）
+        final doc = xml.XmlDocument.parse(raw);
+        expect(doc.rootElement.name.toString(), isNotEmpty,
+            reason: '$part 解析后应有根元素');
+      }
+    });
+
+    test('document.xml 标签嵌套深度与元素计数（结构合理性）', () async {
+      const md = '# 标题\n\n段落\n\n- 列表A\n- 列表B\n\n| a | b |\n|---|---|\n| 1 | 2 |';
+      final (_, files) = await _exportAndUnzip(md);
+      final raw = utf8.decode(files['word/document.xml']!.content as List<int>);
+      final doc = xml.XmlDocument.parse(raw);
+
+      // 根元素必须是 w:document（WordprocessingML 主文档）
+      expect(doc.rootElement.name.local, 'document',
+          reason: '根元素应为 document（local name，忽略前缀）');
+
+      // 遍历统计 w:p / w:tbl / w:tr —— 结构元素存在性
+      final paragraphs = doc.rootElement.descendants
+          .where((n) => n is xml.XmlElement && n.name.local == 'p')
+          .length;
+      final tables = doc.rootElement.descendants
+          .where((n) => n is xml.XmlElement && n.name.local == 'tbl')
+          .length;
+      expect(paragraphs, greaterThanOrEqualTo(2), reason: '应有段落（含列表项）');
+      expect(tables, greaterThanOrEqualTo(1), reason: '应有表格');
+
+      // 嵌套深度合理（防止无限嵌套/异常深结构）：不超过 15 层
+      var maxDepth = 0;
+      void walk(xml.XmlNode node, int depth) {
+        if (depth > maxDepth) maxDepth = depth;
+        for (final c in node.children) {
+          walk(c, depth + 1);
+        }
+      }
+
+      walk(doc.rootElement, 1);
+      expect(maxDepth, lessThan(15), reason: '嵌套深度应合理（<15，实际 $maxDepth）');
+    });
+
+    test('XML 属性合法性：所有属性名/值可解析（含中文与转义实体）', () async {
+      const md = 'a & b < c > "d" 中文\n\n| x | y |\n|---|---|\n| 1 | 2 |';
+      final (_, files) = await _exportAndUnzip(md);
+      final raw = utf8.decode(files['word/document.xml']!.content as List<int>);
+      final doc = xml.XmlDocument.parse(raw);
+
+      var attrCount = 0;
+      var entityOk = true;
+      for (final el in doc.rootElement.descendants.whereType<xml.XmlElement>()) {
+        for (final attr in el.attributes) {
+          attrCount++;
+          // 属性值经解析器解码后不应残留原始转义实体（&amp; 应为 &）
+          if (attr.value.contains('&amp;')) entityOk = false;
+        }
+      }
+      expect(attrCount, greaterThan(0), reason: '应有属性被解析');
+      expect(entityOk, isTrue,
+          reason: '属性值不应残留未解码实体（XmlDocument.parse 已解码）');
     });
   });
 }
