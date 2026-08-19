@@ -663,6 +663,82 @@ FormulaFix 当前状态：
 
 ---
 
+## Phase 3.10：FFX Verification Orchestrator（验证编排器）
+
+> **状态**：🟡 进行中（2026-08-19）— ADR-0030 Accepted（Human Owner 授权提交 PR #158），
+> P0 实现已提交待 review。文档族：
+> [ADR-0030（架构决策根）](./ADR/0030-ffx-verification-orchestrator.md)、
+> [PHASE3.10-ENGINEERING-BASELINE-v1.md](./PHASE3.10-ENGINEERING-BASELINE-v1.md)（锚点）、
+> [FFX-VERIFICATION-ORCHESTRATOR-v1.md](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)、
+> [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](./FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md)、
+> [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](./FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md)、
+> [PHASE3.10-TYPORA-GAP-ANALYSIS.md](./PHASE3.10-TYPORA-GAP-ANALYSIS.md)。
+
+**目标**：能力无关的验证编排器——Agent 通过 `ffx capability verify/diagnose/repair-verify`
+驱动真实 FormulaFix 生产路径（runtime_bridge），按契约（contracts/*.json）判定能力完成度，
+形成「审计 → 修复 → 资产化」的自反馈工程基线。
+
+**节奏（2026-08-19 Owner 修订）**：**不做串行「实现完再测」**——P0 可运行即开始
+Dogfood，两条线并行：
+
+```text
+                 Phase 3.10
+                     │
+          ┌──────────┴──────────┐
+          ↓                     ↓
+   Orchestrator Build       Dogfood
+   3.10.1（+3.10.2 最小版）   FormulaFix
+          │                     │
+          └──────────┬──────────┘
+                     ↓
+              Orchestrator 验收（5 条证据链）
+```
+
+**Golden Failure Corpus**（验收基准集）：已有 Bug 作为金标准，不找新 Bug——
+BUG-1~6（parser）/ BUG-WORD-001（word）/ RenderOverflow（render）/ Undo 错块 /
+Coalescing / Focus / IME（editor）。每例登记
+`tests/verification_cases/<capability>/<case_id>.json`
+（case_id / capability / expected.status / diagnostic_expected / repair_expected）。
+
+**前置条件**：Phase 3.7（可观测）/ 3.8（ADI）/ 3.9（审计收口）已建立证据采集与消费能力。
+
+**关联文档**：
+- [ADR-0030 FFX Verification Orchestrator](./ADR/0030-ffx-verification-orchestrator.md)（Accepted）
+- [FFX Verification Orchestrator v1 设计](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)（已批准，进入 P0）
+
+### 任务
+
+| # | 任务 | 优先级 | 状态 |
+|---|------|--------|------|
+| 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | 🟡 PR #158 待 review（Review R1-R15 已修复） |
+| 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ⏳ 待 3.10.1 review 后启动 |
+| 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ⏳ |
+| 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ⏳ |
+
+### Dogfood 五轮（3.10.1D 细化）
+
+```text
+① Smoke        ffx capability verify markdown → real_runtime_path=true（非 fixture/mock）
+② Known-Good   verify markdown + serializer → pass + 与 Feature Capability Matrix 对照
+③ Known-Bad    故意回退 BUG-1 → verify FAIL（Agent 发现 round-trip mismatch）
+④ ADI/Consumer 注入 RenderOverflow → verify→diagnose→replay；BUG-WORD-001 公式丢失 → pdf2txt ❌ 不误报
+⑤ Real Repair  Known Bug → verify FAIL → diagnose → Agent patch → repair-verify
+                → before=failed / after=pass / regression=pass（repair-verify 不自己修代码，只重新证明）
+```
+
+### 退出条件
+
+- [ ] **Orchestrator 自身**：capability registry / contracts / runtime bridge /
+      evidence graph / exit code 语义 / diagnose / repair-verify 全部可用
+- [ ] **Dogfood 5 条证据链全通**：PASS path + FAIL path + DIAGNOSE path +
+      REPAIR path + REGRESSION path（各 ≥1 例，用 Golden Failure Corpus）
+- [ ] contract sync：矩阵与契约无漂移（机器强制，Dogfood 前最小版落地）
+- [ ] 每个真实 Bug 自动进入 `Bug → 最小复现 → Capability Case → FFX Verification
+      Case → Regression → Permanent corpus`（质量资产复利）
+- [ ] Phase 3.10 文档族全部挂入 docs/README.md 导航（2026-08-19 已挂）
+
+---
+
 ## Phase 4：多平台与高级功能
 
 **目标**：扩展到桌面 / Web，并加入协同等高级功能。
