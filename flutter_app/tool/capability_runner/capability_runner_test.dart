@@ -86,7 +86,6 @@ void main() {
         for (final e in elements) {
           counters.tallyElement(e);
         }
-        counters.parseOk++;
 
         // 镜像生产调用方契约（editor_page.dart:148 加载时跳过分隔符）：
         // EmptyLineElement 是块间分隔符，serialize 前须过滤，否则 block_serializer 抛错。
@@ -96,7 +95,13 @@ void main() {
         final s2 = MarkdownSerializer.serialize(
           MarkdownParser.parse(s1).where((e) => e is! EmptyLineElement).toList(),
         );
-        if (s1 == s2) counters.roundtripConverged++;
+        // R10 修复：parse_ok 仅在完整链路（parse+serialize+roundtrip 收敛）
+        // 成功后累加——此前在 try 块内、roundtrip 检查前累加，roundtrip 失败
+        // 也计为 parse_ok，checks["parse"] 实际只断言「未抛异常」（命名误导）。
+        if (s1 == s2) {
+          counters.roundtripConverged++;
+          counters.parseOk++;
+        }
       } catch (e) {
         lineErrors.add({'line': -1, 'error': '${e.runtimeType}: $e'});
       }

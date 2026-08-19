@@ -16,11 +16,19 @@ class ContractError(Exception):
 
 
 def repo_root() -> Path:
-    """从 cwd 向上找含 flutter_app/ 的仓库根（与 utils.helpers.find_flutter_root 一致）。"""
+    """从 cwd 向上找含 flutter_app/ 的仓库根（与 utils.helpers.find_flutter_root 一致）。
+
+    R11 修复：不再硬编码向上 6 层——逐级向上直到文件系统根，
+    深度克隆 / CI 深工作树也能定位。
+    """
     cwd = Path.cwd()
-    for parent in [cwd, *cwd.parents[:6]]:
+    parent = cwd
+    while True:
         if (parent / "flutter_app").is_dir():
             return parent
+        if parent.parent == parent:  # 到达文件系统根
+            break
+        parent = parent.parent
     raise ContractError(f"repo root not found (flutter_app/ missing upward from {cwd})")
 
 

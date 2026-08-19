@@ -19,7 +19,16 @@ from pathlib import Path
 from .contract import repo_root
 
 _RUNNER = "tool/capability_runner/capability_runner_test.dart"
-_TIMEOUT_S = 300
+# R8 修复：timeout 可配置（env FFX_RUNNER_TIMEOUT_S 覆盖；corpus 增长时无需改代码）
+_DEFAULT_TIMEOUT_S = 300
+
+
+def _runner_timeout() -> int:
+    raw = os.environ.get("FFX_RUNNER_TIMEOUT_S", str(_DEFAULT_TIMEOUT_S))
+    try:
+        return max(30, int(raw))
+    except ValueError:
+        return _DEFAULT_TIMEOUT_S
 
 
 class RuntimeBridgeError(Exception):
@@ -51,6 +60,7 @@ def run_markdown(corpus_dir: str | None, out_dir: Path) -> dict:
     env["FFX_OUT_DIR"] = str(out_dir)
 
     cmd = [_flutter(), "test", _RUNNER]
+    timeout_s = _runner_timeout()
     try:
         proc = subprocess.run(
             cmd,
@@ -58,15 +68,18 @@ def run_markdown(corpus_dir: str | None, out_dir: Path) -> dict:
             env=env,
             capture_output=True,
             text=True,
-            timeout=_TIMEOUT_S,
+            timeout=timeout_s,
         )
     except subprocess.TimeoutExpired:
-        raise RuntimeBridgeError(1, f"runner timed out after {_TIMEOUT_S}s") from None
+        raise RuntimeBridgeError(1, f"runner timed out after {timeout_s}s") from None
 
+    # R9 修复：失败时保留尾部上下文；成功路径也输出简短摘要（调试可观测）
     if proc.returncode != 0:
         raise RuntimeBridgeError(
             1, f"runner exited {proc.returncode}\n{proc.stdout[-2000:]}{proc.stderr[-2000:]}"
         )
+    tail = (proc.stdout or "")[-500:].strip().replace("\n", " | ")
+    print(f"[runtime-bridge] runner ok ({timeout_s}s budget); stdout tail: {tail}")
     result_path = out_dir / "result.json"
     if not result_path.is_file():
         raise RuntimeBridgeError(1, "runner succeeded but result.json missing")

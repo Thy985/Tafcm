@@ -109,6 +109,9 @@ def diagnose(failure_id: str) -> dict[str, Any]:
         "stage": rec.get("stage"),
         "summary": rec.get("summary"),
         "evidence": rec.get("evidence", []),
+        # R13 修复：按证据链做根因分类（替代写死 suggested_next_action）——
+        # 依据 stage 顺序 + exit_code 模式，给 Agent 可消费的分类信号。
+        "root_cause": _classify_root_cause(rec),
     }
     if prefix == "trc":
         # ADI 关联（P0.1 markdown 失败为 art_；trc_ 分支预留，ADL 对齐后实现）
@@ -123,6 +126,28 @@ def diagnose(failure_id: str) -> dict[str, Any]:
         }
     bundle["suggested_next_action"] = "inspect evidence, fix root cause, then: ffx capability repair-verify " + failure_id
     return bundle
+
+
+def _classify_root_cause(rec: dict) -> dict[str, Any]:
+    """R13：基于 failure record 的证据链做根因分类（启发式，非穷举）。
+
+    分类信号（按优先级）：
+    - 存在 exit_code 127 证据 → env_missing（环境缺失）
+    - stage 停在 discover/prepare → setup_failure（准备阶段失败）
+    - stage 停在 execute 且 evidence 含 runner 错误 → runner_failure
+    - 其余 → unknown（无法从证据确定）
+    """
+    evidence = rec.get("evidence", []) or []
+    exit_codes = [e.get("exit_code") for e in evidence if isinstance(e, dict)]
+    stages = [e.get("stage") for e in evidence if isinstance(e, dict)]
+
+    if 127 in exit_codes:
+        return {"category": "env_missing", "signal": "exit_code 127 (ENV_MISSING)"}
+    if "execute" in stages:
+        return {"category": "runner_failure", "signal": f"evidence stages: {stages}"}
+    if stages and stages[-1] in ("discover", "prepare"):
+        return {"category": "setup_failure", "signal": f"stopped at stage: {stages[-1]}"}
+    return {"category": "unknown", "signal": f"exit_codes={exit_codes}"}
 
 
 def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
@@ -142,12 +167,26 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
     after_cov = report.get("coverage", {})
     delta = _diff_coverage(before_cov, after_cov)
 
+    # R7 修复：除 coverage 数字外，对比 evidence 内容（新增/消失的
+    # stage 或 summary 变化）——回归信号不应只看数字，还应看证据链变化。
+    before_ev = rec.get("evidence", [])
+    after_ev = report.get("evidence", [])
+    before_stages = {e.get("stage") for e in before_ev if isinstance(e, dict)}
+    after_stages = {e.get("stage") for e in after_ev if isinstance(e, dict)}
+    evidence_delta = {
+        "new_stages": sorted(after_stages - before_stages),
+        "gone_stages": sorted(before_stages - after_stages),
+        "before_count": len(before_ev),
+        "after_count": len(after_ev),
+    }
+
     regression: dict[str, Any] = {"status": "n/a", "detail": "only 1 capability in registry (P0.1)"}
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
         "regression": regression,
         "evidence_delta": delta,
+        "evidence_graph_delta": evidence_delta,
         "diagnostic_id": failure_id,
         "report": report,
     }
@@ -159,6 +198,15 @@ def _diff_coverage(before: dict, after: dict) -> list[dict[str, Any]]:
     out = []
     for k in sorted(keys):
         b, a = before.get(k), after.get(k)
-        if b != a:
+        # R15 修复：类型规范化后再比较——int 1 与 float 1.0 语义相同，
+        # 直接 != 会误报 delta（噪声）。数值统一转 float 比较。
+        if _values_differ(b, a):
             out.append({"metric": k, "before": b, "after": a})
     return out
+
+
+def _values_differ(b: Any, a: Any) -> bool:
+    """R15：规范化比较——数值 int/float 归一化；否则严格 !=。"""
+    if isinstance(b, (int, float)) and isinstance(a, (int, float)):
+        return float(b) != float(a)
+    return b != a

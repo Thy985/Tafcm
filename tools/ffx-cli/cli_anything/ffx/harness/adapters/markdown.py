@@ -73,37 +73,78 @@ class MarkdownAdapter(CapabilityAdapter):
         policy = self.contract.get("completion_policy", {})
         conv_min = float(policy.get("roundtrip_convergence_min", 0.99))
         err_max = int(policy.get("parse_error_max", 0))
+        # R3 修复：读取契约的 unknown_max / blocking_unknown（此前被忽略）
+        unknown_max = int(policy.get("unknown_max", 3))
+        blocking_unknown = list(policy.get("blocking_unknown", []))
 
         files = int(self._metrics.get("files", 0))
         conv = float(self._metrics.get("roundtrip_convergence", 0.0))
         line_errors = int(self._metrics.get("line_errors", -1))
+        converged = int(self._metrics.get("roundtrip_converged", 0))
 
+        # R4 修复：required_checks 声明 4 项（parse/serialize/roundtrip/
+        # no_parse_error），此前 serialize 被遗漏。
+        # serialize 指标：runner 无独立计数，用 roundtrip_converged > 0
+        # 作为「serialize 至少执行成功一次」的代理（round-trip 流程内含
+        # MarkdownSerializer.serialize，抛异常则整体失败）。
         checks = {
             "parse": files > 0 and int(self._metrics.get("parse_ok", 0)) == files,
+            "serialize": converged > 0,
             "roundtrip": conv >= conv_min,
             "no_parse_error": line_errors <= err_max,
         }
         failed = [k for k, v in checks.items() if not v]
-        s0 = list(self.contract.get("s0_unsupported", []))
-        unknown = s0  # S0 能力 = 明确的宣称边界（非阻断）
+        # R6 修复：区分「声明边界」（s0_unsupported，产品明确不支持的语法）
+        # 与「证据缺口」（unknown，运行时未能产生证据的真实缺口）。
+        # 此前 unknown = s0 无条件赋值，命名误导——真证据缺口与声明边界混为一谈。
+        declared = list(self.contract.get("s0_unsupported", []))
+        unknown: list[str] = []
+        if not self._metrics:
+            unknown.append("no runner metrics (evidence gap)")
+        elif files == 0:
+            unknown.append("runner reported 0 files (evidence gap)")
+
+        # R3 修复：契约级 unknown 控制
+        #   blocking_unknown 命中 → 阻断（fail）
+        #   unknown 数超 unknown_max → 溢出（fail）
+        blocked = [u for u in declared + unknown if u in blocking_unknown]
+        overflow = len(declared) + len(unknown) > unknown_max
 
         status = "pass"
         if not self._metrics or files == 0:
             status = "inconclusive"  # 证据不足/未判定（真机缺失、视觉未判等 → ADR-0030 exit 3）
-        elif failed:
+        elif failed or blocked or overflow:
             status = "fail"
-        elif unknown:
-            status = "warn"  # 达标但有非阻断 Unknown（S0 边界）
+        elif declared or unknown:
+            status = "warn"  # 达标但有非阻断 Unknown（S0 边界 / 证据缺口）
 
         next_actions: list[str] = []
         if failed:
             next_actions.append(f"failed checks: {failed}")
-        if s0:
-            next_actions.append(f"decide S0 scope: {s0}")
+        if blocked:
+            next_actions.append(f"blocking unknown hit: {blocked}")
+        if overflow:
+            next_actions.append(
+                f"unknown overflow: {len(declared) + len(unknown)} > unknown_max={unknown_max}"
+            )
+        if declared:
+            next_actions.append(f"decide S0 scope: {declared}")
+        if unknown:
+            next_actions.append(f"evidence gap: {unknown}")
+        # R14 修复：pass 时 next_actions 非空——Agent 调用方不应把
+        # 「空任务列表」误判为「无需跟进」，显式声明无需动作。
+        if status == "pass":
+            next_actions.append("all checks passed; no action required")
 
         return {
             "status": status,
-            "coverage": {"roundtrip_convergence": conv, "checks": checks},
+            "coverage": {
+                "roundtrip_convergence": conv,
+                "checks": checks,
+                "unknown_max": unknown_max,
+                "blocking_unknown": blocking_unknown,
+            },
+            "declared_boundaries": declared,
             "unknown": unknown,
             "next_actions": next_actions,
         }
