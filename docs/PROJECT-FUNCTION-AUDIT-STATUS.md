@@ -11,13 +11,17 @@
 ```text
 ✅ 不依赖模拟机已闭环的功能域：7/9（Parser / Serializer / 编辑模型 /
    Behavior Audit / Word 导出 / PDF 导出 / CLI-ADI 诊断）
-⏳ 需要模拟机（部分已跑通）：integration_test 102 用例（Word 导出 /
-   IME composing 已模拟机验证；其余 e2e 待全量跑）
+⏳ 需要模拟机（已跑通核心）：e2e core 001-006 全绿（12 项）+ Word 导出
+   落盘 + IME composing（共 14 项模拟机确认）；剩余 ~88 项待全量跑
 ❌ 明确未验证（诚实声明）：真实软键盘 IME / Microsoft Word Desktop /
    真机物理渲染 / 多端适配 / Real LLM agent
 
-结论：大部分功能在「不依赖模拟机」的层面已检验通过（单元 + widget +
-消费端验证）；模拟机覆盖了关键 E2E 路径；剩余为人工验收与 Release Gate 项。
+结论（2026-08-19 收紧表述）：
+  不是「FormulaFix 大部分功能都没问题」，而是——
+  「FormulaFix 的核心能力已建立较强的证据覆盖；剩余风险主要集中在
+   真实设备交互、真实用户体验、消费者差异和未覆盖的 LLM Agent 场景。」
+  7/9 是管理指标（无模拟机闭环域数），不代表项目完成度——真实键盘/
+  IME/设备布局/触控/文件系统/生命周期的风险权重高于单测覆盖的暗示。
 ```
 
 ---
