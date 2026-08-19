@@ -60,7 +60,7 @@
 
 | 项 | 当前实现 | 生态替代 | 评估 |
 |----|---------|---------|------|
-| .docx 生成 | `word_ooxml_builder.dart` 手写 ECMA-376 OOXML（~200 行）+ `word_exporter.dart` | `docx` 包（pub.dev，成熟，支持段落/表格/样式/公式） | **强烈建议评估 `docx` 包**：手写 OOXML 维护成本高（styles/settings/numbering 补齐等），生态包覆盖度更高、兼容性更好（Word/WPS 打开验证） |
+| .docx 生成 | `word_ooxml_builder.dart` 手写 ECMA-376 OOXML + `word_exporter.dart`（合计 870 行） | `docx_creator` 1.3.2 / `docs_gee` 1.4.2 / `docx_dart`（观察）（pub.dev） | **当前不迁移（技术债）**（2026-08-18 Spike 后修正）。依赖图冲突（需 xml ^6.6.1/archive ^4.x vs 项目 6.4.2/3.4.9，强升破坏 image 编译）；手写作为临时稳定后端，**Export IR 隔离**保留未来迁移出口。见 §2.1 Word Spike |
 | 公式转 OOXML OMML | `word_ooxml_builder.dart` 手写 | `docx` 包内置公式支持 | 同上 |
 
 ### 1.6 代码高亮 —— 已用生态 ✅
@@ -92,11 +92,13 @@
   🔶 Parser 暂不替换（2026-08-18 修正）——须先完成标准生态 Parser Spike 再决定
   ✅ 建议保留（有架构理由）  3 项：Serializer / 富文本编辑器渲染 / SVG 公式
   ✅ 已用生态                2 项：代码高亮 / PDF 基础 + MathJax/Mermaid JS
-  ⚠️ 建议评估生态替代        2 项：Word 导出（docx 包）/ 公式渲染（katex_flutter，可选）
+  🔶 Word 导出当前不迁移（2026-08-18 Spike 后修正）——依赖图冲突，标记技术债 + Export IR 隔离
+  ⚠️ 建议评估生态替代        1 项：公式渲染（katex_flutter，可选）
 
 最高优先级建议：
-  ⚠️ Word 导出改用 `docx` 包 —— 手写 OOXML 维护成本高，生态包成熟
-     （需验证：公式 OMML / 表格 / 中文兼容性 / Word 与 WPS 打开）
+  🔶 Word 导出（docx_creator/docs_gee/docx_dart 观察）——当前依赖图冲突
+     不可直接迁移（需升级 xml/archive/image 全家桶）；手写作为临时稳定
+     后端保留，建立 Export IR 隔离，等待依赖基线重构后再次迁移评估（§2.1）
 
 核心判断（2026-08-18 修正）：Parser 是否保留手写**不再是经验判断**，
 而是需实验决策的开放问题——Phase 3.9 fuzz 找到 3 个真实 bug 恰恰说明
@@ -167,4 +169,4 @@ Selection-Block Identity 难映射 / 自定义语法越挂越多 → 保留手�
 | Mermaid 渲染 | WebView + JS | 无成熟 Dart 库 | ❌ 保留 | 方案合理 |
 | 代码高亮 | flutter_highlight | — | ✅ 已用 | — |
 | PDF 导出 | pdf + 手写 SVG | pdf 包 | ✅ 已用 | — |
-| **Word 导出** | **手写 OOXML** | **`docx` 包** | **⚠️ 建议切换** | **维护成本高，生态成熟** |
+| **Word 导出** | **手写 OOXML（870 行，技术债）** | **`docx_creator` / `docs_gee` / `docx_dart`（观察）** | **🔶 当前不迁移** | **依赖图冲突（xml/archive/image 全家桶升级）；Export IR 隔离，等待依赖基线重构后再评估** |
