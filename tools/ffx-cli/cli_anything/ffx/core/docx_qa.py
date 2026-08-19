@@ -370,10 +370,47 @@ def _wps_pdf_metadata_check(docx_path: Path) -> dict[str, Any]:
             return base
 
 
+def _extract_formula_signals(docx_path: Path) -> list[str]:
+    """从 docx 内部 document.xml 提取公式 fallback 文本（latex 特征片段）。
+
+    DOGFOOD-RUN-004：用于「公式内容保真」对比——docx 内部公式 fallback
+    （latex 文本，如 E=mc^2）必须出现在消费端 pdf2txt 文本，否则公式语义
+    在消费端丢失（产物成功 ≠ 功能正确）。
+    latex 特征：含 `^` / `_` / `\` / `{` 且长度 3-60 的 w:t 片段
+    （普通文本极少含这些特征，误报率低）。
+    """
+    import re
+    import zipfile
+
+    signals: list[str] = []
+    try:
+        with zipfile.ZipFile(docx_path) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8", errors="replace")
+    except Exception:  # noqa: BLE001 — 解包失败返回空（语义检查由其他字段报告）
+        return signals
+    for m in re.finditer(r"<w:t[^>]*>([^<]*)</w:t>", doc_xml):
+        text = m.group(1)
+        if re.search(r"[\^_\\{}]", text) and 3 <= len(text) <= 60:
+            signals.append(text)
+    # 去重保序，最多取 5 个（避免超长报告）
+    seen: set[str] = set()
+    out: list[str] = []
+    for s in signals:
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+        if len(out) >= 5:
+            break
+    return out
+
+
 def _wps_text_semantic_check(docx_path: Path) -> dict[str, Any]:
     """用 WPS pdf2txt 提取消费端文本（真实消费者视角的语义）。
 
     wpscli 管道：word2pdf → pdf2txt；返回 text_preview + text_count。
+    DOGFOOD-RUN-004 修复：增加公式内容保真检测——docx 内部公式
+    fallback latex 文本必须出现在消费端文本，否则公式语义丢失
+    （「产物成功 ≠ 功能正确」，回退 BUG-WORD-001 时 pdf2txt 缺公式）。
     """
     import subprocess
     import tempfile
@@ -406,6 +443,22 @@ def _wps_text_semantic_check(docx_path: Path) -> dict[str, Any]:
             base["status"] = "pass" if content.strip() else "fail"
             base["text_count"] = len(content.split())
             base["text_preview"] = content[:120]
+
+            # DOGFOOD-RUN-004：公式内容保真检测（产物成功 ≠ 功能正确）。
+            # docx 内部公式 fallback（latex 特征片段）必须出现在消费端文本，
+            # 否则公式语义在消费端丢失（如回退 BUG-WORD-001 → 公式空白）。
+            formula_signals = _extract_formula_signals(docx_path)
+            missing = [s for s in formula_signals if s not in content]
+            base["formula_fidelity"] = {
+                "ok": not missing,
+                "signals": formula_signals,
+                "missing_in_consumer": missing,
+            }
+            if missing:
+                base["status"] = "fail"
+                base["error"] = (
+                    f"consumer text 缺公式内容（产物成功≠功能正确）: {missing}"
+                )
             return base
         except Exception as e:  # noqa: BLE001
             base["status"] = "fail"
