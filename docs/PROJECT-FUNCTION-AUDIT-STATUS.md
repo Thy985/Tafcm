@@ -12,11 +12,13 @@
 ✅ 不依赖模拟机已闭环的功能域：7/9（Parser / Serializer / 编辑模型 /
    Behavior Audit / Word 导出 / PDF 导出 / CLI-ADI 诊断）
 ⏳ 需要模拟机（2026-08-19 全量跑完）：102 项 integration_test 分批
-   跑完——通过 ~95 项（含 e2e core 001-006 / extended / phase33-35 /
+   跑完——通过 ~96 项（含 e2e core 001-006 / extended / phase33-35 /
    phase34 全系列 / adi / Word 导出 / IME composing）；失败 7 项全部
    归类：环境偶发 5（单跑通过）/ 测试注入局限 2（auto_continue /
    auto_pair，updateEditingValue 不触发命令层，widget 层已全绿）/
-   home_smoke 稳定 did not complete（待查）——**无真实产品 bug**
+   home_smoke 已修复（2026-08-19：根因 = app.main() 全局错误钩子污染
+   binding + 断言与空文档渲染条件不匹配；改 harness 模式 + 断言修正
+   后模拟机通过）——**无真实产品 bug**
 ❌ 明确未验证（诚实声明）：真实软键盘 IME / Microsoft Word Desktop /
    真机物理渲染 / 多端适配 / Real LLM agent
 
