@@ -146,3 +146,10 @@ secrets/
 
 # Debug / observability output
 debug/
+
+# ===== FFX Verification Orchestrator runtime state =====
+.ffx/
+
+# Python bytecode cache（R1 修复 2026-08-19：禁止提交 __pycache__）
+__pycache__/
+*.pyc

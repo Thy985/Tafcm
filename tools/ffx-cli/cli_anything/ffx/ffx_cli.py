@@ -11,6 +11,7 @@ import click
 from cli_anything.ffx.core import project as proj_mod
 from cli_anything.ffx.core import session as sess_mod
 from cli_anything.ffx.core import adi_wrapper as adi_mod
+from cli_anything.ffx.harness import orchestrator
 from cli_anything.ffx.utils.helpers import find_flutter_root, pretty_print
 
 
@@ -645,6 +646,54 @@ def sessions(ctx):
         sys.exit(1)
 
 
+# ── capability group (Verification Orchestrator, ADR-0030) ────────────
+
+@cli.group()
+def capability():
+    """Verification Orchestrator: verify / diagnose / repair-verify capabilities."""
+
+
+@capability.command("verify")
+@click.argument("name")
+@click.pass_context
+def capability_verify(ctx, name):
+    """Run the capability contract verification chain (read-only)."""
+    try:
+        report, code = orchestrator.verify(name)
+        pretty_print(report, _effective_json(ctx))
+        sys.exit(code)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@capability.command("diagnose")
+@click.argument("failure_id")
+@click.pass_context
+def capability_diagnose(ctx, failure_id):
+    """Aggregate failure context for a diagnostic_id into a bundle."""
+    try:
+        bundle = orchestrator.diagnose(failure_id)
+        pretty_print(bundle, _effective_json(ctx))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@capability.command("repair-verify")
+@click.argument("failure_id")
+@click.pass_context
+def capability_repair_verify(ctx, failure_id):
+    """Re-verify after agent fix: before/after/regression evidence (read-only)."""
+    try:
+        result, code = orchestrator.repair_verify(failure_id)
+        pretty_print(result, _effective_json(ctx))
+        sys.exit(code)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 def _pkg_available() -> bool:
     try:
         import importlib.metadata
@@ -668,11 +717,12 @@ def _print_help(ctx, use_json):
             "analyze": "Analyze markdown files and ADRs",
             "adi": "ADI diagnostic commands (doctor, trace, replay, ...)",
             "diag": "Project diagnostics (health, version, traces, sessions)",
+            "capability": "Verification Orchestrator (verify / diagnose / repair-verify)",
         }
         print(json.dumps({"mode": "repl", "commands": cmds, "hint": "use --help for details"}))
     else:
         click.echo("FormulaFix CLI — run a subcommand or use --help")
-        click.echo("Available groups: project, analyze, adi, diag")
+        click.echo("Available groups: project, analyze, adi, diag, capability")
         click.echo("Try: ffx --help")
 
 
