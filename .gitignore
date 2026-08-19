@@ -146,3 +146,6 @@ secrets/
 
 # Debug / observability output
 debug/
+
+# ===== FFX Verification Orchestrator runtime state =====
+.ffx/

@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-MD-PARSE",
+  "capability": "markdown",
+  "version": 1,
+  "required_evidence": [
+    "E1",
+    "E2",
+    "E3"
+  ],
+  "required_checks": [
+    "parse",
+    "serialize",
+    "roundtrip",
+    "no_parse_error"
+  ],
+  "completion_policy": {
+    "unknown_max": 3,
+    "blocking_unknown": [],
+    "roundtrip_convergence_min": 0.99,
+    "parse_error_max": 0
+  },
+  "s0_unsupported": [
+    "autolink",
+    "footnote",
+    "definition_list"
+  ]
+}
