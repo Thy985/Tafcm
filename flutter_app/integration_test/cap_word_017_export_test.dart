@@ -44,7 +44,15 @@ void main() {
     final reread = await file.readAsBytes();
     expect(reread.length, bytes.length, reason: '回读字节长度一致');
 
+    // R8：输出行契约断言——驱动脚本解析依赖该格式，测试自身验证
+    // （而非仅靠驱动脚本解析 stdout 才能发现 break）
+    final marker = 'CAP_WORD_017_OK path=${file.path} size=$size';
+    expect(marker, contains('CAP_WORD_017_OK'),
+        reason: '驱动脚本解析标记必须存在');
+    expect(marker, contains('path='), reason: '驱动脚本解析 path 字段');
+    expect(marker, contains('size=$size'), reason: '驱动脚本解析 size 字段');
+
     // ignore: avoid_print — 驱动脚本解析该行
-    print('CAP_WORD_017_OK path=${file.path} size=$size');
+    print(marker);
   });
 }

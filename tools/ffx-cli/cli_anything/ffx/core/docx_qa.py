@@ -117,6 +117,9 @@ def audit_docx(path: str | Path) -> dict[str, Any]:
     #   pass   = 至少一个真实消费端（WPS/LibreOffice）转换成功
     #   warn   = 至少一个引擎 fail（转换报错）
     #   unknown= 无任何消费端可用（未验证，非失败）
+    # 注意：OfficeCLI（officecli_visual/officecli_issues）不计入本聚合——
+    # 它是 Agent-native 渲染/问题分析补充，非「Office-compatible 消费端」
+    # 转换引擎；其状态独立反映在 visual_fidelity 与 details.officecli_*。
     engine_statuses = [wps_status, lo_status]
     if "pass" in engine_statuses:
         result["office_compatibility"] = "pass"
@@ -249,7 +252,17 @@ def _officecli_issues_check(docx_path: Path) -> dict[str, Any]:
         start = out.find("{")
         if r.returncode == 0 and start >= 0:
             data = jsonlib.loads(out[start:])
-            issues = data.get("data", {}).get("issues", [])
+            # R10/schema 校验：data.issues 必须是 list，否则 fail
+            # （防止 OfficeCLI 输出格式变更时 .get("issues", []) 空列表误报 pass）
+            issues_raw = data.get("data", {}).get("issues")
+            if not isinstance(issues_raw, list):
+                base["status"] = "fail"
+                base["error"] = (
+                    f"officecli issues schema 不符（data.issues 非 list）: "
+                    f"{out[:200]}"
+                )
+                return base
+            issues = issues_raw
             base["status"] = "pass"
             base["issue_count"] = len(issues)
             base["issues"] = [

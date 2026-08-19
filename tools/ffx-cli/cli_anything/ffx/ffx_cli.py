@@ -603,35 +603,6 @@ def health(ctx):
 
 @diag.command()
 @click.pass_context
-def health(ctx):
-    """Overall project health summary."""
-    try:
-        root = find_flutter_root() or str(Path.cwd())
-        root_p = Path(root)
-        dart = _which("dart")
-        flutter = _which("flutter")
-        python = _which("python3") or _which("python")
-        has_adi = (root_p / "tools" / "adi" / "adi.dart").is_file()
-        has_ffx_analyze = (root_p / "tools" / "ffx-analyze" / "analyze.py").is_file()
-
-        result = {
-            "project_root": root,
-            "dart_sdk": {"available": dart is not None, "path": dart},
-            "flutter_sdk": {"available": flutter is not None, "path": flutter},
-            "python": {"available": python is not None, "path": python},
-            "adi_cli": {"available": has_adi, "path": str(root_p / "tools" / "adi" / "adi.dart")},
-            "ffx_analyze": {"available": has_ffx_analyze, "path": str(root_p / "tools" / "ffx-analyze" / "analyze.py")},
-            "pubspec": (root_p / "flutter_app" / "pubspec.yaml").is_file(),
-            "cli_available": has_adi,
-        }
-        pretty_print(result, _effective_json(ctx))
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-
-
-@diag.command()
-@click.pass_context
 def version(ctx):
     """Show ffx-cli and project versions."""
     try:
