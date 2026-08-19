@@ -163,4 +163,162 @@ void main() {
       expect(editor.indexOf(ids[2]), 2);
     });
   });
+
+  group('CAP-BEH-008 Paste 行为审计', () {
+    test('paste 多字符一次性提交（单 Transaction，不逐字符拆分）', () {
+      final editor = MockDocumentEditor();
+      final id = editor.addParagraph('');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.paste,
+        onChange: (tx) => history.push(tx),
+      );
+      BlockOperations(editor, builder)
+          .updateSource(id, editor.sourceOf(id) + 'hello');
+      final tx = builder.commit();
+
+      expect(editor.sourceOf(id), equals('hello'),
+          reason: 'paste 内容应完整写入目标块');
+      expect(tx.ops.length, equals(1),
+          reason: 'paste 5 字符应是一次性单 op（不逐字符拆分）');
+      expect(history.undoCount, equals(1),
+          reason: 'paste 应只产生 1 个 undo 栈条目');
+    });
+
+    test('paste 与 keyboard 不 coalescing（undo 独立）', () {
+      final editor = MockDocumentEditor();
+      final id = editor.addParagraph('');
+      final history = EditorHistory();
+
+      void commitWith(String text, TransactionOrigin origin) {
+        final b = TransactionBuilder(
+          origin: origin,
+          onChange: (tx) => history.push(tx),
+        );
+        BlockOperations(editor, b)
+            .updateSource(id, editor.sourceOf(id) + text);
+        b.commit();
+      }
+
+      commitWith('abc', TransactionOrigin.keyboard);
+      commitWith('XYZ', TransactionOrigin.paste);
+      commitWith('d', TransactionOrigin.keyboard);
+
+      expect(editor.sourceOf(id), equals('abcXYZd'));
+      expect(history.undoCount, equals(3),
+          reason: 'paste 与 keyboard 不同 origin 不应合并');
+    });
+
+    test('paste undo 完整恢复（不残留半截内容）', () {
+      final editor = MockDocumentEditor();
+      final id = editor.addParagraph('prefix');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.paste,
+        onChange: (tx) => history.push(tx),
+      );
+      BlockOperations(editor, builder)
+          .updateSource(id, editor.sourceOf(id) + '粘贴内容');
+      final tx = builder.commit();
+
+      expect(editor.sourceOf(id), equals('prefix粘贴内容'));
+
+      // undo → 完整回滚（中文多字符也不残留）
+      final undone = history.undo(tx);
+      for (final op in undone!.ops.reversed) {
+        op.revert(editor);
+      }
+      expect(editor.sourceOf(id), equals('prefix'),
+          reason: 'paste undo 应完整回滚（无半截残留）');
+    });
+
+    test('paste 多行内容 → 块内文本保真（换行不丢失）', () {
+      final editor = MockDocumentEditor();
+      final id = editor.addParagraph('');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.paste,
+        onChange: (tx) => history.push(tx),
+      );
+      // 粘贴多行文本（如从外部复制）
+      BlockOperations(editor, builder)
+          .updateSource(id, editor.sourceOf(id) + 'line1\nline2\nline3');
+      final tx = builder.commit();
+
+      expect(editor.sourceOf(id), equals('line1\nline2\nline3'),
+          reason: 'paste 多行文本换行应保真');
+
+      final undone = history.undo(tx);
+      for (final op in undone!.ops.reversed) {
+        op.revert(editor);
+      }
+      expect(editor.sourceOf(id), equals(''),
+          reason: 'paste 多行 undo 应完整回滚');
+    });
+  });
+
+  group('CAP-BEH-005 Selection 目标块确定性', () {
+    test('split 后右块 index = 左块 index+1（光标落位确定性）', () {
+      final editor = MockDocumentEditor();
+      final a = editor.addParagraph('A');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.programmatic,
+        onChange: (tx) => history.push(tx),
+      );
+      final ops = BlockOperations(editor, builder);
+      ops.split(a, 1); // 'A' → 'A' | ''（offset 1 拆分）
+      builder.commit();
+
+      expect(editor.blockCount, 2, reason: 'split 后应多一块');
+      // 左块仍在原 index，右块在 index+1（selection 可确定性落位）
+      final leftIdx = editor.indexOf(a);
+      expect(leftIdx, greaterThanOrEqualTo(0));
+      expect(editor.allIds[leftIdx + 1], isNotNull,
+          reason: 'split 后 index+1 处应有新块（光标可落位）');
+    });
+
+    test('merge 后左块保留、右块移除（selection 目标块确定）', () {
+      final editor = MockDocumentEditor();
+      final left = editor.addParagraph('left');
+      final right = editor.addParagraph('right');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.programmatic,
+        onChange: (tx) => history.push(tx),
+      );
+      final ops = BlockOperations(editor, builder);
+      ops.merge(left, right);
+      builder.commit();
+
+      expect(editor.blockCount, 1, reason: 'merge 后只剩左块');
+      expect(editor.indexOf(left), 0, reason: '左块保留（index=0）');
+      expect(editor.indexOf(right), -1, reason: '右块移除（selection 不悬空）');
+    });
+
+    test('undo merge 后块身份恢复（selection 不指向悬空块）', () {
+      final editor = MockDocumentEditor();
+      final left = editor.addParagraph('left');
+      final right = editor.addParagraph('right');
+      final history = EditorHistory();
+      final builder = TransactionBuilder(
+        origin: TransactionOrigin.programmatic,
+        onChange: (tx) => history.push(tx),
+      );
+      final ops = BlockOperations(editor, builder);
+      ops.merge(left, right);
+      final tx = builder.commit();
+      expect(editor.blockCount, 1);
+
+      // undo merge → 两块恢复
+      final undone = history.undo(tx);
+      for (final op in undone!.ops.reversed) {
+        op.revert(editor);
+      }
+      expect(editor.blockCount, 2, reason: 'undo merge 后两块恢复');
+      expect(editor.indexOf(left), 0);
+      expect(editor.indexOf(right), 1,
+          reason: 'undo 后右块回到 index=1（selection 可确定性恢复）');
+    });
+  });
 }
