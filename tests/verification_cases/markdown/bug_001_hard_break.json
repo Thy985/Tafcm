@@ -1,0 +1,36 @@
+{
+  "case_id": "BUG-001",
+  "capability": "markdown",
+  "title": "hard_break_lost_in_multiline_paragraph",
+  "bug_type": "parser",
+  "description": "多行段落合并时丢失行间硬换行（'\\n' 未保留），parse→serialize→parse round-trip 结构不一致",
+  "discovery": "CAP-008 round-trip fuzz（Run #008 Batch 1，commit 6de3865）",
+  "fix_location": "flutter_app/lib/core/parser/markdown_parser.dart:326",
+  "fix_summary": "合并段落前 add const TextElement('\\n') 保留 hard-break 语义",
+  "expected": {
+    "status": "fail",
+    "failure_type": "roundtrip_mismatch",
+    "signal": "roundtrip_convergence < 0.99 && parse check False"
+  },
+  "diagnostic_expected": true,
+  "repair_expected": true,
+  "regression_expected": true,
+  "verification": {
+    "method": "故意回退 fix_location 后运行 ffx capability verify markdown",
+    "observed_before_fix": {
+      "status": "fail",
+      "roundtrip_convergence": 0.9333,
+      "failed_checks": ["parse", "roundtrip"],
+      "parse_ok": 14,
+      "files": 15
+    },
+    "observed_after_fix": {
+      "status": "warn",
+      "roundtrip_convergence": 1.0,
+      "checks": {"parse": true, "serialize": true, "roundtrip": true, "no_parse_error": true}
+    },
+    "dogfood_run": "DOGFOOD-RUN-003",
+    "date": "2026-08-19"
+  },
+  "corpus_trigger": "built-in corpus（15 文件，含多行段落）—— runner FFX_CORPUS_DIR 可注入定向语料"
+}
