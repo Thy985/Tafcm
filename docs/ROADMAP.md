@@ -663,6 +663,43 @@ FormulaFix 当前状态：
 
 ---
 
+## Phase 3.10：FFX Verification Orchestrator（验证编排器）
+
+> **状态**：🟡 进行中（2026-08-19）— ADR-0030 Accepted（Human Owner 授权提交 PR #158），
+> P0 实现已提交待 review。文档族：
+> [ADR-0030（架构决策根）](./ADR/0030-ffx-verification-orchestrator.md)、
+> [PHASE3.10-ENGINEERING-BASELINE-v1.md](./PHASE3.10-ENGINEERING-BASELINE-v1.md)（锚点）、
+> [FFX-VERIFICATION-ORCHESTRATOR-v1.md](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)、
+> [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](./FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md)、
+> [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](./FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md)、
+> [PHASE3.10-TYPORA-GAP-ANALYSIS.md](./PHASE3.10-TYPORA-GAP-ANALYSIS.md)。
+
+**目标**：能力无关的验证编排器——Agent 通过 `ffx capability verify/diagnose/repair-verify`
+驱动真实 FormulaFix 生产路径（runtime_bridge），按契约（contracts/*.json）判定能力完成度，
+形成「审计 → 修复 → 资产化」的自反馈工程基线。
+
+**前置条件**：Phase 3.7（可观测）/ 3.8（ADI）/ 3.9（审计收口）已建立证据采集与消费能力。
+
+**关联文档**：
+- [ADR-0030 FFX Verification Orchestrator](./ADR/0030-ffx-verification-orchestrator.md)（Accepted）
+- [FFX Verification Orchestrator v1 设计](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)（已批准，进入 P0）
+
+### 任务
+
+| # | 任务 | 优先级 | 状态 |
+|---|------|--------|------|
+| 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | 🟡 PR #158 待 review（Review R1-R15 已修复） |
+| 3.10.2 | **contract sync 防矩阵漂移**：Feature Capability Matrix ↔ contracts/*.json 机器强制（Review R12 待办） | P1 | ⏳ |
+| 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ⏳ |
+
+### 退出条件
+
+- [ ] P0：`ffx capability verify markdown` 在真实 corpus 上 PASS + repair-verify 检测回归
+- [ ] contract sync：矩阵与契约无漂移（机器强制）
+- [ ] Phase 3.10 文档族全部挂入 docs/README.md 导航（2026-08-19 已挂）
+
+---
+
 ## Phase 4：多平台与高级功能
 
 **目标**：扩展到桌面 / Web，并加入协同等高级功能。

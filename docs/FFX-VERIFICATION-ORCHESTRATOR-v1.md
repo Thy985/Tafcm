@@ -6,6 +6,10 @@
 > **作者**：AI Agent 起草，Human Owner 评审决策
 > **关联**：候选 **ADR-0030**（0026 已预留给 Change Impact Analysis；0027 空闲）
 > **状态**：✅ **已批准（2026-08-19，Human Owner）—— 进入 P0 实现**（§14 五项决策全部批准：ADR-0030 编号确认 / contracts 反转确认 / Runtime Bridge 方案确认 / consumer adapter 进 P1 确认）
+> **文档导航**（2026-08-19 补，防孤儿）：本设计属 Phase 3.10 文档族，关联
+> [ADR-0030（架构决策根）](ADR/0030-ffx-verification-orchestrator.md)、
+> [PHASE3.10-ENGINEERING-BASELINE-v1.md（工程基线锚点）](PHASE3.10-ENGINEERING-BASELINE-v1.md)、
+> [docs/README.md（统一导航）](README.md)
 
 ---
 
