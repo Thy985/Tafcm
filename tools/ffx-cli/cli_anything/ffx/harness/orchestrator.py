@@ -319,13 +319,22 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
             "persistent_failures": persistent_failures,
         }
     # 3.11.5 repair result 语义（评审 §3）：Repair Success ≠ Capability Clean。
-    # target_failure = 本次修复目标失败的状态（before fail → after pass = RESOLVED；
-    # after 仍 fail = PERSISTENT——可能为既有 baseline，非本次修复失败）。
-    target_resolved = before.get("status") == "failed" and after_status == "pass"
+    # 3.11.6 target_failure 四态冻结（评审 §5）：unknown→pass 不应压成 PERSISTENT——
+    #   RESOLVED    before 有 failure，after 无
+    #   PERSISTENT  before 有 failure，after 仍有
+    #   NOT_OBSERVED before 无可确认 target failure，after 通过
+    #   INTRODUCED  before 无 target，after 新出现（本次引入）
+    before_failed = before.get("status") == "failed"
+    if not before_failed:
+        target_failure = "NOT_OBSERVED" if after_status != "fail" else "INTRODUCED"
+    elif after_status == "pass":
+        target_failure = "RESOLVED"
+    else:
+        target_failure = "PERSISTENT"
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
-        "target_failure": "RESOLVED" if target_resolved else "PERSISTENT",
+        "target_failure": target_failure,
         "persistent_baseline_count": len(regression.get("persistent_failures", [])),
         "regression": regression,
         "evidence_delta": delta,

@@ -99,6 +99,19 @@ Evidence-driven Capability Verification Runtime 成型：
   → Evidence Delta → Regression Decision
 ```
 
+## 5.1 PHASE_3_11 状态定义（评审 §7，5 维度）
+
+```text
+PHASE_3_11_ARCHITECTURE       = FROZEN / VALIDATED      ✅（taxonomy + ontology 冻结）
+PHASE_3_11_CAPABILITY_COVERAGE = IN PROGRESS             ⏳（F1 Data ✅，F2/F3/F4 进行中）
+PHASE_3_11_RUNTIME_VALIDATION = PARTIALLY VALIDATED      🟡（Formula Synthetic Loop；Real Runtime 待验）
+PHASE_3_11_REAL_DEFECT_REPAIR = NOT YET VALIDATED        ❌（Synthetic ≠ Real，登记下一阶段）
+PHASE_3_11_E6/E8              = RELEASE-GATE / NOT YET SATISFIED ⏳（真机/视觉环境就绪后）
+```
+
+> 相比「Phase 3.11 = Defined」信息量大得多——能明确回答哪部分已证明、
+> 哪部分只是设计完成、哪部分需真实 runtime evidence。
+
 ## 6. 下一步
 
 ```text

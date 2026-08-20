@@ -830,7 +830,16 @@ Golden Loop 逐层覆盖：
   后续 → Behavior 🟡（F2 Undo/IME）+ E6/E8 Evidence Dimension 🟡
 ```
 
-> **状态声明（2026-08-20）**：PHASE_3_11_EXIT 当前为 **Defined（已定义）非 Satisfied（未满足）**——N=4 families 中 Data 已达成，Runtime/Consumer/Physical-Visual 待 3.11.4-3.11.6 逐层覆盖；不提前宣布 Phase 3.11 close。
+> **状态声明（2026-08-20，评审 §7 5 维度定义）**：
+> ```text
+> PHASE_3_11_ARCHITECTURE       = FROZEN / VALIDATED      ✅（taxonomy + ontology 冻结）
+> PHASE_3_11_CAPABILITY_COVERAGE = IN PROGRESS             ⏳（F1 Data ✅，F2/F3/F4 进行中）
+> PHASE_3_11_RUNTIME_VALIDATION = PARTIALLY VALIDATED      🟡（Formula Synthetic Loop；Real Runtime 待验）
+> PHASE_3_11_REAL_DEFECT_REPAIR = NOT YET VALIDATED        ❌（Synthetic ≠ Real，登记下一阶段）
+> PHASE_3_11_E6/E8              = RELEASE-GATE / NOT YET SATISFIED ⏳（真机/视觉环境就绪后）
+> ```
+> 不提前宣布 Phase 3.11 close——能明确回答哪部分已证明、哪部分仅设计完成、
+> 哪部分需真实 runtime evidence。
 
 > **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
 > （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion
