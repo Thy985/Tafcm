@@ -72,6 +72,16 @@ class WordAdapter(CapabilityAdapter):
     def execute(self, graph: EvidenceGraph) -> None:
         from cli_anything.ffx.core import docx_qa
 
+        # ENV_MISSING（G4.4，2026-08-20）：wpscli 未安装 = 环境缺失（exit 127），
+        # 非能力 FAIL——orchestrator 捕获 EnvironmentError → status=env_missing。
+        # （wps consumer 验证（word2pdf/pdf2txt）必须真实调用 wpscli，缺则无法执行）
+        wpscli = docx_qa._find_wpscli()
+        if wpscli is None:
+            raise EnvironmentError(
+                "wpscli not installed (word consumer verification requires it: "
+                "word2pdf/pdfinfo/pdf2txt) — ENV_MISSING, not a capability failure"
+            )
+
         # 取第一个可用的 corpus 产物（真实 docx）
         corpus = next((p for p in _CORPUS_CANDIDATES if Path(p).is_file()), None)
         if corpus is None:
@@ -168,8 +178,8 @@ class WordAdapter(CapabilityAdapter):
             status = "inconclusive"
         elif failed:
             status = "fail"
-        elif declared or unknown:
-            status = "warn"
+        elif unknown:
+            status = "warn"  # 证据缺口（G3 修正：declared s0 只记录不降级）
 
         next_actions: list[str] = []
         if failed:

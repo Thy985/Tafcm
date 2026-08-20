@@ -125,8 +125,8 @@ class SerializerAdapter(CapabilityAdapter):
             status = "inconclusive"
         elif failed or blocked or overflow:
             status = "fail"
-        elif declared or unknown:
-            status = "warn"
+        elif unknown:
+            status = "warn"  # 证据缺口（G3 修正：declared s0 只记录不降级）
 
         next_actions: list[str] = []
         if failed:

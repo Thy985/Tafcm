@@ -59,6 +59,12 @@ def run_markdown(corpus_dir: str | None, out_dir: Path) -> dict:
         env["FFX_CORPUS_DIR"] = corpus_dir
     env["FFX_OUT_DIR"] = str(out_dir)
 
+    # G7（2026-08-20）：regression cases 自动挂载——内置/显式 corpus 之外，
+    # 追加 tests/verification_cases/<cap>/corpus/ 的 Golden Failure 触发输入。
+    regression_dir = root / "tests" / "verification_cases" / "markdown" / "corpus"
+    if regression_dir.is_dir():
+        env["FFX_REGRESSION_DIR"] = str(regression_dir)
+
     cmd = [_flutter(), "test", _RUNNER]
     timeout_s = _runner_timeout()
     try:
