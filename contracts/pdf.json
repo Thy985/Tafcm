@@ -2,13 +2,25 @@
   "id": "FEAT-PDF",
   "capability": "pdf",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "consumer_evidence_known"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "consumer_evidence_known"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
   "s0_unsupported": [],
-  "note": "pdf 导出能力：复用既有测试资产（export_integration_test / formula_pdf_renderer 相关）；消费端视觉验证（pdf 渲染截图）为 Release Gate 项——登记 evidence_gap。"
+  "note": "pdf 导出能力：复用既有测试资产（export_integration_test / formula_pdf_renderer 相关）；消费端视觉验证（pdf 渲染截图）为 Release Gate 项——登记 evidence_gap。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "required",
+    "E6": "release-gate"
+  }
 }

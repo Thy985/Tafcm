@@ -40,6 +40,22 @@ def _as_of() -> dict[str, str]:
     }
 
 
+def _has_historical_failure(capability: str) -> bool:
+    """该 capability 是否存在历史 failure record（3.11.2 regression 语义修正：
+    既有失败 ≠ 本次修复引入的回归）。"""
+    try:
+        for fid in failure_mod.list_failures():
+            try:
+                rec = failure_mod.load_failure(fid)
+            except Exception:  # noqa: BLE001 — 单个 record 损坏不影响判断
+                continue
+            if rec.get("capability") == capability:
+                return True
+    except Exception:  # noqa: BLE001 — failures 目录不可读时保守判定 False
+        return False
+    return False
+
+
 def _load_adapter(capability: str) -> CapabilityAdapter:
     contract = contract_mod.load_contract(capability)
     return create(capability, contract)  # type: ignore[return-value]
@@ -91,6 +107,8 @@ def verify(capability: str) -> tuple[dict[str, Any], int]:
         "capability": capability,
         "status": status,
         "coverage": decision.get("coverage", {}),
+        # 3.11 证据层明示（防证据层级偷换）：透传 adapter 的 execution 字段
+        "execution": decision.get("execution", {}),
         "unknown": decision.get("unknown", []),
         "next_actions": decision.get("next_actions", []),
         "evidence": graph.to_list(),
@@ -208,21 +226,30 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
     if others:
         reg_results: dict[str, str] = {}
         reg_failed: list[str] = []
+        pre_existing: list[str] = []
         for other in others:
             other_report, other_exit = verify(other)
             other_status = other_report.get("status", "unknown")
             reg_results[other] = other_status
             if other_status == "fail":
-                reg_failed.append(other)
+                # 3.11.2 修正：区分「既有失败」（该 capability 已有历史
+                # failure record，非本次修复引入）与「新增回归」——
+                # 修复目标之外能力的既有失败不判为回归。
+                if _has_historical_failure(other):
+                    pre_existing.append(other)
+                else:
+                    reg_failed.append(other)
         regression = {
             "status": "pass" if not reg_failed else "fail",
             "detail": (
                 f"regression check over {others}: {reg_results}"
+                f"{' (pre-existing: ' + str(pre_existing) + ')' if pre_existing else ''}"
                 if not reg_failed
                 else f"REGRESSION: {reg_failed} failed after fix ({reg_results})"
             ),
             "checked": others,
             "results": reg_results,
+            "pre_existing_failures": pre_existing,
         }
     result = {
         "before": before.get("status", "unknown"),

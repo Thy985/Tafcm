@@ -4,8 +4,10 @@
 **阶段**: Phase 3.11 FormulaFix Capability Hardening Loop / 3.11.1（P0）
 **范围**: 7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从
 「测试资产存在」验证 → 真实 runner 执行验证
-**结论**: ✅ **3.11.1 完成——5 个能力真实执行验证（undo/block 实测 41/151 passed），
-2 个能力登记需模拟器/golden 环境（autosave/theme）**
+**结论**: ✅ **3.11.1 完成——5 个能力的测试证据已从「资产存在」升级为「测试真实执行」
+（Evidence Execution Level 升级；undo/block 实测 41/151 passed），
+2 个能力因证据层依赖（模拟器/golden）标记 Evidence Gap。本轮不改变
+功能 Completion Status，仅升级 Evidence Execution Level。**
 
 ---
 
@@ -85,12 +87,54 @@ verify theme   → status=warn（evidence gap：需 golden 环境）   ✅ 诚�
 ## 5. 结论
 
 ```text
-3.11.1 完成：7 个能力从「测试资产存在」→「真实执行验证」
-  - 5 个能力真实 runner 接线（undo/block/file/pdf/ime）
-  - 2 个能力登记环境约束（autosave 需模拟器 / theme 需 golden 基线）
-  - 验证：undo 41 passed / block 151 passed（真实 metrics）
+3.11.1 完成：7 个能力证据从「测试资产存在」→「测试真实执行」
+（Evidence Execution Level 升级——不改变功能 Completion Status）
+  - 5 个能力真实 flutter test runner 接线（undo/block/file/pdf/ime）
+  - 2 个能力标记 Evidence Gap（autosave 需模拟器 / theme 需 golden 基线）
+  - 验证：undo 41 passed / block 151 passed（真实测试 metrics）
+```
+
+### 7 能力状态（Runner 状态 ≠ 功能完成度）
+
+| 能力 | Runner 状态 | 当前证据意义 | 功能完成度（不因本轮改变） |
+|------|------------|-------------|--------------------------|
+| Undo | ✅ real `flutter test` | 测试层证据（E2/E3） | conditional（未变） |
+| Block | ✅ real `flutter test` | 测试层证据（E2/E3） | incomplete（未变） |
+| File | ✅ real `flutter test` | 文件服务/逻辑证据 | conditional（未变） |
+| PDF | ✅ real `flutter test` | 导出逻辑证据 | conditional（未变） |
+| IME | ✅ real `flutter test`（TestTextInput） | composing 模型证据 | unproven（真机软键盘未验） |
+| Autosave | ⚠️ no runnable unit layer | 需 runtime E2E（模拟器） | unproven（未变） |
+| Theme | ⚠️ golden/environment blocked | 需视觉基线 | unproven（未变） |
+
+> ⚠️ 关键术语边界：`flutter test` 真实执行 ≠ 产品功能真实运行。
+> IME 的 TestTextInput 与 Android 物理键盘 composing 是不同证据等级；
+> undo 的 41 passed 证明「测试所覆盖场景通过」，不证明
+> 真实 App → EditorShell → 用户操作 → Command → Transaction → History
+> → UI 全链路正确。这正是 Feature Completion Matrix E2/E3/E5/E6 分层的原因。
+
+### execution 证据字段（防证据层级偷换）
+
+```json
+{
+  "execution": {
+    "runner": "flutter_test",
+    "real_execution": true,
+    "production_runtime": false
+  }
+}
+```
+
+### 三正交维度（Implementation Status / Evidence Level / Completion Status）
+
+```text
+Undo    ：Implementation=implemented / Evidence=E2/E3 verified / Completion=conditional
+Autosave：Implementation=implemented / Evidence=E2/E3 partial, E5/E6 missing / Completion=unproven
+Block   ：Implementation=incomplete   / Evidence=E2/E3 pass / Completion=incomplete
+——「151 tests passed」≠「Block 已完成」：Completion 需 Evidence Profile 全维度（见 3.11 Evidence Profile 落地）
+```
 
 下一步（Phase 3.11）：
-  3.11.2 Markdown 加固循环 / 3.11.3-3.11.6 各能力加固（verify → 发现 → 修复
-  → repair-verify → Regression Asset）/ 3.11.7 contract-sync 增强
-```
+  3.11.2 Markdown 加固闭环（Golden Loop 首轮：verify → FAIL → diagnose → 修复
+  → repair-verify → regression asset）——最成熟、最能完整跑通闭环的能力
+  / 3.11.3-3.11.6 复制同一模式（Undo/File/PDF/IME/Autosave/Theme/Block）
+  / 3.11.7 contract-sync 增强

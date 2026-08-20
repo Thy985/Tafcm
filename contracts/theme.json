@@ -2,13 +2,25 @@
   "id": "FEAT-THEME",
   "capability": "theme",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "theme_variants_covered"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "theme_variants_covered"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
   "s0_unsupported": [],
-  "note": "theme 能力：复用既有测试资产（test/golden 14 文件 light/dark/sepia + integration_test/phase34_theme）；视觉保真 Golden 为守护资产。"
+  "note": "theme 能力：复用既有测试资产（test/golden 14 文件 light/dark/sepia + integration_test/phase34_theme）；视觉保真 Golden 为守护资产。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "required",
+    "E6": "release-gate"
+  }
 }

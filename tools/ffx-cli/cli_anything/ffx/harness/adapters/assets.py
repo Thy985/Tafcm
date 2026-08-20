@@ -167,6 +167,13 @@ class AssetsAdapter(CapabilityAdapter):
                 "skipped": int(self._metrics.get("skipped", 0)),
                 "files": files,
             },
+            # 3.11 证据层明示（防证据层级偷换）：flutter test 真实执行
+            # 但非生产运行时——production_runtime=false（测试层证据）
+            "execution": {
+                "runner": "flutter_test",
+                "real_execution": True,
+                "production_runtime": False,
+            },
             "declared_boundaries": declared,
             "unknown": unknown,
             "next_actions": next_actions,

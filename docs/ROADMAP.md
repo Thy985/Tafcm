@@ -775,8 +775,8 @@ Capability Baseline 更新（Matrix S 级推进）
 
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
-| 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ⏳ |
-| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | ⏳ |
+| 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ✅ 完成（2026-08-20：5 能力真实 flutter test 执行，2 能力 Evidence Gap 登记） |
+| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | 🟡 进行中（Golden Loop 首轮） |
 | 3.11.3 | **Serializer 加固**：同上循环 | P1 | ⏳ |
 | 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus | P1 | ⏳ |
 | 3.11.5 | **Word/PDF 加固**：word 全链路（输入 md→导出→消费端）+ PDF 渲染 | P1 | ⏳ |
@@ -789,6 +789,13 @@ Capability Baseline 更新（Matrix S 级推进）
 - [ ] 每个能力 ≥1 次「verify FAIL → 修复 → repair-verify → Regression Asset」闭环
 - [ ] Feature Capability Matrix S 级推进（Conditionally Complete → Complete）
 - [ ] contract-sync 含 s0/unknown_max 自洽校验
+
+> **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
+> （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion
+> Status**——`flutter test` 真实执行 ≠ 产品功能真实运行（production_runtime
+> 区分：markdown/serializer/word/formula=true，测试层能力=false）。
+> 每能力证据按 evidence_profile（E2/E3/E5/E6）分级验收，Completion 判定
+> 需 Evidence Profile 全维度，禁止「151 tests passed → 能力 COMPLETE」跳跃。
 
 ---
 

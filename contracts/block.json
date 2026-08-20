@@ -2,13 +2,25 @@
   "id": "FEAT-BLOCK",
   "capability": "block",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "block_operations_covered"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "block_operations_covered"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
   "s0_unsupported": [],
-  "note": "block 能力（split/merge/insert/delete 五原语 + 变换）：复用既有测试资产（test/editing/block_operation* 系列 + CAP-BEH 审计）；编辑模型核心语义。"
+  "note": "block 能力（split/merge/insert/delete 五原语 + 变换）：复用既有测试资产（test/editing/block_operation* 系列 + CAP-BEH 审计）；编辑模型核心语义。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "conditional"
+  }
 }

@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .contract import repo_root
@@ -85,7 +86,8 @@ def run_markdown(corpus_dir: str | None, out_dir: Path) -> dict:
             1, f"runner exited {proc.returncode}\n{proc.stdout[-2000:]}{proc.stderr[-2000:]}"
         )
     tail = (proc.stdout or "")[-500:].strip().replace("\n", " | ")
-    print(f"[runtime-bridge] runner ok ({timeout_s}s budget); stdout tail: {tail}")
+    # R9 修复：可观测输出走 stderr——不污染 stdout（--json 管道纯净）
+    print(f"[runtime-bridge] runner ok ({timeout_s}s budget); stdout tail: {tail}", file=sys.stderr)
     result_path = out_dir / "result.json"
     if not result_path.is_file():
         raise RuntimeBridgeError(1, "runner succeeded but result.json missing")
@@ -164,6 +166,7 @@ def run_flutter_tests(test_globs: list[str], out_dir: Path) -> dict:
     }
     print(
         f"[runtime-bridge] tests ok: {passed} passed / {failed} failed / "
-        f"{skipped} skipped ({len(test_files)} files)"
+        f"{skipped} skipped ({len(test_files)} files)",
+        file=sys.stderr,
     )
     return result

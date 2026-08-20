@@ -25,5 +25,11 @@
     "indented_code",
     "raw_html_块"
   ],
-  "note": "serializer 能力复用 runner 的 round-trip 指标（parse→serialize→parse 收敛）；与 markdown 共享同一 runner，但 required_checks 聚焦序列化保真（serialize / roundtrip / no_parse_error）——跨能力回归对比的第 2 个 capability。"
+  "note": "serializer 能力复用 runner 的 round-trip 指标（parse→serialize→parse 收敛）；与 markdown 共享同一 runner，但 required_checks 聚焦序列化保真（serialize / roundtrip / no_parse_error）——跨能力回归对比的第 2 个 capability。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "conditional"
+  }
 }

@@ -145,6 +145,13 @@ class MarkdownAdapter(CapabilityAdapter):
                 "unknown_max": unknown_max,
                 "blocking_unknown": blocking_unknown,
             },
+            # 3.11 证据层明示（防证据层级偷换）：capability_runner 走真实
+            # 生产路径（MarkdownParser/Serializer），production_runtime=true
+            "execution": {
+                "runner": "capability_runner",
+                "real_execution": True,
+                "production_runtime": True,
+            },
             "declared_boundaries": declared,
             "unknown": unknown,
             "next_actions": next_actions,

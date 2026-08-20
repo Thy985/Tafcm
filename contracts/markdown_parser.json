@@ -25,5 +25,11 @@
     "definition_list",
     "indented_code",
     "raw_html_块"
-  ]
+  ],
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "conditional"
+  }
 }
