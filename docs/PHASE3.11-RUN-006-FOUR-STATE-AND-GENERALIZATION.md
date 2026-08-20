@@ -92,12 +92,56 @@ Run-006 达成：
      unknown→pass 不再压成 PERSISTENT，repair semantics 干净）
   ② PHASE_3_11 5 维度状态定义（ARCHITECTURE/CAPABILITY_COVERAGE/
      RUNTIME_VALIDATION/REAL_DEFECT_REPAIR/E6-E8）
-  ③ Word/PDF 架构泛化验证（env_missing 路径 + 真实 runner 路径零修改复用）
+  ③ Word/PDF 核心 verify 架构泛化验证（env_missing 路径 + 真实 runner 路径）
 
-下一阶段最关键的验证点已初步通过：Word/PDF 接入不需要修改核心语义
-（verify→diagnose→repair-verify→evidence delta→regression 自然复用）
-——架构是通用 capability hardening framework，非 Formula 特化。
+⚠️ 措辞修正（评审 §4，2026-08-21）：架构泛化 ≠ Golden Loop 泛化——
+  Word/PDF 已证明【核心 verify / environment semantics（ENV_MISSING≠FAIL）/
+  real execution / evidence aggregation】无修改复用；
+  但【完整 Consumer Golden Loop（diagnose → repair-verify → evidence delta
+  → regression）】对 Word/PDF 尚待验证（3.11.6，wpscli 环境就绪后）。
+  不把「架构泛化初步实证」误报为「Golden Loop 泛化已证明」。
 ```
+
+## 4.1 Evidence Strength 冻结（评审 §7，2026-08-21）
+
+```text
+Evidence Strength 枚举（严格递增）：
+  synthetic < test_runtime < production_runtime < physical_runtime < visual < human_confirmed
+
+规则：什么证据支持什么级别 PASS——
+  artifact 存在 ≠ runtime render ≠ physical render ≠ visual fidelity
+  real_execution=true 不意味着 production_runtime=true
+  （flutter_test 真跑了 ≠ 用户真实环境真跑了）
+
+各能力 achieved（contracts evidence_strength 字段）：
+  markdown/serializer: [synthetic, test_runtime, production_runtime]  ✅ 最高
+  word: [synthetic, production_runtime]
+  pdf/undo/block/file/ime: [synthetic, test_runtime]
+  formula/autosave/theme: [synthetic]
+
+E6/E8 将把 physical_runtime/visual 纳入 release policy——
+  Evidence Strength 不再是 roadmap 标签，而是 release gate 判定依据。
+```
+
+## 4.2 Phase 3.11 逐项真实位置（评审 §8，2026-08-21）
+
+```text
+Architecture          ✅ FROZEN / VALIDATED（taxonomy + ontology 冻结）
+Failure Identity      ✅ FROZEN（v2 四层：capability+check+failure_class+evidence_signature）
+Repair Semantics      ✅ FROZEN（target_failure 四态：RESOLVED/PERSISTENT/NOT_OBSERVED/INTRODUCED）
+Capability Taxonomy   ✅ FROZEN（Quality Layers L1-4 / Families F1-4 / Evidence Dimension E6-E8）
+Cross-Family Reuse    ✅ PRELIMINARY VALIDATION（Word env_missing + PDF real runner 零修改接入）
+Data Family           ✅ VALIDATED（Markdown + Serializer Golden Loop 完整闭环）
+Runtime Family        🟡 SYNTHETIC LOOP VALIDATED（Formula Run-004 注入观察闭环）
+                      ❌ REAL DEFECT LOOP NOT YET VALIDATED（登记下一阶段）
+Consumer Family       🟡 VERIFY/EVIDENCE PATH VALIDATED（Word env_missing / PDF pass）
+                      ❌ FULL GOLDEN LOOP NOT YET VALIDATED（3.11.6，wpscli 环境就绪后）
+Behavior Family       ⏳ NOT YET VALIDATED（Undo/IME/Autosave/File/Theme/Block，3.11.7）
+E6/E8                 ⏳ RELEASE-GATE / NOT YET SATISFIED（真机/视觉环境就绪后）
+```
+
+> 此状态比「Phase 3.11 architecture done」更准确——十项逐条可审计，
+> 适合被 CI / dashboard 直接消费。
 
 ## 5. 下一步
 

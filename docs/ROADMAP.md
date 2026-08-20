@@ -841,6 +841,21 @@ Golden Loop 逐层覆盖：
 > 不提前宣布 Phase 3.11 close——能明确回答哪部分已证明、哪部分仅设计完成、
 > 哪部分需真实 runtime evidence。
 
+> **逐项真实位置（2026-08-21，评审 §8 十项）**：
+> ```text
+> Architecture        ✅ FROZEN / VALIDATED
+> Failure Identity    ✅ FROZEN（v2 四层）
+> Repair Semantics    ✅ FROZEN（target_failure 四态）
+> Capability Taxonomy ✅ FROZEN（Layers/Families/Evidence Dimension）
+> Cross-Family Reuse  ✅ PRELIMINARY VALIDATION（Word env_missing + PDF real runner）
+> Data Family         ✅ VALIDATED（Markdown + Serializer Golden Loop）
+> Runtime Family      🟡 Synthetic Loop ✅ / Real Defect Loop ❌
+> Consumer Family     🟡 Verify/Evidence ✅ / Full Golden Loop ❌（3.11.6）
+> Behavior Family     ⏳ NOT YET VALIDATED（3.11.7）
+> E6/E8               ⏳ RELEASE-GATE / NOT YET SATISFIED
+> ```
+> 十项逐条可审计——比「Phase 3.11 architecture done」更准确，适合 CI/dashboard 消费。
+
 > **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
 > （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion
 > Status**——`flutter test` 真实执行 ≠ 产品功能真实运行（production_runtime

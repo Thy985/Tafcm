@@ -43,5 +43,20 @@
       "failure_class",
       "evidence_signature"
     ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "physical_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic",
+      "test_runtime"
+    ],
+    "note": "Evidence Strength（评审 §7 冻结）：Synthetic<Test Runtime<Production Runtime<Physical Runtime<Visual<Human-confirmed；什么证据支持什么级别 PASS——artifact 存在 ≠ runtime render ≠ physical render ≠ visual fidelity"
   }
 }
