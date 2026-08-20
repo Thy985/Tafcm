@@ -1,14 +1,18 @@
 """Capability Adapter 注册表 — 目录扫描注册，orchestrator 零 if/else。"""
 from __future__ import annotations
 
+from .formula import FormulaAdapter
 from .markdown import MarkdownAdapter
 from .serializer import SerializerAdapter
+from .word import WordAdapter
 
-# 显式注册（P0.1 双能力：markdown + serializer——serializer 提供跨能力
-# 回归对比的第 2 个 capability，REGRESSION path 前置）
+# 显式注册（P0.1 四能力：markdown / serializer / word / formula——
+# word=consumer adapter（D3），formula=ADI 衔接（D4））
 _ADAPTERS: dict[str, type] = {
     MarkdownAdapter.id: MarkdownAdapter,
     SerializerAdapter.id: SerializerAdapter,
+    WordAdapter.id: WordAdapter,
+    FormulaAdapter.id: FormulaAdapter,
 }
 
 
