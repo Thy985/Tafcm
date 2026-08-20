@@ -40,14 +40,53 @@ def _as_of() -> dict[str, str]:
     }
 
 
-def _failure_fingerprint(capability: str, checks: dict[str, Any]) -> str:
-    """失败指纹（3.11.3 regression 语义升级）：capability + 失败 checks 组合。
+def _extract_evidence_signature(evidence: list[dict[str, Any]]) -> str:
+    """从证据链提取 signature（3.11.4 Failure Identity 四层第 4 维）：
+    execute 阶段的 metrics 关键数值特征（roundtrip_convergence /
+    render_failure_count / adi 观察 id 等）——同一 check 不同数值可区分。"""
+    for e in evidence or []:
+        if e.get("stage") != "execute":
+            continue
+        detail = e.get("detail") or {}
+        m = detail.get("metrics") or detail
+        for key in (
+            "roundtrip_convergence",
+            "render_failure_count",
+            "adi_latest_observation",
+            "passed",
+            "failed",
+        ):
+            if key in m:
+                return f"{key}={m[key]}"
+    return "n/a"
 
-    'formula:no_adi_render_failure' 与 'formula:render_observable' 是不同
-    失败指纹——同一 capability 不同 bug 可区分（评审 §1：Failure Identity）。
+
+def _failure_class_of(rec_or_report: dict[str, Any]) -> str:
+    """failure_class（四层第 3 维）：从 status/stage/summary 推导。"""
+    status = rec_or_report.get("status")
+    if status == "env_missing":
+        return "env_missing"
+    if "runner_error" in str(rec_or_report.get("message", "")):
+        return "runner_error"
+    return "check_failure"
+
+
+def _failure_fingerprint(
+    capability: str,
+    checks: dict[str, Any],
+    failure_class: str = "check_failure",
+    evidence_signature: str = "n/a",
+) -> str:
+    """失败指纹（3.11.4 Failure Identity 四层冻结，评审 §2）：
+    capability + failing_check + failure_class + evidence_signature。
+
+    'formula:render_observable:check_failure:adi=err_xxx' 与
+    'formula:render_observable:svg_parse:svg_token_17' 是不同指纹——
+    同一 check 下不同 bug 可区分（评审 §2：check 名不代表实际 Bug）。
     """
     failed = sorted(k for k, v in (checks or {}).items() if v is False)
-    return f"{capability}:{','.join(failed)}" if failed else f"{capability}:fail"
+    check = ",".join(failed) if failed else "fail"
+    return f"{capability}:{check}:{failure_class}:{evidence_signature}"
 
 
 def _baseline_failure_set(exclude_capability: str) -> set[str]:
@@ -65,7 +104,14 @@ def _baseline_failure_set(exclude_capability: str) -> set[str]:
                 continue
             before = rec.get("before", {})
             checks = before.get("coverage", {}).get("checks", {})
-            base.add(_failure_fingerprint(cap, checks))
+            base.add(
+                _failure_fingerprint(
+                    cap,
+                    checks,
+                    _failure_class_of(rec),
+                    _extract_evidence_signature(rec.get("evidence", [])),
+                )
+            )
     except Exception:  # noqa: BLE001 — failures 目录不可读 → 空 baseline
         return set()
     return base

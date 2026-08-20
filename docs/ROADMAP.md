@@ -795,14 +795,30 @@ PHASE_3_11_EXIT =
 ```
 
 - [ ] **GoldenLoopTemplateStable**：Golden Loop（verify → FAIL → diagnose → 修复 → repair-verify → regression asset）模板已在 ≥2 个能力稳定跑通（Markdown ✅ / Serializer ✅）
-- [ ] **N capabilities hardened**（Owner 定义，至少覆盖 4 类证据）：
-  - 1 个 parser/data capability（✅ Markdown）
-  - 1 个 runtime capability（⏳ Formula/IME）
-  - 1 个 consumer/export capability（⏳ Word/PDF）
-  - 1 个 physical/visual capability（⏳ Formula E6/E8 / Theme）
+- [ ] **N capabilities hardened（N = 4 capability families，评审 §4 明确化）**：
+  - **Data**（Layer 1：Parse/Serialize/Round-trip）→ Markdown ✅ / Serializer ✅
+  - **Runtime**（Layer 3：Flutter Render/WebView/Device）→ Formula / Undo（⏳）
+  - **Consumer**（Layer 4：WPS/OfficeCLI/Screenshot）→ Word / PDF（⏳）
+  - **Physical/Visual**（Layer 4：E6 真机 / E8 视觉）→ Formula real device / Theme / IME（⏳）
 - [ ] **每个发现 bug 资产化**：Bug → minimal repro → capability case → regression corpus（无遗漏）
-- [ ] **无误报回归**：regression 判定用 baseline failure set + fingerprint diff（3.11.3 已落地），既有失败 ≠ 新增回归
+- [ ] **无误报回归**：regression 判定用 baseline failure set + fingerprint diff（3.11.4 升级为四层 Failure Identity：capability+check+failure_class+evidence_signature），既有失败 ≠ 新增回归
 - [ ] **capability completion status 更新**：Feature Completion Matrix 按 Evidence Profile（E2/E3/E5/E6）推进
+
+### 四层质量闭环（Phase 3.11 体系，评审 §7）
+
+```text
+Layer 1 — Data            Parse / Serialize / Round-trip        （Run-002/003 ✅）
+Layer 2 — Behavior        Undo / Transaction / IME / Autosave
+Layer 3 — Runtime         Flutter Render / WebView / Persistence / Device
+Layer 4 — Consumer/体验    WPS / OfficeCLI / Screenshot / Visual / Human UX
+
+Golden Loop 逐层覆盖：
+  Run-002 → Data ✅       Run-003 → Data ✅
+  Run-004 → Runtime 🟡（3.11.4 Formula）  Run-005 → Consumer 🟡（Word/PDF）
+  Run-006 → Physical/Visual 🟡（E6/E8）
+```
+
+> **状态声明（2026-08-20）**：PHASE_3_11_EXIT 当前为 **Defined（已定义）非 Satisfied（未满足）**——N=4 families 中 Data 已达成，Runtime/Consumer/Physical-Visual 待 3.11.4-3.11.6 逐层覆盖；不提前宣布 Phase 3.11 close。
 
 > **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
 > （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion

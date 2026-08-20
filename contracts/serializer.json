@@ -46,5 +46,14 @@
       "indented_code",
       "raw_html_块"
     ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
   }
 }

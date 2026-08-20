@@ -23,7 +23,9 @@ from .base import CapabilityAdapter
 
 # RenderOverflow 等渲染失败观察的 ADI 存储
 ADI_OBSERVATIONS = ".adi/observations"
-_RENDER_ERROR_KEYWORDS = ("RenderOverflow", "RenderFlex", "overflowed")
+# 3.11.4 扩展：覆盖 Formula 渲染失败类（评审 §2 failure_class 区分）——
+# RenderOverflow（布局）/ SvgParse（SVG 解析）/ FormulaSvgException（公式 SVG）
+_RENDER_ERROR_KEYWORDS = ("RenderOverflow", "RenderFlex", "overflowed", "SvgParse", "FormulaSvg", "svg")
 
 
 class FormulaAdapter(CapabilityAdapter):

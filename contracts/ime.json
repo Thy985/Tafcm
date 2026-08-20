@@ -34,5 +34,14 @@
     "unsupported": [
       "real_soft_keyboard_ime"
     ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
   }
 }

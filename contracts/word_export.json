@@ -42,5 +42,14 @@
     "unsupported": [
       "microsoft_word_desktop"
     ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
   }
 }
