@@ -21,7 +21,9 @@
   "s0_unsupported": [
     "autolink",
     "footnote",
-    "definition_list"
+    "definition_list",
+    "indented_code",
+    "raw_html_块"
   ],
   "note": "serializer 能力复用 runner 的 round-trip 指标（parse→serialize→parse 收敛）；与 markdown 共享同一 runner，但 required_checks 聚焦序列化保真（serialize / roundtrip / no_parse_error）——跨能力回归对比的第 2 个 capability。"
 }

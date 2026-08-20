@@ -383,6 +383,34 @@ def _count_files(dir_path: Path, pattern: str) -> int:
 
 # ── export audit（Agent-native DOCX QA）───────────────────────────────
 
+@analyze.command("contract-sync")
+@click.pass_context
+def contract_sync(ctx):
+    """Contract Sync 最小版（ROADMAP 3.10.2）：Matrix ↔ contracts/*.json 一致性校验。
+
+    Feature Capability Matrix（S0-S5）↔ 契约 s0_unsupported 机器强制：
+    - 规则 1：Matrix S0 能力必须被 contract 声明（漏声明 = 漂移 ERROR）
+    - 规则 2：Matrix S≥4 能力不得被 contract 标为不支持（误声明 = ERROR）
+    - 规则 3：contract s0 需有 Matrix 依据（额外能力 → WARN）
+    exit：0=一致（可含 WARN）/ 1=漂移 ERROR
+    """
+    try:
+        from cli_anything.ffx.core.contract_sync import (
+            check_contract_sync,
+            render_sync_report,
+        )
+
+        result = check_contract_sync()
+        if _effective_json(ctx):
+            pretty_print(result, True)
+        else:
+            click.echo(render_sync_report(result))
+        sys.exit(0 if result.get("status") != "error" else 1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 @analyze.command("audit")
 @click.argument("path", type=click.Path())
 @click.pass_context

@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-WORD-EXPORT",
+  "capability": "word",
+  "version": 1,
+  "required_evidence": [
+    "E1",
+    "E2",
+    "E3",
+    "E4",
+    "E5"
+  ],
+  "required_checks": [
+    "artifact_integrity",
+    "wps_consumer",
+    "formula_fidelity",
+    "no_consumer_error"
+  ],
+  "completion_policy": {
+    "unknown_max": 3,
+    "blocking_unknown": [],
+    "wps_consumer_required": true,
+    "formula_fidelity_required": true,
+    "parse_error_max": 0
+  },
+  "s0_unsupported": [
+    "microsoft_word_desktop"
+  ],
+  "note": "word 导出能力复用 docx_qa（ffx analyze audit）：OOXML/rels/语义 + WPS consumer（word2pdf/pdfinfo/pdf2txt）+ OfficeCLI（screenshot/issues）。公式保真（formula_fidelity）为 DOGFOOD-RUN-004 修复后字段——docx 内部 latex fallback 必须出现在消费端文本（产物成功≠功能正确）。MS Word Desktop 为 S0 声明边界（Level C Release Gate，需 Word 环境才验证）。"
+}

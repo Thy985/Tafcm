@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-FORMULA",
+  "capability": "formula",
+  "version": 1,
+  "required_evidence": [
+    "E1",
+    "E2",
+    "E3"
+  ],
+  "required_checks": [
+    "no_adi_render_failure",
+    "render_observable"
+  ],
+  "completion_policy": {
+    "unknown_max": 3,
+    "blocking_unknown": [],
+    "render_error_max": 0,
+    "adi_binding_required": true
+  },
+  "s0_unsupported": [
+    "mermaid_renderer_headless",
+    "real_llm_agent"
+  ],
+  "note": "formula 能力（最小版，D4）：RenderOverflow / 公式渲染失败需可被 verify 衔接 ADI 证据链。执行阶段读 .adi/observations/ 最新错误观察（RenderOverflow 等），验证 FFX 能把产品失败连接到 ADI（latest-error → trace-show → replay 链路）。s0 声明：headless 渲染器（测试环境无 WebView）与 Real LLM agent 为边界。完整公式渲染 corpus 验证需 render runner（3.10.3 后续轮）。"
+}

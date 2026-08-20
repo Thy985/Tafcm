@@ -22,6 +22,8 @@
   "s0_unsupported": [
     "autolink",
     "footnote",
-    "definition_list"
+    "definition_list",
+    "indented_code",
+    "raw_html_块"
   ]
 }
