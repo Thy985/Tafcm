@@ -31,5 +31,16 @@
     "E3": "required",
     "E5": "required",
     "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "artifact_integrity",
+      "wps_consumer",
+      "formula_fidelity"
+    ],
+    "optional": [],
+    "unsupported": [
+      "microsoft_word_desktop"
+    ]
   }
 }

@@ -27,5 +27,16 @@
     "E3": "required",
     "E5": "recommended",
     "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "render_observable",
+      "no_adi_render_failure"
+    ],
+    "optional": [],
+    "unsupported": [
+      "mermaid_renderer_headless",
+      "real_llm_agent"
+    ]
   }
 }

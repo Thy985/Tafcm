@@ -31,5 +31,21 @@
     "E3": "required",
     "E5": "recommended",
     "E6": "conditional"
+  },
+  "support_policy": {
+    "required": [
+      "parse",
+      "serialize",
+      "roundtrip",
+      "no_parse_error"
+    ],
+    "optional": [],
+    "unsupported": [
+      "autolink",
+      "footnote",
+      "definition_list",
+      "indented_code",
+      "raw_html_块"
+    ]
   }
 }

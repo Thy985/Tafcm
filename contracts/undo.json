@@ -22,5 +22,13 @@
     "E3": "required",
     "E5": "recommended",
     "E6": "conditional"
+  },
+  "support_policy": {
+    "required": [
+      "undo_semantics",
+      "history_integrity"
+    ],
+    "optional": [],
+    "unsupported": []
   }
 }

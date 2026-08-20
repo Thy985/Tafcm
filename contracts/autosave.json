@@ -22,5 +22,13 @@
     "E3": "required",
     "E5": "required",
     "E6": "required"
+  },
+  "support_policy": {
+    "required": [
+      "autosave_persistence",
+      "storage_single_source"
+    ],
+    "optional": [],
+    "unsupported": []
   }
 }

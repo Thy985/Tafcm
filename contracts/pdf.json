@@ -22,5 +22,13 @@
     "E3": "required",
     "E5": "required",
     "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "pdf_export",
+      "pdf_structure"
+    ],
+    "optional": [],
+    "unsupported": []
   }
 }

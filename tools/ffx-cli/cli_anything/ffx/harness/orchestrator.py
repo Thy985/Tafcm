@@ -40,20 +40,35 @@ def _as_of() -> dict[str, str]:
     }
 
 
-def _has_historical_failure(capability: str) -> bool:
-    """该 capability 是否存在历史 failure record（3.11.2 regression 语义修正：
-    既有失败 ≠ 本次修复引入的回归）。"""
+def _failure_fingerprint(capability: str, checks: dict[str, Any]) -> str:
+    """失败指纹（3.11.3 regression 语义升级）：capability + 失败 checks 组合。
+
+    'formula:no_adi_render_failure' 与 'formula:render_observable' 是不同
+    失败指纹——同一 capability 不同 bug 可区分（评审 §1：Failure Identity）。
+    """
+    failed = sorted(k for k, v in (checks or {}).items() if v is False)
+    return f"{capability}:{','.join(failed)}" if failed else f"{capability}:fail"
+
+
+def _baseline_failure_set(exclude_capability: str) -> set[str]:
+    """baseline 失败集合 F1（3.11.3）：failures 目录中排除修复目标 capability
+    的历史失败指纹——长期：bug 修复后旧指纹应被 resolved 清出 baseline。"""
+    base: set[str] = set()
     try:
         for fid in failure_mod.list_failures():
             try:
                 rec = failure_mod.load_failure(fid)
-            except Exception:  # noqa: BLE001 — 单个 record 损坏不影响判断
+            except Exception:  # noqa: BLE001 — 单个 record 损坏跳过
                 continue
-            if rec.get("capability") == capability:
-                return True
-    except Exception:  # noqa: BLE001 — failures 目录不可读时保守判定 False
-        return False
-    return False
+            cap = rec.get("capability")
+            if not cap or cap == exclude_capability:
+                continue
+            before = rec.get("before", {})
+            checks = before.get("coverage", {}).get("checks", {})
+            base.add(_failure_fingerprint(cap, checks))
+    except Exception:  # noqa: BLE001 — failures 目录不可读 → 空 baseline
+        return set()
+    return base
 
 
 def _load_adapter(capability: str) -> CapabilityAdapter:
@@ -225,31 +240,37 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
     others = [c for c in _available() if c != capability]
     if others:
         reg_results: dict[str, str] = {}
-        reg_failed: list[str] = []
-        pre_existing: list[str] = []
+        # 3.11.3 regression 语义升级（评审 §1）：baseline failure set + fingerprint diff。
+        # before_failures = F1（failures 目录历史指纹，排除修复目标）
+        # after_failures  = F2（repair-verify 时其他能力当前 fail 指纹）
+        # new = F2-F1（真回归）/ resolved = F1-F2 / persistent = F1∩F2
+        before_set = _baseline_failure_set(capability)
+        after_set: set[str] = set()
         for other in others:
             other_report, other_exit = verify(other)
             other_status = other_report.get("status", "unknown")
             reg_results[other] = other_status
             if other_status == "fail":
-                # 3.11.2 修正：区分「既有失败」（该 capability 已有历史
-                # failure record，非本次修复引入）与「新增回归」——
-                # 修复目标之外能力的既有失败不判为回归。
-                if _has_historical_failure(other):
-                    pre_existing.append(other)
-                else:
-                    reg_failed.append(other)
+                checks = other_report.get("coverage", {}).get("checks", {})
+                after_set.add(_failure_fingerprint(other, checks))
+        new_failures = sorted(after_set - before_set)
+        resolved_failures = sorted(before_set - after_set)
+        persistent_failures = sorted(before_set & after_set)
         regression = {
-            "status": "pass" if not reg_failed else "fail",
+            "status": "pass" if not new_failures else "fail",
             "detail": (
-                f"regression check over {others}: {reg_results}"
-                f"{' (pre-existing: ' + str(pre_existing) + ')' if pre_existing else ''}"
-                if not reg_failed
-                else f"REGRESSION: {reg_failed} failed after fix ({reg_results})"
+                f"regression diff over {others}: {reg_results}"
+                f"{' (persistent: ' + str(persistent_failures) + ')' if persistent_failures else ''}"
+                if not new_failures
+                else f"REGRESSION: {new_failures} new after fix ({reg_results})"
             ),
             "checked": others,
             "results": reg_results,
-            "pre_existing_failures": pre_existing,
+            "before_failures": sorted(before_set),
+            "after_failures": sorted(after_set),
+            "resolved_failures": resolved_failures,
+            "new_failures": new_failures,
+            "persistent_failures": persistent_failures,
         }
     result = {
         "before": before.get("status", "unknown"),

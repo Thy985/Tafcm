@@ -776,19 +776,33 @@ Capability Baseline 更新（Matrix S 级推进）
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
 | 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ✅ 完成（2026-08-20：5 能力真实 flutter test 执行，2 能力 Evidence Gap 登记） |
-| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | 🟡 进行中（Golden Loop 首轮） |
-| 3.11.3 | **Serializer 加固**：同上循环 | P1 | ⏳ |
-| 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus | P1 | ⏳ |
+| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | ✅ 完成（2026-08-20：Golden Loop 首轮闭环，before=failed/after=pass/regression=pass） |
+| 3.11.3 | **Serializer 加固**：同上循环 | P1 | ✅ 完成（2026-08-20：Golden Loop 第二轮——回退 separator → FAIL 0.9375 → 修复 → repair-verify pass） |
+| 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus（首次高等级证据突破） | P1 | 🟡 待启动 |
 | 3.11.5 | **Word/PDF 加固**：word 全链路（输入 md→导出→消费端）+ PDF 渲染 | P1 | ⏳ |
 | 3.11.6 | **Undo/IME/Theme/File/Autosave/Block 加固**：逐个能力循环（3.11.1 runner 就绪后） | P1 | ⏳ |
 | 3.11.7 | **Contract Sync 增强**：s0 声明数 vs unknown_max 自洽机器校验（3.10 Re-Audit 暴露） | P2 | ⏳ |
 
-### 退出条件
+### 退出条件（PHASE_3_11_EXIT，2026-08-20 定义）
 
-- [ ] 11 个能力全部为真实 runner（无「测试资产存在」替代）
-- [ ] 每个能力 ≥1 次「verify FAIL → 修复 → repair-verify → Regression Asset」闭环
-- [ ] Feature Capability Matrix S 级推进（Conditionally Complete → Complete）
-- [ ] contract-sync 含 s0/unknown_max 自洽校验
+```text
+PHASE_3_11_EXIT =
+    GoldenLoopTemplateStable
+    ∧ N capabilities hardened
+    ∧ every discovered bug becomes regression asset
+    ∧ no false-positive regression classification
+    ∧ capability completion status updated
+```
+
+- [ ] **GoldenLoopTemplateStable**：Golden Loop（verify → FAIL → diagnose → 修复 → repair-verify → regression asset）模板已在 ≥2 个能力稳定跑通（Markdown ✅ / Serializer ✅）
+- [ ] **N capabilities hardened**（Owner 定义，至少覆盖 4 类证据）：
+  - 1 个 parser/data capability（✅ Markdown）
+  - 1 个 runtime capability（⏳ Formula/IME）
+  - 1 个 consumer/export capability（⏳ Word/PDF）
+  - 1 个 physical/visual capability（⏳ Formula E6/E8 / Theme）
+- [ ] **每个发现 bug 资产化**：Bug → minimal repro → capability case → regression corpus（无遗漏）
+- [ ] **无误报回归**：regression 判定用 baseline failure set + fingerprint diff（3.11.3 已落地），既有失败 ≠ 新增回归
+- [ ] **capability completion status 更新**：Feature Completion Matrix 按 Evidence Profile（E2/E3/E5/E6）推进
 
 > **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
 > （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion

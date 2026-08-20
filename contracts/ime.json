@@ -24,5 +24,15 @@
     "E3": "required",
     "E5": "required",
     "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "composing_guard",
+      "ime_sequence"
+    ],
+    "optional": [],
+    "unsupported": [
+      "real_soft_keyboard_ime"
+    ]
   }
 }
