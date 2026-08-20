@@ -318,9 +318,15 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
             "new_failures": new_failures,
             "persistent_failures": persistent_failures,
         }
+    # 3.11.5 repair result 语义（评审 §3）：Repair Success ≠ Capability Clean。
+    # target_failure = 本次修复目标失败的状态（before fail → after pass = RESOLVED；
+    # after 仍 fail = PERSISTENT——可能为既有 baseline，非本次修复失败）。
+    target_resolved = before.get("status") == "failed" and after_status == "pass"
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
+        "target_failure": "RESOLVED" if target_resolved else "PERSISTENT",
+        "persistent_baseline_count": len(regression.get("persistent_failures", [])),
         "regression": regression,
         "evidence_delta": delta,
         "evidence_graph_delta": evidence_delta,

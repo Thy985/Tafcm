@@ -7,6 +7,15 @@
 **结论**: ✅ **Formula 进入 Runtime 证据层（ADI 观察消费）——Golden Loop 跨出 Data 层；
 Failure Identity 四层冻结；PHASE_3_11_EXIT 明确化（Defined 非 Satisfied）**
 
+> **⚠️ Loop 类型声明（评审 §6，2026-08-20）**：本 Run 为 **Synthetic Failure
+> Loop**——Failure A（SVG parse）是**人为注入观察**（err_20260820_svgparse），
+> 「修复」= 移除注入，证明的是**系统能识别并清除一个新 failure identity**
+> （Evidence → Fingerprint → Diagnose → Repair → Evidence Delta → Regression）。
+> **尚不证明 Real Defect Repair Loop**（Agent 修复真实 SVG parser/render pipeline
+> 产品缺陷）——后者登记下一阶段（3.11.4 后续：真实渲染缺陷 → reproduce →
+> observe → fingerprint → agent diagnose → code fix → rebuild → rerun →
+> evidence delta → regression）。
+
 ---
 
 ## 1. ① Failure Identity 四层冻结（评审 §2）
