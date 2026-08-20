@@ -36,6 +36,19 @@
 | [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md) | 完成证据矩阵 |
 | [ADR/0030-ffx-verification-orchestrator.md](ADR/0030-ffx-verification-orchestrator.md) | 架构决策（根） |
 
+**Dogfood / 工程补强报告（2026-08-20 挂入，Gate-5 收口）**：
+
+| 文档 | 说明 |
+|------|------|
+| [DOGFOOD-RUN-001-SMOKE.md](DOGFOOD-RUN-001-SMOKE.md) | Dogfood ① Smoke（real_runtime_path=true） |
+| [DOGFOOD-RUN-002-KNOWN-GOOD.md](DOGFOOD-RUN-002-KNOWN-GOOD.md) | Dogfood ② Known-Good（vs Matrix 对照） |
+| [DOGFOOD-RUN-003-KNOWN-BAD.md](DOGFOOD-RUN-003-KNOWN-BAD.md) | Dogfood ③ Known-Bad（回退 BUG-1 → FAIL） |
+| [DOGFOOD-RUN-004-ADI-CONSUMER.md](DOGFOOD-RUN-004-ADI-CONSUMER.md) | Dogfood ④ ADI/Consumer 联合 |
+| [DOGFOOD-RUN-005-REAL-REPAIR.md](DOGFOOD-RUN-005-REAL-REPAIR.md) | Dogfood ⑤ Real Agent Repair |
+| [DOGFOOD-RUN-006-REGRESSION.md](DOGFOOD-RUN-006-REGRESSION.md) | REGRESSION path 补齐（serializer 第 2 能力） |
+| [DOGFOOD-RUN-007-CONSUMER-ADAPTER.md](DOGFOOD-RUN-007-CONSUMER-ADAPTER.md) | Consumer Adapter 扩展（word/formula） |
+| [CONTRACT-SYNC-MINIMAL.md](CONTRACT-SYNC-MINIMAL.md) | Contract Sync 最小版（Matrix ↔ contracts） |
+
 ## 4. 审计报告（Phase 3.9 全量）
 
 | 文档 | 说明 |

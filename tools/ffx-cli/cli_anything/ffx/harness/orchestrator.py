@@ -5,6 +5,7 @@ verify / diagnose / repair-verify 三命令的通用逻辑。
 """
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime, timezone
 from typing import Any
 
@@ -17,8 +18,26 @@ from .evidence import Evidence, EvidenceGraph
 _STATUS_EXIT = {"pass": 0, "warn": 2, "fail": 1, "inconclusive": 3}
 
 
-def _as_of() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+def _as_of() -> dict[str, str]:
+    """G10（2026-08-20）：每个 PASS/FAIL 可回答谁/何时/哪个 git SHA。
+
+    返回 {git_sha, timestamp}——禁止「之前跑过，所以 PASS」：证据必须
+    携带执行时刻与代码版本。
+    """
+    sha = "unknown"
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0:
+            sha = r.stdout.strip()[:12] or "unknown"
+    except Exception:  # noqa: BLE001 — 非 git 环境降级 unknown
+        sha = "unknown"
+    return {
+        "git_sha": sha,
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 
 
 def _load_adapter(capability: str) -> CapabilityAdapter:

@@ -12,7 +12,7 @@
     "render_observable"
   ],
   "completion_policy": {
-    "unknown_max": 3,
+    "unknown_max": 2,
     "blocking_unknown": [],
     "render_error_max": 0,
     "adi_binding_required": true

@@ -67,15 +67,31 @@ List<String> _loadDocs(String? corpusDir) {
   return List.of(_builtinCorpus);
 }
 
+/// Regression cases（G7，2026-08-20）：内置 corpus + FFX_REGRESSION_DIR
+/// 合并——verify 自动包含已资产化的 Golden Failure 触发输入。
+List<String> _loadDocsWithRegression(String? corpusDir, String? regressionDir) {
+  final docs = _loadDocs(corpusDir);
+  if (regressionDir != null && Directory(regressionDir).existsSync()) {
+    for (final f in Directory(regressionDir)
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.md'))) {
+      docs.add(f.readAsStringSync());
+    }
+  }
+  return docs;
+}
+
 void main() {
   test('ffx capability runner: markdown production-path verification', () {
     final corpusDir = Platform.environment['FFX_CORPUS_DIR'];
+    final regressionDir = Platform.environment['FFX_REGRESSION_DIR'];
     final outDir = Platform.environment['FFX_OUT_DIR'] ?? Directory.systemTemp.path;
 
     final counters = _Counters();
     final lineErrors = <Map<String, Object?>>[];
 
-    for (final md in _loadDocs(corpusDir)) {
+    for (final md in _loadDocsWithRegression(corpusDir, regressionDir)) {
       counters.files++;
       try {
         // 真实生产路径：MarkdownParser.parse（含单行降级回调）

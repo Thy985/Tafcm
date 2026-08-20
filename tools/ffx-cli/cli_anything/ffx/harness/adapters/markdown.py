@@ -115,8 +115,9 @@ class MarkdownAdapter(CapabilityAdapter):
             status = "inconclusive"  # 证据不足/未判定（真机缺失、视觉未判等 → ADR-0030 exit 3）
         elif failed or blocked or overflow:
             status = "fail"
-        elif declared or unknown:
-            status = "warn"  # 达标但有非阻断 Unknown（S0 边界 / 证据缺口）
+        elif unknown:
+            status = "warn"  # 证据缺口（G3 修正 2026-08-20：declared s0 边界只记录不降级，
+            # status 仅由 checks + evidence gap 决定——Known-Good 可达 PASS/exit=0）
 
         next_actions: list[str] = []
         if failed:

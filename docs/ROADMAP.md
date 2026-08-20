@@ -739,6 +739,59 @@ Coalescing / Focus / IME（editor）。每例登记
 
 ---
 
+## Phase 3.11：FormulaFix Capability Hardening Loop（能力加固循环）
+
+> **状态**：⏳ 规划（2026-08-20，Phase 3.10 G0-G12 Final Gate 通过后开启）
+> **边界**：Phase 3.10 验证「验证系统本身」（FFX Orchestrator 闭环验收 ✅）；
+> **Phase 3.11 用已建成的 Agent Verification Harness 系统性清算 FormulaFix
+> 剩余能力与技术债**——不是「测试阶段」，是「逐个能力加固循环」。
+
+**目标**：把 Feature Capability Coverage Matrix 从「Conditionally Complete」
+推进到「Complete」——11 个产品能力逐个：
+`Capability Contract → FFX verify → 发现问题 → ADI/Consumer diagnosis →
+Agent 修复 → repair-verify → Regression Asset → Capability Baseline 更新`。
+
+**核心循环（每能力）**：
+
+```text
+现有能力
+   ↓
+FFX Audit（ffx capability verify <cap>）
+   ↓
+真实问题（BUG-00X）
+   ↓
+最小复现
+   ↓
+Agent 修复（真实生产代码）
+   ↓
+FFX Re-verify（repair-verify：before=failed → after=pass → regression=pass）
+   ↓
+Regression Asset（tests/verification_cases/<cap>/corpus/）
+   ↓
+Capability Baseline 更新（Matrix S 级推进）
+```
+
+### 任务
+
+| # | 任务 | 优先级 | 状态 |
+|---|------|--------|------|
+| 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ⏳ |
+| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | ⏳ |
+| 3.11.3 | **Serializer 加固**：同上循环 | P1 | ⏳ |
+| 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus | P1 | ⏳ |
+| 3.11.5 | **Word/PDF 加固**：word 全链路（输入 md→导出→消费端）+ PDF 渲染 | P1 | ⏳ |
+| 3.11.6 | **Undo/IME/Theme/File/Autosave/Block 加固**：逐个能力循环（3.11.1 runner 就绪后） | P1 | ⏳ |
+| 3.11.7 | **Contract Sync 增强**：s0 声明数 vs unknown_max 自洽机器校验（3.10 Re-Audit 暴露） | P2 | ⏳ |
+
+### 退出条件
+
+- [ ] 11 个能力全部为真实 runner（无「测试资产存在」替代）
+- [ ] 每个能力 ≥1 次「verify FAIL → 修复 → repair-verify → Regression Asset」闭环
+- [ ] Feature Capability Matrix S 级推进（Conditionally Complete → Complete）
+- [ ] contract-sync 含 s0/unknown_max 自洽校验
+
+---
+
 ## Phase 4：多平台与高级功能
 
 **目标**：扩展到桌面 / Web，并加入协同等高级功能。
