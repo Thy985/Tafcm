@@ -16,7 +16,7 @@
     "no_consumer_error"
   ],
   "completion_policy": {
-    "unknown_max": 3,
+    "unknown_max": 1,
     "blocking_unknown": [],
     "wps_consumer_required": true,
     "formula_fidelity_required": true,
