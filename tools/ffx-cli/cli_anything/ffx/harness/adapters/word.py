@@ -72,37 +72,62 @@ class WordAdapter(CapabilityAdapter):
     def execute(self, graph: EvidenceGraph) -> None:
         from cli_anything.ffx.core import docx_qa
 
-        # ENV_MISSING（G4.4，2026-08-20）：wpscli 未安装 = 环境缺失（exit 127），
-        # 非能力 FAIL——orchestrator 捕获 EnvironmentError → status=env_missing。
-        # （wps consumer 验证（word2pdf/pdf2txt）必须真实调用 wpscli，缺则无法执行）
+        # ENV_MISSING（G4.4，2026-08-20 + 3.11 Word Full Loop 调整）：
+        # wpscli 缺失 = consumer 段环境缺失（非能力 FAIL）——但 artifact 层
+        # （zip/CRC/rels/semantic，不依赖 wpscli）仍执行验证，使 ENV_MISSING
+        # 与 Real Defect（artifact 层真实缺陷）共存于同一 capability 生命周期。
         wpscli = docx_qa._find_wpscli()
-        if wpscli is None:
-            raise EnvironmentError(
-                "wpscli not installed (word consumer verification requires it: "
-                "word2pdf/pdfinfo/pdf2txt) — ENV_MISSING, not a capability failure"
-            )
+        self._wpscli_missing = wpscli is None
 
-        # 取第一个可用的 corpus 产物（真实 docx）
-        corpus = next((p for p in _CORPUS_CANDIDATES if Path(p).is_file()), None)
-        if corpus is None:
+        # 3.11 Word Full Loop：真实导出链路（md → WordExporter → docx → audit）——
+        # 回退 word_ooxml_builder 产品代码 → 导出 docx 有缺陷 → artifact_integrity
+        # 失败 → verify word FAIL（Controlled Real Defect Reproduction，真实代码缺陷，
+        # 非既有 corpus audit）。wpscli 缺失时导出链路仍可执行（artifact 层独立）。
+        from .. import runtime_bridge
+
+        live_docx = self._out_dir / "cap_word_live.docx"
+        try:
+            rt = runtime_bridge.run_flutter_tests(
+                ["tool/capability_runner/word_exporter_runner_test.dart"],
+                self._out_dir,
+            )
+            if rt.get("failed", 0) > 0 or not live_docx.is_file():
+                self._metrics = {
+                    "export_runner_error": rt.get("tail", "export failed"),
+                    "artifact_integrity": "fail",
+                }
+                graph.add(
+                    Evidence(
+                        stage="execute",
+                        tool="word-export-runner",
+                        exit_code=1,
+                        summary="word export runner failed (真实导出失败)",
+                        detail={"metrics": self._metrics},
+                    )
+                )
+                return
+        except Exception as e:  # noqa: BLE001
+            self._metrics = {
+                "export_runner_error": str(e),
+                "artifact_integrity": "fail",
+            }
             graph.add(
                 Evidence(
                     stage="execute",
-                    tool="docx-qa",
-                    exit_code=127,
-                    summary="no word corpus available",
-                    detail={"corpus": None},
+                    tool="word-export-runner",
+                    exit_code=1,
+                    summary=f"word export runner error: {e}",
+                    detail={"metrics": self._metrics},
                 )
             )
-            self._metrics = {"corpus_missing": True}
             return
 
-        audit = docx_qa.audit_docx(Path(corpus))
+        audit = docx_qa.audit_docx(live_docx)
         self._audit = audit
         st = audit.get("details", {}).get("wps_semantic_text", {})
         ff = st.get("formula_fidelity", {})
         self._metrics = {
-            "corpus": corpus,
+            "corpus": str(live_docx),
             "artifact_integrity": audit.get("artifact_integrity", "fail"),
             "semantic_fidelity": audit.get("semantic_fidelity", "fail"),
             "wps_compatibility": audit.get("wps_compatibility", "unknown"),
@@ -116,8 +141,8 @@ class WordAdapter(CapabilityAdapter):
                 stage="execute",
                 tool="docx-qa",
                 exit_code=0,
-                summary=f"corpus={corpus} wps={audit.get('wps_compatibility')} formula_ok={ff.get('ok')}",
-                artifact=str(Path(corpus)),
+                summary=f"corpus={live_docx.name} wps={audit.get('wps_compatibility')} formula_ok={ff.get('ok')}",
+                artifact=str(live_docx),
                 detail={"capability": self.id, "metrics": self._metrics},
             )
         )
@@ -149,10 +174,14 @@ class WordAdapter(CapabilityAdapter):
                 "next_actions": ["provide docx corpus (e.g. cap_word_fix.docx) and re-run"],
             }
 
+        # 3.11 Word Full Loop：wpscli 缺失 = consumer 段环境缺失（非能力 FAIL）——
+        # wps_consumer check 不计入 failed（artifact 层独立验证仍执行）
+        wpscli_missing = bool(getattr(self, "_wpscli_missing", False))
         checks = {
             "artifact_integrity": self._metrics.get("artifact_integrity") == "pass",
             "wps_consumer": (
-                not wps_required
+                wpscli_missing
+                or not wps_required
                 or self._metrics.get("wps_compatibility") == "pass"
             ),
             "formula_fidelity": (
@@ -160,24 +189,31 @@ class WordAdapter(CapabilityAdapter):
                 or self._metrics.get("formula_fidelity_ok") is True
             ),
             "no_consumer_error": (
-                self._metrics.get("consumer_text_status") != "fail"
+                wpscli_missing
+                or self._metrics.get("consumer_text_status") != "fail"
             ),
         }
         failed = [k for k, v in checks.items() if not v]
         declared = list(self.contract.get("s0_unsupported", []))
         unknown: list[str] = []
-        if self._metrics.get("wps_compatibility") == "unknown":
-            unknown.append("wps not installed (consumer evidence gap)")
+        if wpscli_missing:
+            unknown.append("wps not installed (consumer evidence gap — ENV_MISSING)")
+        if self._metrics.get("wps_compatibility") == "unknown" and not wpscli_missing:
+            unknown.append("wps consumer unknown (evidence gap)")
         if self._metrics.get("officecli_issue_count", 0) > 0:
             unknown.append(
                 f"officecli issues: {self._metrics.get('officecli_issue_count')}"
             )
 
+        # ENV_MISSING 与 Real Defect 共存：artifact 层缺陷 → fail（可测）；
+        # artifact 层通过但 wpscli 缺失 → env_missing（consumer 环境缺失）
         status = "pass"
         if not self._metrics:
             status = "inconclusive"
         elif failed:
             status = "fail"
+        elif wpscli_missing:
+            status = "env_missing"
         elif unknown:
             status = "warn"  # 证据缺口（G3 修正：declared s0 只记录不降级）
 
