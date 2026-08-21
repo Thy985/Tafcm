@@ -116,6 +116,40 @@ class FormulaAdapter(CapabilityAdapter):
             self._metrics["render_test_failed"] = 1
             self._metrics["render_test_error"] = str(e)
 
+        # E6 Physical Runtime（2026-08-21，评审冻结顺序第 4 步）：模拟器真实
+        # Flutter runtime 渲染 FormulaRenderer → 结构断言 + 截图 PNG
+        # （integration_test，physical runtime 证据——非 headless 单测；
+        # 真机/WebView Release Gate 仍登记）。截图路径供 E6 evidence 字段。
+        try:
+            import re as _re
+            import subprocess as _sp
+
+            e6_proc = _sp.run(
+                [
+                    runtime_bridge._flutter(),
+                    "test",
+                    "integration_test/cap_e6_physical_render_test.dart",
+                    "-d",
+                    "emulator-5554",
+                    "--reporter",
+                    "compact",
+                ],
+                cwd=str(root / "flutter_app"),
+                capture_output=True,
+                text=True,
+                timeout=240,
+            )
+            e6_out = (e6_proc.stdout or "") + (e6_proc.stderr or "")
+            m = _re.search(r"E6_PHYSICAL_PNG (\S+) bytes=(\d+)", e6_out)
+            self._metrics["e6_screenshot"] = m.group(1) if m else None
+            self._metrics["e6_physical_render_ok"] = (
+                e6_proc.returncode == 0 and m is not None
+            )
+            self._metrics["e6_structural_ok"] = e6_proc.returncode == 0
+        except Exception as e:  # noqa: BLE001 — E6 环境不可用登记 evidence gap
+            self._metrics["e6_physical_render_ok"] = False
+            self._metrics["e6_error"] = str(e)
+
         graph.add(
             Evidence(
                 stage="execute",
@@ -133,6 +167,12 @@ class FormulaAdapter(CapabilityAdapter):
                     "render_tests": {
                         "passed": self._metrics.get("render_test_passed", 0),
                         "failed": self._metrics.get("render_test_failed", 0),
+                    },
+                    # E6 Physical Runtime evidence（模拟器真实渲染截图）
+                    "e6_physical_render": {
+                        "ok": self._metrics.get("e6_physical_render_ok", False),
+                        "screenshot": self._metrics.get("e6_screenshot"),
+                        "structural_ok": self._metrics.get("e6_structural_ok", False),
                     },
                 },
             )
