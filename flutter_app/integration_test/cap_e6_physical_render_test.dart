@@ -65,12 +65,24 @@ void main() {
         reason: '公式渲染应有非零尺寸（真实绘制出内容）');
 
     // 截图：RepaintBoundary → PNG（physical runtime 视觉证据）
+    // E8.1 Screenshot Integrity（评审拆分基础层）：截图存在/有效/尺寸/非空——
+    // 测试内校验（PNG bytes 非空 + 解码尺寸 > 0）+ 信息输出 stdout。
+    // 写 app 内部私有目录（/data/data/.../files/，应用可写，无 scoped storage
+    // 限制；外部存储 /sdcard 与 Android/data 均无写权限 errno 1/13）
     final image = await boundary.toImage(pixelRatio: 2.0);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    final outDir = Platform.environment['FFX_OUT_DIR'] ?? Directory.systemTemp.path;
-    final png = File('$outDir/e6_formula_render.png');
+    // E8.1 断言：截图存在（bytes 非空）+ 有效（可解码）+ 尺寸预期（非零）
+    expect(bytes, isNotNull, reason: 'E8.1: 截图 PNG bytes 应非空');
+    expect(bytes!.lengthInBytes, greaterThan(0),
+        reason: 'E8.1: 截图 PNG 应非空');
+    expect(image.width, greaterThan(0), reason: 'E8.1: 截图宽度应 > 0');
+    expect(image.height, greaterThan(0), reason: 'E8.1: 截图高度应 > 0');
+    final png = File(
+      '/data/data/com.formulafix.formula_fix/files/e6_formula_render.png',
+    );
     png.parent.createSync(recursive: true);
-    png.writeAsBytesSync(bytes!.buffer.asUint8List());
-    print('E6_PHYSICAL_PNG ${png.path} bytes=${png.lengthSync()}');
+    png.writeAsBytesSync(bytes.buffer.asUint8List());
+    print('E8_PNG_INFO path=${png.path} bytes=${png.lengthSync()} '
+        'w=${image.width} h=${image.height}');
   });
 }

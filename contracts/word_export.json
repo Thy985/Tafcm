@@ -57,7 +57,8 @@
       "synthetic",
       "test_runtime",
       "production_runtime",
-      "physical_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
       "visual",
       "human_confirmed"
     ],
@@ -65,7 +66,7 @@
       "synthetic",
       "production_runtime"
     ],
-    "note": "Evidence Strength（评审 §2 修正）：policy-defined ordering（非普适全序——visual 与 human_confirmed 是 release policy 定义的最低证明能力阶梯，非天然 epistemic hierarchy）。achieved=实际获得的证据，minimum_required=release gate 要求（二者分离）。",
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
     "minimum_required": "production_runtime"
   }
 }

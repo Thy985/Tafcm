@@ -38,9 +38,19 @@ E6 Physical Runtime 要解决的缺口（评审）：
 integration_test cap_e6_physical_render_test.dart -d emulator-5554 →
   解析 E6_PHYSICAL_PNG 输出 → e6_screenshot / e6_physical_render_ok /
   e6_structural_ok metrics → evidence.add 补 e6_physical_render 字段
-evidence_strength.achieved 提升：synthetic → +physical_runtime
-（minimum_required=physical_runtime 已满足）
+evidence_strength.achieved 提升：synthetic → +virtual_device_runtime
+（模拟器 device runtime；minimum_required=physical_device_runtime 仍待真机）
 ```
+
+> **命名收紧（评审 2026-08-22）**：evidence_strength 枚举语义修正——
+> `physical_runtime` 拆为 `virtual_device_runtime`（模拟器）与
+> `physical_device_runtime`（真机）：
+> synthetic < test_runtime < production_runtime < virtual_device_runtime
+> < physical_device_runtime < visual < human_confirmed
+> Formula achieved=['synthetic', 'virtual_device_runtime']（模拟器证据），
+> minimum_required=physical_device_runtime（release gate 要求真机）——
+> **Emulator PASS ≠ release gate PASS**（防「模拟器过了 → release 过了」
+> 而真机从未跑过的语义偷换）。
 
 ## 3. 验证结果（模拟器 emulator-5554）
 
