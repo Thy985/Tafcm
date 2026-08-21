@@ -850,7 +850,7 @@ Golden Loop 逐层覆盖：
 > Cross-Family Reuse  ✅ PRELIMINARY VALIDATION（Word env_missing + PDF real runner）
 > Data Family         ✅ VALIDATED（Markdown + Serializer Golden Loop）
 > Runtime Family      🟡 Synthetic Loop ✅ / Real Defect Loop ❌
-> Consumer Family     🟡 Verify/Evidence ✅ / Full Golden Loop ❌（3.11.6）
+> Consumer Family     🟡 REPRESENTATIVE_GOLDEN_LOOP_VALIDATED（PDF=full loop ✅ / Word=env+verify only）
 > Behavior Family     ⏳ NOT YET VALIDATED（3.11.7）
 > E6/E8               ⏳ RELEASE-GATE / NOT YET SATISFIED
 > ```

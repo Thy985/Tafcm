@@ -48,12 +48,15 @@ Capability Taxonomy ✅ FROZEN（Layers/Families/Evidence Dimension）
 Cross-Family Reuse  ✅ PRELIMINARY VALIDATION
 Data Family         ✅ VALIDATED
 Runtime Family      🟡 Synthetic ✅ / Real Defect ❌（→ 本轮 PDF 推进了 Real 维度）
-Consumer Family     🟡 Verify ✅ / Full Golden Loop ✅（本轮 PDF 达成！）
+Consumer Family     🟡 REPRESENTATIVE_GOLDEN_LOOP_VALIDATED（PDF=full loop ✅ / Word=env+verify only）
 Behavior Family     ⏳ NOT YET VALIDATED
 E6/E8               ⏳ RELEASE-GATE
 ```
 
-> 本轮后 Consumer Family 的 Full Golden Loop 已通过 PDF 达成（见 ④）。
+> 本轮后 Consumer Family 获得 **代表性** Full Golden Loop 验证（由 PDF 达成，
+> 评审 §4 精确化）：PDF=FULL_GOLDEN_LOOP_VALIDATED；Word=ENVIRONMENT/VERIFY
+> VALIDATED（FULL_GOLDEN_LOOP PENDING，wpscli 环境就绪后）——
+> 不推导为「所有 Consumer capabilities 都已完成 Full Golden Loop」。
 
 ## 4. ④ PDF 首个 Real Defect Repair Loop（评审 §9 精神）
 
@@ -65,6 +68,13 @@ E6/E8               ⏳ RELEASE-GATE
   （formula_render_plan.dart sanitizeSvgString 空输入分支
   `return input` → `return 'x'`）——真实代码缺陷，非注入
 ```
+
+> **术语（评审 §3，2026-08-21）**：本轮方法更准确的概念是
+> **Controlled Real Defect Reproduction**——在真实产品代码中制造一个
+> 确定性的、可回滚的 defect state（非传统 fault injection）：
+> 真实代码 → 确定性失败 → 可回滚（Agent patch 恢复）→ 重新验证。
+> 此术语后续用于区分 Synthetic Loop（验证验证基础设施）与
+> Real Defect Loop（验证真实工程闭环）。
 
 ### 执行（完整 Golden Loop，不修改核心语义）
 

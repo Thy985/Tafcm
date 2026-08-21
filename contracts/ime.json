@@ -57,6 +57,7 @@
       "synthetic",
       "test_runtime"
     ],
-    "note": "Evidence Strength（评审 §7 冻结）：Synthetic<Test Runtime<Production Runtime<Physical Runtime<Visual<Human-confirmed；什么证据支持什么级别 PASS——artifact 存在 ≠ runtime render ≠ physical render ≠ visual fidelity"
+    "note": "Evidence Strength（评审 §2 修正）：policy-defined ordering（非普适全序——visual 与 human_confirmed 是 release policy 定义的最低证明能力阶梯，非天然 epistemic hierarchy）。achieved=实际获得的证据，minimum_required=release gate 要求（二者分离）。",
+    "minimum_required": "test_runtime"
   }
 }

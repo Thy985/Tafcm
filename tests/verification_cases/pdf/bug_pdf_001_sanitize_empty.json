@@ -1,0 +1,52 @@
+{
+  "case_id": "BUG-PDF-001",
+  "capability": "pdf",
+  "owner_capability": "formula",
+  "cross_capabilities": ["pdf", "formula", "word"],
+  "required_for": ["pdf"],
+  "defect_attribution": {
+    "owner": "shared_infrastructure/formula_rendering",
+    "owner_capability": "formula",
+    "affected_capabilities": ["pdf", "formula", "word"],
+    "cross_capabilities": ["pdf"],
+    "evidence_owner": "pdf",
+    "repair_target": "flutter_app/lib/domain/services/exporters/formula_render_plan.dart",
+    "repair_location": "sanitizeSvgString 空输入分支",
+    "note": "Real Defect Attribution（评审 §1，2026-08-21）：修改点属共享渲染基础设施
+             （formula_render_plan.dart），PDF 是检测/验证方（evidence_owner），
+             不得统计为「PDF 自有缺陷修复能力」——防止反向污染
+             （PDF 修好共享 renderer 被误记为 PDF 自有缺陷修复）"
+  },
+  "title": "sanitizeSvgString 空输入保真缺失（Controlled Real Defect Reproduction）",
+  "bug_type": "shared_renderer",
+  "description": "sanitizeSvgString 空输入应返回空字符串；回退为返回 'x' 导致
+                 「空字符串返回空」断言失败——真实产品代码确定性可回滚 defect state",
+  "reproduction_method": "Controlled Real Defect Reproduction（评审 §3）：回退真实
+                 product code 制造确定性可回滚 defect state（非 fault injection）",
+  "fix_summary": "恢复 sanitizeSvgString 空输入分支 return input",
+  "expected": {
+    "status": "fail",
+    "failure_type": "assertion_failure",
+    "signal": "no_failures check False（真实测试失败 1 项）"
+  },
+  "diagnostic_expected": true,
+  "repair_expected": true,
+  "regression_expected": true,
+  "verification": {
+    "loop_type": "REAL_DEFECT_REPAIR_LOOP",
+    "method": "回退 sanitizeSvgString 空输入分支 → ffx capability verify pdf",
+    "observed_before_fix": {
+      "status": "fail",
+      "failed_checks": ["no_failures"],
+      "test_failures": 1
+    },
+    "observed_after_fix": {
+      "status": "pass",
+      "target_failure": "RESOLVED",
+      "regression": "pass"
+    },
+    "run": "PHASE3.11-RUN-007",
+    "date": "2026-08-21"
+  },
+  "corpus_trigger": "flutter test test/formula_render_plan_test.dart（真实执行）"
+}
