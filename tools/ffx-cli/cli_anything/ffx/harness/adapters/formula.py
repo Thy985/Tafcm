@@ -94,15 +94,46 @@ class FormulaAdapter(CapabilityAdapter):
             "render_failures": render_failures,
             "render_failure_count": len(render_failures),
         }
+
+        # 3.11 F3 Runtime Real Defect Loop（2026-08-21）：除 ADI 观察外，
+        # 增加真实渲染测试执行（flutter test formula 相关）——回退真实渲染
+        # 产品代码（formula_renderer 等）→ 测试失败 → verify formula FAIL
+        # （Runtime evidence：非注入观察，Controlled Real Defect Reproduction）。
+        from .. import runtime_bridge
+
+        try:
+            rt = runtime_bridge.run_flutter_tests(
+                [
+                    "test/formula_extractor_test.dart",
+                    "test/formula_render_plan_test.dart",
+                ],
+                self._out_dir,
+            )
+            self._metrics["render_test_passed"] = rt.get("passed", 0)
+            self._metrics["render_test_failed"] = rt.get("failed", 0)
+            self._metrics["render_test_files"] = rt.get("files", 0)
+        except Exception as e:  # noqa: BLE001 — 测试执行失败登记 fail
+            self._metrics["render_test_failed"] = 1
+            self._metrics["render_test_error"] = str(e)
+
         graph.add(
             Evidence(
                 stage="execute",
-                tool="adi",
+                tool="adi+flutter-test",
                 exit_code=0 if not render_failures else 1,
-                summary=f"render_failures={len(render_failures)} latest={latest_obs.get('id') if latest_obs else None}",
+                summary=(
+                    f"render_failures={len(render_failures)} "
+                    f"latest={latest_obs.get('id') if latest_obs else None} "
+                    f"render_tests_passed={self._metrics.get('render_test_passed', 0)} "
+                    f"failed={self._metrics.get('render_test_failed', 0)}"
+                ),
                 detail={
                     "capability": self.id,
                     "render_failures": render_failures[:5],
+                    "render_tests": {
+                        "passed": self._metrics.get("render_test_passed", 0),
+                        "failed": self._metrics.get("render_test_failed", 0),
+                    },
                 },
             )
         )
@@ -126,8 +157,12 @@ class FormulaAdapter(CapabilityAdapter):
         adi_required = bool(policy.get("adi_binding_required", True))
 
         failures = self._metrics.get("render_failures", [])
+        # 3.11 F3 Runtime：渲染测试 check（真实代码缺陷检测——flutter test
+        # formula 相关失败 → fail，Runtime evidence 非注入观察）
+        render_test_failed = int(self._metrics.get("render_test_failed", 0))
         checks = {
             "no_adi_render_failure": len(failures) <= render_error_max,
+            "no_render_test_failures": render_test_failed == 0,
             "render_observable": (
                 not adi_required
                 or self._metrics.get("latest_observation") is not None

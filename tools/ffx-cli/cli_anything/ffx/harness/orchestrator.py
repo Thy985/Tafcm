@@ -319,18 +319,47 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
             "persistent_failures": persistent_failures,
         }
     # 3.11.5 repair result 语义（评审 §3）：Repair Success ≠ Capability Clean。
-    # 3.11.6 target_failure 四态冻结（评审 §5）：unknown→pass 不应压成 PERSISTENT——
-    #   RESOLVED    before 有 failure，after 无
-    #   PERSISTENT  before 有 failure，after 仍有
+    # 3.11.6 target_failure 四态冻结（评审 §5）：
+    #   RESOLVED    before 有 target failure，after 无
+    #   PERSISTENT  before 有 target failure，after 仍有
     #   NOT_OBSERVED before 无可确认 target failure，after 通过
     #   INTRODUCED  before 无 target，after 新出现（本次引入）
-    before_failed = before.get("status") == "failed"
-    if not before_failed:
+    # 3.11 F3 Runtime 精度修正（2026-08-21）：target_failure 基于「本次新增
+    # failed checks 的恢复情况」——before 的 failed checks 可能混合既有
+    # baseline（formula 的 ADI 观察）与本次缺陷（latex 截断）；既有 checks
+    # 从同 capability 历史 failure records 反推，target = before failed − 既有。
+    before_checks = (before.get("coverage") or {}).get("checks", {}) or {}
+    before_failed = {k for k, v in before_checks.items() if v is False}
+
+    # 既有 failed checks：同 capability 历史 failure records（排除当前 record）
+    historical: set[str] = set()
+    try:
+        for fid in failure_mod.list_failures():
+            if fid == failure_id:
+                continue
+            try:
+                rec = failure_mod.load_failure(fid)
+            except Exception:  # noqa: BLE001
+                continue
+            if rec.get("capability") != capability:
+                continue
+            bc = ((rec.get("before") or {}).get("coverage") or {}).get("checks", {}) or {}
+            historical.update(k for k, v in bc.items() if v is False)
+    except Exception:  # noqa: BLE001 — failures 目录不可读
+        historical = set()
+
+    target_checks = before_failed - historical  # 本次新增缺陷的 failed checks
+    after_checks = (report.get("coverage") or {}).get("checks", {}) or {}
+    if not target_checks:
+        # before 无可确认本次 target（全为既有/无失败）→ 看 after 是否引入新失败
         target_failure = "NOT_OBSERVED" if after_status != "fail" else "INTRODUCED"
-    elif after_status == "pass":
-        target_failure = "RESOLVED"
     else:
-        target_failure = "PERSISTENT"
+        recovered = [k for k in target_checks if after_checks.get(k) is not False]
+        target_failure = (
+            "RESOLVED"
+            if len(recovered) == len(target_checks)
+            else "PERSISTENT"
+        )
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
