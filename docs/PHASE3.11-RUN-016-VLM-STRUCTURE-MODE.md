@@ -192,6 +192,30 @@ FFX_E8_VLM_BACKEND=none ffx --json capability verify formula
 
 > VLM 端到端验证需要云端/本地后端配好，本会话未跑（用户未定 VLM 路线）；adapter 已接通（formula.py visual_check → _structure_check → e8_vlm.backend_chain 顺序），只需 `FFX_E8_VLM_BACKEND` 指向可用后端即可在 CI / 真机验证中复用。
 
+### 5.6 contracts/formula.json evidence_strength 升级（真机 4/4 PASS 落地）
+
+真机 4/4 PASS 满足 `minimum_required=physical_device_runtime`，落地升级 `achieved`：
+
+| 字段 | 升级前 | 升级后 |
+|---|---|---|
+| `evidence_strength.achieved` | `[synthetic, virtual_device_runtime]` | `[synthetic, virtual_device_runtime, physical_device_runtime]` |
+| `evidence_strength.minimum_required` | `physical_device_runtime`（未满足）| `physical_device_runtime` ✅ 满足 |
+| 可继续升级 | visual / human_confirmed | 待 SSIM/感知距离管线 + 人工复核 |
+
+**evidence_strength 枚举语义保持**：synthetic < test_runtime < virtual_device_runtime < physical_device_runtime < visual < human_confirmed ——真机 ≠ 视觉 ≠ 人工，不可跳跃。升级不偷换语义、不混入更高证据等级。
+
+**contract_sync 校验**：
+```
+ffx analyze contract-sync
+contract sync: status=ok
+contracts: ['autosave', 'block', 'file', 'formula', 'ime', 'markdown', 'pdf', 'serializer', 'theme', 'undo', 'word']
+warnings: (s0 边界警告，无回归)
+```
+
+**测试回归**：170 passed / 1 skipped（与升级前完全一致，零回归）。
+
+**Git evidence**：commit `309666b`（真机 4/4 PASS 语料 + 报告 §5.4）作为升级依据入 contract note。
+
 ---
 
 ## 6. parser 修复（RUN-016 暴露的既有缺陷）

@@ -60,9 +60,10 @@
     ],
     "achieved": [
       "synthetic",
-      "virtual_device_runtime"
+      "virtual_device_runtime",
+      "physical_device_runtime"
     ],
-    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。physical_device_runtime 已达到（RUN-015 E8 OCR 接线 + RUN-016 E8 结构模式 + 真机 commit 309666b 在 63cfc8cf zorn / Android 16 / API 36 上 4/4 PASS：emc² / frac{a}{b} / x_1^2 / pmatrix a,b,c,d ——模拟器与真机视觉内容仅 displayMode 公式可用宽度差 ~93%，结构识别完全一致，无语义偷换）。minimum_required 满足（不可升级到 visual/human_confirmed；需视觉 SSIM/感知距离管线 + 人工复核）。",
     "minimum_required": "physical_device_runtime"
   }
 }
