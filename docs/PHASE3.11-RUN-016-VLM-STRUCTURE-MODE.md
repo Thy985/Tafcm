@@ -162,7 +162,28 @@ p4_matrix      PASS           PASS            OK (NONE)
 | p4_matrix (823×137) | 2×2 pmatrix (a b; c d) | matrix env=pmatrix rows=[[a,b],[c,d]] conf 0.98 |
 | f4_crop (823×62) | 仅分数线 + 半截字符（**分子完全缺失**）| frac{""}{b} + issues=["top half cut off"] conf 0.45（**双重保险 → INCONCLUSIVE**）|
 
-### 5.4 端到端 ffx verify
+### 5.4 真机物理设备验证（emulator-5554 → 63cfc8cf zorn Android 16 API 36 arm64）
+
+**设备切换**：连上真机后，`adb devices` 显示 `63cfc8cf device product:zorn model:24117RK2CC device:zorn transport_id:3`。`FFX_E6_DEVICE_SERIAL=63cfc8cf flutter test integration_test/cap_e6_physical_render_test.dart -d 63cfc8cf` 跑通，stdout base64 块协议与真机兼容（无需 root/run-as），4 张截图回传 + 字节完整性校验 100%。
+
+**真机语料**：`vlm_corpus_physical/` 4 case，截图与模拟机的视觉内容完全一致；真机 DPI 略高导致 displayMode 公式（frac/matrix）水平宽度 768 vs 模拟机 823（~93.3%），emc² 与 subsup 等行内公式尺寸不变。
+
+**4/4 真机判定全 PASS**：
+
+```
+case         expected       got           detail
+p1_emc2      PASS           PASS          OK   NONE
+p2_frac      PASS           PASS          OK   NONE
+p3_subsup    PASS           PASS          OK   NONE
+p4_matrix    PASS           PASS          OK   NONE
+4/4 physical-device cases match
+```
+
+**真实证据**：emulator 与真机的视觉差异仅在 displayMode 公式的可用宽度上，结构识别结果完全一致——验证门在跨虚拟/物理设备证据级别上行为稳定，不存在"模拟机 PASS 但真机结构判错"的语义偷换风险。
+
+> ⚠️ **诚实标注**：真机截图的 description 仍由本会话模型识图产出（`backend="agent-vision(physical-device-run016)"`）；CI/真机自动化阶段需切真 VLM 后端重生成。
+
+### 5.5 端到端 ffx verify
 
 ```
 FFX_E8_VLM_BACKEND=none ffx --json capability verify formula

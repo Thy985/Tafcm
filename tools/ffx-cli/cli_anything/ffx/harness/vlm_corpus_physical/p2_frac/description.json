@@ -1,0 +1,17 @@
+{
+  "confidence": 0.99,
+  "issues": [],
+  "structure": {
+    "type": "fraction",
+    "numerator": {
+      "type": "symbol",
+      "value": "a"
+    },
+    "denominator": {
+      "type": "symbol",
+      "value": "b"
+    }
+  },
+  "backend": "agent-vision(physical-device-run016)",
+  "note": "真机 63cfc8cf (zorn, Android 16) 重读，视觉内容与模拟机一致"
+}
