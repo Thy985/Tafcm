@@ -78,6 +78,9 @@ final appRouter = GoRouter(
       path: '/editor-legacy',
       builder: (context, state) {
         final openPath = state.extra as String?;
+        // DEBT-035：EditorScreen 已标 @Deprecated（WYSIWYG 迁移），
+        // fallback 路由是保留期内唯一合法引用，忽略 deprecation 警告。
+        // ignore: deprecated_member_use_from_same_package
         return EditorScreen(initialPath: openPath);
       },
     ),

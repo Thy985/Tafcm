@@ -20,6 +20,11 @@ import '../widgets/export_menu.dart';
 import '../widgets/template_selector.dart';
 import '../widgets/preview_content.dart';
 
+/// legacy 单 TextField 编辑器（DEBT-035）。
+///
+/// 被 [EditorPage]（WYSIWYG）取代，经 `/editor-legacy` fallback 路由保留一个
+/// release 周期（见 app_router.dart / editor_app_bar.dart）。迁移期结束后移除。
+@Deprecated('legacy 编辑器：被 EditorPage (WYSIWYG) 取代；仅经 /editor-legacy fallback 路由使用')
 class EditorScreen extends ConsumerStatefulWidget {
   final String? initialPath;
 
