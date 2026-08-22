@@ -1,0 +1,4 @@
+{
+  "expected_latex": "\\frac{b}{a}",
+  "expect_status": "FAIL"
+}

@@ -34,9 +34,14 @@ CONTRACT_PATH = Path(__file__).resolve().parents[5] / "contracts" / "formula.jso
 
 @pytest.fixture(autouse=True)
 def _isolate_backends(monkeypatch):
-    """清空后端注册表与强制环境变量——测试互不影响、不触真实模型。"""
+    """清空后端注册表与强制环境变量——测试互不影响、不触真实模型。
+
+    同时禁用 VLM 后端链（FFX_E8_VLM_BACKEND=none），避免视觉路径默认
+    触发 Qwen2-VL 加载与 HF 联网下载。
+    """
     monkeypatch.setattr(e8_vision, "_BACKENDS", {})
     monkeypatch.delenv(e8_vision._FORCED_ENV, raising=False)
+    monkeypatch.setenv("FFX_E8_VLM_BACKEND", "none")
 
 
 def _png(tmp_path: Path) -> str:

@@ -29,6 +29,8 @@ import 'package:integration_test/integration_test.dart';
 
 final GlobalKey _kEmc2 = GlobalKey();
 final GlobalKey _kFrac = GlobalKey();
+final GlobalKey _kSubSup = GlobalKey();
+final GlobalKey _kMatrix = GlobalKey();
 
 /// 截图单个 RepaintBoundary → PNG → base64 块回传（含 latex 元数据）。
 Future<void> _capture(GlobalKey key, String fileName, String latex) async {
@@ -92,6 +94,24 @@ void main() {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                RepaintBoundary(
+                  key: _kSubSup,
+                  child: FormulaRenderer(
+                    element: const FormulaElement(latex: r'x_1^2'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                RepaintBoundary(
+                  key: _kMatrix,
+                  child: FormulaRenderer(
+                    element: const FormulaElement(
+                      // RUN-016：矩阵正例语料（2×2 列向量排布）
+                      latex: r'\begin{pmatrix}a&b\\c&d\end{pmatrix}',
+                      displayMode: true,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -103,9 +123,9 @@ void main() {
     // 结构断言：公式渲染成功（physical runtime 真实绘制，非 headless 单测）
     // 注意：公式经 WebView/SVG/flutter_math_fork 渲染为图形——不用文本断言
     // （find.textContaining 不适用于图形公式），用渲染树完成绘制 + 尺寸非零。
-    expect(find.byType(FormulaRenderer), findsNWidgets(2),
-        reason: '两个公式元素都应渲染');
-    for (final key in [_kEmc2, _kFrac]) {
+    expect(find.byType(FormulaRenderer), findsNWidgets(4),
+        reason: '四个公式元素都应渲染');
+    for (final key in [_kEmc2, _kFrac, _kSubSup, _kMatrix]) {
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       expect(boundary.debugNeedsPaint, false, reason: '渲染树应完成绘制');
@@ -116,5 +136,8 @@ void main() {
     // 截图：逐公式 RepaintBoundary → PNG base64 回传（Observed）+ latex 同步
     await _capture(_kEmc2, 'e6_formula_emc2.png', r'E = mc^2');
     await _capture(_kFrac, 'e6_formula_frac.png', r'\frac{a}{b}');
+    await _capture(_kSubSup, 'e6_formula_subsup.png', r'x_1^2');
+    await _capture(
+        _kMatrix, 'e6_formula_matrix.png', r'\begin{pmatrix}a&b\\c&d\end{pmatrix}');
   });
 }

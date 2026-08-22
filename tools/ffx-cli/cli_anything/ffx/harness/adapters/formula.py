@@ -21,7 +21,10 @@ from typing import Any
 
 from ..contract import repo_root
 from ..e8_evaluator import evaluate as e8_evaluate
+from ..e8_structure import evaluate_structure as e8_evaluate_structure
 from ..e8_vision import extract_with_provenance
+from ..e8_vlm import backend_chain as vlm_backend_chain
+from ..e8_vlm import describe_structure as vlm_describe_structure
 from ..evidence import Evidence, EvidenceGraph
 from .base import CapabilityAdapter
 
@@ -348,24 +351,40 @@ class FormulaAdapter(CapabilityAdapter):
             return data or None
         return None
 
+    def _structure_check(self, screenshot: str, expected: str) -> tuple[dict[str, Any], bool]:
+        """RUN-016 结构模式：VLM 结构化描述 → 确定性三态判定。
+
+        返回 (result, infra_failure)。infra_failure=True 仅表示 VLM 后端
+        本身不可用（加载失败/异常）——调用方回退 OCR 链；感知性
+        INCONCLUSIVE（低置信/截断/非 JSON 输出）不是基础设施故障，
+        保持诚实不回退。
+        """
+        desc = vlm_describe_structure(screenshot)
+        result = json.loads(e8_evaluate_structure(expected, desc))
+        result["mode"] = "vlm_structure"
+        issues = [str(i) for i in (desc.get("issues") or [])]
+        infra = any(i.startswith("vision backend error") for i in issues)
+        return result, infra
+
     def visual_check(
         self,
         expected_latex: str | list[str] | None = None,
         screenshot_path: str | None = None,
     ) -> dict[str, Any] | None:
-        """E8 视觉语义验证（RUN-015 FFX verify 接线）。
+        """E8 视觉语义验证（RUN-015 接线 / RUN-016 结构模式优先）。
 
-        截图 + Expected LaTeX → e8_evaluator.evaluate()（真实视觉提取 →
-        AST Diff → 严格 JSON），聚合逐公式判定：
+        优先走 VLM 结构化路线（模型描述结构 → evaluator 确定性三态，
+        模型只感知不判定）；VLM 被禁用或基础设施故障时回退 OCR 链
+        （pix2tex → LaTeX 字符串 → AST Diff）。聚合逐公式判定：
 
             {status, error_type, backend, mode, screenshot_count, results}
 
         - expected_latex 缺省取 E6 runner 回传的逐公式 latex（与
           cap_e6_physical_render_test.dart 单一真相源）；
-        - screenshot_path 缺省取 metrics.e6_screenshots（adb 拉取的 host PNG）；
+        - screenshot_path 缺省取 metrics.e6_screenshots（host PNG）；
         - 前置缺失（无截图 / 无 latex）返回 None——登记 evidence gap，
-          不伪造判定；调用方（evaluate checks）只对 FAIL 判 fail，
-          ERROR 记 inconclusive（ADR-0030 视觉未判定语义）。
+          不伪造判定；FAIL → verify fail；ERROR / INCONCLUSIVE → unknown →
+          warn（ADR-0030 视觉未判定语义，非产品失败）。
         """
         shots = self._metrics.get("e6_screenshots") or []
         if screenshot_path is not None:
@@ -381,31 +400,59 @@ class FormulaAdapter(CapabilityAdapter):
 
         results: list[dict[str, Any]] = []
         backend: str | None = None
+        vlm_enabled = bool(vlm_backend_chain())
         for shot, exp in zip(shots, expected):
             local = shot.get("local_path") if isinstance(shot, dict) else shot
             if not exp or not local:
                 continue  # 前置缺失 → evidence gap（不伪造该公式判定）
-            observed, backend_name = extract_with_provenance(str(local))
-            backend = backend or backend_name
-            raw = e8_evaluate(
-                expected_latex=str(exp),
-                screenshot_path=str(local),
-                observed_latex=observed,
-            )
-            item = json.loads(raw)
+            item: dict[str, Any] | None = None
+            if vlm_enabled:
+                item, infra = self._structure_check(str(local), str(exp))
+                if infra:
+                    # 后端不可用 → OCR 兜底；在结果里如实登记降级路径
+                    item = {
+                        "status": "INCONCLUSIVE",
+                        "error_type": "VISION_EXTRACTION_FAILED",
+                        "note": "vlm backend unavailable, fell back to OCR chain",
+                        "mode": "ocr_fallback_from_vlm_infra",
+                    }
+            if item is not None and item.get("mode") == "ocr_fallback_from_vlm_infra":
+                observed, backend_name = extract_with_provenance(str(local))
+                backend = backend or backend_name
+                raw = e8_evaluate(
+                    expected_latex=str(exp),
+                    screenshot_path=str(local),
+                    observed_latex=observed,
+                )
+                ocr_item = json.loads(raw)
+                ocr_item["mode"] = "real_vision_ocr_fallback"
+                ocr_item["vlm_infra_note"] = item.get("note")
+                item = ocr_item
+            elif item is None:
+                # VLM 被禁用（FFX_E8_VLM_BACKEND=none）→ 直接 OCR 链
+                observed, backend_name = extract_with_provenance(str(local))
+                backend = backend or backend_name
+                raw = e8_evaluate(
+                    expected_latex=str(exp),
+                    screenshot_path=str(local),
+                    observed_latex=observed,
+                )
+                item = json.loads(raw)
+                item["mode"] = "real_vision"
+            backend = backend or item.get("backend")
             item["screenshot"] = str(local)
             results.append(item)
 
         if not results:
             return None
 
-        rank = {"PASS": 0, "FAIL": 1, "ERROR": 2}
+        rank = {"PASS": 0, "FAIL": 1, "ERROR": 2, "INCONCLUSIVE": 2}
         worst = max(results, key=lambda r: rank.get(r.get("status", "ERROR"), 2))
         return {
             "capability": self.id,
             "check": "e8_visual_semantic",
-            "mode": "real_vision",
-            "backend": backend,
+            "mode": worst.get("mode", "vlm_structure"),
+            "backend": backend or worst.get("backend"),
             "status": worst.get("status"),
             "error_type": worst.get("error_type"),
             "screenshot_count": len(results),

@@ -1,0 +1,20 @@
+{
+  "backend": "agent-vision(run016-calibration)",
+  "note": "agent 校准描述——低置信 + blocking issue 触发 INCONCLUSIVE",
+  "confidence": 0.45,
+  "issues": [
+    "top half of formula is cut off, numerator not visible",
+    "only denominator partially visible below the fraction bar"
+  ],
+  "structure": {
+    "type": "fraction",
+    "numerator": {
+      "type": "symbol",
+      "value": ""
+    },
+    "denominator": {
+      "type": "symbol",
+      "value": "b"
+    }
+  }
+}

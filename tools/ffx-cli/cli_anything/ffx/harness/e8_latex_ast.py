@@ -11,19 +11,25 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Token:
-    kind: str  # 'cmd' | 'lbrace' | 'rbrace' | 'caret' | 'underscore' | 'sym' | 'amp' | 'bslash' | 'env_begin' | 'env_end'
+    kind: str  # 'cmd' | 'lbrace' | 'rbrace' | 'caret' | 'underscore' | 'sym' | 'amp' | 'row_sep' | 'env_begin' | 'env_end'
     value: str
     pos: int
 
 
 def _tokenize(latex: str) -> list[Token]:
-    r"""LaTeX 词法：\command / { } / ^ / _ / & / 普通符号（含 + - = 数字字母）。"""
+    r"""LaTeX 词法：\command / { } / ^ / _ / & / \\（行分隔）/ 普通符号。"""
     toks: list[Token] = []
     i = 0
     n = len(latex)
     while i < n:
         c = latex[i]
         if c == "\\":
+            # \\ = 矩阵/对齐环境的行分隔符（必须先于单反斜杠命令判断，
+            # 否则第二个反斜杠会和后续字母粘连成命令，如 \\c → \c）
+            if i + 1 < n and latex[i + 1] == "\\":
+                toks.append(Token("row_sep", "\\\\", i))
+                i += 2
+                continue
             # \command（字母序列）或 \frac 等
             j = i + 1
             while j < n and latex[j].isalpha():
@@ -67,7 +73,7 @@ class _Parser:
         items: list[dict] = []
         while True:
             t = self.peek()
-            if t is None or t.kind in ("rbrace", "amp"):
+            if t is None or t.kind == "rbrace":
                 break
             if t.kind == "cmd":
                 self.next()
@@ -86,6 +92,14 @@ class _Parser:
             elif t.kind == "sym":
                 self.next()
                 items.append({"type": "sym", "value": t.value})
+            elif t.kind == "amp":
+                # RUN-016：& 不再截断序列（原实现遇 & 直接 break，矩阵列
+                # 内容全部丢失）——作为普通符号节点进入序列，供矩阵比对
+                self.next()
+                items.append({"type": "sym", "value": "&"})
+            elif t.kind == "row_sep":
+                # 行分隔符：结构比对两侧都不保留行边界信息，直接跳过
+                self.next()
             else:
                 self.next()  # 容错跳过未知 token
         if len(items) == 1:
@@ -129,8 +143,26 @@ class _Parser:
             rad = self._parse_group_or_sym()
             return {"type": "root", "index": index, "radicand": rad}
         if name in ("begin", "end"):
-            env = self.next()
-            env_name = env.value if env else "?"
+            # \begin{pmatrix}：环境名在花括号组内（tokenizer 把组拆成
+            # lbrace + 符号序列 + rbrace），拼接符号还原环境名。
+            # （RUN-016 修复：原实现直接 next() 取到的是 lbrace，env 恒为 '{'）
+            env_chars: list[str] = []
+            nxt = self.peek()
+            if nxt is not None and nxt.kind == "lbrace":
+                self.next()
+                while True:
+                    t2 = self.peek()
+                    if t2 is None or t2.kind == "rbrace":
+                        break
+                    self.next()
+                    if t2.kind == "sym":
+                        env_chars.append(t2.value)
+                    elif t2.kind == "cmd":
+                        env_chars.append(f"\\{t2.value}")
+                    else:
+                        env_chars.append(t2.value)
+                self._expect("rbrace")
+            env_name = "".join(env_chars) or "?"
             if name == "begin":
                 return {"type": "env_begin", "env": env_name}
             return {"type": "env_end", "env": env_name}
@@ -167,6 +199,41 @@ def parse_latex(latex: str) -> dict:
     ast = p.parse_seq()
     if ast is None:
         raise ValueError("empty ast")
+    return ast
+
+
+def canonicalize_expected(ast: dict) -> dict:
+    """规范化 parse_latex 输出，使其与视觉结构 coerce 表示逐点对齐。
+
+    RUN-016：tokenizer 把矩阵换行符 \\\\ 解析为两个空命令（sym "\\"），
+    而视觉侧的矩阵展开没有行分隔概念——比对前剥掉这些行分隔符节点，
+    使 expected 与 coerce 的矩阵形状一致（行边界信息两侧都不保留，
+    单元格仍按位置逐一比对）。
+    """
+    t = ast.get("type")
+    if t == "seq":
+        items = [canonicalize_expected(x) for x in ast.get("items", [])]
+        items = [
+            x
+            for x in items
+            if not (x.get("type") == "sym" and x.get("value") == "\\")
+        ]
+        return {"type": "seq", "items": items}
+    if t == "frac":
+        return {
+            "type": t,
+            "num": canonicalize_expected(ast.get("num", {})),
+            "den": canonicalize_expected(ast.get("den", {})),
+        }
+    if t in ("sup", "sub"):
+        return {"type": t, "value": canonicalize_expected(ast.get("value", {}))}
+    if t == "root":
+        index = ast.get("index")
+        return {
+            "type": t,
+            "index": canonicalize_expected(index) if index else index,
+            "radicand": canonicalize_expected(ast.get("radicand", {})),
+        }
     return ast
 
 
