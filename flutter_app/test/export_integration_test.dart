@@ -6,8 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/parser/markdown_parser.dart';
 import 'package:formula_fix/domain/services/export_service.dart';
 import 'package:formula_fix/data/models/document.dart';
+import 'package:formula_fix/domain/services/exporters/pdf_exporter.dart';
 
 void main() {
+  setUp(() {
+    // DEBT-016：清空 CJK 字体静态缓存，避免跨测试用例污染
+    //（测试 A 触发加载失败 → 30 秒内测试 B 拿不到字体）
+    PdfExporter.clearCjkFontCache();
+  });
+
   group('MarkdownExporter 集成测试', () {
     group('PDF 导出', () {
       test('导出简单文本', () async {

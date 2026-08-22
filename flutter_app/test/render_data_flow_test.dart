@@ -18,6 +18,7 @@ import 'package:formula_fix/core/services/formula_svg_service.dart';
 import 'package:formula_fix/core/services/mermaid_service.dart';
 import 'package:formula_fix/data/models/document.dart';
 import 'package:formula_fix/domain/services/export_service.dart';
+import 'package:formula_fix/domain/services/exporters/pdf_exporter.dart';
 
 void main() {
   setUp(() {
@@ -25,6 +26,7 @@ void main() {
     FormulaPdfRenderer.clearCache();
     FormulaSvgService.clearCache();
     MermaidService.clearCache();
+    PdfExporter.clearCjkFontCache();
   });
 
   group('Fix 1: isDark 透传到 exportToWord 路径', () {
