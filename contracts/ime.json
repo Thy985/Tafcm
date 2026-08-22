@@ -2,13 +2,63 @@
   "id": "FEAT-IME",
   "capability": "ime",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "composing_guard"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "composing_guard"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
-  "s0_unsupported": ["real_soft_keyboard_ime"],
-  "note": "ime 能力：复用既有测试资产（integration_test/cap_ime_composing + editing composing 测试）；真实软键盘 IME 为 s0 声明边界（模拟器 TestTextInput 已验证 composing 序列）。"
+  "s0_unsupported": [
+    "real_soft_keyboard_ime"
+  ],
+  "note": "ime 能力：复用既有测试资产（integration_test/cap_ime_composing + editing composing 测试）；真实软键盘 IME 为 s0 声明边界（模拟器 TestTextInput 已验证 composing 序列）。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "required",
+    "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "composing_guard",
+      "ime_sequence"
+    ],
+    "optional": [],
+    "unsupported": [
+      "real_soft_keyboard_ime"
+    ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic",
+      "test_runtime"
+    ],
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
+    "minimum_required": "test_runtime"
+  }
 }

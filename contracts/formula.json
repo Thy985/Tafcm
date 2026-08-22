@@ -21,5 +21,49 @@
     "mermaid_renderer_headless",
     "real_llm_agent"
   ],
-  "note": "formula 能力（最小版，D4）：RenderOverflow / 公式渲染失败需可被 verify 衔接 ADI 证据链。执行阶段读 .adi/observations/ 最新错误观察（RenderOverflow 等），验证 FFX 能把产品失败连接到 ADI（latest-error → trace-show → replay 链路）。s0 声明：headless 渲染器（测试环境无 WebView）与 Real LLM agent 为边界。完整公式渲染 corpus 验证需 render runner（3.10.3 后续轮）。"
+  "note": "formula 能力（最小版，D4）：RenderOverflow / 公式渲染失败需可被 verify 衔接 ADI 证据链。执行阶段读 .adi/observations/ 最新错误观察（RenderOverflow/SvgParse/FormulaSvg 等），验证 FFX 能把产品失败连接到 ADI（latest-error → trace-show → replay 链路）。s0 声明：headless 渲染器（测试环境无 WebView）与 Real LLM agent 为边界。完整公式渲染 corpus 验证需 render runner（3.11.4 后续轮）。Failure B（视觉失败，评审 §6 设计）：公式结构存在但截图分式/上下标错误 = Artifact/Runtime PASS + Visual FAIL——需 E6 physical runtime + E8 visual fidelity 证据（当前 evidence_profile E6=release-gate，headless 渲染器 s0）→ 登记 Release Gate：真机/截图环境就绪后执行视觉回归（screenshot → 像素/结构比对 → 不因 SVG 文件存在而宣布 PASS）。Loop 类型（评审 §6）：Run-004 为 Synthetic Failure Loop（注入观察证明 failure identity 识别/清除闭环）；Real Defect Repair Loop（Agent 修复真实 SVG parser/render pipeline 产品缺陷：reproduce → observe → fingerprint → diagnose → code fix → rebuild → rerun → evidence delta → regression）登记下一阶段。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "release-gate"
+  },
+  "support_policy": {
+    "required": [
+      "render_observable",
+      "no_adi_render_failure"
+    ],
+    "optional": [],
+    "unsupported": [
+      "mermaid_renderer_headless",
+      "real_llm_agent"
+    ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic",
+      "virtual_device_runtime",
+      "physical_device_runtime"
+    ],
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。physical_device_runtime 已达到（RUN-015 E8 OCR 接线 + RUN-016 E8 结构模式 + 真机 commit 309666b 在 63cfc8cf zorn / Android 16 / API 36 上 4/4 PASS：emc² / frac{a}{b} / x_1^2 / pmatrix a,b,c,d ——模拟器与真机视觉内容仅 displayMode 公式可用宽度差 ~93%，结构识别完全一致，无语义偷换）。minimum_required 满足（不可升级到 visual/human_confirmed；需视觉 SSIM/感知距离管线 + 人工复核）。",
+    "minimum_required": "physical_device_runtime"
+  }
 }

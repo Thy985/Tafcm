@@ -1,0 +1,4 @@
+{
+  "expected_latex": "\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}",
+  "expect_status": "PASS"
+}

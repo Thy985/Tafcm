@@ -25,5 +25,53 @@
     "indented_code",
     "raw_html_块"
   ],
-  "note": "serializer 能力复用 runner 的 round-trip 指标（parse→serialize→parse 收敛）；与 markdown 共享同一 runner，但 required_checks 聚焦序列化保真（serialize / roundtrip / no_parse_error）——跨能力回归对比的第 2 个 capability。"
+  "note": "serializer 能力复用 runner 的 round-trip 指标（parse→serialize→parse 收敛）；与 markdown 共享同一 runner，但 required_checks 聚焦序列化保真（serialize / roundtrip / no_parse_error）——跨能力回归对比的第 2 个 capability。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "conditional"
+  },
+  "support_policy": {
+    "required": [
+      "serialize",
+      "roundtrip",
+      "no_parse_error"
+    ],
+    "optional": [],
+    "unsupported": [
+      "autolink",
+      "footnote",
+      "definition_list",
+      "indented_code",
+      "raw_html_块"
+    ]
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime"
+    ],
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
+    "minimum_required": "production_runtime"
+  }
 }

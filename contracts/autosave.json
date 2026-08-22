@@ -2,13 +2,58 @@
   "id": "FEAT-AUTOSAVE",
   "capability": "autosave",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "storage_single_source"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "storage_single_source"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
   "s0_unsupported": [],
-  "note": "autosave 能力：复用既有测试资产（integration_test/phase34_autosave*）；.md 单一真相源（ADR-0003）为契约约束。"
+  "note": "autosave 能力：复用既有测试资产（integration_test/phase34_autosave*）；.md 单一真相源（ADR-0003）为契约约束。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "required",
+    "E6": "required"
+  },
+  "support_policy": {
+    "required": [
+      "autosave_persistence",
+      "storage_single_source"
+    ],
+    "optional": [],
+    "unsupported": []
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic"
+    ],
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
+    "minimum_required": "test_runtime"
+  }
 }

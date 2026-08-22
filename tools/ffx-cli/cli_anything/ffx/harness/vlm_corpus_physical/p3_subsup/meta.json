@@ -1,0 +1,6 @@
+{
+  "expected_latex": "x_1^2",
+  "expect_status": "PASS",
+  "source": "physical_device_runtime",
+  "device": "63cfc8cf (zorn, Android 16, API 36, arm64)"
+}

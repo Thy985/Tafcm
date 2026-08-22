@@ -1,6 +1,9 @@
 {
   "case_id": "BUG-001",
   "capability": "markdown",
+  "owner_capability": "markdown",
+  "cross_capabilities": ["serializer"],
+  "required_for": ["markdown", "serializer"],
   "title": "hard_break_lost_in_multiline_paragraph",
   "bug_type": "parser",
   "description": "多行段落合并时丢失行间硬换行（'\\n' 未保留），parse→serialize→parse round-trip 结构不一致",

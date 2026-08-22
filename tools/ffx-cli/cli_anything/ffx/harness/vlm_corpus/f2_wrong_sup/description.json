@@ -1,0 +1,37 @@
+{
+  "backend": "agent-vision(run016-calibration)",
+  "note": "reuses agent (会话内识图) 校准描述——不进入 CI 自动化回归; fault injected via expected_latex mismatch",
+  "confidence": 0.97,
+  "issues": [],
+  "structure": {
+    "type": "sequence",
+    "items": [
+      {
+        "type": "symbol",
+        "value": "x"
+      },
+      {
+        "type": "subscript",
+        "base": {
+          "type": "symbol",
+          "value": "x"
+        },
+        "index": {
+          "type": "symbol",
+          "value": "1"
+        }
+      },
+      {
+        "type": "superscript",
+        "base": {
+          "type": "symbol",
+          "value": "x"
+        },
+        "exponent": {
+          "type": "symbol",
+          "value": "2"
+        }
+      }
+    ]
+  }
+}

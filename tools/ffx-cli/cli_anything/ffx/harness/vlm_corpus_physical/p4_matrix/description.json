@@ -1,0 +1,32 @@
+{
+  "confidence": 0.98,
+  "issues": [],
+  "structure": {
+    "type": "matrix",
+    "environment": "pmatrix",
+    "rows": [
+      [
+        {
+          "type": "symbol",
+          "value": "a"
+        },
+        {
+          "type": "symbol",
+          "value": "b"
+        }
+      ],
+      [
+        {
+          "type": "symbol",
+          "value": "c"
+        },
+        {
+          "type": "symbol",
+          "value": "d"
+        }
+      ]
+    ]
+  },
+  "backend": "agent-vision(physical-device-run016)",
+  "note": "真机 63cfc8cf (zorn, Android 16) 重读，视觉内容与模拟机一致"
+}

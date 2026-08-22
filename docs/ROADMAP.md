@@ -741,7 +741,8 @@ Coalescing / Focus / IME（editor）。每例登记
 
 ## Phase 3.11：FormulaFix Capability Hardening Loop（能力加固循环）
 
-> **状态**：⏳ 规划（2026-08-20，Phase 3.10 G0-G12 Final Gate 通过后开启）
+> **状态**：✅ **已关闭（PHASE_3_11_EXIT，2026-08-22 Owner 判定通过）**
+> 开启时间：2026-08-20（Phase 3.10 G0-G12 Final Gate 通过后）
 > **边界**：Phase 3.10 验证「验证系统本身」（FFX Orchestrator 闭环验收 ✅）；
 > **Phase 3.11 用已建成的 Agent Verification Harness 系统性清算 FormulaFix
 > 剩余能力与技术债**——不是「测试阶段」，是「逐个能力加固循环」。
@@ -775,20 +776,92 @@ Capability Baseline 更新（Matrix S 级推进）
 
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
-| 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ⏳ |
-| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | ⏳ |
-| 3.11.3 | **Serializer 加固**：同上循环 | P1 | ⏳ |
-| 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus | P1 | ⏳ |
-| 3.11.5 | **Word/PDF 加固**：word 全链路（输入 md→导出→消费端）+ PDF 渲染 | P1 | ⏳ |
-| 3.11.6 | **Undo/IME/Theme/File/Autosave/Block 加固**：逐个能力循环（3.11.1 runner 就绪后） | P1 | ⏳ |
-| 3.11.7 | **Contract Sync 增强**：s0 声明数 vs unknown_max 自洽机器校验（3.10 Re-Audit 暴露） | P2 | ⏳ |
+| 3.11.1 | **独立 runner 化**：7 个资产引用型能力（undo/pdf/autosave/file/ime/theme/block）从「测试资产存在」验证 → 真实 runner 执行验证 | P0 | ✅ 完成（2026-08-20：5 能力真实 flutter test 执行，2 能力 Evidence Gap 登记） |
+| 3.11.2 | **Markdown 加固**：verify markdown → 发现 BUG-009+ → 修复 → repair-verify → regression corpus 追加（S 级推进） | P0 | ✅ 完成（2026-08-20：Golden Loop 首轮闭环，before=failed/after=pass/regression=pass） |
+| 3.11.3 | **Serializer 加固**：同上循环 | P1 | ✅ 完成（2026-08-20：Golden Loop 第二轮——回退 separator → FAIL 0.9375 → 修复 → repair-verify pass） |
+| 3.11.4 | **Formula 加固**：physical visual fidelity（E6/E8 缺口）→ 真实渲染 corpus（首次高等级证据突破） | P1 | ✅ 完成（2026-08-21~22：F3 Formula Real Defect Loop + E6 模拟器渲染截图 + E8 三层 Pipeline + E8 Evaluator，见 RUN-010/012/013/014） |
+| 3.11.5 | **Contract Sync 增强**：s0 声明数 vs unknown_max 自洽机器校验 + fingerprint v2/owner_cross_required_for schema 校验（评审 §8：先冻结「系统如何描述验证结果」，再扩大验证对象） | P0 | ✅ 完成（2026-08-20：四套 schema 自洽冻结，见 RUN-009） |
+| 3.11.6 | **Word/PDF 加固（F4 Consumer）**：word 全链路（输入 md→导出→消费端）+ PDF 渲染 | P1 | ✅ 完成（2026-08-21：Word Full Golden Loop + PDF Real Defect Repair Loop，见 RUN-007/011） |
+| 3.11.7 | **Undo/IME/Theme/File/Autosave/Block 加固（F2 Behavior）**：逐个能力循环 | P1 | ✅ 完成（2026-08-21：Behavior Family 压力测试——Undo Golden Loop，见 RUN-008） |
 
-### 退出条件
+### 退出条件（PHASE_3_11_EXIT，2026-08-20 定义）
 
-- [ ] 11 个能力全部为真实 runner（无「测试资产存在」替代）
-- [ ] 每个能力 ≥1 次「verify FAIL → 修复 → repair-verify → Regression Asset」闭环
-- [ ] Feature Capability Matrix S 级推进（Conditionally Complete → Complete）
-- [ ] contract-sync 含 s0/unknown_max 自洽校验
+```text
+PHASE_3_11_EXIT =
+    GoldenLoopTemplateStable
+    ∧ N capabilities hardened
+    ∧ every discovered bug becomes regression asset
+    ∧ no false-positive regression classification
+    ∧ capability completion status updated
+```
+
+- [x] **GoldenLoopTemplateStable**：Golden Loop（verify → FAIL → diagnose → 修复 → repair-verify → regression asset）模板已在 ≥2 个能力稳定跑通（Markdown ✅ / Serializer ✅，后续 Formula/Word/PDF/Undo 复用）
+- [x] **N capabilities hardened（N = 4 capability families，评审 §4 冻结——与 Quality Layers 分离）**：
+  - **F1 Data**（Parse/Serialize/Round-trip）→ Markdown ✅ / Serializer ✅
+  - **F2 Behavior**（Undo/Transaction/IME/Autosave）→ ✅（Undo Golden Loop，RUN-008）
+  - **F3 Runtime**（Flutter Render/WebView/Persistence/Device）→ ✅（Formula Real Defect Loop，RUN-010）
+  - **F4 Consumer**（WPS/OfficeCLI/Screenshot）→ ✅（Word Full Golden Loop + PDF，RUN-007/011）
+  - Physical/Visual **不是**第 5 个 family——归 Evidence Dimension（E6 Physical Runtime / E8 Visual Fidelity，release-gate）
+- [x] **每个发现 bug 资产化**：Bug → minimal repro → capability case → regression corpus（无遗漏）
+- [x] **无误报回归**：regression 判定用 baseline failure set + fingerprint diff（3.11.4 升级为四层 Failure Identity：capability+check+failure_class+evidence_signature），既有失败 ≠ 新增回归
+- [x] **capability completion status 更新**：Feature Completion Matrix 按 Evidence Profile（E2/E3/E5/E6）推进
+
+### Quality Layers 与 Capability Families（Phase 3.11 体系，评审 §4 冻结）
+
+```text
+Quality Layers（验证质量层级）：
+  L1 Data              Parse / Serialize / Round-trip        （Run-002/003 ✅）
+  L2 Behavior          Undo / Transaction / IME / Autosave
+  L3 Runtime           Flutter Render / WebView / Persistence / Device
+  L4 Consumer/体验      WPS / OfficeCLI / Screenshot / Visual / Human UX
+
+Capability Families（能力族，N=4）：
+  F1 Data    → Markdown ✅ / Serializer ✅
+  F2 Behavior → Undo / IME / Autosave / File / Theme / Block（✅ Undo Golden Loop，RUN-008）
+  F3 Runtime → Formula（✅ Real Defect Loop，RUN-010）
+  F4 Consumer → Word / PDF（✅ Full Golden Loop，RUN-011）
+
+Evidence Dimension（证据维度，非能力族）：
+  E6 Physical Runtime / E8 Visual Fidelity —— release-gate
+  （Physical/Visual 不是第 5 个 family；E6/E8 是 Evidence Profile 的维度）
+
+Golden Loop 逐层覆盖：
+  Run-002 → Data ✅       Run-003 → Data ✅
+  Run-004 → Runtime 🟡（F3 Formula）     Run-005 → Consumer 🟡（F4 Word/PDF）
+  后续 → Behavior 🟡（F2 Undo/IME）+ E6/E8 Evidence Dimension 🟡
+```
+
+> **状态声明（2026-08-22，PHASE_3_11_EXIT Owner 判定通过后）**：
+> ```text
+> PHASE_3_11_ARCHITECTURE       = FROZEN / VALIDATED      ✅（taxonomy + ontology 冻结）
+> PHASE_3_11_CAPABILITY_COVERAGE = COMPLETE               ✅（F1/F2/F3/F4 四 family 全部验证）
+> PHASE_3_11_RUNTIME_VALIDATION = FULLY VALIDATED        ✅（Formula Real Defect Loop 闭环）
+> PHASE_3_11_REAL_DEFECT_REPAIR = VALIDATED              ✅（Formula / PDF / Undo 真实缺陷闭环）
+> PHASE_3_11_E6/E8              = RELEASE-GATE SATISFIED ✅（真机 zorn 4/4 PASS + E8 视觉语义验证，2026-08-22）
+> ```
+> 五维全部满足 → PHASE_3_11_EXIT 判定通过（Owner，2026-08-22）。
+
+> **逐项真实位置（2026-08-22，评审 §8 十项）**：
+> ```text
+> Architecture        ✅ FROZEN / VALIDATED
+> Failure Identity    ✅ FROZEN（v2 四层）
+> Repair Semantics    ✅ FROZEN（target_failure 四态）
+> Capability Taxonomy ✅ FROZEN（Layers/Families/Evidence Dimension）
+> Cross-Family Reuse  ✅ PRELIMINARY VALIDATION（Word env_missing + PDF real runner）
+> Data Family         ✅ VALIDATED（Markdown + Serializer Golden Loop）
+> Runtime Family      ✅ VALIDATED（Formula Real Defect Loop，RUN-010）
+> Consumer Family     ✅ VALIDATED（Word Full Golden Loop + PDF，RUN-011）
+> Behavior Family     ✅ VALIDATED（Undo Golden Loop，RUN-008）
+> E6/E8               ✅ RELEASE-GATE SATISFIED（真机 zorn 4/4 PASS + E8 Evaluator/VLM，RUN-012~016）
+> ```
+> 十项逐条可审计——比「Phase 3.11 architecture done」更准确，适合 CI/dashboard 消费。
+
+> **工程边界（2026-08-20）**：3.11.1 仅升级 **Evidence Execution Level**
+> （测试证据从「资产存在」→「真实执行」），**不升级 Feature Completion
+> Status**——`flutter test` 真实执行 ≠ 产品功能真实运行（production_runtime
+> 区分：markdown/serializer/word/formula=true，测试层能力=false）。
+> 每能力证据按 evidence_profile（E2/E3/E5/E6）分级验收，Completion 判定
+> 需 Evidence Profile 全维度，禁止「151 tests passed → 能力 COMPLETE」跳跃。
 
 ---
 

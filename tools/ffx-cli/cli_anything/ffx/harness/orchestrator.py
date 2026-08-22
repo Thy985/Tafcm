@@ -40,6 +40,83 @@ def _as_of() -> dict[str, str]:
     }
 
 
+def _extract_evidence_signature(evidence: list[dict[str, Any]]) -> str:
+    """从证据链提取 signature（3.11.4 Failure Identity 四层第 4 维）：
+    execute 阶段的 metrics 关键数值特征（roundtrip_convergence /
+    render_failure_count / adi 观察 id 等）——同一 check 不同数值可区分。"""
+    for e in evidence or []:
+        if e.get("stage") != "execute":
+            continue
+        detail = e.get("detail") or {}
+        m = detail.get("metrics") or detail
+        for key in (
+            "roundtrip_convergence",
+            "render_failure_count",
+            "adi_latest_observation",
+            "passed",
+            "failed",
+        ):
+            if key in m:
+                return f"{key}={m[key]}"
+    return "n/a"
+
+
+def _failure_class_of(rec_or_report: dict[str, Any]) -> str:
+    """failure_class（四层第 3 维）：从 status/stage/summary 推导。"""
+    status = rec_or_report.get("status")
+    if status == "env_missing":
+        return "env_missing"
+    if "runner_error" in str(rec_or_report.get("message", "")):
+        return "runner_error"
+    return "check_failure"
+
+
+def _failure_fingerprint(
+    capability: str,
+    checks: dict[str, Any],
+    failure_class: str = "check_failure",
+    evidence_signature: str = "n/a",
+) -> str:
+    """失败指纹（3.11.4 Failure Identity 四层冻结，评审 §2）：
+    capability + failing_check + failure_class + evidence_signature。
+
+    'formula:render_observable:check_failure:adi=err_xxx' 与
+    'formula:render_observable:svg_parse:svg_token_17' 是不同指纹——
+    同一 check 下不同 bug 可区分（评审 §2：check 名不代表实际 Bug）。
+    """
+    failed = sorted(k for k, v in (checks or {}).items() if v is False)
+    check = ",".join(failed) if failed else "fail"
+    return f"{capability}:{check}:{failure_class}:{evidence_signature}"
+
+
+def _baseline_failure_set(exclude_capability: str) -> set[str]:
+    """baseline 失败集合 F1（3.11.3）：failures 目录中排除修复目标 capability
+    的历史失败指纹——长期：bug 修复后旧指纹应被 resolved 清出 baseline。"""
+    base: set[str] = set()
+    try:
+        for fid in failure_mod.list_failures():
+            try:
+                rec = failure_mod.load_failure(fid)
+            except Exception:  # noqa: BLE001 — 单个 record 损坏跳过
+                continue
+            cap = rec.get("capability")
+            if not cap or cap == exclude_capability:
+                continue
+            before = rec.get("before", {})
+            checks = before.get("coverage", {}).get("checks", {})
+            base.add(
+                _failure_fingerprint(
+                    cap,
+                    checks,
+                    _failure_class_of(rec),
+                    _extract_evidence_signature(rec.get("evidence", [])),
+                )
+            )
+    except Exception:  # noqa: BLE001 — failures 目录不可读 → 空 baseline
+        return set()
+    return base
+
+
 def _load_adapter(capability: str) -> CapabilityAdapter:
     contract = contract_mod.load_contract(capability)
     return create(capability, contract)  # type: ignore[return-value]
@@ -91,6 +168,8 @@ def verify(capability: str) -> tuple[dict[str, Any], int]:
         "capability": capability,
         "status": status,
         "coverage": decision.get("coverage", {}),
+        # 3.11 证据层明示（防证据层级偷换）：透传 adapter 的 execution 字段
+        "execution": decision.get("execution", {}),
         "unknown": decision.get("unknown", []),
         "next_actions": decision.get("next_actions", []),
         "evidence": graph.to_list(),
@@ -207,26 +286,85 @@ def repair_verify(failure_id: str) -> tuple[dict[str, Any], int]:
     others = [c for c in _available() if c != capability]
     if others:
         reg_results: dict[str, str] = {}
-        reg_failed: list[str] = []
+        # 3.11.3 regression 语义升级（评审 §1）：baseline failure set + fingerprint diff。
+        # before_failures = F1（failures 目录历史指纹，排除修复目标）
+        # after_failures  = F2（repair-verify 时其他能力当前 fail 指纹）
+        # new = F2-F1（真回归）/ resolved = F1-F2 / persistent = F1∩F2
+        before_set = _baseline_failure_set(capability)
+        after_set: set[str] = set()
         for other in others:
             other_report, other_exit = verify(other)
             other_status = other_report.get("status", "unknown")
             reg_results[other] = other_status
             if other_status == "fail":
-                reg_failed.append(other)
+                checks = other_report.get("coverage", {}).get("checks", {})
+                after_set.add(_failure_fingerprint(other, checks))
+        new_failures = sorted(after_set - before_set)
+        resolved_failures = sorted(before_set - after_set)
+        persistent_failures = sorted(before_set & after_set)
         regression = {
-            "status": "pass" if not reg_failed else "fail",
+            "status": "pass" if not new_failures else "fail",
             "detail": (
-                f"regression check over {others}: {reg_results}"
-                if not reg_failed
-                else f"REGRESSION: {reg_failed} failed after fix ({reg_results})"
+                f"regression diff over {others}: {reg_results}"
+                f"{' (persistent: ' + str(persistent_failures) + ')' if persistent_failures else ''}"
+                if not new_failures
+                else f"REGRESSION: {new_failures} new after fix ({reg_results})"
             ),
             "checked": others,
             "results": reg_results,
+            "before_failures": sorted(before_set),
+            "after_failures": sorted(after_set),
+            "resolved_failures": resolved_failures,
+            "new_failures": new_failures,
+            "persistent_failures": persistent_failures,
         }
+    # 3.11.5 repair result 语义（评审 §3）：Repair Success ≠ Capability Clean。
+    # 3.11.6 target_failure 四态冻结（评审 §5）：
+    #   RESOLVED    before 有 target failure，after 无
+    #   PERSISTENT  before 有 target failure，after 仍有
+    #   NOT_OBSERVED before 无可确认 target failure，after 通过
+    #   INTRODUCED  before 无 target，after 新出现（本次引入）
+    # 3.11 F3 Runtime 精度修正（2026-08-21）：target_failure 基于「本次新增
+    # failed checks 的恢复情况」——before 的 failed checks 可能混合既有
+    # baseline（formula 的 ADI 观察）与本次缺陷（latex 截断）；既有 checks
+    # 从同 capability 历史 failure records 反推，target = before failed − 既有。
+    before_checks = (before.get("coverage") or {}).get("checks", {}) or {}
+    before_failed = {k for k, v in before_checks.items() if v is False}
+
+    # 既有 failed checks：同 capability 历史 failure records（排除当前 record）
+    historical: set[str] = set()
+    try:
+        for fid in failure_mod.list_failures():
+            if fid == failure_id:
+                continue
+            try:
+                rec = failure_mod.load_failure(fid)
+            except Exception:  # noqa: BLE001
+                continue
+            if rec.get("capability") != capability:
+                continue
+            bc = ((rec.get("before") or {}).get("coverage") or {}).get("checks", {}) or {}
+            historical.update(k for k, v in bc.items() if v is False)
+    except Exception:  # noqa: BLE001 — failures 目录不可读
+        historical = set()
+
+    target_checks = before_failed - historical  # 本次新增缺陷的 failed checks
+    after_checks = (report.get("coverage") or {}).get("checks", {}) or {}
+    if not target_checks:
+        # before 无可确认本次 target（全为既有/无失败）→ 看 after 是否引入新失败
+        target_failure = "NOT_OBSERVED" if after_status != "fail" else "INTRODUCED"
+    else:
+        recovered = [k for k in target_checks if after_checks.get(k) is not False]
+        target_failure = (
+            "RESOLVED"
+            if len(recovered) == len(target_checks)
+            else "PERSISTENT"
+        )
     result = {
         "before": before.get("status", "unknown"),
         "after": after_status,
+        "target_failure": target_failure,
+        "persistent_baseline_count": len(regression.get("persistent_failures", [])),
         "regression": regression,
         "evidence_delta": delta,
         "evidence_graph_delta": evidence_delta,

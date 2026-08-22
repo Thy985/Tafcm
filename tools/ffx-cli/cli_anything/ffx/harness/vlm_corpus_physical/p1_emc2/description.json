@@ -1,0 +1,38 @@
+{
+  "confidence": 0.99,
+  "issues": [],
+  "structure": {
+    "type": "sequence",
+    "items": [
+      {
+        "type": "symbol",
+        "value": "E"
+      },
+      {
+        "type": "symbol",
+        "value": "="
+      },
+      {
+        "type": "symbol",
+        "value": "m"
+      },
+      {
+        "type": "symbol",
+        "value": "c"
+      },
+      {
+        "type": "superscript",
+        "base": {
+          "type": "symbol",
+          "value": "c"
+        },
+        "exponent": {
+          "type": "symbol",
+          "value": "2"
+        }
+      }
+    ]
+  },
+  "backend": "agent-vision(physical-device-run016)",
+  "note": "真机 63cfc8cf (zorn, Android 16) 重读，视觉内容与模拟机一致"
+}

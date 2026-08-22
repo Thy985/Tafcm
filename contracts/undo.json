@@ -2,13 +2,59 @@
   "id": "FEAT-UNDO",
   "capability": "undo",
   "version": 1,
-  "required_evidence": ["E1", "E2"],
-  "required_checks": ["test_assets_present", "regression_assets_present"],
+  "required_evidence": [
+    "E1",
+    "E2"
+  ],
+  "required_checks": [
+    "test_assets_present",
+    "regression_assets_present"
+  ],
   "completion_policy": {
     "unknown_max": 3,
     "blocking_unknown": [],
     "test_assets_min": 1
   },
   "s0_unsupported": [],
-  "note": "undo 能力：复用既有测试资产为 metrics（test/editing/undo* + CAP-BEH 错块专项 472 用例内）；非独立 runner——真实执行验证登记为后续轮（3.10.3 后）。"
+  "note": "undo 能力：复用既有测试资产为 metrics（test/editing/undo* + CAP-BEH 错块专项 472 用例内）；非独立 runner——真实执行验证登记为后续轮（3.10.3 后）。",
+  "evidence_profile": {
+    "E2": "required",
+    "E3": "required",
+    "E5": "recommended",
+    "E6": "conditional"
+  },
+  "support_policy": {
+    "required": [
+      "undo_semantics",
+      "history_integrity"
+    ],
+    "optional": [],
+    "unsupported": []
+  },
+  "fingerprint": {
+    "version": 2,
+    "fields": [
+      "capability",
+      "failing_check",
+      "failure_class",
+      "evidence_signature"
+    ]
+  },
+  "evidence_strength": {
+    "enum": [
+      "synthetic",
+      "test_runtime",
+      "production_runtime",
+      "virtual_device_runtime",
+      "physical_device_runtime",
+      "visual",
+      "human_confirmed"
+    ],
+    "achieved": [
+      "synthetic",
+      "test_runtime"
+    ],
+    "note": "Evidence Strength（评审 2026-08-22 命名收紧）：synthetic < test_runtime < virtual_device_runtime（模拟器）< physical_device_runtime（真机）< visual < human_confirmed。Emulator PASS ≠ release gate PASS——achieved=virtual_device_runtime 不满足 minimum_required=physical_device_runtime（真机）。",
+    "minimum_required": "test_runtime"
+  }
 }

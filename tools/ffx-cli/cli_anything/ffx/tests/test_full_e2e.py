@@ -24,18 +24,26 @@ def _resolve_cli(name):
     return [sys.executable, "-m", "cli_anything.ffx.ffx_cli"]
 
 
+def _run(args, **kwargs):
+    """subprocess.run 显式 UTF-8 解码——ffx 输出为 UTF-8（见根 conftest.py），
+    中文 Windows 默认 GBK 管道解码会炸非 ASCII 帮助文本。"""
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("errors", "replace")
+    return subprocess.run(args, **kwargs)
+
+
 class TestProjectCreateRoundtrip:
     def test_create_and_info(self, tmp_path):
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "proj.json")
-        r = subprocess.run(cli + ["--json", "project", "create", "-o", out, "-n", "MyDoc", "-t", "Title"],
+        r = _run(cli + ["--json", "project", "create", "-o", out, "-n", "MyDoc", "-t", "Title"],
                            capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
         assert data["name"] == "MyDoc"
         assert data["title"] == "Title"
 
-        r2 = subprocess.run(cli + ["--json", "project", "info", "-p", out],
+        r2 = _run(cli + ["--json", "project", "info", "-p", out],
                             capture_output=True, text=True)
         assert r2.returncode == 0, r2.stderr
         info = json.loads(r2.stdout.strip())
@@ -49,7 +57,7 @@ class TestAnalyzeFile:
         readme = PROJECT_ROOT / "README.md"
         if not readme.exists():
             pytest.skip("README.md not found")
-        r = subprocess.run(cli + ["--json", "analyze", "file", str(readme)],
+        r = _run(cli + ["--json", "analyze", "file", str(readme)],
                            capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
@@ -60,7 +68,7 @@ class TestAnalyzeFile:
 class TestAnalyzeADR:
     def test_adr_listing(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["--json", "analyze", "adr"],
+        r = _run(cli + ["--json", "analyze", "adr"],
                            capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
@@ -70,7 +78,7 @@ class TestAnalyzeADR:
 class TestDiagHealth:
     def test_health_json(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["--json", "diag", "health"],
+        r = _run(cli + ["--json", "diag", "health"],
                            capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
@@ -82,7 +90,7 @@ class TestDiagHealth:
 class TestFFXHelp:
     def test_main_help(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["--help"], capture_output=True, text=True)
+        r = _run(cli + ["--help"], capture_output=True, text=True)
         assert r.returncode == 0
         assert "project" in r.stdout
         assert "analyze" in r.stdout
@@ -91,17 +99,17 @@ class TestFFXHelp:
 
     def test_project_help(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["project", "--help"], capture_output=True, text=True)
+        r = _run(cli + ["project", "--help"], capture_output=True, text=True)
         assert r.returncode == 0
 
     def test_analyze_help(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["analyze", "--help"], capture_output=True, text=True)
+        r = _run(cli + ["analyze", "--help"], capture_output=True, text=True)
         assert r.returncode == 0
 
     def test_adi_help(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["adi", "--help"], capture_output=True, text=True)
+        r = _run(cli + ["adi", "--help"], capture_output=True, text=True)
         assert r.returncode == 0
 
 
@@ -109,7 +117,7 @@ class TestFFXJSONMode:
     def test_json_output_parses(self, tmp_path):
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "j.json")
-        r = subprocess.run(cli + ["--json", "project", "create", "-o", out],
+        r = _run(cli + ["--json", "project", "create", "-o", out],
                            capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
@@ -120,8 +128,8 @@ class TestInjectWorkflow:
     def test_formula_inject(self, tmp_path):
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "wf.json")
-        subprocess.run(cli + ["project", "create", "-o", out, "-n", "wf"], check=True)
-        r = subprocess.run(
+        _run(cli + ["project", "create", "-o", out, "-n", "wf"], check=True)
+        r = _run(
             cli + ["--json", "project", "inject", "formula", "-p", out, "--latex", "E=mc^2"],
             capture_output=True, text=True,
         )
@@ -135,8 +143,8 @@ class TestInjectWorkflow:
     def test_heading_inject(self, tmp_path):
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "hf.json")
-        subprocess.run(cli + ["project", "create", "-o", out], check=True)
-        r = subprocess.run(
+        _run(cli + ["project", "create", "-o", out], check=True)
+        r = _run(
             cli + ["--json", "project", "inject", "heading", "-p", out, "--text", "Hello", "--level", "1"],
             capture_output=True, text=True,
         )
@@ -149,8 +157,8 @@ class TestDryRun:
     def test_dry_run_no_save(self, tmp_path):
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "dry.json")
-        subprocess.run(cli + ["project", "create", "-o", out], check=True)
-        r = subprocess.run(
+        _run(cli + ["project", "create", "-o", out], check=True)
+        r = _run(
             cli + ["--json", "project", "inject", "formula", "-p", out, "--latex", "TEST", "--dry-run"],
             capture_output=True, text=True,
         )
@@ -165,7 +173,7 @@ class TestADIDoctor:
     """ADI doctor — may fail if dart is not available, that's expected."""
     def test_adi_doctor(self):
         cli = _resolve_cli("ffx")
-        r = subprocess.run(cli + ["--json", "adi", "doctor"],
+        r = _run(cli + ["--json", "adi", "doctor"],
                            capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         try:
             data = json.loads(r.stdout.strip())
@@ -180,18 +188,18 @@ class TestSubprocessFullWorkflow:
         cli = _resolve_cli("ffx")
         out = str(tmp_path / "full.json")
 
-        r = subprocess.run(cli + ["--json", "project", "create", "-o", out, "-n", "E2E"],
+        r = _run(cli + ["--json", "project", "create", "-o", out, "-n", "E2E"],
                            capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         data = json.loads(r.stdout.strip())
         assert data["name"] == "E2E"
 
-        subprocess.run(cli + ["project", "inject", "heading", "-p", out, "--text", "Math", "--level", "1"],
+        _run(cli + ["project", "inject", "heading", "-p", out, "--text", "Math", "--level", "1"],
                        check=True)
-        subprocess.run(cli + ["project", "inject", "formula", "-p", out, "--latex", "x^2"],
+        _run(cli + ["project", "inject", "formula", "-p", out, "--latex", "x^2"],
                        check=True)
 
-        r = subprocess.run(cli + ["--json", "project", "info", "-p", out],
+        r = _run(cli + ["--json", "project", "info", "-p", out],
                            capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         info = json.loads(r.stdout.strip())
