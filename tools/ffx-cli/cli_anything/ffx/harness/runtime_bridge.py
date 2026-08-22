@@ -75,6 +75,8 @@ def run_markdown(corpus_dir: str | None, out_dir: Path) -> dict:
             env=env,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout_s,
         )
     except subprocess.TimeoutExpired:
@@ -131,11 +133,15 @@ def run_flutter_tests(test_globs: list[str], out_dir: Path) -> dict:
     env = os.environ.copy()
     env["FFX_OUT_DIR"] = str(out_dir)
     cmd = [_flutter(), "test", *test_files, "--reporter", "compact"]
+    # encoding 显式 UTF-8：中文 Windows 默认 GBK 解码 flutter 输出会在读线程
+    # 抛 UnicodeDecodeError → stdout 整体丢失（metrics 全 0 的静默盲跑）
     timeout_s = _runner_timeout()
     try:
         proc = subprocess.run(
             cmd, cwd=str(flutter_app), env=env,
-            capture_output=True, text=True, timeout=timeout_s,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=timeout_s,
         )
     except subprocess.TimeoutExpired:
         raise RuntimeBridgeError(1, f"tests timed out after {timeout_s}s") from None

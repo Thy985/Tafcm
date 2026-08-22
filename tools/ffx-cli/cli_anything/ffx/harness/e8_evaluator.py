@@ -1,12 +1,16 @@
-r"""E8 Evaluator（Phase 3.11 RUN-014）——公式视觉语义验证主入口。
+r"""E8 Evaluator（Phase 3.11 RUN-014 / RUN-015 接线）——公式视觉语义验证主入口。
 
 接收：Expected LaTeX + 截图（Observed）→ 视觉提取 → AST Diff →
 输出严格 JSON（评审 Schema：status/expected_latex/observed_latex/
 diff_details/error_type）。
 
-vision_extract 为可插拔适配器：
-- known_latex 提供时（自洽/代理：E6 模拟器渲染公式的 latex 已知）直接返回；
-- 否则尝试 OCR（tesseract 等，当前环境未接入视觉模型 → None → OCR_HALLUCINATION）。
+vision_extract 为可插拔适配器（RUN-015 填实）：
+- screenshot_path 提供时 → 真实视觉提取（e8_vision 后端链：
+  pix2tex / paddleocr / tesseract，全部本地、无 API key）；
+- 无截图时 known_latex 可作代理（E6 渲染公式 latex 已知——自洽验证，
+  报告 §7 复跑命令路径）；
+- 有截图但提取失败 → None → OCR_HALLUCINATION（不回退代理——
+  防止「截图在但没看」被自洽 PASS 掩盖）。
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from cli_anything.ffx.harness.e8_latex_ast import (
     classify_error,
     parse_latex,
 )
+from cli_anything.ffx.harness.e8_vision import extract_latex
 
 _PARSING_ERROR = "PARSING_ERROR"
 _OCR_HALLUCINATION = "OCR_HALLUCINATION"
@@ -29,15 +34,16 @@ def vision_extract(
 ) -> str | None:
     """视觉提取 LaTeX（适配器接口）。
 
-    当前环境无视觉模型 API：known_latex 提供时作为视觉提取的代理
-    （E6 模拟器渲染公式的 latex 已知——自洽验证）；否则尝试 OCR，
-    不可用则返回 None（→ OCR_HALLUCINATION）。
+    语义（RUN-015 收紧）：
+    - screenshot_path 提供时：真实视觉提取（像素为真相源，后端链见
+      e8_vision）。提取失败返回 None → OCR_HALLUCINATION——不回退
+      known_latex 代理，保证 Observed 侧始终来自截图像素。
+    - 无截图时：known_latex 提供则作为代理返回（自洽验证）。
     """
+    if screenshot_path:
+        return extract_latex(screenshot_path)
     if known_latex is not None:
         return known_latex
-    if screenshot_path:
-        # OCR 留接口：未来接入视觉模型（如 tesseract 公式识别 / vision API）
-        pass
     return None
 
 
@@ -45,8 +51,14 @@ def evaluate(
     expected_latex: str,
     screenshot_path: str | None = None,
     known_latex: str | None = None,
+    observed_latex: str | None = None,
 ) -> str:
-    """E8 Evaluator 主入口 → 严格 JSON 字符串（评审 Schema）。"""
+    """E8 Evaluator 主入口 → 严格 JSON 字符串（评审 Schema）。
+
+    observed_latex：可选直传——调用方已自行完成视觉提取（如
+    FormulaAdapter.visual_check 需要 provenance 时）传入以避免二次
+    推理；缺省走 vision_extract。
+    """
     # 1. 解析基准（Expected AST）
     try:
         expected_ast = parse_latex(expected_latex)
@@ -63,7 +75,11 @@ def evaluate(
         )
 
     # 2. 视觉提取（Observed LaTeX）
-    observed = vision_extract(screenshot_path, known_latex)
+    observed = (
+        observed_latex
+        if observed_latex is not None
+        else vision_extract(screenshot_path, known_latex)
+    )
     if observed is None:
         return json.dumps(
             {
