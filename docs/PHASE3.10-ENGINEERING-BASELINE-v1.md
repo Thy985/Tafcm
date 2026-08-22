@@ -224,10 +224,10 @@ Commit/PR:     da4ab00（补齐解析器）
 | ID | 名称 | 来源标记 | 当前状态 | 决策 |
 |----|------|---------|---------|------|
 | DEBT-005 | Undo 空 Transaction 守卫（**原称 R2 断链，v1.1 核实命名不同**） | phase3.1-review-backlog R2 | 延期技术债 | **Refactor Needed**（进 roadmap，但空事务已以 no-op 守卫实现：transaction_builder.dart:168 `if (_ops.isEmpty) return`；editor_history.dart:146 `if (next.ops.isEmpty) return false`） |
-| DEBT-006 | IME Transaction Coalescing 未实现 | phase3.3-pr3 §8.2（无 ADR） | 延期 Phase 3.4+ | **Refactor Needed** |
+| DEBT-006 | IME Transaction Coalescing 未实现 | phase3.3-pr3 §8.2（无 ADR） | 延期 Phase 3.4+ | **Refactor Needed**（2026-08-22 复检：仍存在——editor_command_pairing.dart:9「不实现 Coalescing：两个独立 undo 步骤（Phase 3.4 技术债）」；纳入 A-001 架构复审） |
 | DEBT-007 | 选区/光标契约（**原称 3 项 TODO，v1.1 核实无 TODO 残留**） | BEHAVIOR-AUDIT-COVERAGE §4 | **v1.1 降级**：逻辑已实现为常规代码（block_enter_intent_formatter.dart:5,27,42），全仓无对应 TODO 标记 | **Debt Accepted** · `debt_state: accepted` + 子态 `verification-gap`（仅补 golden 覆盖，非重构；已从 5.3 Refactor Needed 移除，统一于此） |
 | DEBT-008 | PDF 代码块中文注释乱码 | phase3.5-realdevice 问题6 | **v1.1 已修复**：pdf_exporter.dart:539 加 `cjkFont` fontFallback（"问题 6.4 修复"） | **已消除**（降级出 Refactor Needed） |
-| DEBT-009 | UTF8 边界 bug 多轮未根治 | formula_render_plan.dart:114 / svg_to_pdf.dart:23 | 绕行非根治 | **Refactor Needed** |
+| DEBT-009 | UTF8 边界 bug 多轮未根治 | formula_render_plan.dart:114 / svg_to_pdf.dart:23 | 绕行非根治 | **Refactor Needed**（2026-08-22 复检：**部分缓解**——公式路径已切新路线 `parseSvgString → SvgPdfWidget` 绕开 pw.SvgImage utf8 bug（formula_render_plan.dart:113 旧路线注释「未启用」）；但 `sanitizeSvgString` 仍被 mermaid 路径实际调用（pdf_mermaid_renderer.dart:87），作为防御保留） |
 | DEBT-010 | 两套颜色常量并存（**仅定义重复，值已同步**） | CRITICAL_REVIEW §6.3（示例过期） | **v1.1 降级**：冗余存在但 `error` 均为 `0xFFC1121F` | **Debt Accepted**（消冗余，非改值） |
 | DEBT-011 | 代码块语法高亮不随主题切换 | phase3.5-realdevice 问题6/子1 | 开放 Phase 3.9+ TODO | **Debt Accepted** |
 | DEBT-012 | 代码块 language chip 编辑态不显示 | phase3.5-realdevice 问题6/子5 | 开放 | **Refactor Needed**（小） |
@@ -242,7 +242,7 @@ Commit/PR:     da4ab00（补齐解析器）
 |----|------|----------------|----------------|------|
 | DEBT-014 | **ADR-0012 Live/Committed 双状态分离** | 避免 TextField 高频 onChanged 直接污染 Transaction；输入性能 | Undo / Coalescing / Focus / Selection 全部与之张力 | ⭐ **Refactor Needed（架构复审）** |
 | DEBT-015 | **ADR-0008 Transaction 模型内部张力** | 操作日志省内存、coalescing 避免 batch 污染 | IME coalescing 缺失 + 空 Transaction 断链 + 与 ADR-0007 §4.2 边界 | **Refactor Needed（与 DEBT-014 合并复审）** |
-| DEBT-016 | PDF CJK 字体 static 状态污染 | 早期快速接入 pdf 导出 | static `_cjkFont` 跨测试污染，测试相互干扰 | **Refactor Needed** |
+| DEBT-016 | PDF CJK 字体 static 状态污染 | 早期快速接入 pdf 导出 | static `_cjkFont` 跨测试污染，测试相互干扰 | **Refactor Needed**（2026-08-22 复检：**仍存在**——pdf_exporter.dart:29-32 仍为 `static _cjkFont / _cjkFontLoadAttempted / _cjkFontLoadFailedAt`；跨测试静态污染未消除。AGENTS.md §10 列为 Phase 2 修复项「静态状态污染测试」） |
 | DEBT-017 | UTF8 导出健壮性（见 DEBT-009） | 逐轮打补丁绕过 XmlDocument.parse 边界 | 多轮修复未彻底，症状反复 | **Refactor Needed（Export IR）** |
 
 **全字段示例 — DEBT-014 Live/Committed State（用户原文 DEBT-014）**
@@ -299,7 +299,7 @@ Commit/PR:     PR #65（随 Phase 3.3 E2E 收尾）
 | ID | 名称 | 状态 | 决策 |
 |----|------|------|------|
 | DEBT-034 | `side_panel_host.dart` 占位死代码 | obsolete 占位（UI_STATUS R4） | **v1.1 已消除**：文件已不存在（全仓 Glob 无 `side_panel_host.dart`），债务结清 | **已消除**（无需动作） |
-| DEBT-035 | `editor_screen.dart` legacy 单 TextField 编辑器 | 被 editor_shell 取代的 fallback | **Debt Accepted（保留 fallback，标注 deprecated）** |
+| DEBT-035 | `editor_screen.dart` legacy 单 TextField 编辑器 | 被 editor_shell 取代的 fallback | **Debt Accepted（保留 fallback，标注 deprecated）**（2026-08-22 复检：文件仍存在 479 行且**无任何 `@Deprecated`/legacy 标注**——标注动作尚未落地，待补） |
 | DEBT-036 | `previewModeProvider` / 旧双模式 | 已移除 | 历史登记，不再计 |
 | DEBT-037 | ADR-0010 SKIPPED 编号占位 | 非决策 | N/A（保留纪律占位） |
 
@@ -407,7 +407,7 @@ DEBT-014 Live/Committed State
 | DEBT-020/021 | 选区菜单 / 快捷键 / 打字机 | 已明确移 Phase 4 | ROADMAP |
 | DEBT-027 | 导出 WebView 就绪检查 | 建议项，非阻断 | 见 phase3.5-realdevice 问题4 |
 | DEBT-028/029/030 | 真机 GBK / Word Desktop / 软键盘 IME | 产品边界未闭合，单独验收 | CLI-ANYTHING §3.1 |
-| DEBT-035 | editor_screen legacy | 保留 fallback，标 deprecated | `lib/presentation/screens/editor_screen.dart:33` `_controller = TextEditingController()`；`:371` 仍作为活动编辑路径（不仅是 fallback，描述需修正） |
+| DEBT-035 | editor_screen legacy | 保留 fallback，标 deprecated | `lib/presentation/screens/editor_screen.dart:33` `_controller = TextEditingController()`；`:371` 仍作为活动编辑路径（不仅是 fallback，描述需修正）。**2026-08-22 复检：无 `@Deprecated` 标注，待补** |
 
 ### 5.3 Refactor Needed（需重构 — 进 roadmap，附触发与退出）
 
