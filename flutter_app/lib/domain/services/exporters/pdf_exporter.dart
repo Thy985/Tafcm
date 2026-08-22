@@ -31,6 +31,20 @@ class PdfExporter {
   static DateTime? _cjkFontLoadFailedAt;
   static const Duration _fontRetryInterval = Duration(seconds: 30);
 
+  /// 清理 CJK 字体静态缓存（DEBT-016，AGENTS.md §10 静态状态污染 Phase 2）。
+  ///
+  /// `_cjkFont` / `_cjkFontLoadAttempted` / `_cjkFontLoadFailedAt` 是静态字段，
+  /// 跨测试用例共享：测试 A 触发加载失败后，30 秒内测试 B 都拿不到字体。
+  /// 与 [FormulaSvgService.clearCache] / [MermaidService.clearCache] 同一模式
+  /// （PdfExporter 为 facade 静态，AGENTS.md §1.3 例外，不做实例化重构）。
+  /// 测试 setUp / tearDown 中调用以隔离用例；生产路径由 export 内重试机制
+  /// 自管理，无需外部清理。
+  static void clearCjkFontCache() {
+    _cjkFont = null;
+    _cjkFontLoadAttempted = false;
+    _cjkFontLoadFailedAt = null;
+  }
+
 
   /// 加载 CJK 字体（用于中文等宽字符）。失败时回退 Helvetica。
   ///
