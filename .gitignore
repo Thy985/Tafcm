@@ -10,6 +10,8 @@
 **/.dart_tool/
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+# Note: pubspec.lock 是 App 不提交 / 库提交——根 .gitignore 不能跨子 .gitignore 屏蔽
+# 子目录的 .gitignore 优先解析（git 标准行为），故此规则写在 flutter_app/.gitignore（PR-2 处理）
 flutter_app/.idea/
 flutter_app/*.iml
 flutter_app/android/app/build/
@@ -18,7 +20,6 @@ flutter_app/ios/Flutter/Flutter.framework
 flutter_app/ios/Flutter/Flutter.podspec
 flutter_app/ios/Flutter/.last_build_id
 **/doc/api/
-# Note: pubspec.lock rule lives in flutter_app/.gitignore (App-scoped, §6.2.3)
 
 # === Android / iOS generated ===
 **/.gradle/
@@ -64,9 +65,3 @@ flutter_app/test/golden/failures/
 # Note: cannot be verified with check-ignore while files are tracked;
 # PR-2 (after git rm) re-verifies.
 **/ui_dump.xml
-
-# === Root-level OpenWiki mirror (avoid double-source with AGENTS.md) ===
-# CLAUDE.md is the OpenWiki-suggested entrypoint; AGENTS.md already has the
-# OPENWIKI block appended by the GitHub Action. Ignore CLAUDE.md to prevent
-# divergence between the two sources.
-/CLAUDE.md
