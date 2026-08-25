@@ -64,3 +64,9 @@ flutter_app/test/golden/failures/
 # Note: cannot be verified with check-ignore while files are tracked;
 # PR-2 (after git rm) re-verifies.
 **/ui_dump.xml
+
+# === Root-level OpenWiki mirror (avoid double-source with AGENTS.md) ===
+# CLAUDE.md is the OpenWiki-suggested entrypoint; AGENTS.md already has the
+# OPENWIKI block appended by the GitHub Action. Ignore CLAUDE.md to prevent
+# divergence between the two sources.
+/CLAUDE.md
