@@ -1,0 +1,66 @@
+# ============================================================================
+# FormulaFix — Root .gitignore
+# ============================================================================
+# Established by chore(restore-root-gitignore) PR.
+# Each rule must have a stated reason; see commit message.
+# ============================================================================
+
+# === Flutter / Dart ===
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+flutter_app/.idea/
+flutter_app/*.iml
+flutter_app/android/app/build/
+flutter_app/android/.idea/
+flutter_app/ios/Flutter/Flutter.framework
+flutter_app/ios/Flutter/Flutter.podspec
+flutter_app/ios/Flutter/.last_build_id
+**/doc/api/
+# Note: pubspec.lock rule lives in flutter_app/.gitignore (App-scoped, §6.2.3)
+
+# === Android / iOS generated ===
+**/.gradle/
+**/local.properties
+**/Pods/
+**/.symlinks/
+
+# === Python toolchain ===
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+
+# === Agent / runtime artifacts ===
+.agent/state/
+.adi/
+.ffx/
+.workbuddy/
+.wt/
+.arts/
+.codeartsdoer/
+debug/
+openwiki/
+
+# === Local / generated logs ===
+**/*.local.log
+**/logs/
+.claude/hooks.log
+
+# === Flutter test artifacts ===
+flutter_app/test/golden/failures/
+
+# === Root-level OpenWiki mirror (avoid double-source with AGENTS.md) ===
+# CLAUDE.md is the OpenWiki-suggested entrypoint; AGENTS.md already has the
+# OPENWIKI block appended by the GitHub Action. Ignore CLAUDE.md to prevent
+# divergence between the two sources.
+/CLAUDE.md
+
+# === One-shot debug artifacts (AGENTS.md §6.2.6 / §6.2.12) ===
+# Root /ui_dump.xml and flutter_app/ui_dump.xml are one-time Android
+# uiautomator dump outputs from E2E validation. They are tracked in HEAD
+# historically; PR-2 will git rm both copies. **/ui_dump.xml prevents
+# future regeneration from being re-added.
+# Note: cannot be verified with check-ignore while files are tracked;
+# PR-2 (after git rm) re-verifies.
+**/ui_dump.xml
