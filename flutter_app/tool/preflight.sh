@@ -39,9 +39,12 @@ echo ""
 echo "==================================================="
 echo "[2/2] flutter test（与 CI Test job 同参数：排除 golden/perf）"
 echo "==================================================="
-# 与 ci.yml test job 完全一致的文件集与排除标签
-flutter test --exclude-tags golden --exclude-tags perf --reporter compact \
-  $(find test -name "*_test.dart" ! -path "test/golden/*")
+# 与 ci.yml test job 一致的文件集与排除标签。
+# Windows 兼容：171 个显式文件路径拼出的命令行超 cmd.exe 对 .bat 的
+# 8191 字符上限（报 "命令语法不正确"），故分块（每块 45 个文件）运行，
+# 文件集与排除标签不变（test/golden/* 仍按路径排除 + --exclude-tags）。
+find test -name "*_test.dart" ! -path "test/golden/*" -print0 | \
+  xargs -0 -r -n 45 flutter test --exclude-tags golden --exclude-tags perf --reporter compact
 TEST_EXIT=$?
 if [ $TEST_EXIT -ne 0 ]; then
   echo ""
