@@ -840,8 +840,84 @@ cd flutter_app && flutter test 2>&1 | tee /tmp/flutter_test.log
 
 ### 14.1 整体结构
 
+> **同步时间**：2026-08-25（PR-5 `docs/sync-top-level-inventory-2026-08-25`）
+> **依据**：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 + `git ls-tree --name-only HEAD` 实测
+> **tracked 顶层**（17 个）：`.agent` `.arts` `.githooks` `.github` `AGENTS.md` `LICENSE` `README.md` `contracts` `design-system` `docs` `flutter_app` `formulafix-redesign.design` `skills` `tests` `tools` + 2 git 元数据文件 `.gitattributes` `.gitignore`
+> **ignored 顶层**（10 个，gitignore 拦截）：`.adi` `.claude/hooks.log` `.codeartsdoer` `.debug` `.ffx` `.openwiki` `.wt` `.workbuddy` `flutter_app/build/` `flutter_app/.dart_tool/` + 等等
+> **临时 untracked**（通常应忽略）：`.atomcode/memory.md`（preflight Windows fix 备忘，待后续 PR 评估）
+
 ```
 D:\Projects\Active\math2\
+├── .agent/                       # AI 工程治理层（REPO_POLICY.md 等 6 份规范）
+│   ├── AI_POLICY.md              # Agent 身份 / 权限 / 行为协议
+│   ├── COMMAND_SAFETY.md         # 危险命令清单 + 三条强制前置
+│   ├── ENVIRONMENT.md            # 仓库物理边界事实（repo root / flutter_app 是子目录）
+│   ├── GIT_POLICY.md             # 分支/PR/merge 权限边界
+│   ├── GIT_RULES.md              # git 红黄绿三级禁令
+│   ├── REPO_POLICY.md            # 安全层总纲
+│   ├── context/                  # 分级上下文加载规则
+│   ├── templates/                # task-contract / commit message 模板
+│   ├── tools/                    # guard.sh 机器强制层
+│   └── state/                    # 运行时状态（gitignore，不入库）
+├── .githooks/                    # Git hooks（core.hooksPath 指向）
+├── .github/
+│   └── workflows/                # CI workflow（ci.yml / branch-cleanup.yml / openwiki-update.yml 等）
+├── .arts/                        # Arts 工具配置（settings.json，gitignore）
+├── .adi/                         # ADI 运行时数据（gitignore）
+├── .ffx/                         # ffx-cli 失败工件 + 缓存（gitignore）
+├── .workbuddy/                   # WorkBuddy 工具产物（gitignore）
+├── .wt/                          # worktree 占位（gitignore）
+├── .codeartsdoer/                # IDE 工具目录（gitignore）
+├── .claude/                      # Claude Code 项目级配置
+│   ├── settings.json             # 项目级 hooks 配置（tracked）
+│   └── hooks.log                 # 运行时日志（gitignore）
+├── contracts/                    # 任务契约文件（11 个 tracked）
+├── design-system/                # 设计 tokens 源（tracked）
+├── docs/                         # 架构文档 + ADR + 设计
+│   ├── ADR/                      # 29 篇架构决策记录
+│   ├── ARCHITECTURE.md
+│   ├── ROADMAP.md
+│   ├── CRITICAL_REVIEW.md
+│   ├── INDEX.md                  # 全量索引（135+ 文档）
+│   ├── COMPREHENSIVE-TEST-REPORT.md
+│   ├── DESIGN.md
+│   ├── COMPONENT-Tree.md
+│   ├── BEHAVIOR-AUDIT-COVERAGE.md
+│   ├── EXPERIENCE-AUDIT-COVERAGE.md
+│   ├── DOCX-QA-PIPELINE.md
+│   ├── E2E_TEST_PLAN.md
+│   ├── CLI-ANYTHING-VERIFICATION-STATUS.md
+│   ├── ADI-CLOSED-LOOP-AUDIT.md
+│   ├── CONTRACT-SYNC-MINIMAL.md
+│   ├── PHASE3.10-ENGINEERING-BASELINE-v1.md
+│   ├── PR-1_DESCRIPTION.md
+│   ├── PR-2_DESCRIPTION.md
+│   ├── PR-3_DESCRIPTION.md
+│   ├── BRANCH_AUDIT_2026-08-25.md
+│   ├── REPO_AUDIT_2026-08-25.md   # 本次治理调研报告
+│   ├── contracts/                # capability contracts
+│   ├── design/                   # 设计文档
+│   ├── releases/                 # 11 篇 release notes
+│   ├── runs/                     # RUN 报告（phase3.11/adl/dogfood）
+│   └── archive/                  # 过期文档归档
+│       ├── PHASE1_TEST_PLAN.md
+│       ├── REFACTOR_DESIGN.md
+│       └── 2026-08-12-git-governance-snapshot.md
+├── formulafix-redesign.design/   # 设计稿（HTML，18 个 tracked）
+├── openwiki/                     # OpenWiki 证据索引（gitignore, 由 GitHub Action 生成）
+├── skills/                       # Skills 目录（tracked）
+├── tests/                        # 顶层测试目录（tracked）
+├── tools/                        # 工具链
+│   ├── ffx-cli/                  # Python CLI（诊断 + ADI wrapper + markdown analysis）
+│   │   └── cli_anything/ffx/
+│   │       ├── ffx_cli.py        # Click 入口，--json/--project/--dry-run/--root
+│   │       ├── core/             # project / adi_wrapper / session / contract_sync / docx_qa
+│   │       ├── harness/          # 验证 / 评估 / 编排 / E8 视觉语义
+│   │       ├── adapters/         # assets / base / formula / markdown / word / serializer
+│   │       ├── utils/            # helpers
+│   │       └── tests/            # 170+ pytest cases passing
+│   └── adi/                      # Agent Diagnostic Interface（Dart CLI）
+│       └── adi.dart
 ├── flutter_app/                  # FormulaFix Flutter App（主项目）
 │   ├── lib/                      # 业务代码（六层架构）
 │   │   ├── main.dart
@@ -850,38 +926,29 @@ D:\Projects\Active\math2\
 │   │   ├── domain/               # 业务领域（导出服务 / 业务 Provider）
 │   │   ├── providers/            # 全局 Riverpod Provider
 │   │   └── presentation/         # UI 组件、屏幕、主题
-│   ├── test/                     # Unit + Widget tests（175 个）
-│   ├── integration_test/         # E2E tests（Android 模拟器）
+│   ├── test/                     # Unit + Widget tests（175+ 个）
+│   ├── integration_test/         # E2E tests（Android 模拟器 + 真机）
+│   ├── tool/                     # preflight.sh / wsl_golden.sh
 │   ├── docs/                     # Flutter 侧文档
 │   └── pubspec.yaml
-├── tools/
-│   ├── ffx-cli/                  # Python CLI（诊断 + ADI wrapper + markdown analysis）
-│   │   └── cli_anything/ffx/
-│   │       ├── ffx_cli.py        # Click 入口，--json/--project/--dry-run/--root
-│   │       ├── core/
-│   │       │   ├── project.py    # 项目 CRUD
-│   │       │   ├── adi_wrapper.py # ADI (adi.dart) 封装
-│   │       │   └── session.py    # Session 状态管理
-│   │       └── tests/
-│   │           ├── test_core.py  # 40 passing
-│   │           ├── test_full_e2e.py
-│   │           └── test_run006_evidence.py
-│   └── adi/                      # Agent Diagnostic Interface（Dart）
-│       └── adi.dart
-├── .agent/                       # AI 工程治理层
-│   ├── AI_POLICY.md              # Agent 身份 / 权限 / 行为协议
-│   ├── COMMAND_SAFETY.md         # 危险命令清单
-│   ├── ENVIRONMENT.md            # 仓库物理边界事实
-│   ├── GIT_POLICY.md             # 分支/PR/merge 权限边界
-│   ├── GIT_RULES.md              # git 红黄绿三级禁令
-│   └── REPO_POLICY.md            # 安全层总纲
-├── docs/
-│   ├── ADR/                      # 26 篇架构决策记录
-│   ├── ARCHITECTURE.md
-│   ├── ROADMAP.md
-│   └── CRITICAL_REVIEW.md
-└── AGENTS.md                     # AI 协作开发强制规范（本文件）
+├── AGENTS.md                     # AI 协作开发强制规范（本文件）
+├── README.md
+├── LICENSE
+├── .gitignore                    # 7 类规则（PR-1 起草 + PR-2 增量）
+└── .gitattributes
 ```
+
+#### 14.1.1 目录治理策略（v3 报告 §0.2 七维标准）
+
+| 类别 | 治理方式 | 当前状态 |
+|------|---------|---------|
+| tracked source（业务代码） | intentional 跟踪 | ✅ main 已跟踪 17 个顶层 |
+| project assets（设计稿 / 契约 / tokens / hooks） | intentional 跟踪 | ✅ design-system / contracts / formulafix-redesign.design / skills / tests / .githooks / .claude/settings.json 全部 tracked |
+| runtime artifacts（.adi / .ffx / .workbuddy / .wt / openwiki / debug） | **gitignore 拦截** | ✅ PR-1 + PR-2 .gitignore 规则覆盖 |
+| one-shot artifacts（ui_dump.xml / 一次性根目录 md） | **删除 + gitignore 防再生** | ✅ PR-2 已 git rm 3 个 + ignore /CLAUDE.md / **/ui_dump.xml |
+| generated artifacts（openwiki/、CI logs） | **明确生成策略 + ignore** | ✅ openwiki/ 由 OpenWiki GitHub Action 生成，已 ignore |
+| docs | current（PR-5 已同步 §14.1） | ✅ 本 PR 提交 |
+| branches | separate governed state | ✅ PR-4 已删 4 本地 + 6 远端 ref |
 
 ### 14.2 技术栈速查
 
