@@ -1,3 +1,16 @@
+# INVESTIGATIONS — 跨会话调查入口 / Investigation Index
+
+> **位置**: `docs/INVESTIGATIONS.md`（2026-08-25 由根目录迁移至此，PR-2 `chore/root-cleanup-2026-08-25`）
+> **定位**: 跨会话、长期可复用的调查索引；不是一次性 scratchpad。
+> **层级**:
+> - `docs/` — 人类长期知识 / 项目文档
+> - `.agent/` — Agent governance
+> - `.agent/state/` — Agent 运行时状态（不入库）
+>
+> 临时运行状态不入此文件，存于 `.agent/state/<run-id>/`。
+>
+> ---
+
 # INVESTIGATIONS — 跨会话调试上下文记录
 
 > 本文件记录正在进行的调试/调查任务，让每个新会话能无缝接上上一个会话的进度。
