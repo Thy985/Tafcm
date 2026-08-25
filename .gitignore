@@ -1,0 +1,52 @@
+# ============================================================================
+# FormulaFix — Root .gitignore
+# ============================================================================
+# Established by chore(restore-root-gitignore) PR.
+# Each rule must have a stated reason; see commit message.
+# ============================================================================
+
+# === Flutter / Dart ===
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+# Note: pubspec.lock 是 App 不提交 / 库提交——根 .gitignore 不能跨子 .gitignore 屏蔽
+# 子目录的 .gitignore 优先解析（git 标准行为），故此规则写在 flutter_app/.gitignore（PR-2 处理）
+flutter_app/.idea/
+flutter_app/*.iml
+flutter_app/android/app/build/
+flutter_app/android/.idea/
+flutter_app/ios/Flutter/Flutter.framework
+flutter_app/ios/Flutter/Flutter.podspec
+flutter_app/ios/Flutter/.last_build_id
+**/doc/api/
+
+# === Android / iOS generated ===
+**/.gradle/
+**/local.properties
+**/Pods/
+**/.symlinks/
+
+# === Python toolchain ===
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+
+# === Agent / runtime artifacts ===
+.agent/state/
+.adi/
+.ffx/
+.workbuddy/
+.wt/
+.arts/
+.codeartsdoer/
+debug/
+openwiki/
+
+# === Local / generated logs ===
+**/*.local.log
+**/logs/
+.claude/hooks.log
+
+# === Flutter test artifacts ===
+flutter_app/test/golden/failures/
