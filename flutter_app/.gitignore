@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+# App project: do not commit pubspec.lock (AGENTS.md §6.2.3)
+# Library projects (e.g. tools/adi) still need it - rule is scoped to flutter_app/
+/pubspec.lock
 
 # Symbolication related
 app.*.symbols
