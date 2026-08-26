@@ -49,7 +49,7 @@
 
 **UI 退化的接受**：本阶段聚焦底层，UI 可能出现退化（如预览/编辑切换失效、渲染异常），不视为 bug。UI 在 Phase 3 重新实现。
 
-**关闭说明**：Phase 1 Close Candidate 经 PR #23 完成测试体系（314 tests / 0 regression）+ Verification Report + Human Owner 合并后正式关闭。详见 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)。
+**关闭说明**：Phase 1 Close Candidate 经 PR #23 完成测试体系（314 tests / 0 regression）+ Verification Report + Human Owner 合并后正式关闭。详见 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)。
 
 ### 任务
 
@@ -61,8 +61,8 @@
 | 1.4 | 修正路由初始位置为文件列表，而非空白编辑器 | P0 | - | ✅ b36d930 |
 | 1.5 | 补齐解析器：行内代码 / 链接 / 图片 / 斜体 / 删除线 / 任务列表 / 引用链接 | P0 | ADR-0004 | ✅ da4ab00 |
 | 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 | ✅ d57d2f2 |
-| 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - | ✅ f6a73af |
-| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | ✅ PR #23（314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)） |
+| 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - | ✅ f6a73af |
+| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | ✅ PR #23（314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)） |
 
 ### 退出条件
 
@@ -71,7 +71,7 @@
 - [x] 所有 Provider 定义唯一
 - [x] 路由无死代码
 - [x] 错误消息对用户友好
-- [x] 核心模块测试覆盖（1.8 已通过：314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)）
+- [x] 核心模块测试覆盖（1.8 已通过：314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)）
 
 ---
 
@@ -104,7 +104,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 - EditorHistory coalescing 7 触发条件（TC-EDIT-6.3）
 - BlockOperations 高层 API + eager apply 语义（TC-EDIT-6.4 ~ 6.9）
 - IME 三铁律集成（铁律 1 由 `assertBlockMutationAllowed` 守门）
-- 全量测试：671 passed / 8 skipped / 0 regression（详见 [Phase 2.6 Verification Report](file:///d:/Projects/Active/math/docs/releases/phase2.6-verification-report.md)）
+- 全量测试：671 passed / 8 skipped / 0 regression（详见 [Phase 2.6 Verification Report](file:///d:/Projects/Active/math2/docs/releases/phase2.6-verification-report.md)）
 - ADR-0008 v1.1 修订：新增 §9 BlockId 生命周期声明 + §10 TransactionExecutor 设计方向（Phase 2.8+ 候选）
 
 **待 Human Owner 操作**：将 `feat/phase2.6-block-operations` 合并到 main（当前 Phase 2.7 从该分支切出，待 2.6 合并后可 rebase）。
@@ -137,8 +137,8 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | 2.8.3 | IME+Transaction 集成测试（TC-EDIT-8.3） | 16 tests | ✅ feat/phase2.8-integration-hardening |
 | 2.8.4 | Parser/Serializer 一致性集成测试（TC-EDIT-8.4） | 17 tests | ✅ feat/phase2.8-integration-hardening |
 | 2.8.5 | Performance Baseline 集成测试（TC-EDIT-8.5） | 9 tests | ✅ feat/phase2.8-integration-hardening |
-| 2.8.6 | Phase 2 Exit Gate Report | [phase2-exit-gate-report.md](file:///d:/Projects/Active/math/docs/releases/phase2-exit-gate-report.md) | ✅ |
-| 2.8.7 | Architecture Review Report | [phase2-architecture-review.md](file:///d:/Projects/Active/math/docs/releases/phase2-architecture-review.md) | ✅ |
+| 2.8.6 | Phase 2 Exit Gate Report | [phase2-exit-gate-report.md](file:///d:/Projects/Active/math2/docs/releases/phase2-exit-gate-report.md) | ✅ |
+| 2.8.7 | Architecture Review Report | [phase2-architecture-review.md](file:///d:/Projects/Active/math2/docs/releases/phase2-architecture-review.md) | ✅ |
 
 ### Phase 2.8 期间发现并修复的 P0/P1
 
@@ -152,7 +152,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 - [x] 1000 行文档增量解析 < 16ms（per-block 0.0752ms）
 - [x] 中文输入法组合态正确处理（TC-EDIT-8.3 16 测试验证三铁律）
 
-详见 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math/docs/releases/phase2-exit-gate-report.md) + [Architecture Review Report](file:///d:/Projects/Active/math/docs/releases/phase2-architecture-review.md)。
+详见 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math2/docs/releases/phase2-exit-gate-report.md) + [Architecture Review Report](file:///d:/Projects/Active/math2/docs/releases/phase2-architecture-review.md)。
 
 ---
 
@@ -171,17 +171,17 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 3. **BlockRenderer 抽象**：新增 Block 类型只增加 renderer，不改 BlockEditor 核心
 4. **Phase 3 冻结边界**：Phase 2.9 只产出设计文档 + Prototype Demo，不修改 `lib/presentation/` 正式代码、不接入生产路由
 
-详见 [Phase 2.9 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase2.9-task-contract.md) + [ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)。
+详见 [Phase 2.9 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase2.9-task-contract.md) + [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md)。
 
 ### 任务
 
 | # | 任务 | 产出 | 类型 |
 |---|------|------|------|
-| 2.9.1 | UI 心智模型定义 | [UI-ARCHITECTURE.md](file:///d:/Projects/Active/math/docs/UI-ARCHITECTURE.md) §1-2 | 架构决策类（草案） |
-| 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
-| 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](file:///d:/Projects/Active/math/docs/Interaction-Model.md) + ADR-0009 | 架构决策类（草案） |
+| 2.9.1 | UI 心智模型定义 | [UI-ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/UI-ARCHITECTURE.md) §1-2 | 架构决策类（草案） |
+| 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
+| 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](file:///d:/Projects/Active/math2/docs/Interaction-Model.md) + ADR-0009 | 架构决策类（草案） |
 | 2.9.4 | UI Prototype 验证（4 个 Demo） | `flutter_app/lib/presentation/prototype/` | 新建代码目录 |
-| 2.9.5 | 核心接口冻结 | [Component-Tree.md](file:///d:/Projects/Active/math/docs/Component-Tree.md) + ADR-0009 | 架构决策类（草案） |
+| 2.9.5 | 核心接口冻结 | [Component-Tree.md](file:///d:/Projects/Active/math2/docs/Component-Tree.md) + ADR-0009 | 架构决策类（草案） |
 
 ### 4 个 Prototype Demo
 
@@ -228,7 +228,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 8. **依赖方向严格**（v1.1 修订）：`blocks/` 不 import `editor/` / `panels/` / `chrome/`；`editor/` 不 import `panels/`；`chrome/` 不 import `blocks/` / `panels/`
 9. **BlockRenderer exhaustive switch**（v1.1 修订）：不允许 `_ =>` fallback 到 GenericBlock，新增 Block 类型必须显式增加 case 分支
 
-详见 [Phase 3.0 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase3.0-task-contract.md)。
+详见 [Phase 3.0 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase3.0-task-contract.md)。
 
 ### 任务
 
@@ -665,8 +665,9 @@ FormulaFix 当前状态：
 
 ## Phase 3.10：FFX Verification Orchestrator（验证编排器）
 
-> **状态**：🟡 进行中（2026-08-19）— ADR-0030 Accepted（Human Owner 授权提交 PR #158），
-> P0 实现已提交待 review。文档族：
+> **状态**：✅ **已关闭**——Final Gate G0-G12 全通过（2026-08-20，PHASE_3_10_PASS=真，
+> 见 [PHASE3.10-GATE-REPORT.md](./PHASE3.10-GATE-REPORT.md)）；任务经 #158/#161/#162/#163 合入 main。
+> 文档族：
 > [ADR-0030（架构决策根）](./ADR/0030-ffx-verification-orchestrator.md)、
 > [PHASE3.10-ENGINEERING-BASELINE-v1.md](./PHASE3.10-ENGINEERING-BASELINE-v1.md)（锚点）、
 > [FFX-VERIFICATION-ORCHESTRATOR-v1.md](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)、
@@ -710,10 +711,10 @@ Coalescing / Focus / IME（editor）。每例登记
 
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
-| 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | 🟡 PR #158 待 review（Review R1-R15 已修复） |
-| 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ⏳ 待 3.10.1 review 后启动 |
-| 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ⏳ |
-| 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ⏳ |
+| 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | ✅ 已合入 main（#158 + #161；评审 R1-R15 关闭） |
+| 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ✅ 五轮 Dogfood 证据链全通（RUN-001~006，`docs/runs/dogfood/`） |
+| 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ✅ 最小版落地（#162：`core/contract_sync.py` + [CONTRACT-SYNC-MINIMAL.md](./CONTRACT-SYNC-MINIMAL.md)） |
+| 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ✅ word/formula adapter 双能力闭环（#162：adapters/word.py + formula.py + DOGFOOD-RUN-007） |
 
 ### Dogfood 五轮（3.10.1D 细化）
 
@@ -728,14 +729,14 @@ Coalescing / Focus / IME（editor）。每例登记
 
 ### 退出条件
 
-- [ ] **Orchestrator 自身**：capability registry / contracts / runtime bridge /
-      evidence graph / exit code 语义 / diagnose / repair-verify 全部可用
-- [ ] **Dogfood 5 条证据链全通**：PASS path + FAIL path + DIAGNOSE path +
-      REPAIR path + REGRESSION path（各 ≥1 例，用 Golden Failure Corpus）
-- [ ] contract sync：矩阵与契约无漂移（机器强制，Dogfood 前最小版落地）
-- [ ] 每个真实 Bug 自动进入 `Bug → 最小复现 → Capability Case → FFX Verification
-      Case → Regression → Permanent corpus`（质量资产复利）
-- [ ] Phase 3.10 文档族全部挂入 docs/README.md 导航（2026-08-19 已挂）
+- [x] **Orchestrator 自身**：capability registry / contracts / runtime bridge /
+      evidence graph / exit code 语义 / diagnose / repair-verify 全部可用（Final Gate G0-G12，PHASE_3_10_PASS=真）
+- [x] **Dogfood 5 条证据链全通**：PASS path + FAIL path + DIAGNOSE path +
+      REPAIR path + REGRESSION path（RUN-001~006，`docs/runs/dogfood/`）
+- [x] contract sync：矩阵与契约无漂移（机器强制；#162 落地 `core/contract_sync.py` 最小版）
+- [x] 每个真实 Bug 自动进入 `Bug → 最小复现 → Capability Case → FFX Verification
+      Case → Regression → Permanent corpus`（质量资产复利；Run #005/#006 真实修复闭环验证）
+- [x] Phase 3.10 文档族全部挂入 docs/README.md 导航（2026-08-19 已挂；#166 扩展为 INDEX 全量索引）
 
 ---
 
@@ -903,6 +904,6 @@ Golden Loop 逐层覆盖：
 
 ---
 
-**当前阶段**：Phase 3.3 Mobile Markdown Editing Experience（✅ 全部 9 个任务已完成并合入 main）+ **Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题 / 导出进度 / 文件树 / 页面宽度 / 图片链路；仅 3.4.10 选区格式化菜单未启动）** + **Phase 3.4.5 Design System Alignment（✅ 全部退出条件达成）** + **Phase 3.5 Formula Rendering System（✅ 主线 3.5.1 + 主题 3.5.2 + 延期项 3.5.3/4/5 Block 交互三件套 全部完成并合入 main）** + **Phase 3.6 E2E（✅ Core E2E + Extended E2E + Patrol 接入全部完成）** + **Phase 3.7 Editor Observability（✅ 3.7.1 基础诊断 + 3.7.2 ErrorSnapshot + 3.7.3 ExportPipeline + 3.7.4 CommandReplayer 全部完成，退出条件全部满足）**
-**最近更新**：2026-08-06（文档清理：Phase 2.7 标记 ✅ 完成（tryTransform 已实现）；Phase 2/2.9 退出条件勾选；Phase 3.7.2/3/4 从 🔶 更正为 ✅）
+**当前阶段**：**Phase 3 系列全部收尾，处于阶段间空档期，Phase 4 未启动。** Phase 3.0-3.7（UI 骨架 / WYSIWYG 迁移 / 移动输入体验 / TOC·自动保存·主题·导出进度·文件树·图片链路 / 设计系统对齐 / 公式渲染系统 / Core+Extended E2E / 可观测系统）✅ 全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 ✅ 合入（v0.3 拆至 ADR-0026）；Phase 3.9 审计收口 ✅；Phase 3.10 FFX Verification Orchestrator ✅ Final Gate G0-G12 全通过后关闭；Phase 3.11 Capability Hardening Loop ✅ 2026-08-22 Owner 判定关闭。产品侧遗留：3.4.10 选区格式化菜单未启动；Typora 差距高 ROI 项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑等）待 Owner 立项（见 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](./PHASE3.10-TYPORA-GAP-ANALYSIS.md) §4）。
+**最近更新**：2026-08-26（阶段状态对齐：Phase 3.10 任务表回填收口结果 + 本 footer 同步至 Phase 3.11 关闭后实况；历史：2026-08-06 文档清理轮——Phase 2.7 标记 ✅ 完成（tryTransform 已实现）；Phase 2/2.9 退出条件勾选；Phase 3.7.2/3/4 从 🔶 更正为 ✅）
 **维护人**：首席架构工程师

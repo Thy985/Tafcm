@@ -563,7 +563,7 @@ Phase 2.9 PR 评审收到 6 项反馈（R1-R6），全部已修复（commit `3bf
 > - **EditorCommand 不直接操作 Transaction**，引入 `CommandHandler` 中间层
 > - 流：`EditorCommand → CommandHandler → TransactionBuilder → Transaction → TransactionExecutor`
 > - 理由：Command 是用户意图（来源多样：键盘 / AI / 语音 / 菜单），Executor 是执行机制，二者职责不同
-> - 详见 [ADR-0009 §3 v1.1](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md) 修订
+> - 详见 [ADR-0009 §3 v1.1](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md) 修订
 
 ### 原 v1.0 倾向（保留作历史参考）
 

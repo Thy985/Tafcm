@@ -14,8 +14,8 @@ Task ID: ROADMAP Phase 2.7
 
 - v1.0（2026-07-20）：初版，基于 ADR-0007 §4.3（Markdown 快捷映射规则表）+ ROADMAP Phase 2.7 起草
 - v1.1（2026-07-20）：Human Owner 评审反馈补强：
-  1. §1.5 新增 **BlockId 生命周期约束**（引用 [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)）
-  2. §1.6 新增 **TransactionExecutor 设计方向**（引用 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)）：本 Phase 不引入 TransactionExecutor，仅记录为 Phase 2.8+ 候选
+  1. §1.5 新增 **BlockId 生命周期约束**（引用 [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)）
+  2. §1.6 新增 **TransactionExecutor 设计方向**（引用 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)）：本 Phase 不引入 TransactionExecutor，仅记录为 Phase 2.8+ 候选
   3. §3 实现细节中所有 BlockId 引用补充"内存态 only"约束说明
   4. §8 风险评估新增"BlockOperations 隐式执行器角色"为已知 tech debt（不在本 Phase 解决）
   5. §10 AI Self Review 新增 ADR-0008 v1.1 §9 / §10 合规检查
@@ -61,7 +61,7 @@ Task ID: ROADMAP Phase 2.7
 
 - ❌ 不接入 UI（Phase 3）
 - ❌ 不修改 BlockEditor abstract 接口（保持 abstract，Phase 3 UI 实现具体类）
-- ❌ 不修改 AST（[document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) 零修改）
+- ❌ 不修改 AST（[document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 零修改）
 - ❌ 不修改 parser / storage / providers
 - ❌ 不修改 DocumentEditor / ComposingController / Transaction / TransactionBuilder / EditorHistory（Phase 2.5/2.6 已稳定）
 - ❌ 不接入真实 TextEditingController（Phase 3）
@@ -79,7 +79,7 @@ Task ID: ROADMAP Phase 2.7
 
 ### 1.5 BlockId 生命周期约束（v1.1 新增）
 
-引用 [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)：
+引用 [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)：
 
 > **BlockId provides in-memory identity only and is not persisted across document serialization boundaries.**
 
@@ -98,7 +98,7 @@ Task ID: ROADMAP Phase 2.7
 
 ### 1.6 TransactionExecutor 设计方向（v1.1 新增，不在本 Phase 实现）
 
-引用 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)：
+引用 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)：
 
 > Transaction 是数据结构，TransactionExecutor 是执行环境（类比 Git commit object 不会自己执行）。
 
@@ -120,7 +120,7 @@ Task ID: ROADMAP Phase 2.7
 - `BlockOperations` 内部委托给 `TransactionExecutor`（`_executor.applyOp(op, _builder)`）
 - 引入 `NotificationSink` 抽象解耦 UI 通知 + history push
 
-详见 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md) 迁移策略。
+详见 [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) 迁移策略。
 
 ---
 
@@ -169,7 +169,7 @@ Task ID: ROADMAP Phase 2.7
 
 ### 3.1 BlockOpType.transform 新增（ADR-0007 §4.3 落地）
 
-扩展 [block_operation.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_operation.dart) 中的 `BlockOpType` 枚举：
+扩展 [block_operation.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_operation.dart) 中的 `BlockOpType` 枚举：
 
 ```dart
 /// 5 类块级操作的类型标识 + transform（重类型化）。
@@ -242,7 +242,7 @@ class BlockOperation extends EditOperation {
 
 ### 3.3 BlockOperations.tryTransform 高层 API
 
-新增 [block_operations.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_operations.dart) 方法：
+新增 [block_operations.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_operations.dart) 方法：
 
 ```dart
 /// 检测 [blockId] 的 source 是否触发 Markdown 快捷映射，
@@ -331,7 +331,7 @@ bool updateSource(BlockId blockId, String newSource) {
 
 ### 3.5 BlockOperations.split 自动 transform
 
-修改现有 [block_operations.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_operations.dart) `split` 方法：
+修改现有 [block_operations.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_operations.dart) `split` 方法：
 
 ```dart
 bool split(BlockId targetId, int offset) {
@@ -570,7 +570,7 @@ bool split(BlockId targetId, int offset) {
 | updateSource 中 TextOperation 失败但已 apply | 中 | 中 | updateSource 不做原子性保证（已说明）；调用方需自行 revert（参考 transaction_rollback_atomicity_test.dart 的 rollback helper） |
 | 与 ADR-0007 §4.3 决策冲突 | 低 | 高 | 严格按 §4.3 规则表实现，不引入新决策 |
 | 性能：1000 块 Document 下 tryTransform 慢 | 低 | 低 | tryTransform 是 O(1) 检查（detectBlockType + BlockType 比较） |
-| **BlockOperations 隐式执行器角色（v1.1 新增）** | 低 | 中 | 已知 tech debt（[ADR-0008 v1.1 §10](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)）；本 Phase 复用现有模式，不引入 TransactionExecutor，留待 Phase 2.8+ 解决 |
+| **BlockOperations 隐式执行器角色（v1.1 新增）** | 低 | 中 | 已知 tech debt（[ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)）；本 Phase 复用现有模式，不引入 TransactionExecutor，留待 Phase 2.8+ 解决 |
 | **transform 误用 replaceBlock 导致 BlockId 重分配（v1.1 新增）** | 低 | 高 | §1.5 已明确禁止；单测覆盖"transform 后 BlockId 不变"（TC-EDIT-7.1） |
 | **BlockId 误持久化到 .md 文件（v1.1 新增）** | 低 | 高 | BlockSerializer 不读写 BlockId（Phase 2.3 已稳定）；transform 不修改 BlockSerializer，单测验证 toElement/fromElement 不含 BlockId |
 

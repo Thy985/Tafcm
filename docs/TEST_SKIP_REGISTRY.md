@@ -13,7 +13,7 @@
 
 ## 1. 架构守门历史遗留（6 个）
 
-均位于 [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart)，对应 AGENTS.md §10「当前阻塞项与例外说明」中的「Provider 重复定义」。
+均位于 [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart)，对应 AGENTS.md §10「当前阻塞项与例外说明」中的「Provider 重复定义」。
 
 | # | 测试 | Skip 原因 | 解封 Phase | 跟踪 |
 |---|------|----------|-----------|------|
@@ -34,7 +34,7 @@
 
 | 字段 | 值 |
 |------|----|
-| 测试 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math/flutter_app/test/golden/file_manager_test.dart) `有文件状态：显示文件列表` |
+| 测试 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/golden/file_manager_test.dart) `有文件状态：显示文件列表` |
 | Skip 原因 | `FileManagerScreen._loadFiles` 在 `initState` 中调用 `await file.readAsBytes()` 真实磁盘 I/O，与 Flutter test fake async zone 冲突，setState 永不触发。Phase 0 UI Prototype Freeze 禁止修改 `FileManagerScreen` 行为。 |
 | 解封 Phase | Phase 3 UI 重构（引入 Provider 解耦文件 I/O 后） |
 | 跟踪 | ROADMAP Phase 3 |
@@ -78,10 +78,10 @@ golden 视觉回归保护现已在 CI 常驻生效。后续新增 golden 测试�
 
 | # | 测试 | Skip 原因 | 解封 Phase | 跟踪 |
 |---|------|----------|-----------|------|
-| 9 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 37 行 `migrateIfNeeded 在无 JSON 时跳过并标记 marker` | 需 path_provider mock 注入临时目录（`_MockPathProvider` 已在 [storage_repository_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage_repository_test.dart) 实现但未抽到共享 helper） | Phase 2 测试基础设施 | - |
-| 10 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 58 行 `migrateIfNeeded 在 marker 已存在时幂等跳过` | 同上，需 path_provider mock | Phase 2 测试基础设施 | - |
+| 9 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage/migration_test.dart) 第 37 行 `migrateIfNeeded 在无 JSON 时跳过并标记 marker` | 需 path_provider mock 注入临时目录（`_MockPathProvider` 已在 [storage_repository_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage_repository_test.dart) 实现但未抽到共享 helper） | Phase 2 测试基础设施 | - |
+| 10 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage/migration_test.dart) 第 58 行 `migrateIfNeeded 在 marker 已存在时幂等跳过` | 同上，需 path_provider mock | Phase 2 测试基础设施 | - |
 
-**临时覆盖**：[storage_repository_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage_repository_test.dart) 已覆盖 `StorageMigration.migrateIfNeeded` 的幂等性 + 无 JSON 路径 + 篡改后不还原，回归保护已建立，本 2 个 skip 不构成关键缺口。
+**临时覆盖**：[storage_repository_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage_repository_test.dart) 已覆盖 `StorageMigration.migrateIfNeeded` 的幂等性 + 无 JSON 路径 + 篡改后不还原，回归保护已建立，本 2 个 skip 不构成关键缺口。
 
 ---
 
@@ -91,8 +91,8 @@ golden 视觉回归保护现已在 CI 常驻生效。后续新增 golden 测试�
 
 | 现象 | 测试 | 处理方式 | 修复 Phase |
 |------|------|---------|-----------|
-| `_italicStarRe = RegExp(r'\*([^*\n]+?)\*')` 误匹配 `**bold *italic ~text` 中的 `*bold *` 为 ItalicElement | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) `连续未闭合标记不导致崩溃` | 仅断言"无 BoldElement"，不断言"无 ItalicElement" | Phase 3（Parser 重写） |
-| `MarkdownParser.parse('   \n   \n   ')` 返回 3 个 EmptyLineElement（非空列表） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) `只有空白字符不产生 ParagraphElement` | 断言 `whereType<ParagraphElement>().isEmpty` 而非 `elements.isEmpty` | Phase 3 |
+| `_italicStarRe = RegExp(r'\*([^*\n]+?)\*')` 误匹配 `**bold *italic ~text` 中的 `*bold *` 为 ItalicElement | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) `连续未闭合标记不导致崩溃` | 仅断言"无 BoldElement"，不断言"无 ItalicElement" | Phase 3（Parser 重写） |
+| `MarkdownParser.parse('   \n   \n   ')` 返回 3 个 EmptyLineElement（非空列表） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) `只有空白字符不产生 ParagraphElement` | 断言 `whereType<ParagraphElement>().isEmpty` 而非 `elements.isEmpty` | Phase 3 |
 
 ---
 

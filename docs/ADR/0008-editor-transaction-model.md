@@ -26,7 +26,7 @@ Phase 2.4 已完成（PR #30 合并，commit `2f718dd`），AST 在 Phase 2 保�
 
 ### 待决问题
 
-[ADR-0007 §4.2](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)
+[ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
 已定义 `EditOperation` sealed class 联合类型骨架（`BlockOperation` + `TextOperation`），
 但只描述了 **数据结构形状**，未落地以下关键问题：
 
@@ -36,7 +36,7 @@ Phase 2.4 已完成（PR #30 合并，commit `2f718dd`），AST 在 Phase 2 保�
    与副作用边界未明确（如何避免反向应用时再次触发 `setState` 风暴）
 3. **与 IME 的交互**：Phase 2.5 ComposingRegion 三条铁律下，commit 阶段如何
    批量封口 TextOperation、cancel 阶段如何回滚未封口操作，未定义
-4. **与 HistoryManager 的关系**：现有 [history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart)
+4. **与 HistoryManager 的关系**：现有 [history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart)
    是泛型 `<T>` 状态快照栈（`maxHistorySize=50`），Phase 2.6 需要"扩展为支持
    `EditOperation` 联合类型"。扩展是 **重写还是包装**？状态快照与操作日志如何共存？
 5. **序列化与持久化**：Transaction 是否需要跨 session 持久化？`.md` 文件作为
@@ -46,13 +46,13 @@ Phase 2.4 已完成（PR #30 合并，commit `2f718dd`），AST 在 Phase 2 保�
 
 ### 现有约束
 
-- [ADR-0007 §4.2](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)
+- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
   已定义 `EditOperation` sealed class 骨架（不可推翻，本 ADR 仅扩展细节）
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
   `.md` 文件作为单一真相源，Transaction 不得引入第五套持久化存储
-- [AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) Phase 2 禁区：
+- [AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) Phase 2 禁区：
   UI 行为冻结，Transaction Model 必须能脱离 UI 独立运行（纯 Dart 逻辑）
-- [history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart)
+- [history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart)
   现有 50 上限泛型栈，5 处引用（editor_screen / document_provider 等）
 
 ### 触发本 ADR 的事件
@@ -251,7 +251,7 @@ class HistoryManager {
 
 ### 5. 与 IME 三铁律的交互（Phase 2.5 预留接口）
 
-[ADR-0007 §3.2](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)
+[ADR-0007 §3.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
 IME 三铁律：
 
 1. 组合态中间不切块
@@ -271,7 +271,7 @@ IME 三铁律：
 ### 6. HistoryManager 扩展策略：包装而非重写
 
 **决策**：新建 `EditorHistory` 包装现有 `HistoryManager<Transaction>`，保留旧 API 用于
-向后兼容（[history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart)
+向后兼容（[history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart)
 5 处引用不破坏）。
 
 ```dart
@@ -323,7 +323,7 @@ class EditorHistory {
 
 **理由**：
 
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
   `.md` 文件是单一真相源，Transaction 持久化等于引入第五套存储
 - 编辑器关闭重启后 Undo/Redo 历史清空是用户预期行为（VSCode / Typora 都这么做）
 - 跨 session Undo 不是 Phase 2 目标
@@ -363,22 +363,22 @@ class TransactionId {
 
 代码已隐含遵守此约束：
 
-- [block_types.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) L20 注释：「仅内存标识，非持久化存储（[ADR-0003] §边界约束 5：不引入派生缓存）」
-- [block_serializer.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_serializer.dart) `toElement` / `fromElement` 不读写 BlockId（BlockId 与序列化正交）
-- [document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) `DocumentElement` 子类不含 BlockId 字段
-- [transaction.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/transaction.dart) `Transaction` 不可序列化（无 `toJson` / `fromJson`）
+- [block_types.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) L20 注释：「仅内存标识，非持久化存储（[ADR-0003] §边界约束 5：不引入派生缓存）」
+- [block_serializer.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_serializer.dart) `toElement` / `fromElement` 不读写 BlockId（BlockId 与序列化正交）
+- [document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) `DocumentElement` 子类不含 BlockId 字段
+- [transaction.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction.dart) `Transaction` 不可序列化（无 `toJson` / `fromJson`）
 
 ### 设计意图
 
 **为何不持久化 BlockId**：
 
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) `.md` 是单一真相源，BlockId 是派生数据
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) `.md` 是单一真相源，BlockId 是派生数据
 - 持久化 BlockId 需在 `.md` frontmatter 或 sidecar 文件存储，引入第五套存储违反 ADR-0003 §边界约束 5
 - 协同编辑场景下的 stable identity 需求，应作为独立 ADR 评估（如未来 ADR-0012 候选：Operational Transform / CRDT 基础）
 
 **`preserveId` 参数的边界**：
 
-[document_editor.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/document_editor.dart) `insertBlock(index, element, {preserveId})` 的 `preserveId` 参数仅用于：
+[document_editor.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/document_editor.dart) `insertBlock(index, element, {preserveId})` 的 `preserveId` 参数仅用于：
 - Undo/Redo 时保留同一 session 内的 BlockId（如 `BlockOperation._revertDelete` 用 `preserveId: targetId` 恢复被删块）
 - 不跨 session 保留 BlockId
 
@@ -546,7 +546,7 @@ origin=ime，不参与 coalescing。
 2. **内存占用**：Transaction 比"每次保存整个状态"省内存，但 100 Transaction 仍有成本
 3. **Coalescing 调优**：500ms 默认值需在真实用户输入数据上调优
 4. **DocumentEditor 接口未定义**：本 ADR 引用 `DocumentEditor`，但其接口需
-   Phase 2.6 在 [block_editor.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_editor.dart)
+   Phase 2.6 在 [block_editor.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_editor.dart)
    中落地，是隐含依赖
 
 ### 风险与缓解
@@ -628,22 +628,22 @@ Phase 2.6 实施步骤（参考本 ADR）：
 
 ### 与现有 ADR 的关系
 
-- **扩展** [ADR-0007 §4.2](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)
+- **扩展** [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
   的 `EditOperation` 骨架（不推翻，仅补充 Transaction 容器）
-- **遵守** [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)
+- **遵守** [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
   不持久化 Transaction
-- **预留** [ADR-0009](file:///d:/Projects/Active/math/docs/ADR/) IME Lifecycle Model
+- **预留** [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/) IME Lifecycle Model
   的接口（origin=ime）
 
 ---
 
 ## 参考
 
-- [ADR-0007 §4.2](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) EditOperation 骨架
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
-- [ROADMAP Phase 2.6](file:///d:/Projects/Active/math/docs/ROADMAP.md) 块级操作
-- [history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart) 现有泛型栈
-- [block_editor.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_editor.dart) BlockEditor 抽象
+- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) EditOperation 骨架
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
+- [ROADMAP Phase 2.6](file:///d:/Projects/Active/math2/docs/ROADMAP.md) 块级操作
+- [history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart) 现有泛型栈
+- [block_editor.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_editor.dart) BlockEditor 抽象
 - ProseMirror Transaction 设计（参考架构，未采用其不可变快照模型）
 - VSCode / Typora 的 Undo 粒度（参考产品行为）
 

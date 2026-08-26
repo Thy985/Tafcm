@@ -8,11 +8,11 @@
 
 代码分析显示项目已使用 `flutter_riverpod` 作为状态管理方案。证据：
 
-1. [main.dart:2](file:///d:/Projects/Active/math/flutter_app/lib/main.dart#L2) `import 'package:flutter_riverpod/flutter_riverpod.dart';`
-2. [main.dart:11-15](file:///d:/Projects/Active/math/flutter_app/lib/main.dart#L11-15) 用 `ProviderScope` 包裹根 Widget
-3. [providers/providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart) 全文用 `Provider` / `StateNotifierProvider` / `StateProvider` / `FutureProvider`
-4. [providers/providers.dart:39-75](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L39-75) `DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>>`
-5. 所有 screens 用 `ConsumerStatefulWidget` / `ConsumerWidget`（如 [editor_screen.dart:18](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L18)）
+1. [main.dart:2](file:///d:/Projects/Active/math2/flutter_app/lib/main.dart#L2) `import 'package:flutter_riverpod/flutter_riverpod.dart';`
+2. [main.dart:11-15](file:///d:/Projects/Active/math2/flutter_app/lib/main.dart#L11-15) 用 `ProviderScope` 包裹根 Widget
+3. [providers/providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart) 全文用 `Provider` / `StateNotifierProvider` / `StateProvider` / `FutureProvider`
+4. [providers/providers.dart:39-75](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L39-75) `DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>>`
+5. 所有 screens 用 `ConsumerStatefulWidget` / `ConsumerWidget`（如 [editor_screen.dart:18](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L18)）
 
 现有 Provider 类型分布：
 
@@ -32,14 +32,14 @@
 
 1. **禁止** 引入其他状态管理库（`bloc` / `provider`（旧版） / `getx` / `mobx`）
 2. **禁止** 用 `StatefulWidget` + `InheritedWidget` 模拟全局状态
-3. **Provider 类型选择** 严格按 [CODING_RULES.md §5.1](file:///d:/Projects/Active/math/docs/CODING_RULES.md#51-provider-选择决策树) 决策树
+3. **Provider 类型选择** 严格按 [CODING_RULES.md §5.1](file:///d:/Projects/Active/math2/docs/CODING_RULES.md#51-provider-选择决策树) 决策树
 4. **状态不可变**：所有 `StateNotifier<S>` 的 `S` 必须不可变
-5. **Provider 归属** 严格按 [CODING_RULES.md §5.3](file:///d:/Projects/Active/math/docs/CODING_RULES.md#53-归属)
+5. **Provider 归属** 严格按 [CODING_RULES.md §5.3](file:///d:/Projects/Active/math2/docs/CODING_RULES.md#53-归属)
 
 ### 现有违规（Phase 1 P0 #1 修复）
 
-- `sharedPreferencesProvider` 在 [providers/providers.dart:8-10](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L8-10) 与 [providers/editor_providers.dart:4-6](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L4-6) 各定义一次
-- `darkModeProvider` 在 [providers/providers.dart:20-35](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L20-35) 与 [providers/editor_providers.dart:8-23](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L8-23) 各定义一次
+- `sharedPreferencesProvider` 在 [providers/providers.dart:8-10](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L8-10) 与 [providers/editor_providers.dart:4-6](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L4-6) 各定义一次
+- `darkModeProvider` 在 [providers/providers.dart:20-35](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L20-35) 与 [providers/editor_providers.dart:8-23](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L8-23) 各定义一次
 
 两个文件定义同名 Provider 在 Riverpod 中是**两个独立实例**，状态不同步。
 
@@ -94,6 +94,6 @@
 
 ## 参考
 
-- [AGENTS.md §3](file:///d:/Projects/Active/math/AGENTS.md) 状态管理规范
-- [CODING_RULES.md §5](file:///d:/Projects/Active/math/docs/CODING_RULES.md) Riverpod 详细规则
-- [CRITICAL_REVIEW.md §2.4](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) Provider 重复定义问题
+- [AGENTS.md §3](file:///d:/Projects/Active/math2/AGENTS.md) 状态管理规范
+- [CODING_RULES.md §5](file:///d:/Projects/Active/math2/docs/CODING_RULES.md) Riverpod 详细规则
+- [CRITICAL_REVIEW.md §2.4](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) Provider 重复定义问题

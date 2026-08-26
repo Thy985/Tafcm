@@ -6,7 +6,7 @@
 
 ## 背景
 
-代码分析发现 [core/parser/markdown_parser.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart) 存在严重缺陷：
+代码分析发现 [core/parser/markdown_parser.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart) 存在严重缺陷：
 
 ### 缺失的 Markdown 元素
 
@@ -62,7 +62,7 @@ class BoldElement extends InlineElement { ... }
 
 ### 1. AST 扩展（只新增不修改）
 
-在 [data/models/document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) 新增子类：
+在 [data/models/document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 新增子类：
 
 ```dart
 sealed class InlineElement {
@@ -229,7 +229,7 @@ class HorizontalRuleElement extends DocumentElement {
 
 ## 参考
 
-- [markdown_parser.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart)
-- [data/models/document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart)
-- [CRITICAL_REVIEW.md §3.1](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) 解析器缺失元素
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) Phase 1 P0 #5
+- [markdown_parser.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart)
+- [data/models/document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart)
+- [CRITICAL_REVIEW.md §3.1](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) 解析器缺失元素
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) Phase 1 P0 #5

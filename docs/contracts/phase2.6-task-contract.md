@@ -48,7 +48,7 @@ Task ID: ROADMAP Phase 2.6
 
 ### 1.2 ADR-0008 §负面后果 #4 隐含依赖
 
-> DocumentEditor 接口未定义：本 ADR 引用 `DocumentEditor`，但其接口需 Phase 2.6 在 [block_editor.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_editor.dart) 中落地，是隐含依赖
+> DocumentEditor 接口未定义：本 ADR 引用 `DocumentEditor`，但其接口需 Phase 2.6 在 [block_editor.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_editor.dart) 中落地，是隐含依赖
 
 **本 Phase 第一个任务**：定义 DocumentEditor 接口（apply/revert 的副作用边界）。
 
@@ -56,7 +56,7 @@ Task ID: ROADMAP Phase 2.6
 
 - ❌ 不接入 UI（Phase 3）
 - ❌ 不修改 BlockEditor abstract 接口（保持 abstract，Phase 3 UI 实现具体类）
-- ❌ 不修改 AST（[document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) 零修改）
+- ❌ 不修改 AST（[document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 零修改）
 - ❌ 不修改 parser / storage / providers
 - ❌ 不实现 Markdown 快捷映射（Phase 2.7）
 - ❌ 不接入真实 TextEditingController（Phase 3）
@@ -65,7 +65,7 @@ Task ID: ROADMAP Phase 2.6
 ### 1.4 与 Phase 2.5 的衔接
 
 - ✅ 复用 `ComposingController.isActive` / `assertBlockMutationAllowed()`：每个 BlockOperation.apply 前置调用
-- ✅ 复用 `ComposingRegion`（[block_types.dart:202](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart)）：TextOperation.offset 语义对齐 UTF-16
+- ✅ 复用 `ComposingRegion`（[block_types.dart:202](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart)）：TextOperation.offset 语义对齐 UTF-16
 - ❌ 不修改 ComposingController / ComposingState / ComposingHost（Phase 2.5 已稳定）
 
 ---
@@ -173,7 +173,7 @@ abstract class DocumentEditor {
 
   /// 按 BlockId 查找块。
   ///
-  /// BlockId 是稳定 identity（[block_types.dart:23](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart#L23)），
+  /// BlockId 是稳定 identity（[block_types.dart:23](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart#L23)），
   /// 不随 insert/delete 变化。
   /// 找不到时返回 null（调用方决定是否抛异常）。
   DocumentElement? getBlock(BlockId id);
@@ -263,7 +263,7 @@ final class BlockOperation extends EditOperation {
 
   /// 操作的目标 BlockId（apply 前存在）。
   ///
-  /// BlockId 是稳定 identity（[block_types.dart:23](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart#L23)），
+  /// BlockId 是稳定 identity（[block_types.dart:23](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart#L23)），
   /// 不随其他 insert/delete 变化。
   final BlockId targetId;
 
@@ -368,7 +368,7 @@ final class TextOperation extends EditOperation {
 - `apply` 内部填充 `revertContext`，`revert` 读取使用（不依赖外部可变状态）
 - **TextOperation 用 BlockId 作为 identity**（评审反馈 1），cachedIndex 仅作性能优化
 - **BlockOperation 用 BlockId 定位**（评审反馈 1+3 联动），index 存入 revertContext 用于精确恢复
-- offset 语义对齐 [block_types.dart:148](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) UTF-16 code unit
+- offset 语义对齐 [block_types.dart:148](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) UTF-16 code unit
 - TextOperation 通过 `updateBlockContent` 修改内容（BlockId 不变），不通过 `replaceBlock`（会重新分配 BlockId）
 
 ### 3.3 5 类 BlockOperation 语义 + revert context（ADR-0007 §4.1）
@@ -427,12 +427,12 @@ class DeleteOp {
 **约束声明**：
 
 > revertContext represents historical state, NOT live mutable reference.
-> 所有 snapshot 字段必须是 final，且 DocumentElement 必须保持 @immutable（[document.dart:30](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L30) 已是 @immutable）。
+> 所有 snapshot 字段必须是 final，且 DocumentElement 必须保持 @immutable（[document.dart:30](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L30) 已是 @immutable）。
 > 若未来 AST 改为 mutable，需重新评估 revertContext 的 snapshot 策略（可能需要深拷贝或序列化）。
 
 **当前 AST 状态**：
 
-- [document.dart:30](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L30) 已标注 `@immutable`
+- [document.dart:30](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L30) 已标注 `@immutable`
 - 所有 DocumentElement 子类字段均为 final
 - 因此 v1.2 的 immutable snapshot 约束天然满足，无需额外深拷贝
 
@@ -1220,7 +1220,7 @@ abstract class BlockOperations {
 
 **不升级为 Critical** 的理由：
 
-- 不改 AST（[document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) 零修改）
+- 不改 AST（[document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 零修改）
 - 不改 UI（Phase 3 才接入）
 - 不改存储（ADR-0003 单一真相源不变）
 - 不改 parser / providers / domain

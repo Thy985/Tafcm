@@ -1,6 +1,6 @@
 # FormulaFix Git 工作流
 
-> 本文是 [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) 第 5 章的展开版。
+> 本文是 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 第 5 章的展开版。
 
 ---
 
@@ -305,7 +305,7 @@ PR 合并前必须满足：
 - [ ] 测试覆盖充分（新功能 / bug 修复必须有测试）
 - [ ] 文档已同步
 - [ ] commit message 符合规范
-- [ ] 没有引入新的"禁止事项"（见 [AGENTS.md §6](file:///d:/Projects/Active/math/AGENTS.md)）
+- [ ] 没有引入新的"禁止事项"（见 [AGENTS.md §6](file:///d:/Projects/Active/math2/AGENTS.md)）
 
 **Phase 相关检查**：
 - [ ] 当前 PR 是否在允许的 Phase 范围内（Phase 0 不允许业务改动）
@@ -380,6 +380,6 @@ v1.0.0
 
 ## 6. 相关文档
 
-- [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) — 总体规范
-- [CODING_RULES.md](file:///d:/Projects/Active/math/docs/CODING_RULES.md) — 编码规范
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) — 路线图
+- [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) — 总体规范
+- [CODING_RULES.md](file:///d:/Projects/Active/math2/docs/CODING_RULES.md) — 编码规范
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) — 路线图

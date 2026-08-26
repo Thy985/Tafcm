@@ -1,6 +1,6 @@
 # FormulaFix 编码规范
 
-> 本文是 [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) 第 2-4 章的展开版。  
+> 本文是 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 第 2-4 章的展开版。  
 > 所有规则基于现有代码分析，不凭空设计。
 
 ---
@@ -27,7 +27,7 @@ library;
 import 'package:flutter/foundation.dart';
 ```
 
-参考 [pdf_exporter.dart:1-9](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L1-9) 的写法。
+参考 [pdf_exporter.dart:1-9](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L1-9) 的写法。
 
 ### 1.3 文件长度
 
@@ -88,14 +88,14 @@ import '../../data/models/document.dart';
 
 ### 3.1 鼓励使用
 
-- **sealed class**：用于 AST / 状态联合（参考 [document.dart:12-14](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L12-14)）
+- **sealed class**：用于 AST / 状态联合（参考 [document.dart:12-14](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L12-14)）
 - **records**：用于多值返回（参考 `ExportFailureInfo`）
-- **switch 表达式 + 模式匹配**：替代 if-else 链（参考 [preview_content.dart:80-102](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L80-102)）
+- **switch 表达式 + 模式匹配**：替代 if-else 链（参考 [preview_content.dart:80-102](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart#L80-102)）
 - **空安全**：优先 `?` / `??` / `?.`，禁止 `!` 强解包（除非同行已 null 检查）
 
 ### 3.2 禁止使用
 
-- `dynamic`：除非与 JS 桥接（如 [formula_svg_service.dart:241](file:///d:/Projects/Active/math/flutter_app/lib/core/services/formula_svg_service.dart#L241) 的 `raw`）
+- `dynamic`：除非与 JS 桥接（如 [formula_svg_service.dart:241](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/formula_svg_service.dart#L241) 的 `raw`）
 - `late`：除非有明确的初始化保证，且不可在 final 字段上用
 - 全局可变状态
 - `print()`：必须 `debugPrint()`
@@ -113,7 +113,7 @@ import '../../data/models/document.dart';
 ### 4.1 Widget 拆分原则
 
 - 单个 `build` 方法 ≤ 80 行
-- 复杂 UI 拆为 `Widget` 类（参考 `_DocCard` in [document_list_screen.dart:241-346](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/document_list_screen.dart#L241-346)）
+- 复杂 UI 拆为 `Widget` 类（参考 `_DocCard` in [document_list_screen.dart:241-346](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/document_list_screen.dart#L241-346)）
 - 内联闭包：≤ 30 行；超出就抽 Widget
 
 ### 4.2 状态管理
@@ -131,9 +131,9 @@ import '../../data/models/document.dart';
 
 ### 4.4 主题
 
-- 颜色 / 间距 / 字号**必须**从 [app_constants.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/constants/app_constants.dart) 取
+- 颜色 / 间距 / 字号**必须**从 [app_constants.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/constants/app_constants.dart) 取
 - 禁止硬编码 `Color(0xFFxxxxxx)`、`fontSize: 16`、`EdgeInsets.all(8)`
-- **已知问题**：当前 [app_theme.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/theme/app_theme.dart) 也定义了一组颜色常量，与 `AppColors` 冲突，待 Phase 1 合并
+- **已知问题**：当前 [app_theme.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/theme/app_theme.dart) 也定义了一组颜色常量，与 `AppColors` 冲突，待 Phase 1 合并
 
 ---
 
@@ -179,7 +179,7 @@ state = state.copyWith(list: [...state.list, doc]);
 
 ### 5.6 已知违规
 
-- [providers/providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart) 重复定义 `sharedPreferencesProvider` / `darkModeProvider`  
+- [providers/providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart) 重复定义 `sharedPreferencesProvider` / `darkModeProvider`  
   → Phase 1 P0 #1 修复
 
 ---
@@ -197,7 +197,7 @@ UI  →  Provider  →  Service  →  File / SharedPreferences / WebView
 
 ### 6.2 单一真相源（目标，未达成）
 
-详见 [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)。
+详见 [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)。
 
 - 当前：三套并存
 - 目标：`.md` 文件为唯一真相
@@ -213,7 +213,7 @@ final content = utf8.decode(await file.readAsBytes());
 final content = decodeBytesAuto(await file.readAsBytes());
 ```
 
-详见 [file_service.dart:13-41](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_service.dart#L13-41)。
+详见 [file_service.dart:13-41](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L13-41)。
 
 ### 6.4 错误传播
 
@@ -229,7 +229,7 @@ return '文档中有无法识别的内容: ${_clip(detail, 60)}';
 return '文档中有无法识别的内容，请检查公式语法';
 ```
 
-已知违规：[editor_screen.dart:230-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253)，Phase 1 P1 #7 修复。
+已知违规：[editor_screen.dart:230-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253)，Phase 1 P1 #7 修复。
 
 ---
 
@@ -237,7 +237,7 @@ return '文档中有无法识别的内容，请检查公式语法';
 
 ### 7.1 异常分类
 
-参考 [export_service.dart:201-260](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L201-260)：
+参考 [export_service.dart:201-260](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L201-260)：
 
 - `ExportFailure`：业务分类枚举
 - `ExportFailureInfo`：record，含 kind / userMessage / detail / cause
@@ -270,7 +270,7 @@ try { ... } catch (e) {
 }
 ```
 
-已知违规：[file_manager_screen.dart:46](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46)，Phase 1 修复。
+已知违规：[file_manager_screen.dart:46](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46)，Phase 1 修复。
 
 ---
 
@@ -356,7 +356,7 @@ Phase 1 P1 #8 补齐。
 
 ### 9.4 已知性能问题
 
-- [editor_screen.dart:67-69](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L67-69)：每次按键全量解析
+- [editor_screen.dart:67-69](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L67-69)：每次按键全量解析
 - WebView 冷启动 2-3 秒
 - 单条公式 30s 超时
 
@@ -401,14 +401,14 @@ static Future<Uint8List> exportToPdf(String markdown, {...}) { ... }
 
 | 违规 | 位置 | 修复 Phase |
 |------|------|---------|
-| Provider 重复定义 | [providers/providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart) + [providers/editor_providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart) | 1.1 |
-| UI 层直接展示 detail | [editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253) | 1.7 |
-| 异常静默吞 | [file_manager_screen.dart:46](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46) | 1.7 |
-| 颜色常量两套 | [app_constants.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/constants/app_constants.dart) + [app_theme.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/theme/app_theme.dart) | 1 |
-| `main()` 多余 async | [main.dart:9](file:///d:/Projects/Active/math/flutter_app/lib/main.dart#L9) | 1 |
+| Provider 重复定义 | [providers/providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart) + [providers/editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart) | 1.1 |
+| UI 层直接展示 detail | [editor_screen.dart:221-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253) | 1.7 |
+| 异常静默吞 | [file_manager_screen.dart:46](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46) | 1.7 |
+| 颜色常量两套 | [app_constants.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/constants/app_constants.dart) + [app_theme.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/theme/app_theme.dart) | 1 |
+| `main()` 多余 async | [main.dart:9](file:///d:/Projects/Active/math2/flutter_app/lib/main.dart#L9) | 1 |
 | 静态状态污染测试 | `MermaidService._cache` 等 | 2 |
-| 编辑/预览分离 | [editor_screen.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart) | 2 |
-| 每次按键全量解析 | [preview_content.dart:30](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L30) | 2 |
+| 编辑/预览分离 | [editor_screen.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart) | 2 |
+| 每次按键全量解析 | [preview_content.dart:30](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart#L30) | 2 |
 
 新增代码不得延续以上违规模式。
 
@@ -501,14 +501,14 @@ flutter build apk --debug --target-platform android-arm64
 ```bash
 # Git Bash 中
 export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"
-cd /d/Projects/Active/math/flutter_app
+cd /d/Projects/Active/math2/flutter_app
 flutter pub get
 flutter build apk --debug
 ```
 
 PowerShell 中调用 Git Bash 的方式：
 ```powershell
-bash -c 'export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"; cd /d/Projects/Active/math/flutter_app && flutter pub get 2>&1'
+bash -c 'export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"; cd /d/Projects/Active/math2/flutter_app && flutter pub get 2>&1'
 ```
 
 ### 13.2 Flutter 进程锁管理
@@ -561,8 +561,8 @@ flutter precache
 
 ## 14. 相关文档
 
-- [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) — 总体规范
-- [GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) — Git 流程
-- [ARCHITECTURE.md](file:///d:/Projects/Active/math/docs/ARCHITECTURE.md) — 架构总览
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) — 路线图
-- [ADR/](file:///d:/Projects/Active/math/docs/ADR) — 架构决策记录
+- [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) — 总体规范
+- [GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md) — Git 流程
+- [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) — 架构总览
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) — 路线图
+- [ADR/](file:///d:/Projects/Active/math2/docs/ADR) — 架构决策记录

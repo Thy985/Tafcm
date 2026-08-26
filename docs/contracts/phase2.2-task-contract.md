@@ -12,7 +12,7 @@ Task ID: ROADMAP Phase 2.2
 
 要解决的问题：**为 Phase 2 编辑模型阶段定义 BlockEditor 抽象的代码骨架 + 状态机 + 单元测试基线**。
 
-ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)）已被 Human Owner Accept（2026-07-19 授权进入 Phase 2.2）。本任务落地 ADR-0007 §实施计划 Phase 2.2：
+ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)）已被 Human Owner Accept（2026-07-19 授权进入 Phase 2.2）。本任务落地 ADR-0007 §实施计划 Phase 2.2：
 
 > - 实现 `BlockEditor` 接口骨架（无 UI 接入）
 > - 实现 `BlockId` / `BlockType` / `BlockPosition` 数据类
@@ -34,15 +34,15 @@ ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects
 | `flutter_app/test/editing/block_types_test.dart` | 新增 | 数据类不变性 / equality / 边界值测试 |
 | `flutter_app/test/editing/block_editor_state_test.dart` | 新增 | 状态机单元测试（含 error 态） |
 | `flutter_app/test/architecture/editing_layer_test.dart` | 新增 | 守门：core/editing/ 不反向 import presentation / domain |
-| [docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) | 修改 | 状态 Proposed → Accepted |
-| [docs/contracts/phase2.2-task-contract.md](file:///d:/Projects/Active/math/docs/contracts/phase2.2-task-contract.md) | 新增 | 本 Task Contract |
+| [docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) | 修改 | 状态 Proposed → Accepted |
+| [docs/contracts/phase2.2-task-contract.md](file:///d:/Projects/Active/math2/docs/contracts/phase2.2-task-contract.md) | 新增 | 本 Task Contract |
 
 ### 不修改
 
 - `lib/data/models/document.dart`（AST 保持不变，ADR-0007 §1.3 决定 wrapping）
 - `lib/core/parser/markdown_parser.dart`（Phase 2.3 才接入）
 - `lib/core/utils/history_manager.dart`（Phase 2.6 才扩展）
-- `lib/presentation/` 下任何 UI 代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) Phase 2 仍属 UI Prototype Freeze 期）
+- `lib/presentation/` 下任何 UI 代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) Phase 2 仍属 UI Prototype Freeze 期）
 - 其他 ADR（ADR-0001 ~ 0006 不动）
 - AGENTS.md / ROADMAP.md（Phase 2.2 不动顶层规范）
 - pubspec.yaml（不引入新依赖，纯 Dart 数据类与抽象）
@@ -98,14 +98,14 @@ ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects
 2. `flutter test` 全部通过
 3. 状态机 5 态覆盖完整（blurred / focusing / focused / blurring / error）
 4. 守门测试通过（core/editing 不反向 import）
-5. 文件均 < 400 行（[AGENTS.md §1.2](file:///d:/Projects/Active/math/AGENTS.md)）
-6. 每个文件有 1-3 行 `///` 顶部文档（[AGENTS.md §2.4](file:///d:/Projects/Active/math/AGENTS.md)）
+5. 文件均 < 400 行（[AGENTS.md §1.2](file:///d:/Projects/Active/math2/AGENTS.md)）
+6. 每个文件有 1-3 行 `///` 顶部文档（[AGENTS.md §2.4](file:///d:/Projects/Active/math2/AGENTS.md)）
 
 ### Architecture Validation
 
 | 检查项 | 验证方式 | 预期结果 |
 |--------|---------|---------|
-| 分层依赖方向 | [test/architecture/editing_layer_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/editing_layer_test.dart) | core/editing/ 不 import presentation / domain / providers |
+| 分层依赖方向 | [test/architecture/editing_layer_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/editing_layer_test.dart) | core/editing/ 不 import presentation / domain / providers |
 | AST 不修改 | git diff lib/data/models/document.dart | 无变更 |
 | Parser 不修改 | git diff lib/core/parser/ | 无变更 |
 | HistoryManager 不修改 | git diff lib/core/utils/history_manager.dart | 无变更 |

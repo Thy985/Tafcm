@@ -43,7 +43,7 @@ jobs:
     - flutter build web
 ```
 
-详细配置见 [.github/workflows/ci.yml](file:///d:/Projects/Active/math/.github/workflows/ci.yml)。
+详细配置见 [.github/workflows/ci.yml](file:///d:/Projects/Active/math2/.github/workflows/ci.yml)。
 
 ### Job 设计原则
 
@@ -86,7 +86,7 @@ jobs:
 
 - 每个 PR 自动跑 analyze / test / build
 - 缓存机制让 CI 时间从首次 5 分钟降到增量 1-2 分钟
-- 与 PR 模板 [GIT_WORKFLOW.md §3](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) 集成
+- 与 PR 模板 [GIT_WORKFLOW.md §3](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md) 集成
 
 ### 负面
 
@@ -106,7 +106,7 @@ jobs:
 
 ### Phase 0（本 ADR 对应任务）
 
-1. 创建 [.github/workflows/ci.yml](file:///d:/Projects/Active/math/.github/workflows/ci.yml)
+1. 创建 [.github/workflows/ci.yml](file:///d:/Projects/Active/math2/.github/workflows/ci.yml)
 2. 三个 job：analyze / test / build
 3. 缓存 pub-cache + gradle-cache
 4. 触发：push 到 main / develop，PR 到 main / develop
@@ -136,6 +136,6 @@ jobs:
 
 ## 参考
 
-- [.github/workflows/ci.yml](file:///d:/Projects/Active/math/.github/workflows/ci.yml)
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) Phase 0 任务 0.4
-- [GIT_WORKFLOW.md §3.2](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) PR 检查清单
+- [.github/workflows/ci.yml](file:///d:/Projects/Active/math2/.github/workflows/ci.yml)
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) Phase 0 任务 0.4
+- [GIT_WORKFLOW.md §3.2](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md) PR 检查清单

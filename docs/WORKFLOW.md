@@ -1,6 +1,6 @@
 # FormulaFix 开发工作流与 CI/CD
 
-> 本文是 [GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) 和 [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) 的上层编排，定义从需求到上线的全链路流程。
+> 本文是 [GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md) 和 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 的上层编排，定义从需求到上线的全链路流程。
 
 ---
 
@@ -48,8 +48,8 @@ ROADMAP 任务 / Issue
 
 | 来源 | 粒度 | 示例 |
 |------|------|------|
-| [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) 任务 | 1-3 天 | `ROADMAP 1.5` 补齐解析器 |
-| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math/docs/REFACTOR_DESIGN.md) 阶段 | 1-2 周 | R1 地基重构 |
+| [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) 任务 | 1-3 天 | `ROADMAP 1.5` 补齐解析器 |
+| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/REFACTOR_DESIGN.md) 阶段 | 1-2 周 | R1 地基重构 |
 | GitHub Issue | 可变 | 用户反馈的 bug |
 | Human Owner 指令 | 可变 | "增加暗色主题" |
 

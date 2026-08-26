@@ -7,7 +7,7 @@
 
 > **状态更新（2026-07-19，Phase 1 关闭后）**
 >
-> 本报告为 2026-07-18 的历史审查快照，原始内容保留以备溯源。下列项已在 Phase 0 / Phase 1 修复，详细证据见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md) 与 [AGENTS.md §10](file:///d:/Projects/Active/math/AGENTS.md)：
+> 本报告为 2026-07-18 的历史审查快照，原始内容保留以备溯源。下列项已在 Phase 0 / Phase 1 修复，详细证据见 [Verification Report](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md) 与 [AGENTS.md §10](file:///d:/Projects/Active/math2/AGENTS.md)：
 >
 > | 项 | 章节 | 修复 commit | Phase |
 > |----|------|------------|-------|
@@ -52,9 +52,9 @@
 ### 1.1 编辑/预览分离模式 — Typora 灵魂的对立面
 
 **证据**：
-- [editor_screen.dart:300-321](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)：`isPreview` 三元运算符在 `PreviewContent`（只读渲染）和 `MarkdownInputField`（纯文本 TextField）之间切换
-- [editor_bottom_bar.dart:38-49](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/editor_bottom_bar.dart#L38-49)：底部栏一整个 ElevatedButton 用于切换"编辑/预览"模式
-- [providers.dart:109](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L109)：`previewModeProvider` 全局状态
+- [editor_screen.dart:300-321](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)：`isPreview` 三元运算符在 `PreviewContent`（只读渲染）和 `MarkdownInputField`（纯文本 TextField）之间切换
+- [editor_bottom_bar.dart:38-49](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/editor_bottom_bar.dart#L38-49)：底部栏一整个 ElevatedButton 用于切换"编辑/预览"模式
+- [providers.dart:109](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L109)：`previewModeProvider` 全局状态
 
 **问题**：
 1. 用户写公式时，必须切到预览才能看到效果；切回编辑时光标位置可能丢失（TextField 重建）
@@ -66,7 +66,7 @@
 
 ### 1.2 预览态被卡片包裹 — 反沉浸式
 
-**证据**：[preview_content.dart:38-47](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L38-47)
+**证据**：[preview_content.dart:38-47](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart#L38-47)
 
 ```dart
 return Container(
@@ -82,7 +82,7 @@ return Container(
 
 ### 1.3 AppBar 标题写死 "FormulaFix"
 
-**证据**：[editor_screen.dart:337-342](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L337-342)
+**证据**：[editor_screen.dart:337-342](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L337-342)
 
 ```dart
 title: const Text(
@@ -102,9 +102,9 @@ title: const Text(
 
 | 存储 | 写入方 | 读取方 | 文件位置 |
 |------|--------|--------|---------|
-| `SharedPreferences['pref_last_content']` | [editor_providers.dart:43-54](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L43-54) 500ms 防抖 | [editor_providers.dart:39](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L39) 启动恢复 | 系统偏好 |
-| `formula_fix_documents.json` | [document_service.dart:68-72](file:///d:/Projects/Active/math/flutter_app/lib/core/services/document_service.dart#L68-72) | `DocumentListScreen` 列表 | app docs dir |
-| `formulafix_<timestamp>.md` | [file_service.dart:69-77](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_service.dart#L69-77) | `FileManagerScreen` 列表 | app docs dir |
+| `SharedPreferences['pref_last_content']` | [editor_providers.dart:43-54](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L43-54) 500ms 防抖 | [editor_providers.dart:39](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L39) 启动恢复 | 系统偏好 |
+| `formula_fix_documents.json` | [document_service.dart:68-72](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/document_service.dart#L68-72) | `DocumentListScreen` 列表 | app docs dir |
+| `formulafix_<timestamp>.md` | [file_service.dart:69-77](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L69-77) | `FileManagerScreen` 列表 | app docs dir |
 
 **问题**：
 1. 同一段 Markdown 内容可能同时存在三份副本，互不同步
@@ -117,22 +117,22 @@ title: const Text(
 ### 2.2 路由断裂 — DocumentListScreen 是死代码
 
 **证据**：
-- [app_router.dart:7-23](file:///d:/Projects/Active/math/flutter_app/lib/core/router/app_router.dart#L7-23)：只注册了 `/editor` 和 `/files`
+- [app_router.dart:7-23](file:///d:/Projects/Active/math2/flutter_app/lib/core/router/app_router.dart#L7-23)：只注册了 `/editor` 和 `/files`
 - 全局搜索 `DocumentListScreen` 没有路由跳转入口
 
 **问题**：`DocumentListScreen` 有完整实现（240 行），但没有任何路由能跳到它。从 `EditorScreen` 想看文档列表？做不到。从 `FileManagerScreen`？也不行。这个类是孤儿。
 
 ### 2.3 路由初始位置错误
 
-**证据**：[app_router.dart:8](file:///d:/Projects/Active/math/flutter_app/lib/core/router/app_router.dart#L8) `initialLocation: '/editor'`
+**证据**：[app_router.dart:8](file:///d:/Projects/Active/math2/flutter_app/lib/core/router/app_router.dart#L8) `initialLocation: '/editor'`
 
 **问题**：用户启动 App 直接进空白编辑器。Typora 启动时显示**最近文件列表**或**文件树**，让用户先选文档。当前设计等于强迫用户每次都从空白开始。
 
 ### 2.4 Provider 重复定义
 
 **证据**：
-- [providers/providers.dart:8-23](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L8-23) 定义 `sharedPreferencesProvider` + `darkModeProvider`
-- [providers/editor_providers.dart:4-23](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L4-23) **又定义了一遍**
+- [providers/providers.dart:8-23](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L8-23) 定义 `sharedPreferencesProvider` + `darkModeProvider`
+- [providers/editor_providers.dart:4-23](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L4-23) **又定义了一遍**
 
 **问题**：Riverpod 的 Provider 是按 "identity" 注册的，两个同名 Provider 在不同文件里是**两个独立实例**。`EditorScreen` import `editor_providers.dart`、`DocumentListScreen` import `providers.dart`，结果是**两个屏幕的暗色模式可能不同步**。这是一个非常隐蔽的 bug。
 
@@ -142,7 +142,7 @@ title: const Text(
 
 ### 3.1 行内元素缺一半
 
-**证据**：[markdown_parser.dart:279-308](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart#L279-308) `_parseBoldAndItalic` 只识别 `**bold**`。
+**证据**：[markdown_parser.dart:279-308](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart#L279-308) `_parseBoldAndItalic` 只识别 `**bold**`。
 
 **缺失的 Markdown 元素**（Typora 全部支持）：
 
@@ -163,7 +163,7 @@ title: const Text(
 
 ### 3.2 工具栏与解析器不一致
 
-**证据**：对比 [markdown_input_field.dart:175-225](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/markdown_input_field.dart#L175-225) 工具栏按钮 与 [markdown_parser.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart) 解析器：
+**证据**：对比 [markdown_input_field.dart:175-225](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/markdown_input_field.dart#L175-225) 工具栏按钮 与 [markdown_parser.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart) 解析器：
 
 | 工具栏按钮 | 插入的语法 | 解析器是否识别 |
 |-----------|----------|--------------|
@@ -182,7 +182,7 @@ title: const Text(
 
 ### 3.4 嵌套列表逻辑 hacky
 
-**证据**：[markdown_parser.dart:135-161](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart#L135-161)
+**证据**：[markdown_parser.dart:135-161](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart#L135-161)
 
 ```dart
 if (indent > 0 && pendingListItems.isNotEmpty) {
@@ -205,13 +205,13 @@ if (indent > 0 && pendingListItems.isNotEmpty) {
 
 ### 4.1 剪贴板导入对话框 — 骚扰用户
 
-**证据**：[editor_screen.dart:71-103](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L71-103)
+**证据**：[editor_screen.dart:71-103](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L71-103)
 
 **问题**：每次进入编辑器都检查剪贴板，如果有内容就弹 AlertDialog 问是否导入。用户复制了密码、验证码、其他 App 的文本，进编辑器就被问一次。Typora 从不主动骚扰用户。
 
 ### 4.2 AppBar 操作按钮对手机不友好
 
-**证据**：[editor_screen.dart:347-360](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L347-360)
+**证据**：[editor_screen.dart:347-360](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L347-360)
 
 ```dart
 actions: [
@@ -225,13 +225,13 @@ actions: [
 
 ### 4.3 编辑器底栏只有"预览切换"和"导出"
 
-**证据**：[editor_bottom_bar.dart:36-72](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/editor_bottom_bar.dart#L36-72)
+**证据**：[editor_bottom_bar.dart:36-72](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/editor_bottom_bar.dart#L36-72)
 
 **问题**：底部栏占据 60+ dp 高度，却只放了 2 个按钮。"预览/编辑切换"按钮在 WYSIWYG 范式下根本不该存在。 Typora 底部应该是字数统计、保存状态、当前光标位置（行列号）。
 
 ### 4.4 工具栏缺关键功能
 
-**证据**：[markdown_input_field.dart:157-225](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/markdown_input_field.dart#L157-225)
+**证据**：[markdown_input_field.dart:157-225](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/markdown_input_field.dart#L157-225)
 
 **缺失**：
 - 撤销 / 重做按钮（`HistoryManager` 已实现但未接入 UI）
@@ -244,7 +244,7 @@ actions: [
 
 ### 4.5 退出清缓存 — 反复冷启动 WebView
 
-**证据**：[editor_screen.dart:51-65](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L51-65)
+**证据**：[editor_screen.dart:51-65](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L51-65)
 
 ```dart
 @override
@@ -259,7 +259,7 @@ void dispose() {
 
 ### 4.6 标题提取粗暴
 
-**证据**：[editor_screen.dart:141-150](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L141-150)
+**证据**：[editor_screen.dart:141-150](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L141-150)
 
 ```dart
 String? _extractTitle(String markdown) {
@@ -282,7 +282,7 @@ String? _extractTitle(String markdown) {
 
 ### 5.1 每次按键全量解析
 
-**证据**：[editor_screen.dart:67-69](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L67-69) + [preview_content.dart:30](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L30)
+**证据**：[editor_screen.dart:67-69](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L67-69) + [preview_content.dart:30](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart#L30)
 
 ```dart
 void _onTextChanged() {
@@ -296,7 +296,7 @@ final elements = MarkdownParser.parse(content);  // 每次都全量
 
 ### 5.2 WebView 启动开销大
 
-**证据**：[main.dart:33-44](file:///d:/Projects/Active/math/flutter_app/lib/main.dart#L33-44) + [mermaid_host.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/mermaid_host.dart)
+**证据**：[main.dart:33-44](file:///d:/Projects/Active/math2/flutter_app/lib/main.dart#L33-44) + [mermaid_host.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/mermaid_host.dart)
 
 **问题**：
 - `MermaidRendererHost` 必须在 App 启动时挂载（隐藏在 -10000, -10000）
@@ -308,13 +308,13 @@ final elements = MarkdownParser.parse(content);  // 每次都全量
 
 ### 5.3 单条公式 30s 超时
 
-**证据**：[formula_svg_service.dart:27](file:///d:/Projects/Active/math/flutter_app/lib/core/services/formula_svg_service.dart#L27) `_renderTimeout = Duration(seconds: 30)` + 并发上限 4
+**证据**：[formula_svg_service.dart:27](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/formula_svg_service.dart#L27) `_renderTimeout = Duration(seconds: 30)` + 并发上限 4
 
-**问题**：导出含 100 个公式的论文，理想情况 100/4 × 30s = 12.5 分钟，实际因 WebView 卡死可能直接超时。`ExportService.exportAndShare` 整体超时是 120s（[export_service.dart:400](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L400)），意味着文档超过 ~16 个未缓存公式就会超时失败。
+**问题**：导出含 100 个公式的论文，理想情况 100/4 × 30s = 12.5 分钟，实际因 WebView 卡死可能直接超时。`ExportService.exportAndShare` 整体超时是 120s（[export_service.dart:400](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L400)），意味着文档超过 ~16 个未缓存公式就会超时失败。
 
 ### 5.4 导出无进度反馈
 
-**证据**：[editor_screen.dart:152-171](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L152-171)
+**证据**：[editor_screen.dart:152-171](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L152-171)
 
 ```dart
 ref.read(isExportingProvider.notifier).state = true;  // 只有 bool
@@ -331,7 +331,7 @@ try {
 
 ### 6.1 只有两套主题，主色写死
 
-**证据**：[app_constants.dart:5-6](file:///d:/Projects/Active/math/flutter_app/lib/core/constants/app_constants.dart#L5-6) + [app_theme.dart:4](file:///d:/Projects/Active/math/flutter_app/lib/presentation/theme/app_theme.dart#L4)
+**证据**：[app_constants.dart:5-6](file:///d:/Projects/Active/math2/flutter_app/lib/core/constants/app_constants.dart#L5-6) + [app_theme.dart:4](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/theme/app_theme.dart#L4)
 
 ```dart
 static const primary = Color(0xFF165DFF);  // 写死蓝色
@@ -346,15 +346,15 @@ static const Color primaryColor = Color(0xFF165DFF);
 
 ### 6.2 字体大小固定，不可缩放
 
-**证据**：[app_constants.dart:54-64](file:///d:/Projects/Active/math/flutter_app/lib/core/constants/app_constants.dart#L54-64) 全是 `static const double`
+**证据**：[app_constants.dart:54-64](file:///d:/Projects/Active/math2/flutter_app/lib/core/constants/app_constants.dart#L54-64) 全是 `static const double`
 
 **问题**：用户不能调整编辑器字号。Typora 支持 `Ctrl + +/-` 缩放，记忆用户偏好。
 
 ### 6.3 颜色定义有两套
 
 **证据**：
-- [app_constants.dart:3-37](file:///d:/Projects/Active/math/flutter_app/lib/core/constants/app_constants.dart#L3-37) `AppColors`
-- [app_theme.dart:4-16](file:///d:/Projects/Active/math/flutter_app/lib/presentation/theme/app_theme.dart#L4-16) `AppTheme.primaryColor` / `textPrimary` / `background` 等
+- [app_constants.dart:3-37](file:///d:/Projects/Active/math2/flutter_app/lib/core/constants/app_constants.dart#L3-37) `AppColors`
+- [app_theme.dart:4-16](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/theme/app_theme.dart#L4-16) `AppTheme.primaryColor` / `textPrimary` / `background` 等
 
 **问题**：两套颜色常量并存，值还略有不同（`AppColors.error = 0xFFFF3B30`，`AppTheme.errorColor = 0xFFF53F3F`）。开发者不知道用哪套，UI 颜色不一致。
 
@@ -368,7 +368,7 @@ static const Color primaryColor = Color(0xFF165DFF);
 
 ### 6.6 没有字数统计
 
-**证据**：[document_list_screen.dart:358-360](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/document_list_screen.dart#L358-360)
+**证据**：[document_list_screen.dart:358-360](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/document_list_screen.dart#L358-360)
 
 ```dart
 int _countChars() {
@@ -384,7 +384,7 @@ int _countChars() {
 
 ### 7.1 把技术 detail 透传给用户
 
-**证据**：[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)
+**证据**：[editor_screen.dart:221-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)
 
 ```dart
 case ExportFailure.parseError:
@@ -393,7 +393,7 @@ case ExportFailure.parseError:
   }
 ```
 
-而 [export_service.dart:323-330](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L323-330) 的 detail 长这样：
+而 [export_service.dart:323-330](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L323-330) 的 detail 长这样：
 
 ```dart
 detail: '${e.message} | source: ${_truncate(e.source.toString(), 80)} | offset: ${e.offset}',
@@ -403,7 +403,7 @@ detail: '${e.message} | source: ${_truncate(e.source.toString(), 80)} | offset: 
 
 ### 7.2 超时消息太长且技术化
 
-**证据**：[editor_screen.dart:245-247](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L245-247)
+**证据**：[editor_screen.dart:245-247](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L245-247)
 
 ```dart
 return '$formatLabel 导出超时（超过 120s）。'
@@ -415,7 +415,7 @@ return '$formatLabel 导出超时（超过 120s）。'
 
 ### 7.3 文件解码异常被吞
 
-**证据**：[file_manager_screen.dart:46](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46) `} catch (_) {}` 完全静默
+**证据**：[file_manager_screen.dart:46](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/file_manager_screen.dart#L46) `} catch (_) {}` 完全静默
 
 **问题**：`_loadFiles` 出错什么都不做，UI 显示"暂无保存的文档"，用户以为真的没文档，实际是 IO 出错。`_deleteFile` 同样静默。
 
@@ -431,19 +431,19 @@ return '$formatLabel 导出超时（超过 120s）。'
 
 ### 8.2 残留文件
 
-**证据**：[export_service_tail.txt](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service_tail.txt) 内容仅为 `}`
+**证据**：[export_service_tail.txt](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service_tail.txt) 内容仅为 `}`
 
 ### 8.3 manifest 描述仍是默认值
 
-**证据**：[web/manifest.json:8](file:///d:/Projects/Active/math/flutter_app/web/manifest.json#L8) `"description": "A new Flutter project."`
+**证据**：[web/manifest.json:8](file:///d:/Projects/Active/math2/flutter_app/web/manifest.json#L8) `"description": "A new Flutter project."`
 
 ### 8.4 main() 多余的 async
 
-**证据**：[main.dart:9](file:///d:/Projects/Active/math/flutter_app/lib/main.dart#L9) `void main() async {` 但函数体无任何 await
+**证据**：[main.dart:9](file:///d:/Projects/Active/math2/flutter_app/lib/main.dart#L9) `void main() async {` 但函数体无任何 await
 
 ### 8.5 静态状态污染测试
 
-**证据**：[pdf_exporter.dart:27-30](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L27-30)
+**证据**：[pdf_exporter.dart:27-30](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L27-30)
 
 ```dart
 static pw.Font? _cjkFont;
