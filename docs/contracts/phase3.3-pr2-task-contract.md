@@ -6,8 +6,8 @@
 > **状态**：Accepted（v2.0 Human Owner 审批,带 5 条 Minor Conditions,v2.1 落地后启动 PR #1.5 实施）
 > **关联文档**：
 > - [Phase 3.3 Task Contract v1.4](./phase3.3-task-contract.md) §3.3.7 + §3.3.10 + §9.3 + §9.5
-> - [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §3 + §5
-> - [ADR-0008](../ADR/0008-editor-transaction-model.md) sealed class 约束
+> - [ADR-0011](../decisions/ADR/0011-phase3.3-architecture-decisions.md) §3 + §5
+> - [ADR-0008](../decisions/ADR/0008-editor-transaction-model.md) sealed class 约束
 > - [PR #1 chrome 接线](https://github.com/Thy985/fixmath/tree/feat/phase3.3-chrome-wiring)（依赖基础：dirty tracking + wordCount）
 
 ---
@@ -155,7 +155,7 @@ InsertTemplateCommand(blockId: id, template: MarkdownTemplate.table, mode: newBl
 - 未来 Mermaid 模板需直接生成 `MermaidBlock` 而非走 Parser 转换
 - `enum` + Registry 便于扩展（用户自定义模板）与本地化
 
-**技术债务记录**：PR #2C 的 commit message 须注明"当前字符串方案为过渡,Phase 3.4 演进到 enum + TemplateRegistry",并在 [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §5 补充演进路径。
+**技术债务记录**：PR #2C 的 commit message 须注明"当前字符串方案为过渡,Phase 3.4 演进到 enum + TemplateRegistry",并在 [ADR-0011](../decisions/ADR/0011-phase3.3-architecture-decisions.md) §5 补充演进路径。
 
 #### 2.5.1 Hard Rule：禁止字符串业务判断（v2.1 审批 #1）
 

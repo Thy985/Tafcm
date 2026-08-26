@@ -12,7 +12,7 @@ Task ID: ROADMAP Phase 2.1
 
 要解决的问题：**为 Phase 2 编辑模型阶段定义 BlockEditor 抽象设计基线**。
 
-Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式仍是"编辑/预览分离"（[CRITICAL_REVIEW §1.1](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md)）。Phase 2 必须先定义 BlockEditor 抽象的 4 个子系统（抽象结构 / 光标模型 / IME 兼容 / 块级操作原语），才能进入 2.2~2.7 的实现。Phase 2.1 是**设计任务**，不写代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) 禁止在抽象稳定前实现 2.2~2.7）。
+Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式仍是"编辑/预览分离"（[CRITICAL_REVIEW §1.1](../archive/audits/CRITICAL-REVIEW.md)）。Phase 2 必须先定义 BlockEditor 抽象的 4 个子系统（抽象结构 / 光标模型 / IME 兼容 / 块级操作原语），才能进入 2.2~2.7 的实现。Phase 2.1 是**设计任务**，不写代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) 禁止在抽象稳定前实现 2.2~2.7）。
 
 ---
 

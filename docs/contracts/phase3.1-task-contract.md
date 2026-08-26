@@ -8,7 +8,7 @@
 > **后继阶段**：Phase 3.2 Immersive Full-screen Editing + Typora 体验对齐
 >
 > **依据**：
-> - [docs/phase3.1-review-backlog.md](../phase3.1-review-backlog.md)（PR #44 评审 R1-R6）
+> - [docs/phase3.1-review-backlog.md](../decisions/REVIEW-BACKLOG.md)（PR #44 评审 R1-R6）
 > - [docs/ROADMAP.md Phase 3.1+](../ROADMAP.md)（UI Feature Implementation）
 > - [docs/contracts/phase3.0-task-contract.md](./phase3.0-task-contract.md)
 >
@@ -418,7 +418,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 - [ ] 更新 [ROADMAP.md Phase 3.1+ 退出条件](../ROADMAP.md)
 - [ ] 更新 [docs/design/ui-spec.md](../design/ui-spec.md)（标注已实施部分）
 - [ ] 完成 [docs/releases/phase3.1-verification-report.md](../releases/phase3.1-verification-report.md)
-- [ ] 标注 [docs/phase3.1-review-backlog.md](../phase3.1-review-backlog.md) 中 R1/R2/R3 状态为"延后到 3.1-B/C"
+- [ ] 标注 [docs/phase3.1-review-backlog.md](../decisions/REVIEW-BACKLOG.md) 中 R1/R2/R3 状态为"延后到 3.1-B/C"
 
 ---
 
@@ -534,7 +534,7 @@ R5 当前无调用路径，是否在 3.1-A 完成？
 按 [AGENTS.md §9.4](../../AGENTS.md) 自检：
 
 - [x] 读了 AGENTS.md 相关章节（§6.5 Phase 2 UI 冻结、§9 AI 协作工作流、§6.4 提交分工）
-- [x] 读了 [phase3.1-review-backlog.md](../phase3.1-review-backlog.md) R1-R6
+- [x] 读了 [phase3.1-review-backlog.md](../decisions/REVIEW-BACKLOG.md) R1-R6
 - [x] 读了 [ROADMAP.md Phase 3.1+](../ROADMAP.md)
 - [x] 读了 Phase 3.0 相关代码（editor_coordinator.dart / paragraph_block.dart 等）
 - [x] **采纳 Human Owner 反馈**：拆分 3.1-A/B/C + 弱化 R1 + 重设计 R2 + 重命名 3.1.7

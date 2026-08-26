@@ -17,7 +17,7 @@
 > **关联文档**：
 > - [ROADMAP.md Phase 3.3](../ROADMAP.md)
 > - [design/ui-spec.md §7 Phase 3.3](../design/ui-spec.md)
-> - [ADR-0009 UI Architecture Design](../ADR/0009-ui-architecture-design.md)
+> - [ADR-0009 UI Architecture Design](../decisions/ADR/0009-ui-architecture-design.md)
 > - [Phase 3.2 Task Contract v1.3](./phase3.2-task-contract.md)
 > - [Phase 3.2 Verification Report](../releases/phase3.2-verification-report.md)
 
@@ -184,7 +184,7 @@ EditorTokens 改造后,所有现有 `EditorTokens.paragraphFontSize` 等引用�
 | `InsertNewLineWithPrefixCommand` | §3.3.8 自动续列表（回车 + 前缀） | §3.3.8 | 同上 |
 | `InsertTemplateCommand` | §3.3.10 模板插入菜单 | §3.3.10 | 同上 |
 
-所有新 Command 子类位于同一文件（符合 [ADR-0008](../ADR/0008-editor-transaction-model.md) sealed class 约束）,并在 [commands.dart](../../flutter_app/lib/presentation/commands/commands.dart) re-export 桥接文件中 show。详见 [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §5。
+所有新 Command 子类位于同一文件（符合 [ADR-0008](../decisions/ADR/0008-editor-transaction-model.md) sealed class 约束）,并在 [commands.dart](../../flutter_app/lib/presentation/commands/commands.dart) re-export 桥接文件中 show。详见 [ADR-0011](../decisions/ADR/0011-phase3.3-architecture-decisions.md) §5。
 
 **Timeline 集成说明（R4 补充,避免实施时疑问）**：所有新 Command 子类（含 `InsertTemplateCommand` 产生的多 Block 变更,如插入表格模板生成 TableBlock + 多行行内文本）自动通过 `EditorCoordinator.handle() → CommandHandler` 路径接入 `HistoryManager`;**Timeline PR 6 集成由 EditorCoordinator 统一处理,各 Command 不单独处理 Timeline**。这与现有 8 个 Command 的处理路径一致,无需为新 Command 子类单独写 Timeline 接入代码。
 
@@ -580,7 +580,7 @@ CodeBlock 不应用自动配对（§3.6）、自动续列表（§3.8）、选区
 - 两级 Gate 的设计意图不变（每 PR 轻量 E2E + 阶段里程碑 Android Sanity）;平台前提随工具链能力更新。
 - 未来若启用 Windows 桌面（`flutter create . --platforms=windows`）或 Flutter 支持 Web integration_test,再把 Level 1 迁回对应平台。
 
-**ADR-0012 关联**：本次 E2E 全量重跑（Android Emulator）暴露「§3.3.4 实时字数 vs 产品失焦才提交」冲突,沉淀为 [ADR-0012](../ADR/0012-live-editing-state.md),并在本 PR 落地 Live / Committed 双状态（实时 wordCount / dirty;canUndo 仍仅 Transaction Commit 后）。
+**ADR-0012 关联**：本次 E2E 全量重跑（Android Emulator）暴露「§3.3.4 实时字数 vs 产品失焦才提交」冲突,沉淀为 [ADR-0012](../decisions/ADR/0012-live-editing-state.md),并在本 PR 落地 Live / Committed 双状态（实时 wordCount / dirty;canUndo 仍仅 Transaction Commit 后）。
 
 ## 7. 回滚计划
 

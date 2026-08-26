@@ -2,7 +2,7 @@
 
 > **角色**：架构评审人员
 > **输出范围**：设计文档，不含代码改动
-> **基准**：已建立的 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) / [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) / [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) / [ADR/](file:///d:/Projects/Active/math2/docs/ADR)
+> **基准**：已建立的 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) / [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) / [CRITICAL_REVIEW.md](audits/CRITICAL-REVIEW.md) / [ADR/](file:///d:/Projects/Active/math2/docs/ADR)
 > **目标**：从"Markdown + 公式预览原型"演进为"移动端 Typora 类体验"
 
 ---
@@ -919,7 +919,7 @@ documentListProvider   editorStateProvider   formulaServiceProvider
 
 - [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) — AI 协作规范
 - [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) — 当前架构总览
-- [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) — 现状批判报告
+- [CRITICAL_REVIEW.md](audits/CRITICAL-REVIEW.md) — 现状批判报告
 - [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) — 路线图
 - [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) — 存储单一真相
 - [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) — 解析器扩展

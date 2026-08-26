@@ -12,64 +12,64 @@
 
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 架构总览（当前 + 目标 + 问题 + 风险） |
+| [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | 架构总览（当前 + 目标 + 问题 + 风险） |
 | [ROADMAP.md](ROADMAP.md) | 路线图（Phase 0-4，含 Phase 3.10/3.11） |
-| [DESIGN.md](DESIGN.md) | 总体设计 |
-| [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md) | 现状严厉批判报告 |
-| [COMPREHENSIVE-TEST-REPORT.md](COMPREHENSIVE-TEST-REPORT.md) | 综合测试报告 |
-| [FFX-VERIFICATION-ORCHESTRATOR-v1.md](FFX-VERIFICATION-ORCHESTRATOR-v1.md) | FFX 验证编排器设计 |
-| [CONTRACT-SYNC-MINIMAL.md](CONTRACT-SYNC-MINIMAL.md) | Contract Sync 最小版 |
+| [DESIGN.md](product/PRODUCT.md) | 总体设计 |
+| [CRITICAL_REVIEW.md](archive/audits/CRITICAL-REVIEW.md) | 现状严厉批判报告 |
+| [COMPREHENSIVE-TEST-REPORT.md](archive/audits/COMPREHENSIVE-TEST-REPORT.md) | 综合测试报告 |
+| [FFX-VERIFICATION-ORCHESTRATOR-v1.md](architecture/AGENT-ENGINEERING.md) | FFX 验证编排器设计 |
+| [CONTRACT-SYNC-MINIMAL.md](architecture/CONTRACT-SYNC-MINIMAL.md) | Contract Sync 最小版 |
 
 ### 1.2 UI 设计与交互
 
 | 文档 | 说明 |
 |------|------|
-| [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) | UI 架构 |
-| [UI_SPEC.md](UI_SPEC.md) | 产品视觉设计 source of truth |
-| [Component-Tree.md](Component-Tree.md) | 组件树 |
-| [Interaction-Model.md](Interaction-Model.md) | 交互模型 |
-| [UI_STATUS.md](UI_STATUS.md) | UI 还原度状态 |
-| [UI_FIX_PLAN.md](UI_FIX_PLAN.md) | UI 修复实施计划 |
+| [UI-ARCHITECTURE.md](architecture/UI-ARCHITECTURE.md) | UI 架构 |
+| [UI_SPEC.md](product/UX-GUIDE.md) | 产品视觉设计 source of truth |
+| [Component-Tree.md](architecture/UI-COMPONENT-MODEL.md) | 组件树 |
+| [Interaction-Model.md](architecture/UI-INTERACTION-MODEL.md) | 交互模型 |
+| [UI_STATUS.md](archive/old-designs/UI_STATUS.md) | UI 还原度状态 |
+| [UI_FIX_PLAN.md](archive/old-designs/UI_FIX_PLAN.md) | UI 修复实施计划 |
 
 ### 1.3 开发流程与规范
 
 | 文档 | 说明 |
 |------|------|
-| [WORKFLOW.md](WORKFLOW.md) | 开发流程与 CI/CD |
-| [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Git 详细流程 |
-| [CODING_RULES.md](CODING_RULES.md) | 详细编码规范 |
-| [TEST_SKIP_REGISTRY.md](TEST_SKIP_REGISTRY.md) | 测试 skip 登记 |
-| [TEST_GAP_PLAN.md](TEST_GAP_PLAN.md) | 测试缺口计划 |
-| [E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) | E2E 测试计划 |
+| [WORKFLOW.md](engineering/WORKFLOW.md) | 开发流程与 CI/CD |
+| [GIT_WORKFLOW.md](engineering/GIT-WORKFLOW.md) | Git 详细流程 |
+| [CODING_RULES.md](engineering/DEVELOPMENT-RULES.md) | 详细编码规范 |
+| [TEST_SKIP_REGISTRY.md](engineering/VERIFICATION-POLICY-source-skip.md) | 测试 skip 登记 |
+| [TEST_GAP_PLAN.md](engineering/VERIFICATION-POLICY-source-gap.md) | 测试缺口计划 |
+| [E2E_TEST_PLAN.md](engineering/VERIFICATION-POLICY-source-e2e.md) | E2E 测试计划 |
 
 ### 1.4 Phase 3.10/3.11 审计与验证
 
 | 文档 | 说明 |
 |------|------|
-| [PHASE3.10-ENGINEERING-BASELINE-v1.md](PHASE3.10-ENGINEERING-BASELINE-v1.md) | 3.10 工程基线（DEBT 债务表） |
-| [PHASE3.10-GATE-REPORT.md](PHASE3.10-GATE-REPORT.md) | 3.10 Final Gate 报告（G0-G12） |
-| [PHASE3.10-TYPORA-GAP-ANALYSIS.md](PHASE3.10-TYPORA-GAP-ANALYSIS.md) | Typora 差距分析 |
-| [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md) | 能力覆盖矩阵 |
-| [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md) | 完成证据矩阵 |
-| [FULL-CAPABILITY-REAUDIT.md](FULL-CAPABILITY-REAUDIT.md) | 能力全量再审计 |
-| [BEHAVIOR-AUDIT-COVERAGE.md](BEHAVIOR-AUDIT-COVERAGE.md) | Behavior 审计覆盖 |
-| [EXPERIENCE-AUDIT-COVERAGE.md](EXPERIENCE-AUDIT-COVERAGE.md) | 体验审计覆盖 |
-| [PROJECT-FUNCTION-AUDIT-STATUS.md](PROJECT-FUNCTION-AUDIT-STATUS.md) | 功能审计状态 |
-| [ADI-CLOSED-LOOP-AUDIT.md](ADI-CLOSED-LOOP-AUDIT.md) | ADI 闭环审计 |
-| [CLI-ANYTHING-VERIFICATION-STATUS.md](CLI-ANYTHING-VERIFICATION-STATUS.md) | CLI 验证状态 |
+| [PHASE3.10-ENGINEERING-BASELINE-v1.md](engineering/ENGINEERING-BASELINE.md) | 3.10 工程基线（DEBT 债务表） |
+| [PHASE3.10-GATE-REPORT.md](engineering/GATE-REPORT.md) | 3.10 Final Gate 报告（G0-G12） |
+| [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md) | Typora 差距分析 |
+| [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](product/CAPABILITY-STATUS-source-coverage.md) | 能力覆盖矩阵 |
+| [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](product/CAPABILITY-STATUS-source-completion.md) | 完成证据矩阵 |
+| [FULL-CAPABILITY-REAUDIT.md](archive/audits/FULL-CAPABILITY-REAUDIT.md) | 能力全量再审计 |
+| [BEHAVIOR-AUDIT-COVERAGE.md](archive/audits/BEHAVIOR-AUDIT-COVERAGE.md) | Behavior 审计覆盖 |
+| [EXPERIENCE-AUDIT-COVERAGE.md](archive/audits/EXPERIENCE-AUDIT-COVERAGE.md) | 体验审计覆盖 |
+| [PROJECT-FUNCTION-AUDIT-STATUS.md](engineering/FUNCTION-AUDIT-STATUS.md) | 功能审计状态 |
+| [ADI-CLOSED-LOOP-AUDIT.md](archive/audits/ADI-CLOSED-LOOP-AUDIT.md) | ADI 闭环审计 |
+| [CLI-ANYTHING-VERIFICATION-STATUS.md](engineering/CLI-VERIFICATION-STATUS.md) | CLI 验证状态 |
 
 ### 1.5 专项审计 / 调研 / 迁移
 
 | 文档 | 说明 |
 |------|------|
-| [MARKDOWN-ECOSYSTEM-HANDWRITTEN-REVIEW.md](MARKDOWN-ECOSYSTEM-HANDWRITTEN-REVIEW.md) | Markdown 生态手写评审 |
-| [MIGRATION-SPIKE-MARKDOWN-PARSER.md](MIGRATION-SPIKE-MARKDOWN-PARSER.md) | Parser 迁移 spike |
-| [WORD-MIGRATION-SPIKE.md](WORD-MIGRATION-SPIKE.md) | Word 迁移 spike |
-| [WORD-EXPORT-AUDIT.md](WORD-EXPORT-AUDIT.md) | Word 导出审计 |
-| [WORD-EXPORT-PRODUCT-RELIABILITY-AUDIT.md](WORD-EXPORT-PRODUCT-RELIABILITY-AUDIT.md) | Word 导出可靠性审计 |
-| [DOCX-QA-PIPELINE.md](DOCX-QA-PIPELINE.md) | DOCX QA 管线 |
-| [OFFICECLI-RESEARCH.md](OFFICECLI-RESEARCH.md) | OfficeCLI 调研 |
-| [phase3.1-review-backlog.md](phase3.1-review-backlog.md) | 3.1 评审待办 backlog |
+| [MARKDOWN-ECOSYSTEM-HANDWRITTEN-REVIEW.md](archive/spikes/MARKDOWN-ECOSYSTEM-HANDWRITTEN-REVIEW.md) | Markdown 生态手写评审 |
+| [MIGRATION-SPIKE-MARKDOWN-PARSER.md](archive/spikes/MIGRATION-SPIKE-MARKDOWN-PARSER.md) | Parser 迁移 spike |
+| [WORD-MIGRATION-SPIKE.md](archive/spikes/WORD-MIGRATION-SPIKE.md) | Word 迁移 spike |
+| [WORD-EXPORT-AUDIT.md](archive/audits/WORD-EXPORT-AUDIT.md) | Word 导出审计 |
+| [WORD-EXPORT-PRODUCT-RELIABILITY-AUDIT.md](archive/audits/WORD-EXPORT-PRODUCT-RELIABILITY-AUDIT.md) | Word 导出可靠性审计 |
+| [DOCX-QA-PIPELINE.md](engineering/QA-PIPELINES.md) | DOCX QA 管线 |
+| [OFFICECLI-RESEARCH.md](archive/spikes/OFFICECLI-RESEARCH.md) | OfficeCLI 调研 |
+| [phase3.1-review-backlog.md](decisions/REVIEW-BACKLOG.md) | 3.1 评审待办 backlog |
 
 ## 2. 子目录
 
@@ -104,35 +104,35 @@
 
 | 文档 | 说明 |
 |------|------|
-| [RUN-001](runs/phase3.11/PHASE3.11-RUN-001-RUNNER-IZATION.md) | 独立 runner 化（7 能力真实执行） |
-| [RUN-002](runs/phase3.11/PHASE3.11-RUN-002-MARKDOWN-HARDENING.md) | Markdown 加固 Golden Loop |
-| [RUN-003](runs/phase3.11/PHASE3.11-RUN-003-REGRESSION-SEMANTICS-SERIALIZER.md) | regression 语义升级 + Serializer Golden Loop |
-| [RUN-004](runs/phase3.11/PHASE3.11-RUN-004-FORMULA-EVIDENCE-LAYER.md) | Formula 跨证据层 Golden Loop |
-| [RUN-005](runs/phase3.11/PHASE3.11-RUN-005-TAXONOMY-FREEZE.md) | taxonomy / 优先级冻结 |
-| [RUN-006](runs/phase3.11/PHASE3.11-RUN-006-FOUR-STATE-AND-GENERALIZATION.md) | target_failure 四态 + Word/PDF 泛化 |
-| [RUN-007](runs/phase3.11/PHASE3.11-RUN-007-EVIDENCE-STRENGTH-PDF-REAL-DEFECT.md) | Evidence Strength 冻结 + PDF Real Defect |
-| [RUN-008](runs/phase3.11/PHASE3.11-RUN-008-BEHAVIOR-STRESS-TEST.md) | Behavior Family 压力测试（Undo） |
-| [RUN-009](runs/phase3.11/PHASE3.11-RUN-009-CONTRACT-SYNC-META-VALIDATION.md) | Contract-Sync Meta-Validation |
-| [RUN-010](runs/phase3.11/PHASE3.11-RUN-010-F3-RUNTIME-REAL-DEFECT.md) | F3 Runtime Real Defect Loop（Formula） |
-| [RUN-011](runs/phase3.11/PHASE3.11-RUN-011-WORD-FULL-GOLDEN-LOOP.md) | Word Full Golden Loop |
-| [RUN-012](runs/phase3.11/PHASE3.11-RUN-012-E6-PHYSICAL-RUNTIME.md) | E6 Physical Runtime（渲染 + 截图） |
-| [RUN-013](runs/phase3.11/PHASE3.11-RUN-013-E8-VISUAL-FIDELITY-PIPELINE.md) | E8 Visual Fidelity Pipeline（三层） |
-| [RUN-014](runs/phase3.11/PHASE3.11-RUN-014-E8-EVALUATOR.md) | E8 Evaluator（AST Diff 语义验证） |
-| [RUN-015](runs/phase3.11/PHASE3.11-RUN-015-E8-VISION-WIRING.md) | E8 真实视觉提取 + FFX verify 接线 |
-| [RUN-016](runs/phase3.11/PHASE3.11-RUN-016-VLM-STRUCTURE-MODE.md) | E8 VLM 结构模式（三态判定） |
+| [RUN-001](archive/runs/phase3.11/PHASE3.11-RUN-001-RUNNER-IZATION.md) | 独立 runner 化（7 能力真实执行） |
+| [RUN-002](archive/runs/phase3.11/PHASE3.11-RUN-002-MARKDOWN-HARDENING.md) | Markdown 加固 Golden Loop |
+| [RUN-003](archive/runs/phase3.11/PHASE3.11-RUN-003-REGRESSION-SEMANTICS-SERIALIZER.md) | regression 语义升级 + Serializer Golden Loop |
+| [RUN-004](archive/runs/phase3.11/PHASE3.11-RUN-004-FORMULA-EVIDENCE-LAYER.md) | Formula 跨证据层 Golden Loop |
+| [RUN-005](archive/runs/phase3.11/PHASE3.11-RUN-005-TAXONOMY-FREEZE.md) | taxonomy / 优先级冻结 |
+| [RUN-006](archive/runs/phase3.11/PHASE3.11-RUN-006-FOUR-STATE-AND-GENERALIZATION.md) | target_failure 四态 + Word/PDF 泛化 |
+| [RUN-007](archive/runs/phase3.11/PHASE3.11-RUN-007-EVIDENCE-STRENGTH-PDF-REAL-DEFECT.md) | Evidence Strength 冻结 + PDF Real Defect |
+| [RUN-008](archive/runs/phase3.11/PHASE3.11-RUN-008-BEHAVIOR-STRESS-TEST.md) | Behavior Family 压力测试（Undo） |
+| [RUN-009](archive/runs/phase3.11/PHASE3.11-RUN-009-CONTRACT-SYNC-META-VALIDATION.md) | Contract-Sync Meta-Validation |
+| [RUN-010](archive/runs/phase3.11/PHASE3.11-RUN-010-F3-RUNTIME-REAL-DEFECT.md) | F3 Runtime Real Defect Loop（Formula） |
+| [RUN-011](archive/runs/phase3.11/PHASE3.11-RUN-011-WORD-FULL-GOLDEN-LOOP.md) | Word Full Golden Loop |
+| [RUN-012](archive/runs/phase3.11/PHASE3.11-RUN-012-E6-PHYSICAL-RUNTIME.md) | E6 Physical Runtime（渲染 + 截图） |
+| [RUN-013](archive/runs/phase3.11/PHASE3.11-RUN-013-E8-VISUAL-FIDELITY-PIPELINE.md) | E8 Visual Fidelity Pipeline（三层） |
+| [RUN-014](archive/runs/phase3.11/PHASE3.11-RUN-014-E8-EVALUATOR.md) | E8 Evaluator（AST Diff 语义验证） |
+| [RUN-015](archive/runs/phase3.11/PHASE3.11-RUN-015-E8-VISION-WIRING.md) | E8 真实视觉提取 + FFX verify 接线 |
+| [RUN-016](archive/runs/phase3.11/PHASE3.11-RUN-016-VLM-STRUCTURE-MODE.md) | E8 VLM 结构模式（三态判定） |
 
 ### 3.2 ADL Loop（12 篇，含 PLAN）—— [runs/adl/](runs/adl/)
 
 | 文档 | 说明 |
 |------|------|
-| [RUN-001](runs/adl/ADL-LOOP-RUN-001.md) ~ [RUN-008](runs/adl/ADL-LOOP-RUN-008.md) | ADL 闭环报告（Run #001-008） |
+| [RUN-001](archive/runs/adl/ADL-LOOP-RUN-001.md) ~ [RUN-008](archive/runs/adl/ADL-LOOP-RUN-008.md) | ADL 闭环报告（Run #001-008） |
 | `*PLAN.md` ×4 | ADL 各轮计划（RUN-002/005/006/008） |
 
 ### 3.3 Dogfood（7 篇）—— [runs/dogfood/](runs/dogfood/)
 
 | 文档 | 说明 |
 |------|------|
-| [RUN-001](runs/dogfood/DOGFOOD-RUN-001-SMOKE.md) ~ [RUN-007](runs/dogfood/DOGFOOD-RUN-007-CONSUMER-ADAPTER.md) | Dogfood 闭环（Smoke → Known-Good/Bad → Real Repair → Regression） |
+| [RUN-001](archive/runs/dogfood/DOGFOOD-RUN-001-SMOKE.md) ~ [RUN-007](archive/runs/dogfood/DOGFOOD-RUN-007-CONSUMER-ADAPTER.md) | Dogfood 闭环（Smoke → Known-Good/Bad → Real Repair → Regression） |
 
 ---
 

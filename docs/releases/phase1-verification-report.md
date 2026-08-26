@@ -56,7 +56,7 @@
 
 ### 2.3 Skip 清单
 
-详见 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math2/docs/TEST_SKIP_REGISTRY.md)
+详见 [docs/TEST_SKIP_REGISTRY.md](../engineering/VERIFICATION-POLICY-source-skip.md)
 
 **10 个 skip 分类**：
 - 架构守门历史遗留（6 个）：Provider 重复定义，待 Phase 1 1.1 重构
@@ -195,7 +195,7 @@ golden_test_status:
 
 ### 7.3 文档改动
 
-- 新增 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math2/docs/TEST_SKIP_REGISTRY.md)
+- 新增 [docs/TEST_SKIP_REGISTRY.md](../engineering/VERIFICATION-POLICY-source-skip.md)
 - 新增本文件 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)
 - 更新 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 状态 `Accepted → Implemented`（**经 Human Owner 授权，§6.4 例外条款**）
 - 更新 [flutter_app/test/performance/list_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc

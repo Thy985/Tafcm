@@ -15,7 +15,7 @@
 - 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
 **当前阶段定位**：Phase 0-2 及 2.8/2.9 已关闭；Phase 3.0-3.7（EditorShell / WYSIWYG / 输入体验 / TOC·主题·导出·文件树 / 设计系统对齐 / 公式渲染 / E2E / 可观测）已全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 已合入（v0.3 拆至 ADR-0026）；Phase 3.10 FFX Verification Orchestrator 经 Final Gate G0-G12 全通过后关闭；**Phase 3.11 Capability Hardening Loop 已于 2026-08-22 经 Human Owner 判定关闭**。2026-08-25 治理轮（PR #167-#172）完成 .gitignore / preflight / 根目录清理 / 分支审计 / 本清单同步。
-**当前位置**：Phase 3 系列收尾完毕，Phase 4 未启动，处于**阶段间空档期**。产品侧已知缺口以 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](docs/PHASE3.10-TYPORA-GAP-ANALYSIS.md) §3-4 为准（表格单元格可视化编辑 / HTML 导出 / 源码视图切换等）+ 未启动的 3.4.10 选区格式化菜单；下一步立项由 Human Owner 决定。  
+**当前位置**：Phase 3 系列收尾完毕，Phase 4 未启动，处于**阶段间空档期**。产品侧已知缺口以 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](docs/product/TYPORA-GAP-ANALYSIS.md) §3-4 为准（表格单元格可视化编辑 / HTML 导出 / 源码视图切换等）+ 未启动的 3.4.10 选区格式化菜单；下一步立项由 Human Owner 决定。  
 **当前阶段禁区**：空档期内不启动新大阶段功能；架构决策一律先落 ADR；UI Prototype Freeze 已随 Phase 3 UI 重写完成而结束（ROADMAP Phase 0 定义"UI 在 Phase 3 重新实现"已发生）。  
 *（本节由 docs/align-phase-status PR 对齐至 2026-08-26 实况；§6.5 等历史阶段条款如与本节冲突，以本节为准。）*
 
@@ -170,7 +170,7 @@ import '../../data/models/document.dart';
 
 ## 5. Git 提交规范
 
-详见 [docs/GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md)。要点：
+详见 [docs/GIT_WORKFLOW.md](docs/engineering/GIT-WORKFLOW.md)。要点：
 
 ### 5.0 AI / Human 提交分工（核心规则）
 
@@ -427,7 +427,7 @@ ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入�
 
 ## 10. 当前阻塞项与例外说明
 
-以下是已知问题，已记入 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md)。
+以下是已知问题，已记入 [CRITICAL_REVIEW.md](docs/archive/audits/CRITICAL-REVIEW.md)。
 
 **Phase 1 已修复项**（2026-07-19，PR #23 合并后正式关闭）：
 
@@ -444,7 +444,7 @@ ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入�
 | 问题 | 修复 Phase | 跟踪 |
 |------|----------|------|
 | 编辑/预览分离模式 | Phase 3 UI Implementation | [ROADMAP 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md) |
-| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) |
+| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](docs/archive/audits/CRITICAL-REVIEW.md) |
 
 新增代码不得延续以上问题，必须按目标架构编写。
 

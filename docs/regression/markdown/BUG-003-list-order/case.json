@@ -1,0 +1,13 @@
+{
+  "id": "BUG-003",
+  "capability": "markdown",
+  "title": "列表项后紧跟段落时列表被延迟到文档末尾（顺序错误）",
+  "source": "archive/runs/adl/ADL-LOOP-RUN-008.md",
+  "status": "fixed",
+  "fixed_in": "lib/core/parser/markdown_parser.dart（段落分支前 flushListItems）",
+  "regression_test": "flutter_app/test/parser/roundtrip_fuzz_test.dart",
+  "severity": "order-error",
+  "type": "list-flush-order",
+  "input_file": "input.md",
+  "expected_file": "expected.json"
+}

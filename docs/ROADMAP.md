@@ -179,9 +179,9 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 |---|------|------|------|
 | 2.9.1 | UI 心智模型定义 | [UI-ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/UI-ARCHITECTURE.md) §1-2 | 架构决策类（草案） |
 | 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
-| 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](file:///d:/Projects/Active/math2/docs/Interaction-Model.md) + ADR-0009 | 架构决策类（草案） |
+| 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](architecture/UI-INTERACTION-MODEL.md) + ADR-0009 | 架构决策类（草案） |
 | 2.9.4 | UI Prototype 验证（4 个 Demo） | `flutter_app/lib/presentation/prototype/` | 新建代码目录 |
-| 2.9.5 | 核心接口冻结 | [Component-Tree.md](file:///d:/Projects/Active/math2/docs/Component-Tree.md) + ADR-0009 | 架构决策类（草案） |
+| 2.9.5 | 核心接口冻结 | [Component-Tree.md](architecture/UI-COMPONENT-MODEL.md) + ADR-0009 | 架构决策类（草案） |
 
 ### 4 个 Prototype Demo
 
@@ -479,7 +479,7 @@ FormulaFix 当前状态：
 
 **核心理念**：本阶段只做"换皮 + 公式块 UI 原型"，不做公式渲染内核（内核留 Phase 3.5）。最高 ROI 在 **P0-1（主色）+ P0-2（字体）**，单项即可让观感接近设计 ~60%。
 
-**关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](ADR/0017-design-system-alignment.md)（新增，定义 token 单一真相源 + 字体系统 + "Widget 禁止硬编码颜色" 守门）；[ADR-0015 Theme Architecture Migration](ADR/0015-theme-architecture-migration.md)（机制：static const → ThemeExtension，本阶段补**值**）。
+**关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](decisions/ADR/0017-design-system-alignment.md)（新增，定义 token 单一真相源 + 字体系统 + "Widget 禁止硬编码颜色" 守门）；[ADR-0015 Theme Architecture Migration](decisions/ADR/0015-theme-architecture-migration.md)（机制：static const → ThemeExtension，本阶段补**值**）。
 
 ### 任务
 
@@ -583,7 +583,7 @@ FormulaFix 当前状态：
 
 ### 详细文档
 
-详见 [E2E_TEST_PLAN.md](./E2E_TEST_PLAN.md)。
+详见 [E2E_TEST_PLAN.md](engineering/VERIFICATION-POLICY-source-e2e.md)。
 
 ---
 
@@ -631,9 +631,9 @@ FormulaFix 当前状态：
 **核心理念**：3.7 解决了"证据采集"，ADI 解决"证据消费"——尤其是被 AI Agent 直接消费。ADI **复用而非重采** 3.7 已建成的全部能力（ObservabilityService / ErrorSnapshotter / CommandReplayer / InvariantChecker），仅做协议封装 + 存储适配 + CLI 入口。
 
 **关联文档**：
-- [ADR-0024 Agent Diagnostic Interface](./ADR/0024-agent-diagnostic-interface.md)（Accepted）
+- [ADR-0024 Agent Diagnostic Interface](decisions/ADR/0024-agent-diagnostic-interface.md)（Accepted）
 - [ADI Design Document v1.0](./design/adi-design-v1.md)（实现细节）
-- [ADR-0023 Editor Observability System](./ADR/0023-editor-observability-system.md)（直接前置，已完成）
+- [ADR-0023 Editor Observability System](decisions/ADR/0023-editor-observability-system.md)（直接前置，已完成）
 
 ### 任务（分阶段实施）
 
@@ -666,14 +666,14 @@ FormulaFix 当前状态：
 ## Phase 3.10：FFX Verification Orchestrator（验证编排器）
 
 > **状态**：✅ **已关闭**——Final Gate G0-G12 全通过（2026-08-20，PHASE_3_10_PASS=真，
-> 见 [PHASE3.10-GATE-REPORT.md](./PHASE3.10-GATE-REPORT.md)）；任务经 #158/#161/#162/#163 合入 main。
+> 见 [PHASE3.10-GATE-REPORT.md](engineering/GATE-REPORT.md)）；任务经 #158/#161/#162/#163 合入 main。
 > 文档族：
-> [ADR-0030（架构决策根）](./ADR/0030-ffx-verification-orchestrator.md)、
-> [PHASE3.10-ENGINEERING-BASELINE-v1.md](./PHASE3.10-ENGINEERING-BASELINE-v1.md)（锚点）、
-> [FFX-VERIFICATION-ORCHESTRATOR-v1.md](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)、
-> [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](./FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md)、
-> [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](./FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md)、
-> [PHASE3.10-TYPORA-GAP-ANALYSIS.md](./PHASE3.10-TYPORA-GAP-ANALYSIS.md)。
+> [ADR-0030（架构决策根）](decisions/ADR/0030-ffx-verification-orchestrator.md)、
+> [PHASE3.10-ENGINEERING-BASELINE-v1.md](engineering/ENGINEERING-BASELINE.md)（锚点）、
+> [FFX-VERIFICATION-ORCHESTRATOR-v1.md](architecture/AGENT-ENGINEERING.md)、
+> [FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md](product/CAPABILITY-STATUS-source-coverage.md)、
+> [FEATURE-COMPLETION-EVIDENCE-MATRIX-v1.md](product/CAPABILITY-STATUS-source-completion.md)、
+> [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md)。
 
 **目标**：能力无关的验证编排器——Agent 通过 `ffx capability verify/diagnose/repair-verify`
 驱动真实 FormulaFix 生产路径（runtime_bridge），按契约（contracts/*.json）判定能力完成度，
@@ -704,8 +704,8 @@ Coalescing / Focus / IME（editor）。每例登记
 **前置条件**：Phase 3.7（可观测）/ 3.8（ADI）/ 3.9（审计收口）已建立证据采集与消费能力。
 
 **关联文档**：
-- [ADR-0030 FFX Verification Orchestrator](./ADR/0030-ffx-verification-orchestrator.md)（Accepted）
-- [FFX Verification Orchestrator v1 设计](./FFX-VERIFICATION-ORCHESTRATOR-v1.md)（已批准，进入 P0）
+- [ADR-0030 FFX Verification Orchestrator](decisions/ADR/0030-ffx-verification-orchestrator.md)（Accepted）
+- [FFX Verification Orchestrator v1 设计](architecture/AGENT-ENGINEERING.md)（已批准，进入 P0）
 
 ### 任务
 
@@ -713,7 +713,7 @@ Coalescing / Focus / IME（editor）。每例登记
 |---|------|--------|------|
 | 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | ✅ 已合入 main（#158 + #161；评审 R1-R15 关闭） |
 | 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ✅ 五轮 Dogfood 证据链全通（RUN-001~006，`docs/runs/dogfood/`） |
-| 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ✅ 最小版落地（#162：`core/contract_sync.py` + [CONTRACT-SYNC-MINIMAL.md](./CONTRACT-SYNC-MINIMAL.md)） |
+| 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ✅ 最小版落地（#162：`core/contract_sync.py` + [CONTRACT-SYNC-MINIMAL.md](architecture/CONTRACT-SYNC-MINIMAL.md)） |
 | 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ✅ word/formula adapter 双能力闭环（#162：adapters/word.py + formula.py + DOGFOOD-RUN-007） |
 
 ### Dogfood 五轮（3.10.1D 细化）
@@ -904,6 +904,6 @@ Golden Loop 逐层覆盖：
 
 ---
 
-**当前阶段**：**Phase 3 系列全部收尾，处于阶段间空档期，Phase 4 未启动。** Phase 3.0-3.7（UI 骨架 / WYSIWYG 迁移 / 移动输入体验 / TOC·自动保存·主题·导出进度·文件树·图片链路 / 设计系统对齐 / 公式渲染系统 / Core+Extended E2E / 可观测系统）✅ 全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 ✅ 合入（v0.3 拆至 ADR-0026）；Phase 3.9 审计收口 ✅；Phase 3.10 FFX Verification Orchestrator ✅ Final Gate G0-G12 全通过后关闭；Phase 3.11 Capability Hardening Loop ✅ 2026-08-22 Owner 判定关闭。产品侧遗留：3.4.10 选区格式化菜单未启动；Typora 差距高 ROI 项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑等）待 Owner 立项（见 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](./PHASE3.10-TYPORA-GAP-ANALYSIS.md) §4）。
+**当前阶段**：**Phase 3 系列全部收尾，处于阶段间空档期，Phase 4 未启动。** Phase 3.0-3.7（UI 骨架 / WYSIWYG 迁移 / 移动输入体验 / TOC·自动保存·主题·导出进度·文件树·图片链路 / 设计系统对齐 / 公式渲染系统 / Core+Extended E2E / 可观测系统）✅ 全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 ✅ 合入（v0.3 拆至 ADR-0026）；Phase 3.9 审计收口 ✅；Phase 3.10 FFX Verification Orchestrator ✅ Final Gate G0-G12 全通过后关闭；Phase 3.11 Capability Hardening Loop ✅ 2026-08-22 Owner 判定关闭。产品侧遗留：3.4.10 选区格式化菜单未启动；Typora 差距高 ROI 项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑等）待 Owner 立项（见 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md) §4）。
 **最近更新**：2026-08-26（阶段状态对齐：Phase 3.10 任务表回填收口结果 + 本 footer 同步至 Phase 3.11 关闭后实况；历史：2026-08-06 文档清理轮——Phase 2.7 标记 ✅ 完成（tryTransform 已实现）；Phase 2/2.9 退出条件勾选；Phase 3.7.2/3/4 从 🔶 更正为 ✅）
 **维护人**：首席架构工程师
