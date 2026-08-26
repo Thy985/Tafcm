@@ -14,8 +14,10 @@
 - 不是"通用笔记 App"，而是 **以公式 / 图表 / 学术写作为特色** 的专业写作工具
 - 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
-**当前阶段定位**：Phase 1（底层重构）已于 2026-07-19 完成（PR #23 合并）。准备进入 Phase 2（编辑模型）。UI 仍冻结为重构基线，Phase 2-3 期间 UI 退化不视为 bug，UI 在 Phase 3 重新实现。  
-**当前阶段禁区**：Phase 2 允许修改 `lib/` 下编辑模型相关业务代码（BlockEditor / AST / IME），但 UI 行为仍冻结；不新增 Phase 3 才有的功能（主题、TOC、图片管理等）。
+**当前阶段定位**：Phase 0-2 及 2.8/2.9 已关闭；Phase 3.0-3.7（EditorShell / WYSIWYG / 输入体验 / TOC·主题·导出·文件树 / 设计系统对齐 / 公式渲染 / E2E / 可观测）已全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 已合入（v0.3 拆至 ADR-0026）；Phase 3.10 FFX Verification Orchestrator 经 Final Gate G0-G12 全通过后关闭；**Phase 3.11 Capability Hardening Loop 已于 2026-08-22 经 Human Owner 判定关闭**。2026-08-25 治理轮（PR #167-#172）完成 .gitignore / preflight / 根目录清理 / 分支审计 / 本清单同步。
+**当前位置**：Phase 3 系列收尾完毕，Phase 4 未启动，处于**阶段间空档期**。产品侧已知缺口以 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](docs/PHASE3.10-TYPORA-GAP-ANALYSIS.md) §3-4 为准（表格单元格可视化编辑 / HTML 导出 / 源码视图切换等）+ 未启动的 3.4.10 选区格式化菜单；下一步立项由 Human Owner 决定。  
+**当前阶段禁区**：空档期内不启动新大阶段功能；架构决策一律先落 ADR；UI Prototype Freeze 已随 Phase 3 UI 重写完成而结束（ROADMAP Phase 0 定义"UI 在 Phase 3 重新实现"已发生）。  
+*（本节由 docs/align-phase-status PR 对齐至 2026-08-26 实况；§6.5 等历史阶段条款如与本节冲突，以本节为准。）*
 
 ---
 
@@ -52,7 +54,7 @@ main.dart        App 入口
 
 - 服务类构造函数注入，不写 `class.service()` 风格的全局静态方法
 - 例外：现有 `MarkdownExporter` / `PdfExporter` / `WordExporter` 已是 facade 静态，重写前不动
-- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:67-83](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L67-83)）
+- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:67-83](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L67-83)）
 
 ---
 
@@ -71,8 +73,8 @@ main.dart        App 入口
 
 ### 2.2 现代 Dart 特性使用（鼓励）
 
-- sealed class 用于 AST / 状态联合（已在 [document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) 落地）
-- 模式匹配 `switch` 替代 if-else 链（已在 [preview_content.dart:80-102](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L80-102) 落地）
+- sealed class 用于 AST / 状态联合（已在 [document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 落地）
+- 模式匹配 `switch` 替代 if-else 链（已在 [preview_content.dart:80-102](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart#L80-102) 落地）
 - records 用于多值返回（已在 `ExportFailureInfo` 落地）
 - 空安全：禁止 `!` 强制解包，除非同一行内已 null 检查
 
@@ -87,7 +89,7 @@ main.dart        App 入口
 ### 2.4 文件头
 
 每个 `.dart` 文件必须有 1-3 行 `///` 顶部文档，说明该文件职责。  
-参考 [export_service.dart:1-19](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L1-19) 的写法。
+参考 [export_service.dart:1-19](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L1-19) 的写法。
 
 ### 2.5 import 顺序
 
@@ -123,18 +125,18 @@ import '../../data/models/document.dart';
 
 - 业务级 Provider 放 `domain/providers/`
 - UI 全局状态放 `providers/`
-- **禁止在多个文件定义同名 Provider**（当前 [providers/providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart) 重复定义 `sharedPreferencesProvider` / `darkModeProvider`，是 bug，待 P0 重构修复）
+- **禁止在多个文件定义同名 Provider**（当前 [providers/providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart) 重复定义 `sharedPreferencesProvider` / `darkModeProvider`，是 bug，待 P0 重构修复）
 
 ### 3.3 状态不可变性
 
 - `StateNotifier<S>` 的 `S` 必须是不可变类型
 - 集合修改用 `copyWith` 或新对象，禁止 `state.list.add(...)`
-- 已有范本：[data/models/document.dart:108-122](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L108-122) 的 `copyWith`
+- 已有范本：[data/models/document.dart:108-122](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L108-122) 的 `copyWith`
 
 ### 3.4 Provider dispose
 
 - 资源持有型 Provider（WebView、Stream、Timer）必须实现 `autoDispose` 或显式清理
-- 当前 [editor_screen.dart:51-65](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L51-65) 在 `dispose` 中清空静态缓存是 hack，待 WYSIWYG 重构后移除
+- 当前 [editor_screen.dart:51-65](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L51-65) 在 `dispose` 中清空静态缓存是 hack，待 WYSIWYG 重构后移除
 
 ---
 
@@ -144,7 +146,7 @@ import '../../data/models/document.dart';
 
 **目标**：`.md` 文件作为文档唯一存储，废弃 `formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']`。
 
-**理由**：见 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)。
+**理由**：见 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)。
 
 **过渡期规则**：在 ADR-0003 执行前，**禁止新增第四套存储**。
 
@@ -155,20 +157,20 @@ import '../../data/models/document.dart';
 
 ### 4.3 编码兜底
 
-- 所有从外部读取的字节流必须走 [file_service.dart:13-41](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_service.dart#L13-41) `decodeBytesAuto`
+- 所有从外部读取的字节流必须走 [file_service.dart:13-41](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L13-41) `decodeBytesAuto`
 - 禁止直接 `utf8.decode(bytes)` —— 中国用户的 .md 常含 GBK 字节
 
 ### 4.4 错误传播
 
 - 服务层抛业务异常（`ExportException` / `FileImportException` 等），不抛 raw `Exception`
-- UI 层通过 [export_service.dart:261-348](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L261-348) `classifyError` 映射到 `ExportFailure` 枚举
-- **禁止把 `detail`（含 source/offset/stack）直接显示给用户** —— 当前 [editor_screen.dart:230-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253) 违反此规则，待 P1 修复
+- UI 层通过 [export_service.dart:261-348](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L261-348) `classifyError` 映射到 `ExportFailure` 枚举
+- **禁止把 `detail`（含 source/offset/stack）直接显示给用户** —— 当前 [editor_screen.dart:230-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253) 违反此规则，待 P1 修复
 
 ---
 
 ## 5. Git 提交规范
 
-详见 [docs/GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md)。要点：
+详见 [docs/GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md)。要点：
 
 ### 5.0 AI / Human 提交分工（核心规则）
 
@@ -238,7 +240,7 @@ PR 描述必须包含：
 - [ ] 测试方式（手动 / 自动）
 - [ ] 是否影响公共 API
 - [ ] 是否更新文档
-- [ ] 自测：`flutter analyze --no-fatal-infos --fatal-warnings` 无 error / 无 warning（与 CI [Analyze 步骤](file:///d:/Projects/Active/math/.github/workflows/ci.yml) 一致；裸 `flutter analyze` 只把 warning 当 info 显示，本地可能漏检）
+- [ ] 自测：`flutter analyze --no-fatal-infos --fatal-warnings` 无 error / 无 warning（与 CI [Analyze 步骤](file:///d:/Projects/Active/math2/.github/workflows/ci.yml) 一致；裸 `flutter analyze` 只把 warning 当 info 显示，本地可能漏检）
 - [ ] 自测：`flutter test` 全部通过
 - [ ] 自测：`flutter build apk --debug` 成功（Android 构建）
 - [ ] 自测：`flutter build web` 成功
@@ -305,9 +307,9 @@ PR 描述必须包含：
 在 Phase 2 编辑模型阶段，额外禁止：
 
 1. ❌ 修改 UI 行为（Phase 1-2 仍属 UI Prototype Freeze 期，UI 在 Phase 3 重写）
-2. ❌ 新增 Phase 3 才有的功能（主题切换 / TOC / 图片管理 / 焦点模式等）—— 详见 [ROADMAP Phase 3](file:///d:/Projects/Active/math/docs/ROADMAP.md)
+2. ❌ 新增 Phase 3 才有的功能（主题切换 / TOC / 图片管理 / 焦点模式等）—— 详见 [ROADMAP Phase 3](file:///d:/Projects/Active/math2/docs/ROADMAP.md)
 3. ❌ 在 BlockEditor 抽象稳定前（Phase 2.1）实现 2.2~2.7 的细节
-4. ❌ 跨阶段引入 SQLite / FileIndex 等派生缓存（[ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5）—— 留到 Phase 2 性能优化
+4. ❌ 跨阶段引入 SQLite / FileIndex 等派生缓存（[ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5）—— 留到 Phase 2 性能优化
 
 ---
 
@@ -355,7 +357,7 @@ docs/
 
 ## 8. CI 与质量门禁
 
-详见 [.github/workflows/ci.yml](file:///d:/Projects/Active/math/.github/workflows/ci.yml)。
+详见 [.github/workflows/ci.yml](file:///d:/Projects/Active/math2/.github/workflows/ci.yml)。
 
 **PR 合并必须满足**：
 
@@ -383,7 +385,7 @@ docs/
 
 ### 9.2 编码前必须回答的四个问题
 
-AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/Active/math/.agent/templates/task-contract.md)，明确回答：
+AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/Active/math2/.agent/templates/task-contract.md)，明确回答：
 
 1. **What changes?** — 修改哪些文件？为什么？
 2. **How to verify?** — 测试在哪里？如何证明正确？
@@ -410,7 +412,7 @@ AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/A
 
 ### 9.5 ADI 诊断工作流（引用 ADR-0024 §1.4）
 
-AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math/docs/ADR/0024-agent-diagnostic-interface.md)：
+AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math2/docs/ADR/0024-agent-diagnostic-interface.md)：
 
 1. **Query first** — 先 `adi latest-error --json` 获取 Observation，不凭空假设
 2. **Inspect before edit** — 改代码前先 `adi trace show <id>` 理解因果链
@@ -419,30 +421,30 @@ AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface）�
 5. **Never trust candidate_causes as truth** — `candidate_causes` 是假设非结论，修复决策需 Agent 推理
 6. **Respect invariant report** — `invariant_report.violated` 非空 = 状态损坏（真 bug）；全通过 = 渲染降级或既定行为（ADR-0022）
 
-ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入口：`dart run tools/adi/adi.dart <command>`。详见 [ADR-0024](file:///d:/Projects/Active/math/docs/ADR/0024-agent-diagnostic-interface.md) + [ADI Design Document](file:///d:/Projects/Active/math/docs/design/adi-design-v1.md)。
+ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入口：`dart run tools/adi/adi.dart <command>`。详见 [ADR-0024](file:///d:/Projects/Active/math2/docs/ADR/0024-agent-diagnostic-interface.md) + [ADI Design Document](file:///d:/Projects/Active/math2/docs/design/adi-design-v1.md)。
 
 ---
 
 ## 10. 当前阻塞项与例外说明
 
-以下是已知问题，已记入 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)。
+以下是已知问题，已记入 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md)。
 
 **Phase 1 已修复项**（2026-07-19，PR #23 合并后正式关闭）：
 
 | 问题 | 修复 commit / PR | 证据 |
 |------|----------------|------|
-| Provider 重复定义 | `ec76f06`（1.1） | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门 |
-| 三套存储并存 | `b43e5c1`（1.2） | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) Implemented |
-| 解析器缺 7 类元素 | `da4ab00`（1.5） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) |
+| Provider 重复定义 | `ec76f06`（1.1） | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门 |
+| 三套存储并存 | `b43e5c1`（1.2） | [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) Implemented |
+| 解析器缺 7 类元素 | `da4ab00`（1.5） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) |
 | DocumentListScreen 死代码 | `b36d930`（1.3） | 路由已合并到 `/files` |
-| 错误 detail 透传 UI | `f6a73af`（1.7） | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math/flutter_app/test/error/message_friendly_test.dart) |
+| 错误 detail 透传 UI | `f6a73af`（1.7） | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/error/message_friendly_test.dart) |
 
 **仍存在项**（按 Phase 修复）：
 
 | 问题 | 修复 Phase | 跟踪 |
 |------|----------|------|
-| 编辑/预览分离模式 | Phase 3 UI Implementation | [ROADMAP 3.1](file:///d:/Projects/Active/math/docs/ROADMAP.md) |
-| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) |
+| 编辑/预览分离模式 | Phase 3 UI Implementation | [ROADMAP 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md) |
+| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) |
 
 新增代码不得延续以上问题，必须按目标架构编写。
 
@@ -813,9 +815,9 @@ Reproduce → Collect Evidence → Find Root Cause → Fix → Regression Protec
 | 命令 | 用途 | 备注 |
 |------|------|------|
 | `flutter analyze --no-fatal-infos --fatal-warnings` | Analyze 门禁 | 必须用此精确命令，裸 `flutter analyze` 不把 warning 当 error |
-| `flutter test` | 全量 unit/widget test | 约 175 tests，需 3-5 min |
+| `flutter test` | 全量 unit/widget test | 185 个 *_test.dart / ~1700+ 用例（2026-08-26 实测），全量需 3-5 min+ |
 | `flutter test test/<dir>/<file>_test.dart` | 单文件测试 | 短耗时，适合迭代验证 |
-| `ffx test` | ffx-cli 测试 | 40 passing，改 CLI 后必跑 |
+| `ffx test` | ffx-cli 测试 | 170+ pytest 用例（与 §14.1 树注一致），改 CLI 后必跑 |
 | `ffx adi doctor` | ADI 自检 | 跑 ADI 前必做 |
 
 ### 13.2 已知超时风险
@@ -841,7 +843,7 @@ cd flutter_app && flutter test 2>&1 | tee /tmp/flutter_test.log
 ### 14.1 整体结构
 
 > **同步时间**：2026-08-25（PR-5 `docs/sync-top-level-inventory-2026-08-25`）
-> **依据**：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 + `git ls-tree --name-only HEAD` 实测
+> **依据**：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 + `git ls-tree --name-only HEAD` 实测（⚠️ 该报告文件未入库，引用暂悬空，待 Owner 补录或改链）
 > **tracked 顶层**（17 个）：`.agent` `.arts` `.githooks` `.github` `AGENTS.md` `LICENSE` `README.md` `contracts` `design-system` `docs` `flutter_app` `formulafix-redesign.design` `skills` `tests` `tools` + 2 git 元数据文件 `.gitattributes` `.gitignore`
 > **ignored 顶层**（10 个，gitignore 拦截）：`.adi` `.claude/hooks.log` `.codeartsdoer` `.debug` `.ffx` `.openwiki` `.wt` `.workbuddy` `flutter_app/build/` `flutter_app/.dart_tool/` + 等等
 > **临时 untracked**（通常应忽略）：`.atomcode/memory.md`（preflight Windows fix 备忘，待后续 PR 评估）
@@ -894,7 +896,7 @@ D:\Projects\Active\math2\
 │   ├── PR-2_DESCRIPTION.md
 │   ├── PR-3_DESCRIPTION.md
 │   ├── BRANCH_AUDIT_2026-08-25.md
-│   ├── REPO_AUDIT_2026-08-25.md   # 本次治理调研报告
+│   ├── REPO_AUDIT_2026-08-25.md   # 本次治理调研报告（⚠️ 未入库，引用悬空待补录）
 │   ├── contracts/                # capability contracts
 │   ├── design/                   # 设计文档
 │   ├── releases/                 # 11 篇 release notes
@@ -926,7 +928,7 @@ D:\Projects\Active\math2\
 │   │   ├── domain/               # 业务领域（导出服务 / 业务 Provider）
 │   │   ├── providers/            # 全局 Riverpod Provider
 │   │   └── presentation/         # UI 组件、屏幕、主题
-│   ├── test/                     # Unit + Widget tests（175+ 个）
+│   ├── test/                     # Unit + Widget tests（185 个测试文件 / ~1700+ 用例）
 │   ├── integration_test/         # E2E tests（Android 模拟器 + 真机）
 │   ├── tool/                     # preflight.sh / wsl_golden.sh
 │   ├── docs/                     # Flutter 侧文档
@@ -985,7 +987,7 @@ ffx project info --json -p project.json
 修改 ffx-cli 后**必须**执行：
 
 ```bash
-# 跑全量 CLI 测试（40 passing）
+# 跑全量 CLI 测试（170+ 用例，与 §14.1 一致）
 cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/ -v
 
 # 或单测某个模块

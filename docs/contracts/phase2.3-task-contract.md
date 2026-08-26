@@ -12,7 +12,7 @@ Task ID: ROADMAP Phase 2.3
 
 要解决的问题：**为 BlockEditor 抽象实现 source ↔ DocumentElement 双向映射、BlockType 规则检测器骨架、1000 块性能基线**。
 
-ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)）已 Accepted。Phase 2.2（PR #27，commit `c94ad4e`）落地了接口骨架与状态机。本任务落地 ADR-0007 §实施计划 Phase 2.3：
+ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)）已 Accepted。Phase 2.2（PR #27，commit `c94ad4e`）落地了接口骨架与状态机。本任务落地 ADR-0007 §实施计划 Phase 2.3：
 
 > - 实现 `BlockEditor.toElement()` / `fromElement()` 双向映射
 > - 实现 `BlockTypeDetector`（Markdown 快捷映射）
@@ -39,7 +39,7 @@ ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects
 | `flutter_app/test/editing/block_type_detector_test.dart` | 新增 | 7 条规则正负样本 |
 | `flutter_app/test/performance/block_perf_test.dart` | 新增 | 1000 块单块 toElement < 16ms |
 | `flutter_app/test/architecture/editing_layer_test.dart` | 修改 | 守门：block_serializer / block_type_detector 不反向 import |
-| [docs/contracts/phase2.3-task-contract.md](file:///d:/Projects/Active/math/docs/contracts/phase2.3-task-contract.md) | 新增 | 本 Task Contract |
+| [docs/contracts/phase2.3-task-contract.md](file:///d:/Projects/Active/math2/docs/contracts/phase2.3-task-contract.md) | 新增 | 本 Task Contract |
 
 ### 不修改
 
@@ -48,7 +48,7 @@ ADR-0007（[docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects
 - `lib/core/parser/formula_extractor.dart`（不改）
 - `lib/core/editing/block_editor.dart` / `block_editor_state.dart` / `block_types.dart`（Phase 2.2 产物已稳定）
 - `lib/core/utils/history_manager.dart`（Phase 2.6 才扩展）
-- `lib/presentation/` 下任何 UI 代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) Phase 2 UI 冻结）
+- `lib/presentation/` 下任何 UI 代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) Phase 2 UI 冻结）
 - ADR-0001 ~ 0007（不动架构决策）
 - AGENTS.md / ROADMAP.md（不动顶层规范）
 - pubspec.yaml（不引入新依赖）
@@ -146,14 +146,14 @@ expect(_astDeepEquals(element1, element2), isTrue);
 4. 7 条 detector 规则正负样本完整，detector 返回 `BlockType`（非 null）
 5. 性能测试：单块典型 < 5ms，单块最坏 < 16ms
 6. 守门测试通过（core/editing 不反向 import）
-7. 文件均 < 400 行（[AGENTS.md §1.2](file:///d:/Projects/Active/math/AGENTS.md)）
-8. 每个文件有 1-3 行 `///` 顶部文档（[AGENTS.md §2.4](file:///d:/Projects/Active/math/AGENTS.md)）
+7. 文件均 < 400 行（[AGENTS.md §1.2](file:///d:/Projects/Active/math2/AGENTS.md)）
+8. 每个文件有 1-3 行 `///` 顶部文档（[AGENTS.md §2.4](file:///d:/Projects/Active/math2/AGENTS.md)）
 
 ### Architecture Validation
 
 | 检查项 | 验证方式 | 预期结果 |
 |--------|---------|---------|
-| 分层依赖方向 | [test/architecture/editing_layer_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/editing_layer_test.dart) 扩展 | block_serializer / block_type_detector 不 import presentation / domain / providers |
+| 分层依赖方向 | [test/architecture/editing_layer_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/editing_layer_test.dart) 扩展 | block_serializer / block_type_detector 不 import presentation / domain / providers |
 | AST 不修改 | git diff lib/data/models/document.dart | 无变更 |
 | Parser 不修改 | git diff lib/core/parser/ | 无变更（仅复用 parseInline） |
 | HistoryManager 不修改 | git diff lib/core/utils/history_manager.dart | 无变更 |

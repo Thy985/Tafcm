@@ -28,7 +28,7 @@ Task ID: ROADMAP Phase 2.5
 要解决的问题：**在纯 Dart 逻辑层落地 ADR-0007 §3.2 IME 三铁律 + 覆盖 §3.4 6 个测试场景，不接入 Flutter UI**。
 
 ADR-0007 §3 IME 兼容章节定义了：
-- §3.1 ComposingRegion 数据类（已在 [block_types.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) 落地）
+- §3.1 ComposingRegion 数据类（已在 [block_types.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) 落地）
 - §3.2 三铁律（未实现）
 - §3.3 与 TextEditingController 关系（不重新发明，用适配层）
 - §3.4 6 个测试场景矩阵（未覆盖）

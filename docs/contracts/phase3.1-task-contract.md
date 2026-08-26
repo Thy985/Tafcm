@@ -119,7 +119,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 - [ ] Phase 3.2+ 多步连续操作场景下 redo 状态不一致
 
 **当前对策**（Phase 3.1-A 期间）：
-- 保留 R2 已知限制的代码注释（PR 评审 R2 注释已在 [editor_coordinator.dart:126-127](file:///d:/Projects/Active/math/flutter_app/lib/presentation/editor/editor_coordinator.dart#L126) 落地）
+- 保留 R2 已知限制的代码注释（PR 评审 R2 注释已在 [editor_coordinator.dart:126-127](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/editor/editor_coordinator.dart#L126) 落地）
 - 复用 Phase 2 `Transaction` + `inverse operation` 路径（不走 snapshot）
 - 单步 undo/redo 行为正确（Phase 2 已稳定），仅多步链第 2 步有问题
 
@@ -190,7 +190,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 4. 新增守门测试 TC-ARCH-UI-9
 
 **理由**：
-- 当前 [command_handler.dart:162](file:///d:/Projects/Active/math/flutter_app/lib/presentation/commands/command_handler.dart#L162) 用 if-else 链 dispatch，缺编译期 exhaustive
+- 当前 [command_handler.dart:162](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/commands/command_handler.dart#L162) 用 if-else 链 dispatch，缺编译期 exhaustive
 - sealed class 是 Dart 3 现代化核心特性，与 Phase 2.4 `BlockType.fromElement` 对齐
 
 **风险**：低

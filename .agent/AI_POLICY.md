@@ -58,7 +58,7 @@ agent:
 
 ### 4.1 编码风格
 
-所有 AI Agent 必须遵守 [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) 和 [CODING_RULES.md](file:///d:/Projects/Active/math/docs/CODING_RULES.md) 中定义的编码规范，包括：
+所有 AI Agent 必须遵守 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 和 [CODING_RULES.md](file:///d:/Projects/Active/math2/docs/CODING_RULES.md) 中定义的编码规范，包括：
 
 - 六层架构依赖方向
 - 命名规范（文件 snake_case、类 UpperCamelCase）

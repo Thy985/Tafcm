@@ -2,7 +2,7 @@
 
 > **角色**：架构评审人员
 > **输出范围**：设计文档，不含代码改动
-> **基准**：已建立的 [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) / [ARCHITECTURE.md](file:///d:/Projects/Active/math/docs/ARCHITECTURE.md) / [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) / [ADR/](file:///d:/Projects/Active/math/docs/ADR)
+> **基准**：已建立的 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) / [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) / [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) / [ADR/](file:///d:/Projects/Active/math2/docs/ADR)
 > **目标**：从"Markdown + 公式预览原型"演进为"移动端 Typora 类体验"
 
 ---
@@ -396,7 +396,7 @@ class IncrementalParser {
 2. **blockId 稳定**：跨重解析保持相同，用于焦点追踪 + AST diff
 3. **sourceRange 可选**：仅在需要错误定位 / 编辑器跳转时填充，平时为 null 节省内存
 4. **Serializer 保格式**：尽量保留用户原始标记（`**bold**` 不被改写为 `__bold__`）
-5. **不引入第三方库**：自研解析器（见 [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md)）
+5. **不引入第三方库**：自研解析器（见 [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md)）
 
 ---
 
@@ -653,7 +653,7 @@ documentListProvider   editorStateProvider   formulaServiceProvider
 1. 实现 `FileRepository` 接口（封装现有 `DocumentService` + `FileService`）
 2. 实现 `StorageMigration`（JSON → .md，幂等 + 备份）
 3. 合并 `providers.dart` 与 `editor_providers.dart` 的重复 Provider
-4. 修复 [editor_screen.dart:230-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253) 错误 detail 透传
+4. 修复 [editor_screen.dart:230-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253) 错误 detail 透传
 5. 启用 `DocumentListScreen` 路由（修复 P0 #3）
 6. 修正路由初始位置为文档列表
 
@@ -903,7 +903,7 @@ documentListProvider   editorStateProvider   formulaServiceProvider
 
 1. **本方案评审**：召集相关人员评审本文档，确认范围与优先级
 2. **补齐 ADR**：按 §6 列表新增 ADR-0007 至 ADR-0014
-3. **更新 ROADMAP**：将 [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) 的 Phase 1-3 与本方案 R1-R5 对齐
+3. **更新 ROADMAP**：将 [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) 的 Phase 1-3 与本方案 R1-R5 对齐
 4. **启动 R1**：R1 不依赖 R2-R5，可立即启动
 5. **建立基准测试**：R3 启动前建立渲染性能基准，用于回归对比
 
@@ -917,10 +917,10 @@ documentListProvider   editorStateProvider   formulaServiceProvider
 
 ## 附录 A：相关文档索引
 
-- [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) — AI 协作规范
-- [ARCHITECTURE.md](file:///d:/Projects/Active/math/docs/ARCHITECTURE.md) — 当前架构总览
-- [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) — 现状批判报告
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) — 路线图
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) — 存储单一真相
-- [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) — 解析器扩展
-- [ADR-0005](file:///d:/Projects/Active/math/docs/ADR/0005-exporter-facade-dependency-injection.md) — 导出器 facade
+- [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) — AI 协作规范
+- [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) — 当前架构总览
+- [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) — 现状批判报告
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) — 路线图
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) — 存储单一真相
+- [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) — 解析器扩展
+- [ADR-0005](file:///d:/Projects/Active/math2/docs/ADR/0005-exporter-facade-dependency-injection.md) — 导出器 facade

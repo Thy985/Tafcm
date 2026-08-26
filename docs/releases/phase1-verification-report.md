@@ -1,6 +1,6 @@
 # Phase 1 Verification Report
 
-> **本文件为 Phase 1 退出审计报告，对应 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md) §18 退出门槛。**
+> **本文件为 Phase 1 退出审计报告，对应 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math2/docs/PHASE1_TEST_PLAN.md) §18 退出门槛。**
 >
 > **版本**：v1.0（已关闭）
 > **生成日期**：2026-07-19
@@ -14,9 +14,9 @@
 
 | 模块 | 范围 | 对应 ADR |
 |------|------|---------|
-| 存储重构 | 三套存储 → .md 单一真相源 + FileRepository | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) |
-| Provider 清理 | 已识别重复定义，待 Phase 1 1.1 重构 | [ADR-0002](file:///d:/Projects/Active/math/docs/ADR/0002-state-management-riverpod.md) |
-| Parser 稳定化 | 边界用例 + 已知限制登记 | [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) |
+| 存储重构 | 三套存储 → .md 单一真相源 + FileRepository | [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) |
+| Provider 清理 | 已识别重复定义，待 Phase 1 1.1 重构 | [ADR-0002](file:///d:/Projects/Active/math2/docs/ADR/0002-state-management-riverpod.md) |
+| Parser 稳定化 | 边界用例 + 已知限制登记 | [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) |
 | 路由 | 初始路由 /files，DocumentListScreen 已注册 | - |
 | 错误消息 | classifyError 映射 + detail 不透传 UI | - |
 
@@ -44,19 +44,19 @@
 
 | 维度 | 文件 | Pass | Skip | Fail |
 |------|------|------|------|------|
-| TC-ARCH-1~10 架构守门 | [test/architecture/](file:///d:/Projects/Active/math/flutter_app/test/architecture/) 6 文件 | 23 | 8 | 0 |
-| TC-RECOVERY/1.2.x 存储 | [test/storage/](file:///d:/Projects/Active/math/flutter_app/test/storage/) 3 文件 | 全部 | 2 | 0 |
-| TC-1.5.16+ Parser 边界 | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) | 23 | 0 | 0 |
-| TC-1.7.x 错误消息 | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math/flutter_app/test/error/message_friendly_test.dart) | 22 | 0 | 0 |
-| TC-1.8.1 CRUD 集成 | [test/integration/crud_flow_test.dart](file:///d:/Projects/Active/math/flutter_app/test/integration/crud_flow_test.dart) | 6 | 0 | 0 |
-| TC-GOLDEN-1 布局回归 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math/flutter_app/test/golden/file_manager_test.dart) | 2 | 1 | 0 |
-| TC-PERF-1 parser | [test/performance/parser_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/parser_perf_test.dart) | 1 | 0 | 0 |
-| TC-PERF-2 listDocuments | [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/list_perf_test.dart) | 1 | 0 | 0 |
+| TC-ARCH-1~10 架构守门 | [test/architecture/](file:///d:/Projects/Active/math2/flutter_app/test/architecture/) 6 文件 | 23 | 8 | 0 |
+| TC-RECOVERY/1.2.x 存储 | [test/storage/](file:///d:/Projects/Active/math2/flutter_app/test/storage/) 3 文件 | 全部 | 2 | 0 |
+| TC-1.5.16+ Parser 边界 | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) | 23 | 0 | 0 |
+| TC-1.7.x 错误消息 | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/error/message_friendly_test.dart) | 22 | 0 | 0 |
+| TC-1.8.1 CRUD 集成 | [test/integration/crud_flow_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/integration/crud_flow_test.dart) | 6 | 0 | 0 |
+| TC-GOLDEN-1 布局回归 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/golden/file_manager_test.dart) | 2 | 1 | 0 |
+| TC-PERF-1 parser | [test/performance/parser_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/parser_perf_test.dart) | 1 | 0 | 0 |
+| TC-PERF-2 listDocuments | [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/list_perf_test.dart) | 1 | 0 | 0 |
 | 现有测试基线 | - | 236 | 0 | 0 |
 
 ### 2.3 Skip 清单
 
-详见 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math/docs/TEST_SKIP_REGISTRY.md)
+详见 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math2/docs/TEST_SKIP_REGISTRY.md)
 
 **10 个 skip 分类**：
 - 架构守门历史遗留（6 个）：Provider 重复定义，待 Phase 1 1.1 重构
@@ -98,28 +98,28 @@ golden_test_status:
 
 | ADR | 状态 | 合规证据 | 备注 |
 |-----|------|---------|------|
-| [ADR-0001](file:///d:/Projects/Active/math/docs/ADR/0001-project-naming-and-structure.md) 项目结构与命名 | Accepted | 项目结构遵循六层架构 | - |
-| [ADR-0002](file:///d:/Projects/Active/math/docs/ADR/0002-state-management-riverpod.md) Riverpod 状态管理 | Accepted | Provider 已落地，重复定义待 1.1 清理 | 6 个 skip 跟踪 |
-| [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) .md 单一真相源 | **Implemented** | FileRepository / StorageMigration 落地 + 测试守护 | 本 PR 推进 |
-| [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略 | Accepted | 边界测试覆盖 + 已知限制登记 | - |
-| [ADR-0005](file:///d:/Projects/Active/math/docs/ADR/0005-exporter-facade-dependency-injection.md) Exporter facade | Accepted | classifyError 测试覆盖 | - |
-| [ADR-0006](file:///d:/Projects/Active/math/docs/ADR/0006-ci-github-actions.md) CI GitHub Actions | Accepted | 全量测试 CI 全绿 | - |
+| [ADR-0001](file:///d:/Projects/Active/math2/docs/ADR/0001-project-naming-and-structure.md) 项目结构与命名 | Accepted | 项目结构遵循六层架构 | - |
+| [ADR-0002](file:///d:/Projects/Active/math2/docs/ADR/0002-state-management-riverpod.md) Riverpod 状态管理 | Accepted | Provider 已落地，重复定义待 1.1 清理 | 6 个 skip 跟踪 |
+| [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) .md 单一真相源 | **Implemented** | FileRepository / StorageMigration 落地 + 测试守护 | 本 PR 推进 |
+| [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略 | Accepted | 边界测试覆盖 + 已知限制登记 | - |
+| [ADR-0005](file:///d:/Projects/Active/math2/docs/ADR/0005-exporter-facade-dependency-injection.md) Exporter facade | Accepted | classifyError 测试覆盖 | - |
+| [ADR-0006](file:///d:/Projects/Active/math2/docs/ADR/0006-ci-github-actions.md) CI GitHub Actions | Accepted | 全量测试 CI 全绿 | - |
 
 ---
 
 ## 4. Architecture Compliance（架构合规）
 
-### 4.1 已知违规白名单（来自 [test/architecture/layer_dependency_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/layer_dependency_test.dart)）
+### 4.1 已知违规白名单（来自 [test/architecture/layer_dependency_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/layer_dependency_test.dart)）
 
 | 类型 | 文件 | 违规 | 计划 |
 |------|------|------|------|
-| Core 反向 import presentation | [lib/core/router/app_router.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/router/app_router.dart) | import `presentation/screens/` | Phase 2 |
-| Core 反向 import presentation | [lib/core/services/formula_pdf_renderer.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/services/formula_pdf_renderer.dart) | import `presentation/widgets/` | Phase 2 |
-| Presentation 直接 import core/services | [lib/presentation/screens/document_list_screen.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/document_list_screen.dart) | 跨层调用 | Phase 2 |
-| Presentation 直接 import core/services | [lib/presentation/screens/editor_screen.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart) | 跨层调用（FileService） | Phase 2 |
-| Presentation 直接 import core/services | [lib/presentation/screens/file_manager_screen.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/file_manager_screen.dart) | 跨层调用（decodeBytesAuto） | Phase 2 |
-| Presentation 直接 import core/services | [lib/presentation/widgets/mermaid_host.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/mermaid_host.dart) | 跨层调用 | Phase 2 |
-| Presentation 直接 import core/services | [lib/presentation/widgets/preview_content.dart](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart) | 跨层调用 | Phase 2 |
+| Core 反向 import presentation | [lib/core/router/app_router.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/router/app_router.dart) | import `presentation/screens/` | Phase 2 |
+| Core 反向 import presentation | [lib/core/services/formula_pdf_renderer.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/formula_pdf_renderer.dart) | import `presentation/widgets/` | Phase 2 |
+| Presentation 直接 import core/services | [lib/presentation/screens/document_list_screen.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/document_list_screen.dart) | 跨层调用 | Phase 2 |
+| Presentation 直接 import core/services | [lib/presentation/screens/editor_screen.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart) | 跨层调用（FileService） | Phase 2 |
+| Presentation 直接 import core/services | [lib/presentation/screens/file_manager_screen.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/file_manager_screen.dart) | 跨层调用（decodeBytesAuto） | Phase 2 |
+| Presentation 直接 import core/services | [lib/presentation/widgets/mermaid_host.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/mermaid_host.dart) | 跨层调用 | Phase 2 |
+| Presentation 直接 import core/services | [lib/presentation/widgets/preview_content.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/widgets/preview_content.dart) | 跨层调用 | Phase 2 |
 
 **冻结策略**：knownOffenders 数量在测试中已固化（`knownCoreLayerOffenders.length ≤ 2`、`knownPresentationServiceOffenders.length ≤ 5`），新增违规将 CI 失败。
 
@@ -127,11 +127,11 @@ golden_test_status:
 
 | 守卫 | 测试文件 | 状态 |
 |------|---------|------|
-| 业务层禁止直接访问文件系统 | [test/architecture/file_access_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/file_access_test.dart) | ✅ |
-| Repository 唯一入口 | [test/architecture/dependency_rule_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/dependency_rule_test.dart) | ✅ |
-| 分层依赖方向 | [test/architecture/layer_dependency_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/layer_dependency_test.dart) | ✅（含白名单） |
-| 禁止 `print()` | [test/architecture/no_print_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/no_print_test.dart) | ✅ |
-| Provider 唯一性 | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart) | ✅（6 skip 跟踪） |
+| 业务层禁止直接访问文件系统 | [test/architecture/file_access_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/file_access_test.dart) | ✅ |
+| Repository 唯一入口 | [test/architecture/dependency_rule_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/dependency_rule_test.dart) | ✅ |
+| 分层依赖方向 | [test/architecture/layer_dependency_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/layer_dependency_test.dart) | ✅（含白名单） |
+| 禁止 `print()` | [test/architecture/no_print_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/no_print_test.dart) | ✅ |
+| Provider 唯一性 | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) | ✅（6 skip 跟踪） |
 
 ---
 
@@ -159,7 +159,7 @@ golden_test_status:
 调整后统一阈值（本地与 CI 一致）：
 - 3000ms（3s）— 实测波动范围 1700-2300ms，3000ms 给本地约 1000ms 缓冲
 
-**偏差说明**：详见 [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc「Phase 1 Gate 阈值」段。
+**偏差说明**：详见 [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc「Phase 1 Gate 阈值」段。
 
 **Phase 2 优化方向**：
 - `Directory.watch()` + 增量 mtime 缓存
@@ -191,14 +191,14 @@ golden_test_status:
 
 - 新增 6 个测试目录（architecture / storage / parser / error / integration / golden / performance）
 - 新增 9 个测试文件，0 文件 > 300 行
-- 测试代码遵循 [AGENTS.md §2.5](file:///d:/Projects/Active/math/AGENTS.md) import 顺序规范
+- 测试代码遵循 [AGENTS.md §2.5](file:///d:/Projects/Active/math2/AGENTS.md) import 顺序规范
 
 ### 7.3 文档改动
 
-- 新增 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math/docs/TEST_SKIP_REGISTRY.md)
-- 新增本文件 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)
-- 更新 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) 状态 `Accepted → Implemented`（**经 Human Owner 授权，§6.4 例外条款**）
-- 更新 [flutter_app/test/performance/list_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc
+- 新增 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math2/docs/TEST_SKIP_REGISTRY.md)
+- 新增本文件 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)
+- 更新 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 状态 `Accepted → Implemented`（**经 Human Owner 授权，§6.4 例外条款**）
+- 更新 [flutter_app/test/performance/list_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc
 
 ---
 
@@ -239,12 +239,12 @@ git revert <ADR-0003 commit>
 
 ---
 
-## 10. 退出门槛对照（[PHASE1_TEST_PLAN.md §18](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md)）
+## 10. 退出门槛对照（[PHASE1_TEST_PLAN.md §18](file:///d:/Projects/Active/math2/docs/PHASE1_TEST_PLAN.md)）
 
 | # | 门槛 | 状态 | 证据 |
 |---|------|------|------|
-| 1 | Critical 测试 100% 通过 | ✅ | §2.2 + [test/architecture/](file:///d:/Projects/Active/math/flutter_app/test/architecture/) + [test/storage/](file:///d:/Projects/Active/math/flutter_app/test/storage/) + [test/integration/](file:///d:/Projects/Active/math/flutter_app/test/integration/) |
-| 2 | Major 测试 ≥ 95% 通过 | ✅ | [test/parser/](file:///d:/Projects/Active/math/flutter_app/test/parser/) + [test/error/](file:///d:/Projects/Active/math/flutter_app/test/error/) + [test/golden/](file:///d:/Projects/Active/math/flutter_app/test/golden/)（1 skip） |
+| 1 | Critical 测试 100% 通过 | ✅ | §2.2 + [test/architecture/](file:///d:/Projects/Active/math2/flutter_app/test/architecture/) + [test/storage/](file:///d:/Projects/Active/math2/flutter_app/test/storage/) + [test/integration/](file:///d:/Projects/Active/math2/flutter_app/test/integration/) |
+| 2 | Major 测试 ≥ 95% 通过 | ✅ | [test/parser/](file:///d:/Projects/Active/math2/flutter_app/test/parser/) + [test/error/](file:///d:/Projects/Active/math2/flutter_app/test/error/) + [test/golden/](file:///d:/Projects/Active/math2/flutter_app/test/golden/)（1 skip） |
 | 3 | Performance-Critical 达标 | ⏳ | TC-PERF-1 ✅ / TC-PERF-2 本地 ✅，CI 待验证 |
 | 4 | 覆盖率达标 | ⏳ | 本 PR 未跑覆盖率工具，建议 CI 加 `flutter test --coverage` |
 | 5 | 现有 236 测试 0 退化 | ✅ | 314 = 236 + 78，全量绿 |

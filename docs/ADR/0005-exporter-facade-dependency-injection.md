@@ -6,7 +6,7 @@
 
 ## 背景
 
-代码分析显示 [domain/services/export_service.dart](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart) 已采用 facade + 依赖注入模式。证据：
+代码分析显示 [domain/services/export_service.dart](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart) 已采用 facade + 依赖注入模式。证据：
 
 ### 现有结构
 
@@ -72,7 +72,7 @@ class DefaultPdfExporter implements PdfExporterInterface {
    - `register` 返回 dispose 闭包是缓解，但容易忘
    - 建议：测试 `tearDown` 强制调用 dispose
 2. **`PdfExporter` / `WordExporter` 内部状态也是 static**：
-   - [pdf_exporter.dart:27-30](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L27-30) `_cjkFont` / `_cjkFontLoadAttempted` 等跨用例共享
+   - [pdf_exporter.dart:27-30](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/exporters/pdf_exporter.dart#L27-30) `_cjkFont` / `_cjkFontLoadAttempted` 等跨用例共享
    - Phase 2 评估是否改为 instance + DI
 
 ## 决策
@@ -153,7 +153,7 @@ onExportXxx: _exportToXxx,
 
 1. **调用方简单**：`MarkdownExporter.exportToPdf(md)` 一行调用，不感知 DI
 2. **测试可注入**：`register({pdf: FakePdfExporter()})` 替换实现
-3. **API 稳定**：现有调用方 import 路径不变（保持 [export_service.dart:4-7](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart#L4-7) 注释"保持与重构前完全一致"）
+3. **API 稳定**：现有调用方 import 路径不变（保持 [export_service.dart:4-7](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L4-7) 注释"保持与重构前完全一致"）
 4. **新增格式低摩擦**：按模板复制粘贴即可
 
 ### 否决其他方案的理由
@@ -213,7 +213,7 @@ final pdfExporterProvider = Provider<PdfExporterInterface>((ref) {
 
 ### Phase 1
 
-- 修复 [editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253) 把 `detail` 透传给用户的问题
+- 修复 [editor_screen.dart:221-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253) 把 `detail` 透传给用户的问题
 - 测试补齐：每个 exporter 至少一个集成测试 + 错误分类测试
 
 ### Phase 2
@@ -234,6 +234,6 @@ final pdfExporterProvider = Provider<PdfExporterInterface>((ref) {
 
 ## 参考
 
-- [export_service.dart](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service.dart)
-- [AGENTS.md §1.3](file:///d:/Projects/Active/math/AGENTS.md) 显式依赖原则
-- [CODING_RULES.md §6](file:///d:/Projects/Active/math/docs/CODING_RULES.md) 数据访问规范
+- [export_service.dart](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart)
+- [AGENTS.md §1.3](file:///d:/Projects/Active/math2/AGENTS.md) 显式依赖原则
+- [CODING_RULES.md §6](file:///d:/Projects/Active/math2/docs/CODING_RULES.md) 数据访问规范

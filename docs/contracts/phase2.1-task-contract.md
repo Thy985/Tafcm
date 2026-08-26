@@ -12,7 +12,7 @@ Task ID: ROADMAP Phase 2.1
 
 要解决的问题：**为 Phase 2 编辑模型阶段定义 BlockEditor 抽象设计基线**。
 
-Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式仍是"编辑/预览分离"（[CRITICAL_REVIEW §1.1](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)）。Phase 2 必须先定义 BlockEditor 抽象的 4 个子系统（抽象结构 / 光标模型 / IME 兼容 / 块级操作原语），才能进入 2.2~2.7 的实现。Phase 2.1 是**设计任务**，不写代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) 禁止在抽象稳定前实现 2.2~2.7）。
+Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式仍是"编辑/预览分离"（[CRITICAL_REVIEW §1.1](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md)）。Phase 2 必须先定义 BlockEditor 抽象的 4 个子系统（抽象结构 / 光标模型 / IME 兼容 / 块级操作原语），才能进入 2.2~2.7 的实现。Phase 2.1 是**设计任务**，不写代码（[AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) 禁止在抽象稳定前实现 2.2~2.7）。
 
 ---
 
@@ -22,8 +22,8 @@ Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式�
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| [docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) | 新增 | ADR-0007《BlockEditor 抽象设计》，覆盖 4 子系统，状态 Proposed |
-| [docs/contracts/phase2.1-task-contract.md](file:///d:/Projects/Active/math/docs/contracts/phase2.1-task-contract.md) | 新增 | 本 Task Contract 文件 |
+| [docs/ADR/0007-blockeditor-abstraction-design.md](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) | 新增 | ADR-0007《BlockEditor 抽象设计》，覆盖 4 子系统，状态 Proposed |
+| [docs/contracts/phase2.1-task-contract.md](file:///d:/Projects/Active/math2/docs/contracts/phase2.1-task-contract.md) | 新增 | 本 Task Contract 文件 |
 
 ### 不修改
 
@@ -42,7 +42,7 @@ Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式�
 ### Before（当前行为）
 
 - Phase 2 在 ROADMAP 中只有任务列表（2.1~2.7），无设计文档
-- 编辑范式仍是"编辑/预览分离"（[editor_screen.dart:300-321](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)）
+- 编辑范式仍是"编辑/预览分离"（[editor_screen.dart:300-321](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)）
 - 没有块编辑内核抽象，Phase 2.2 无起点
 - ADR 体系中无 BlockEditor 相关决策
 
@@ -83,7 +83,7 @@ Phase 1 已稳定 AST（10 类 block + 8 类 inline），但当前编辑范式�
 
 1. ADR-0007 包含 §背景 / §决策 / §动机 / §后果 / §替代方案 / §实施计划 / §参考 7 大节，符合 AGENTS.md §7 ADR 编写规则
 2. ADR-0007 覆盖用户授权的 4 个子系统：抽象结构 / 光标模型 / IME 兼容 / 块级操作原语
-3. ADR-0007 决策与 [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) / [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) / [AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) 不冲突
+3. ADR-0007 决策与 [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) / [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) / [AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) 不冲突
 4. Task Contract §2 Scope 明确 Phase 2.1 不写代码、不修改 AST、不引入新存储
 5. Task Contract §8 Risk Assessment 标注 Risk Level = High（架构变更）
 6. Task Contract §9 Approval 待 Human Owner 审批

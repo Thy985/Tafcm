@@ -43,7 +43,7 @@ ADR-0007 §Phase 2.4 列出三项评估任务：
 
 **附带 cleanup**（不属 Phase 2.4 核心目标）：
 
-- `enum ElementType` 在 [document.dart:1-10](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L1-10) 定义但**全项目无任何引用**（Phase 1 遗留死代码）。本任务一并清理。
+- `enum ElementType` 在 [document.dart:1-10](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L1-10) 定义但**全项目无任何引用**（Phase 1 遗留死代码）。本任务一并清理。
 
 **不实现**：
 - AST 字段修改（HeadingElement.text / BlockquoteElement.text 仍为 plain String）
@@ -134,7 +134,7 @@ ParagraphElement
 Paragraph
 ```
 
-**结论**：AST 与 BlockEditor 职责已正确分离（[block_types.dart:70](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) 抛 `ArgumentError`），无需改 AST。
+**结论**：AST 与 BlockEditor 职责已正确分离（[block_types.dart:70](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) 抛 `ArgumentError`），无需改 AST。
 
 ### 2. TableElement 不拆理由
 
@@ -160,7 +160,7 @@ Document
 "Block 与 DocumentElement 1:1 映射"，并让 BlockEditor 的光标模型（§2）失效
 （光标如何在 row/cell 间导航？）。
 
-**cell inline 解析**：[markdown_parser.dart:295](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart)
+**cell inline 解析**：[markdown_parser.dart:295](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart)
 已公开 `MarkdownParser.parseInline()`，pdf/word exporter 已用，无需改 TableElement 结构。
 
 **未来扩展**：Phase 3+ UI 层做表格 cell 编辑时，可在 `TableBlock.source` 内部
@@ -169,7 +169,7 @@ Document
 ### 3. 附带 cleanup
 
 移除 `enum ElementType`（Phase 1 遗留死代码，全项目无引用）。
-`BlockType`（[block_types.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart)）
+`BlockType`（[block_types.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart)）
 才是 BlockEditor 使用的类型枚举。
 
 ### 决策
@@ -182,7 +182,7 @@ Document
 
 ### 3.2 ElementType 死代码清理（附带 cleanup）
 
-[document.dart:1-10](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart#L1-10) 的 `enum ElementType { ... }` 整段移除。`DocumentElement` 及其子类保持原样。
+[document.dart:1-10](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart#L1-10) 的 `enum ElementType { ... }` 整段移除。`DocumentElement` 及其子类保持原样。
 
 ### 3.3 业务行为不变
 
@@ -208,7 +208,7 @@ Document
 **目的**：证明 Phase 2.4 后 AST 数据形状 0 变化。这是 AST 稳定性的**显式证明**，
 防止未来 Phase 2.5+ 误改 AST 字段而不自知。
 
-**测试位置**：[flutter_app/test/architecture/ast_snapshot_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/ast_snapshot_test.dart)（新建）
+**测试位置**：[flutter_app/test/architecture/ast_snapshot_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/ast_snapshot_test.dart)（新建）
 
 **测试方法**：
 

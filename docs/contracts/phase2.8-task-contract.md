@@ -42,10 +42,10 @@ Task ID: ROADMAP Phase 2.8
 
 ### 1.3 Phase 2 Exit Gate
 
-本 Phase 输出 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math/docs/releases/phase2-exit-gate-report.md)，包含：
+本 Phase 输出 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math2/docs/releases/phase2-exit-gate-report.md)，包含：
 
 1. 5 类集成测试结果（pass/fail/skip）
-2. Phase 2 退出条件 4 条逐项验证（[ROADMAP Phase 2 退出条件](file:///d:/Projects/Active/math/docs/ROADMAP.md)）：
+2. Phase 2 退出条件 4 条逐项验证（[ROADMAP Phase 2 退出条件](file:///d:/Projects/Active/math2/docs/ROADMAP.md)）：
    - [ ] 块编辑内核可脱离 UI 独立运行（纯 Dart 逻辑）
    - [ ] 所有块类型有单元测试覆盖
    - [ ] 1000 行文档增量解析 < 16ms
@@ -54,7 +54,7 @@ Task ID: ROADMAP Phase 2.8
 
 ### 1.4 Architecture Review
 
-本 Phase 输出 [Architecture Review Report](file:///d:/Projects/Active/math/docs/releases/phase2-architecture-review.md)，覆盖：
+本 Phase 输出 [Architecture Review Report](file:///d:/Projects/Active/math2/docs/releases/phase2-architecture-review.md)，覆盖：
 
 1. 依赖方向（core/editing 不反向 import）
 2. API 稳定性（BlockEditor / DocumentEditor / EditOperation / Transaction / TransactionBuilder / EditorHistory）
@@ -126,7 +126,7 @@ Task ID: ROADMAP Phase 2.8
 
 ### 2.3 集成测试 mock 策略
 
-集成测试不重新发明 mock，复用 [mock_document_editor.dart](file:///d:/Projects/Active/math/flutter_app/test/editing/helpers/mock_document_editor.dart) + [mock_composing_host.dart](file:///d:/Projects/Active/math/flutter_app/test/editing/helpers/mock_composing_host.dart)。若需新增 helper，放到 `test/integration/helpers/`。
+集成测试不重新发明 mock，复用 [mock_document_editor.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/helpers/mock_document_editor.dart) + [mock_composing_host.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/helpers/mock_composing_host.dart)。若需新增 helper，放到 `test/integration/helpers/`。
 
 ---
 
@@ -230,10 +230,10 @@ undo 1000 次 → EditorHistory.undo 性能
 
 **关键断言**：
 
-1. 1000 block 全链路（toElement + fromElement + detectBlockType）< 16ms（与 [block_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/block_perf_test.dart) 对齐）
+1. 1000 block 全链路（toElement + fromElement + detectBlockType）< 16ms（与 [block_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/block_perf_test.dart) 对齐）
 2. 1000 次 insertAfter < 50ms（宽松阈值，主要测 BlockOperation.apply 性能）
 3. 1000 次 undo < 50ms（主要测 EditorHistory 栈管理性能）
-4. 与 Phase 2.3 性能基线（[block_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/block_perf_test.dart)）无 regression
+4. 与 Phase 2.3 性能基线（[block_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/block_perf_test.dart)）无 regression
 
 ### 3.6 业务行为变化
 
@@ -337,8 +337,8 @@ undo 1000 次 → EditorHistory.undo 性能
 | 风险 | 概率 | 影响 | 缓解 |
 |------|------|------|------|
 | 集成测试发现 P0 bug（如 Undo 后状态不一致） | 中 | 高 | 在 Task Contract §1.5 例外条款下允许最小修复；若修复超出"最小必要"，单独开分支处理 |
-| 性能基线在 CI 慢机 > 16ms | 中 | 中 | 性能阈值采用本地宽松 + CI 严格双阈值（参考 [block_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/block_perf_test.dart)）；CI 失败时单独评估 |
-| mock 行为与真实行为不一致导致 false positive | 低 | 中 | 集成测试仅用 [MockDocumentEditor](file:///d:/Projects/Active/math/flutter_app/test/editing/helpers/mock_document_editor.dart) + [MockComposingHost](file:///d:/Projects/Active/math/flutter_app/test/editing/helpers/mock_composing_host.dart)，两者已在 Phase 2.5/2.6 验证 |
+| 性能基线在 CI 慢机 > 16ms | 中 | 中 | 性能阈值采用本地宽松 + CI 严格双阈值（参考 [block_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/block_perf_test.dart)）；CI 失败时单独评估 |
+| mock 行为与真实行为不一致导致 false positive | 低 | 中 | 集成测试仅用 [MockDocumentEditor](file:///d:/Projects/Active/math2/flutter_app/test/editing/helpers/mock_document_editor.dart) + [MockComposingHost](file:///d:/Projects/Active/math2/flutter_app/test/editing/helpers/mock_composing_host.dart)，两者已在 Phase 2.5/2.6 验证 |
 | Architecture Review 发现 ADR 不一致 | 低 | 高 | 仅记录到 Report，不创建新 ADR（由 Human Owner 决定） |
 | TransactionExecutor 评估结论与 Human Owner 预期不符 | 低 | 低 | Report 中明确"建议启动 / 不启动 / 推迟"，最终决策由 Human Owner |
 | ROADMAP 缺少 Phase 2.8 任务行 | 高 | 低 | Task Contract 引用 ROADMAP Phase 2 退出条件，不依赖任务行；ROADMAP 更新由 Human Owner 维护 |

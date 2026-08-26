@@ -14,14 +14,14 @@
 本 ADR 在 Phase 1 Close Candidate 时点由 `Accepted` 转为 `Implemented`，依据如下：
 
 1. **P0 #2 实施完成**：`FileRepository` / `FrontMatterParser` / `StorageMigration` 三大组件已落地
-2. **CI 全绿**：314 tests passed / 9 skipped / 0 regression（[全量测试日志](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)）
+2. **CI 全绿**：314 tests passed / 9 skipped / 0 regression（[全量测试日志](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)）
 3. **文档迁移验证通过**：
-   - [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 覆盖 JSON→.md 迁移幂等性
-   - [test/storage/atomic_write_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/atomic_write_test.dart) 覆盖原子写不残留 .tmp
-   - [test/storage/recovery_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/recovery_test.dart) 覆盖数据恢复路径
+   - [test/storage/migration_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage/migration_test.dart) 覆盖 JSON→.md 迁移幂等性
+   - [test/storage/atomic_write_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage/atomic_write_test.dart) 覆盖原子写不残留 .tmp
+   - [test/storage/recovery_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/storage/recovery_test.dart) 覆盖数据恢复路径
 4. **单一真相源边界守护已建立**：
-   - [test/architecture/dependency_rule_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/dependency_rule_test.dart) 禁止业务层直接调用 `File.writeAsString`
-   - [test/architecture/file_access_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/file_access_test.dart) 限制 `writeAsString`/`readAsString`/`writeAsBytes` 仅出现在 `lib/data/storage/` 与 `lib/core/services/file_service.dart`
+   - [test/architecture/dependency_rule_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/dependency_rule_test.dart) 禁止业务层直接调用 `File.writeAsString`
+   - [test/architecture/file_access_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/file_access_test.dart) 限制 `writeAsString`/`readAsString`/`writeAsBytes` 仅出现在 `lib/data/storage/` 与 `lib/core/services/file_service.dart`
 
 ## 背景
 
@@ -31,9 +31,9 @@
 
 | 存储 | 写入方 | 读取方 | 文件位置 | 用途 |
 |------|--------|--------|---------|------|
-| **SharedPreferences** | [editor_providers.dart:43-54](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L43-54) 500ms 防抖 | [editor_providers.dart:39](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L39) 启动恢复 | 系统偏好 | 编辑器内容草稿 |
-| **JSON 文档库** | [document_service.dart:68-72](file:///d:/Projects/Active/math/flutter_app/lib/core/services/document_service.dart#L68-72) | [providers/providers.dart:51-59](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart#L51-59) `DocumentsNotifier.loadDocuments` | `getApplicationDocumentsDirectory()/formula_fix_documents.json` | 文档列表 |
-| **.md 文件** | [file_service.dart:69-77](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_service.dart#L69-77) `saveToFile` | [file_manager_screen.dart:24-47](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/file_manager_screen.dart#L24-47) 扫描 `.md` | `getApplicationDocumentsDirectory()/formulafix_<ts>.md` | 用户主动保存的文件 |
+| **SharedPreferences** | [editor_providers.dart:43-54](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L43-54) 500ms 防抖 | [editor_providers.dart:39](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart#L39) 启动恢复 | 系统偏好 | 编辑器内容草稿 |
+| **JSON 文档库** | [document_service.dart:68-72](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/document_service.dart#L68-72) | [providers/providers.dart:51-59](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart#L51-59) `DocumentsNotifier.loadDocuments` | `getApplicationDocumentsDirectory()/formula_fix_documents.json` | 文档列表 |
+| **.md 文件** | [file_service.dart:69-77](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L69-77) `saveToFile` | [file_manager_screen.dart:24-47](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/file_manager_screen.dart#L24-47) 扫描 `.md` | `getApplicationDocumentsDirectory()/formulafix_<ts>.md` | 用户主动保存的文件 |
 
 ### 问题
 
@@ -315,5 +315,5 @@ updatedAt: 2026-07-18T17:20:14+08:00
 
 ## 参考
 
-- [CRITICAL_REVIEW.md §2.1](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) 三套存储并存
-- [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) Phase 1 P0 #2
+- [CRITICAL_REVIEW.md §2.1](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) 三套存储并存
+- [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) Phase 1 P0 #2
