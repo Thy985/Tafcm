@@ -1,7 +1,7 @@
 # ADI (Agent Diagnostic Interface) Design Document v1.2
 
 > **状态**：Proposed（同步 ADR-0024 v4 Accepted 架构收敛）
-> **前置**：[ADR-0024 Agent Diagnostic Interface](../ADR/0024-agent-diagnostic-interface.md)（架构决策，Accepted） / [ADR-0023 Editor Observability System](../ADR/0023-editor-observability-system.md)（Phase 3.7 已完成）
+> **前置**：[ADR-0024 Agent Diagnostic Interface](../decisions/ADR/0024-agent-diagnostic-interface.md)（架构决策，Accepted） / [ADR-0023 Editor Observability System](../decisions/ADR/0023-editor-observability-system.md)（Phase 3.7 已完成）
 > **定位**：**怎么实现**文档（完整接口签名 / 目录结构 / CLI 命令 / 存储格式 / 代码模型）
 > **与 ADR 分工**：ADR-0024 负责"为什么"，本文档负责"怎么实现"
 
@@ -30,7 +30,7 @@ Phase 3.7（ADR-0023）**已完成**，提供完整证据采集能力。ADI **�
 
 ### 1.4 Agent Interaction Contract
 
-> 见 [ADR-0024 §1.4](../ADR/0024-agent-diagnostic-interface.md#14-agent-interaction-contractagent-交互契约--核心原则)。6 条 MUST 契约（Query first / Inspect before edit / Replay before modify / Validate after modify / Never trust candidate_causes / Respect invariant report）。
+> 见 [ADR-0024 §1.4](../decisions/ADR/0024-agent-diagnostic-interface.md#14-agent-interaction-contractagent-交互契约--核心原则)。6 条 MUST 契约（Query first / Inspect before edit / Replay before modify / Validate after modify / Never trust candidate_causes / Respect invariant report）。
 
 ---
 
@@ -81,7 +81,7 @@ Phase 3.7（ADR-0023）**已完成**，提供完整证据采集能力。ADI **�
 
 ### 4.1 三层模型分离
 
-> 架构决策见 [ADR-0024 §2.1](../ADR/0024-agent-diagnostic-interface.md#21-adi-protocol三层模型分离)。
+> 架构决策见 [ADR-0024 §2.1](../decisions/ADR/0024-agent-diagnostic-interface.md#21-adi-protocol三层模型分离)。
 
 ```
 Layer 1: ErrorSnapshot        (3.7 已有，runtime event，不改动)
@@ -196,7 +196,7 @@ AdiErrorView toView(AdiErrorRecord record, AdiContext context) {
 
 ### 4.2 Failure Identity（故障聚合）
 
-> 架构决策见 [ADR-0024 §2.1 Failure Identity](../ADR/0024-agent-diagnostic-interface.md)。
+> 架构决策见 [ADR-0024 §2.1 Failure Identity](../decisions/ADR/0024-agent-diagnostic-interface.md)。
 
 单个 `AdiErrorRecord` 是一次 occurrence。同一 bug 发生 100 次会产生 100 个 record。引入 `AdiFailureRecord` 聚合：
 
@@ -264,7 +264,7 @@ traceId: trc_0219
 
 ### 5.1 Query Adapter
 
-> 架构决策见 [ADR-0024 §2.2](../ADR/0024-agent-diagnostic-interface.md#22-query-adapter查询适配)。
+> 架构决策见 [ADR-0024 §2.2](../decisions/ADR/0024-agent-diagnostic-interface.md#22-query-adapter查询适配)。
 
 ```dart
 abstract class AdiQueryAdapter {
@@ -292,7 +292,7 @@ class AdiQueryAdapterImpl implements AdiQueryAdapter {
 
 ### 5.2 Replay Adapter
 
-> 架构决策见 [ADR-0024 §2.3](../ADR/0024-agent-diagnostic-interface.md#23-replay-adapter重放适配)。
+> 架构决策见 [ADR-0024 §2.3](../decisions/ADR/0024-agent-diagnostic-interface.md#23-replay-adapter重放适配)。
 
 ```dart
 abstract class AdiReplayAdapter {
@@ -308,7 +308,7 @@ class AdiReplayResultView {
 }
 ```
 
-**ReplayEngine 依赖契约**（[ADR-0024 §2.3](../ADR/0024-agent-diagnostic-interface.md)）：
+**ReplayEngine 依赖契约**（[ADR-0024 §2.3](../decisions/ADR/0024-agent-diagnostic-interface.md)）：
 
 ```
 core/replay/replay_engine.dart
@@ -320,7 +320,7 @@ core/replay/replay_engine.dart
 
 ### 5.3 Validation Adapter（v0.2）
 
-> 架构决策见 [ADR-0024 §2.4](../ADR/0024-agent-diagnostic-interface.md#24-validation-adapter验证适配)。
+> 架构决策见 [ADR-0024 §2.4](../decisions/ADR/0024-agent-diagnostic-interface.md#24-validation-adapter验证适配)。
 
 ```dart
 abstract class AdiValidationAdapter {
@@ -339,7 +339,7 @@ v0.2 只做 **Replay + Invariant**。flutter test 子集选择（Change Impact A
 
 ### 5.4 Agent Context Generator
 
-> 架构决策见 [ADR-0024 §2.5](../ADR/0024-agent-diagnostic-interface.md#25-agent-context-generator上下文生成)。
+> 架构决策见 [ADR-0024 §2.5](../decisions/ADR/0024-agent-diagnostic-interface.md#25-agent-context-generator上下文生成)。
 
 ```dart
 abstract class AdiContextGenerator {
@@ -380,7 +380,7 @@ All 5 invariants satisfied (rendering degradation, not state corruption)
 
 ### 5.5 Agent Evaluation Loop（Agent 评价闭环）
 
-> 架构决策见 [ADR-0024 §2.9](../ADR/0024-agent-diagnostic-interface.md#29-agent-evaluation-loopagent-评价闭环)。
+> 架构决策见 [ADR-0024 §2.9](../decisions/ADR/0024-agent-diagnostic-interface.md#29-agent-evaluation-loopagent-评价闭环)。
 
 ADI 不只是 Agent debugger，更是 **Agent learning infrastructure**。记录 Agent 的修复尝试，未来可分析"哪类 bug Agent 容易错"、"哪些 hypothesis 有价值"。
 
@@ -407,7 +407,7 @@ class AgentDiagnosisRecord {
 
 ### 5.6 Permission Model（权限模型）
 
-> 架构决策见 [ADR-0024 §2.10](../ADR/0024-agent-diagnostic-interface.md#210-permission-model权限模型)。
+> 架构决策见 [ADR-0024 §2.10](../decisions/ADR/0024-agent-diagnostic-interface.md#210-permission-model权限模型)。
 
 ADI 暴露 stack trace / session / environment / 用户行为，需权限控制。
 
@@ -427,7 +427,7 @@ ADI 暴露 stack trace / session / environment / 用户行为，需权限控制�
 
 ## 6. CLI Design
 
-> 架构决策见 [ADR-0024 §2.7](../ADR/0024-agent-diagnostic-interface.md#27-cli-entrycli-入口)。
+> 架构决策见 [ADR-0024 §2.7](../decisions/ADR/0024-agent-diagnostic-interface.md#27-cli-entrycli-入口)。
 
 纯 Dart 脚本 `tools/adi/adi.dart`，不依赖 Flutter runtime，Agent 直接 `dart run`。
 
@@ -489,7 +489,7 @@ Status: healthy
 
 ## 7. Storage Design
 
-> 架构决策见 [ADR-0024 §2.6](../ADR/0024-agent-diagnostic-interface.md#26-adi-storageadi-存储取代-zip)。
+> 架构决策见 [ADR-0024 §2.6](../decisions/ADR/0024-agent-diagnostic-interface.md#26-adi-storageadi-存储取代-zip)。
 
 ### 7.1 目录结构
 
@@ -519,7 +519,7 @@ Status: healthy
 
 ### 7.2 Schema Versioning（双版本）
 
-> 架构决策见 [ADR-0024 §2.11](../ADR/0024-agent-diagnostic-interface.md#211-protocol-versioning协议版本)。
+> 架构决策见 [ADR-0024 §2.11](../decisions/ADR/0024-agent-diagnostic-interface.md#211-protocol-versioning协议版本)。
 
 **双版本独立演进**：
 
@@ -638,7 +638,7 @@ replay 不再复现 + invariant 通过
 提交 PR
 ```
 
-**Agent Interaction Contract**（[ADR-0024 §1.4](../ADR/0024-agent-diagnostic-interface.md)）：6 条 MUST 约束 Agent 操作顺序。
+**Agent Interaction Contract**（[ADR-0024 §1.4](../decisions/ADR/0024-agent-diagnostic-interface.md)）：6 条 MUST 约束 Agent 操作顺序。
 
 ---
 
@@ -664,7 +664,7 @@ ADR-0026 Change Impact Analysis (未来) → test 子集选择 + 源码反向映
 
 ## 10. MVP Scope
 
-> 架构决策见 [ADR-0024 §3.2](../ADR/0024-agent-diagnostic-interface.md#32-分阶段实施)。
+> 架构决策见 [ADR-0024 §3.2](../decisions/ADR/0024-agent-diagnostic-interface.md#32-分阶段实施)。
 
 ### v0.1 Core（P0）
 

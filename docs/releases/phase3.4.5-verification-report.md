@@ -7,7 +7,7 @@
 > **生成者**：AI Agent（WorkBuddy）
 > **审批状态**：⏳ 待 Human Owner 审批（合并 `feat/design-system-alignment` 到 main 后正式关闭 Phase 3.4.5）
 > **前置阶段**：Phase 3.4 Advanced Capabilities（主体完成：TOC / 自动保存 / 主题架构 / 文件树 / 图片链路）
-> **关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](../ADR/0017-design-system-alignment.md)
+> **关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](../decisions/ADR/0017-design-system-alignment.md)
 > **关联分支**：`feat/design-system-alignment`（HEAD `d48a6b9`，已推送 origin）
 
 ---

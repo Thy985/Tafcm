@@ -13,7 +13,7 @@
 > **关联文档**：
 > - [ROADMAP.md Phase 3.2](../ROADMAP.md)（阶段重新划分说明 2026-07-21）
 > - [design/ui-spec.md §7](../design/ui-spec.md)（扩展点表格）
-> - [ADR-0009 UI Architecture Design](../ADR/0009-ui-architecture-design.md)
+> - [ADR-0009 UI Architecture Design](../decisions/ADR/0009-ui-architecture-design.md)
 > - [Phase 3.0 Task Contract](./phase3.0-task-contract.md)
 > - [Phase 3.1 Task Contract](./phase3.1-task-contract.md)
 

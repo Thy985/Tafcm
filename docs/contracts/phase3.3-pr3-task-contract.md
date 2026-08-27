@@ -6,8 +6,8 @@
 > **状态**：Accepted（v1.0 Human Owner 审批 "Approved with changes",v1.1 落地 6 项修改后启动实施）
 > **关联文档**：
 > - [Phase 3.3 Task Contract v1.4](./phase3.3-task-contract.md) §3.3.6 + §3.3.8 + §9.2
-> - [ADR-0008](../ADR/0008-editor-transaction-model.md) sealed class 约束
-> - [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §3 + §5
+> - [ADR-0008](../decisions/ADR/0008-editor-transaction-model.md) sealed class 约束
+> - [ADR-0011](../decisions/ADR/0011-phase3.3-architecture-decisions.md) §3 + §5
 > - [PR #2 Task Contract v2.1](./phase3.3-pr2-task-contract.md) Command Layer 路径
 
 ---

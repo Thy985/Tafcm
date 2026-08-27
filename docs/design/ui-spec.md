@@ -5,8 +5,8 @@
 > **起草人**：AI Agent（GLM-5.2）
 > **状态**：Phase 3.0 Reference（落地 [Phase 3.0 Task Contract §3.5](../contracts/phase3.0-task-contract.md)）
 > **关联文档**：
-> - [ADR-0009 UI Architecture Design](../ADR/0009-ui-architecture-design.md)（架构决策）
-> - [UI-ARCHITECTURE.md](../UI-ARCHITECTURE.md)（心智模型 + 交互规则）
+> - [ADR-0009 UI Architecture Design](../decisions/ADR/0009-ui-architecture-design.md)（架构决策）
+> - [UI-ARCHITECTURE.md](../architecture/UI-ARCHITECTURE.md)（心智模型 + 交互规则）
 > - [lib/presentation/themes/editor_tokens.dart](../../flutter_app/lib/presentation/themes/editor_tokens.dart)（token 实现）
 
 ---
@@ -15,11 +15,11 @@
 
 本文件是 **Phase 3.0 Editor Shell 的 UI 设计参考**，回答"用什么颜色 / 间距 / 字号 / 布局来渲染 Phase 3.0 的 EditorShell 与 3 种 Block（paragraph / heading / code）"。
 
-**与 [docs/UI_SPEC.md](../UI_SPEC.md) 的关系**：
-- [UI_SPEC.md](../UI_SPEC.md)（顶层）：**产品视觉设计 source of truth**，覆盖 14 个屏幕（含 5 张 Typora 化对比页），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
+**与 [docs/UI_SPEC.md](../product/UX-GUIDE.md) 的关系**：
+- [UI_SPEC.md](../product/UX-GUIDE.md)（顶层）：**产品视觉设计 source of truth**，覆盖 14 个屏幕（含 5 张 Typora 化对比页），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
 - 本文件（design/ui-spec.md）：**Phase 3.0+ 工程实现参考**，仅覆盖 EditorShell + 3 种 Block + chrome 组件，对应 `lib/presentation/` 代码实现
 
-**已知视觉规范冲突**（待 Human Owner 决策，详见 [UI_SPEC.md 头部冲突表](../UI_SPEC.md#已知视觉规范冲突待-human-owner-决策)）：
+**已知视觉规范冲突**（待 Human Owner 决策，详见 [UI_SPEC.md 头部冲突表](../product/UX-GUIDE.md#已知视觉规范冲突待-human-owner-决策)）：
 - 正文字号：UI_SPEC.md 用 15px serif / 1.85，本文件用 16sp sans-serif / 1.5
 - H1 字号：UI_SPEC.md 用 26px，本文件用 28sp
 - 编辑器背景：UI_SPEC.md 用 `#FDFDFB` immersive paper，本文件依赖 Material Theme
@@ -35,19 +35,19 @@
 > - 顶部栏高度：**48px Floating Top Bar**（design `topBarHeight`，非 56dp AppBar）——Phase 3.4.5.3 微调；
 > - 主色：**`#1E3A5F` 深海军蓝**（非 `#165DFF` 亮 Azure），accent `#E76F51`。
 >
-> 当前 `lib/presentation/themes/editor_tokens.dart` 仍用旧值（亮 Azure + 默认 sans），Phase 3.4.5 按 [ADR-0017 Design System Token & Typography Alignment](../../docs/ADR/0017-design-system-alignment.md) 迁移至上述 token。本文件后续将同步修订为与 `tokens.json` 完全一致，届时"已知视觉规范冲突"段落作废。
+> 当前 `lib/presentation/themes/editor_tokens.dart` 仍用旧值（亮 Azure + 默认 sans），Phase 3.4.5 按 [ADR-0017 Design System Token & Typography Alignment](../decisions/ADR/0017-design-system-alignment.md) 迁移至上述 token。本文件后续将同步修订为与 `tokens.json` 完全一致，届时"已知视觉规范冲突"段落作废。
 
 **Phase 3.1 Typora 化新增冲突**（待 Phase 3.1 实现时统一）：
 - Edit 态视觉：本文件 §3.1/3.2/3.3 规定 edit 态有左侧蓝色竖线 + 淡色背景，Typora 化原则要求 edit/render 视觉无差异
 - 公式渲染：本文件 §3.1 FormulaElement 原未规定卡片背景，Typora 化要求纯 serif italic 无卡片
 - Blockquote：本文件原未规定，Typora 化要求左侧 3dp 灰色竖线 + serif 正文
 
-Phase 3.1 实现时，以 [UI_SPEC.md](../UI_SPEC.md) Typora 化对比页为准，本文件相应条款已标注为"Phase 3.1 演进方向"。
+Phase 3.1 实现时，以 [UI_SPEC.md](../product/UX-GUIDE.md) Typora 化对比页为准，本文件相应条款已标注为"Phase 3.1 演进方向"。
 
 **不是**：
 - ❌ 完整设计系统（Phase 3.9+ 主题切换时再补）
 - ❌ Phase 3.1+ 的功能交互设计（沉浸模式 / 快捷键 / TOC 等）
-- ❌ Home / Viewer 等非编辑器页面（见 [UI_SPEC.md](../UI_SPEC.md)）
+- ❌ Home / Viewer 等非编辑器页面（见 [UI_SPEC.md](../product/UX-GUIDE.md)）
 
 **是**：
 - ✅ Phase 3.0 落地代码的"设计锚点"：所有 magic number 都应有本文件的依据
@@ -500,7 +500,7 @@ Phase 3.0 完成时，本文件应满足以下验证：
 - [ ] §3.3.7 选区包裹模式（选中文字后工具栏切换为包裹模式）
 - [ ] §3.3.8 自动续列表 5 种前缀 + 退出规则 + CodeBlock 例外 + 平级单层范围（嵌套留 Phase 3.4）
 - [ ] §3.3.10 模板插入菜单 8 种模板（表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
-- [ ] **Toolbar 状态来源**：只读 CoordinatorState,不直接访问 TextEditingController（[ADR-0011 §5](../ADR/0011-phase3.3-architecture-decisions.md)）
+- [ ] **Toolbar 状态来源**：只读 CoordinatorState,不直接访问 TextEditingController（[ADR-0011 §5](../decisions/ADR/0011-phase3.3-architecture-decisions.md)）
 
 ### Phase 3.4 验证清单（实施过程逐步勾选,Phase 3.4 整体 Closure 时统一审核）
 

@@ -1,0 +1,5 @@
+{
+  "note": "BUG-003 期望：round-trip 后 - item 保持在原位置（段落之间）。修复前被移到文档末尾。",
+  "list_position_preserved": true,
+  "order": ["line", "break", "- item", "中文测试"]
+}

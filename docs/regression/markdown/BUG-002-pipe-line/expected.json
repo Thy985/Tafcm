@@ -1,0 +1,5 @@
+{
+  "note": "BUG-002 期望：非合法表格行（不以 | 结尾）parse→serialize 后整行仍存在。修复前整行消失。",
+  "line_preserved": true,
+  "fallback": "flushTable 后降级为普通段落解析"
+}

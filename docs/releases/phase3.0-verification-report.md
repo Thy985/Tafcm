@@ -14,7 +14,7 @@
 
 | 任务 | 模块 | 对应 ADR / 文档 |
 |------|------|-----------------|
-| 3.0.1 | Presentation Layer 目录结构（editor/blocks/chrome/panels/themes） | [ADR-0009 §3](../ADR/0009-ui-architecture-design.md) |
+| 3.0.1 | Presentation Layer 目录结构（editor/blocks/chrome/panels/themes） | [ADR-0009 §3](../decisions/ADR/0009-ui-architecture-design.md) |
 | 3.0.2 | Editor Shell（EditorPage + EditorShell + chrome 组件 + panels 占位） | [Phase 3.0 Task Contract §3.2](../contracts/phase3.0-task-contract.md) |
 | 3.0.3 | BlockRenderer（3 类型：paragraph / heading / code）+ exhaustive switch | [Phase 3.0 Task Contract §3.3](../contracts/phase3.0-task-contract.md) |
 | 3.0.4 | 数据源接入（InMemoryDocumentEditor + SeedDocuments + EditorCoordinator ChangeNotifier） | [Phase 3.0 Task Contract §3.4](../contracts/phase3.0-task-contract.md) |
@@ -89,9 +89,9 @@ flutter analyze --no-fatal-infos --fatal-warnings
 
 | ADR | 决策 | Phase 3.0 落地证据 |
 |-----|------|-------------------|
-| [ADR-0007](../ADR/0007-blockeditor-abstraction-design.md) | BlockEditor 抽象 + 9 种 BlockType | BlockRenderer exhaustive switch 覆盖 9 种（3 实现 + 6 显式 throw UnimplementedError） |
-| [ADR-0008](../ADR/0008-editor-transaction-model.md) | Transaction + BlockOperation + BlockId | UI 不直接 import 内核 mutation 文件（守门测试 TC-ARCH-UI-1/2） |
-| [ADR-0009](../ADR/0009-ui-architecture-design.md) | UI Architecture Design | EditorShell + BlockRenderer + EditorCoordinator + chrome/ 分离 + Hard Rule 8 依赖方向 |
+| [ADR-0007](../decisions/ADR/0007-blockeditor-abstraction-design.md) | BlockEditor 抽象 + 9 种 BlockType | BlockRenderer exhaustive switch 覆盖 9 种（3 实现 + 6 显式 throw UnimplementedError） |
+| [ADR-0008](../decisions/ADR/0008-editor-transaction-model.md) | Transaction + BlockOperation + BlockId | UI 不直接 import 内核 mutation 文件（守门测试 TC-ARCH-UI-1/2） |
+| [ADR-0009](../decisions/ADR/0009-ui-architecture-design.md) | UI Architecture Design | EditorShell + BlockRenderer + EditorCoordinator + chrome/ 分离 + Hard Rule 8 依赖方向 |
 | [AGENTS.md §6.5](../../AGENTS.md) | Phase 2 UI 冻结 | Phase 3.0 已退出冻结期，新 UI 通过 feature flag 切换，旧 UI 保留 fallback |
 | [Phase 3.0 Task Contract §2](../contracts/phase3.0-task-contract.md) | 9 项 Hard Rules | 全部通过（详见 §4） |
 

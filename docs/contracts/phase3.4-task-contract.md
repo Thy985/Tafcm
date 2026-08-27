@@ -11,12 +11,12 @@
 > - [ROADMAP.md §Phase 3.4+](../ROADMAP.md)
 > - [design/ui-spec.md §7 Phase 3.4+](../design/ui-spec.md)
 > - [Phase 3.3 Task Contract v1.6](../contracts/phase3.3-task-contract.md)（E2E Gate 模式沿用）
-> - [ADR-0009 UI Architecture Design](../ADR/0009-ui-architecture-design.md)
-> - [ADR-0012 Live Editing State](../ADR/0012-live-editing-state.md)
-> - [ADR-0013 Autosave Architecture](../ADR/0013-autosave-architecture.md)（**新增**，3.4.7 自动保存定案）
-> - [ADR-0014 Document Asset Management](../ADR/0014-document-asset-management.md)（**新增**，3.4.9 图片资源定案）
-> - [ADR-0015 Theme Architecture Migration](../ADR/0015-theme-architecture-migration.md)（**新增**，3.4.3 主题迁移定案）
-> - [ADR-0016 Document Repository Boundary](../ADR/0016-document-repository-boundary.md)（**新增**，FileTree/Autosave/Export 共用的仓储边界）
+> - [ADR-0009 UI Architecture Design](../decisions/ADR/0009-ui-architecture-design.md)
+> - [ADR-0012 Live Editing State](../decisions/ADR/0012-live-editing-state.md)
+> - [ADR-0013 Autosave Architecture](../decisions/ADR/0013-autosave-architecture.md)（**新增**，3.4.7 自动保存定案）
+> - [ADR-0014 Document Asset Management](../decisions/ADR/0014-document-asset-management.md)（**新增**，3.4.9 图片资源定案）
+> - [ADR-0015 Theme Architecture Migration](../decisions/ADR/0015-theme-architecture-migration.md)（**新增**，3.4.3 主题迁移定案）
+> - [ADR-0016 Document Repository Boundary](../decisions/ADR/0016-document-repository-boundary.md)（**新增**，FileTree/Autosave/Export 共用的仓储边界）
 >
 > **设计评审纪要（2026-07-26，Human Owner）**：整体可作为实施级 RFC，评分 架构设计 9/10、任务拆解 9/10、风险控制 8.5/10、实施可执行性 8/10、长期演进价值 9/10。要求签字前补三份 ADR（自动保存 / 图片资源 / 主题迁移）+ E2E 平台矩阵 + 架构演进 Exit Gate，已在本版落实。**第二轮评审将 v1.0 提升至 ~9.2/10**，并追加：AutosaveService 依赖 `DirtyStateSource` 抽象（去 Coordinator 耦合）、资产命名冻结 `img_<uuid>.png`、删除仅 reference removal（GC 留 Phase 4）、ADR-0015 措辞由「向后兼容」改为「语义兼容 / API 迁移」、新增 ADR-0016 Document Repository Boundary。均已落实于 v1.1。**第三轮评审（2026-07-26）聚焦模块边界 / 数据所有权 / 扩展性 / ADR 质量 / 变更影响分析**，评分模块边界 9、数据所有权 9、扩展性 9、ADR 质量 8.5，并给出高/中/低优先级修正清单（命名统一、两级删除澄清、`dirtyChanges` 构造与背压、Slice4 依赖标注、版本修订记录），均已落实于 v1.2。本版可作为 **v1.2 正式签署版本**。
 

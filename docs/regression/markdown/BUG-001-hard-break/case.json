@@ -1,0 +1,13 @@
+{
+  "id": "BUG-001",
+  "capability": "markdown",
+  "title": "多行段落合并丢失硬换行（round-trip 不保真）",
+  "source": "archive/runs/adl/ADL-LOOP-RUN-008.md",
+  "status": "fixed",
+  "fixed_in": "lib/core/parser/markdown_parser.dart (+17/-3, ADL Loop 闭环)",
+  "regression_test": "flutter_app/test/parser/roundtrip_fuzz_test.dart",
+  "severity": "data-loss",
+  "type": "roundtrip-fidelity",
+  "input_file": "input.md",
+  "expected_file": "expected.json"
+}

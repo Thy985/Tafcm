@@ -1,0 +1,6 @@
+{
+  "note": "BUG-001 期望：parse 后 4 个 inline（含 hard-break \\n），serialize→reparse 后仍 4 个 inline（结构不动点）。修复前 reparse 只剩 3 个 inline（换行信息丢失）。",
+  "roundtrip_invariant": "serialize(parse(md)) → reparse 后 inline 数量 == 4",
+  "expected_inline_count": 4,
+  "hard_break_preserved": true
+}
