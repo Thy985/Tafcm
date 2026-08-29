@@ -64,62 +64,76 @@ jobs:
 
           echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(grep level_name "$GITHUB_OUTPUT" | cut -d= -f2)"
 
+      - name: 安装 Codex CLI
+        run: npm install -g "@openai/codex"
+
+      - name: 准备 CODEX_HOME（AGNES provider 配置）
+        run: |
+          mkdir -p /tmp/codex-home
+          cp .github/codex/config.toml /tmp/codex-home/config.toml
+
       - name: 运行 Codex 审查
         id: run_codex
-        uses: openai/codex-action@v1
         env:
+          CODEX_HOME: /tmp/codex-home
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
-        with:
-          # 不传 openai-api-key → 不启动 Responses API 代理，codex 直连
-          # .github/codex/config.toml 中配置的 AGNES chat 端点（wire_api=chat）
-          codex-home: .github/codex
-          model: agnes-2.5-flash
-          permission-profile: ":workspace"
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-            PR TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          cat > /tmp/codex-prompt.md <<'PROMPT_EOF'
+          REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number }}
+          PR TITLE: ${{ github.event.pull_request.title }}
 
-            变更: ${{ steps.analyze.outputs.added }}+/${{ steps.analyze.outputs.deleted }}- in ${{ steps.analyze.outputs.files }} files
-            审查级别: ${{ steps.analyze.outputs.level_name }}
+          变更: ${{ steps.analyze.outputs.added }}+/${{ steps.analyze.outputs.deleted }}- in ${{ steps.analyze.outputs.files }} files
+          审查级别: ${{ steps.analyze.outputs.level_name }}
 
-            Review ONLY the changes introduced by this PR. Consider:
-              git log --oneline ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
-              git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+          Review ONLY the changes introduced by this PR. Consider:
+            git log --oneline ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+            git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
 
-            根据审查级别执行对应检查：
+          根据审查级别执行对应检查：
 
-            [Level 0] 简短确认：解决目的？引入Bug？测试通过？代码规范？10行内回复。
+          [Level 0] 简短确认：解决目的？引入Bug？测试通过？代码规范？10行内回复。
 
-            [Level 1] 代码Review：
-            代码层：清晰？重复？可维护？
-            测试层：核心路径覆盖？异常处理？
-            接口层：破坏已有接口？数据结构合理？
-            对具体代码问题给出明确建议（简洁，不空泛）。
+          [Level 1] 代码Review：
+          代码层：清晰？重复？可维护？
+          测试层：核心路径覆盖？异常处理？
+          接口层：破坏已有接口？数据结构合理？
+          对具体代码问题给出明确建议（简洁，不空泛）。
 
-            [Level 2] 设计Review（在 Level 1 基础上增加）：
-            设计层：模块边界？数据所有权？扩展性？是否需要ADR？
-            变更影响：影响范围？数据迁移？分阶段发布？
-            先输出设计评审，再输出代码检查。
+          [Level 2] 设计Review（在 Level 1 基础上增加）：
+          设计层：模块边界？数据所有权？扩展性？是否需要ADR？
+          变更影响：影响范围？数据迁移？分阶段发布？
+          先输出设计评审，再输出代码检查。
 
-            [Level 3] 架构Review（在 Level 1+2 基础上增加）：
-            架构：合理性？可扩展性？容灾？性能？安全？运维成本？
-            输出完整架构评审报告+风险矩阵。
+          [Level 3] 架构Review（在 Level 1+2 基础上增加）：
+          架构：合理性？可扩展性？容灾？性能？安全？运维成本？
+          输出完整架构评审报告+风险矩阵。
 
-            最终结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
-            Be concise and specific. Output in Chinese.
+          最终结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
+          Be concise and specific. Output in Chinese.
+          PROMPT_EOF
+          codex exec --model agnes-2.5-flash --sandbox read-only "$(cat /tmp/codex-prompt.md)" \
+            > /tmp/codex-review.md 2>/tmp/codex-stderr.log
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "--- codex stderr (tail) ---"
+            tail -40 /tmp/codex-stderr.log
+            exit $rc
+          fi
+          echo "审查输出行数: $(wc -l < /tmp/codex-review.md)"
+          echo "final_message_file=/tmp/codex-review.md" >> "$GITHUB_OUTPUT"
 
       - name: 回贴审查结论
-        if: steps.run_codex.outputs.final-message != ''
+        if: steps.run_codex.outputs.final_message_file != ''
         uses: actions/github-script@v7
-        env:
-          CODEX_FINAL_MESSAGE: ${{ steps.run_codex.outputs.final-message }}
         with:
           github-token: ${{ github.token }}
           script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/codex-review.md', 'utf8');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.pull_request.number,
-              body: process.env.CODEX_FINAL_MESSAGE,
+              body: body,
             });

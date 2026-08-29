@@ -9,6 +9,7 @@
 # 注意：本文件属受信任 workflow 配置（openai/codex-action README 明确
 # codex-home/config.toml 不受 codex-args 校验拦截），勿从不可信来源覆盖。
 
+model = "agnes-2.5-flash"
 model_provider = "agnes"
 
 [model_providers.agnes]
