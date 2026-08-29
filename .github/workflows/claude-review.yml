@@ -79,6 +79,15 @@ jobs:
 
           echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(cat "$GITHUB_OUTPUT" | grep level_name | cut -d= -f2)"
 
+      # 临时诊断（定位后移除）：列出 agnes 网关可用模型
+      - name: 临时诊断-列出网关模型
+        shell: bash --noprofile --norc {0}
+        env:
+          AGNES_KEY: ${{ secrets.AGNES_API_KEY }}
+        run: |
+          curl -s -m 20 -H "Authorization: Bearer ${AGNES_KEY}" https://apihub.agnes-ai.com/v1/models | head -c 6000
+          echo ""
+
       - uses: anthropics/claude-code-action@v1
         env:
           ANTHROPIC_BASE_URL: "https://apihub.agnes-ai.com/v1"
