@@ -1,4 +1,4 @@
-# FormulaFix 文档门户（docs/ README）
+# Tafcm 文档门户（docs/ README）
 
 **定位（L1 人类入口）**：按**阅读目的**导航全部文档。不罗列文件名——回答"你现在想做什么"。
 新读者从这里进入；机器可核对的全量清单见 [INDEX.md](INDEX.md)。

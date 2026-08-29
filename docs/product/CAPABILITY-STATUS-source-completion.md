@@ -1,4 +1,4 @@
-# Feature Completion Evidence Matrix — FormulaFix
+# Feature Completion Evidence Matrix — Tafcm
 
 > **文档性质**：功能完成证据矩阵（Feature Completion Evidence System，只读复盘，零代码改动）  
 > **日期**：2026-08-19  
@@ -6,7 +6,7 @@
 > **作者**：AI Agent 起草，Human Owner 评审决策  
 > **本 Phase 目标**：回答一个比"跑了多少测试"更核心的问题——
 >
-> > **FormulaFix 的每一个产品功能，到底经过了哪些层次的验证？这些证据是否足以宣称"这个功能已经完成"？**
+> > **Tafcm 的每一个产品功能，到底经过了哪些层次的验证？这些证据是否足以宣称"这个功能已经完成"？**
 >
 > **与 Engineering Baseline 的关系（两者并列，同为 Phase 3.10 产物）**：
 >
@@ -166,7 +166,7 @@ OPTIONAL（可选，非日常工程硬门槛）:
 - **CLI**：`ffx project inject formula`（project.py:72）仅字符串拼接 `$$\n latex \n$$`，**未调用** `FormulaSvgService`/真实渲染。**E4-M ✅ / E4-P ❌**。
 - **Real Device**：⚠️ **仅崩溃级**——`releases/phase3.5-realdevice-issues.md` 问题4：真机（Xiaomi）PDF/Word 公式降级为原始 LaTeX 文本（Release WebView 可能未挂载）；E2E-P0-8「PDF 公式导出不崩溃」真机 Pass 但公式此时降级为文本。**视觉保真（SVG/矢量）在物理真机未经自动化验证**。
 - **Consumer / UX**：— / ⚠️（`test/golden/formula_block_light/dark/sepia_test.dart` 存在，但真机视觉为人工验收待办）。
-- **Release-blocking 说明**：Formula 是 FormulaFix 的**核心差异化能力**，其 Required Profile 含 **E6 + E8 且为发布硬门槛**。当前 E6（真机 WebView/GPU/字体/SVG 实际布局）与 E8（真机视觉 golden）均缺失——这与 Word Desktop 的"可选 UNKNOWN"**完全不同等级**：Word 缺的是可选消费端，Formula 缺的是产品核心主张本身。此项**不能因 test 全绿就宣布完成**。
+- **Release-blocking 说明**：Formula 是 Tafcm 的**核心差异化能力**，其 Required Profile 含 **E6 + E8 且为发布硬门槛**。当前 E6（真机 WebView/GPU/字体/SVG 实际布局）与 E8（真机视觉 golden）均缺失——这与 Word Desktop 的"可选 UNKNOWN"**完全不同等级**：Word 缺的是可选消费端，Formula 缺的是产品核心主张本身。此项**不能因 test 全绿就宣布完成**。
 
 ### FEAT-WORD — Word 导出（DOCX）
 - **Code**：`lib/domain/services/exporters/word_exporter.dart:24` `WordExporter`；`word_ooxml_builder.dart:45`。
@@ -281,7 +281,7 @@ OPTIONAL（可选，非日常工程硬门槛）:
 ## 4. 系统性结论（Feature Completion Evidence System）
 
 ```
-                 FormulaFix
+                 Tafcm
                      │
            ┌─────────┴─────────┐
            ↓                   ↓
@@ -306,4 +306,4 @@ OPTIONAL（可选，非日常工程硬门槛）:
 
 ---
 
-*本文件为 FormulaFix Feature Completion Evidence Matrix v1.1。与 `PHASE3.10-ENGINEERING-BASELINE-v1.md` 并列，同为 Phase 3.10 核心产物。新功能经 Owner 评审后按 FEAT-xxx 追加证据明细，不覆盖历史判定。*
+*本文件为 Tafcm Feature Completion Evidence Matrix v1.1。与 `PHASE3.10-ENGINEERING-BASELINE-v1.md` 并列，同为 Phase 3.10 核心产物。新功能经 Owner 评审后按 FEAT-xxx 追加证据明细，不覆盖历史判定。*

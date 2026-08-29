@@ -1,4 +1,4 @@
-# FormulaFix Editor E2E Test Plan（端到端验证计划）
+# Tafcm Editor E2E Test Plan（端到端验证计划）
 
 > **状态**：Phase 3.6.1 完成，Phase 3.6.2 完成（2026-08-03）— Patrol 接入 + 4 Extended + 2 Patrol 测试，真机/模拟器运行验证通过  
 > **来源**：UI_FIX_PLAN P0-P2 已全部完成合并，P3 颜色令牌守门已建立，经架构评审确认"最大风险不在单个模块，而在跨层协作链路"  
@@ -223,11 +223,11 @@ Phase 3.6.2 Extended（扩展场景）
 1. pump App → 首页
 2. 点击「新建文档」
 3. 进入编辑器
-4. 输入 "Hello FormulaFix"
+4. 输入 "Hello Tafcm"
 5. 触发保存（等待自动保存或 saveNow() 测试 hook）
 6. 回到首页
 7. 重新打开该文档
-8. 验证编辑器内容为 "Hello FormulaFix"
+8. 验证编辑器内容为 "Hello Tafcm"
 ```
 
 **验证点**（仅限用户可观察行为）：
@@ -236,8 +236,8 @@ Phase 3.6.2 Extended（扩展场景）
 |---|--------|---------|
 | 1 | 首页显示新文档标题 | `find.text('未命名文档')` 存在 |
 | 2 | 编辑器加载完成 | `find.byType(EditorPage)` 存在 |
-| 3 | 输入内容正常显示 | `find.text('Hello FormulaFix')` 存在 |
-| 4 | 重新打开后内容一致 | `find.text('Hello FormulaFix')` 仍存在 |
+| 3 | 输入内容正常显示 | `find.text('Hello Tafcm')` 存在 |
+| 4 | 重新打开后内容一致 | `find.text('Hello Tafcm')` 仍存在 |
 
 **Domain 层验证**（`test/e2e_domain/`）：
 

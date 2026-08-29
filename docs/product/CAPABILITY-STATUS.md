@@ -1,6 +1,6 @@
 # Capability Status（能力完成度）
 
-**定位（L2 Current State Truth，人类视图）**：FormulaFix 当前能力完成度。
+**定位（L2 Current State Truth，人类视图）**：Tafcm 当前能力完成度。
 机器视图见 [contracts/*.json](../../contracts/)（ffx 消费）；本页为人类可读汇总。
 
 **数据源**（历史完整矩阵，已归档保留）：

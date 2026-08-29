@@ -1,4 +1,4 @@
-# FormulaFix Design Document
+# Tafcm Design Document
 
 > Version 2.0 | 2026-07-18 初版 · 2026-07-21 Typora 化修订
 > Visual prototype: `formulafix-redesign.design/` (14 screens，含 5 张 Typora 化对比页)
@@ -7,7 +7,7 @@
 
 ## 0. Design Philosophy
 
-FormulaFix is a **mobile-first WYSIWYG academic writing tool** with portable Markdown viewing.
+Tafcm is a **mobile-first WYSIWYG typesetting tool for academic writing** — Typeset · Agent-native · Formula-aware · CLI-native · Markdown-first, with portable Markdown viewing.
 
 Four "not" principles:
 - Not a Markdown editor with a preview pane — it is WYSIWYG (what you see is what you get)
@@ -19,7 +19,7 @@ Visual tone: **warm paper + deep ink**. Serif for content, sans for chrome. Acad
 
 ### 0.1 Typora 化总原则（v2.0，2026-07-21）
 
-**用户看到的是 Document，而不是 Block。** Block 是工程抽象，不应成为用户认知对象；BlockRenderer 是排版引擎，不是卡片系统。FormulaFix 的 UI 方向走 Typora 化，不走 Notion 化。
+**用户看到的是 Document，而不是 Block。** Block 是工程抽象，不应成为用户认知对象；BlockRenderer 是排版引擎，不是卡片系统。Tafcm 的 UI 方向走 Typora 化，不走 Notion 化。
 
 由此推导出**三层 UI 哲学**：
 
@@ -156,8 +156,8 @@ Files received from external sources (WeChat, email, downloads) open in Reader m
 **v2.0 修订**：首页不再用 Hero CTA 强调"打开文件"，改为极简文件列表 + 一条低调的"打开任意 .md 文件"虚线入口（见 D6）。便携查看器定位不变，但入口从"展示型"降为"工具型"。
 
 ### D4: Formula Blocks as Visual Signature  *(v2.0 已被 D7 取代)*
-~~Display formulas use a distinct blue gradient background with left accent bar and equation numbering. This makes FormulaFix visually recognizable at a glance.~~
-**v2.0 修订**：公式不再做"视觉签名"。块公式回归自然排版——无底色、无边框、无编号、无卡片，就是文档流中居中的一行 serif italic（见 D7）。FormulaFix 的辨识度来自内容与排版品质，不来自装饰性卡片。
+~~Display formulas use a distinct blue gradient background with left accent bar and equation numbering. This makes Tafcm visually recognizable at a glance.~~
+**v2.0 修订**：公式不再做"视觉签名"。块公式回归自然排版——无底色、无边框、无编号、无卡片，就是文档流中居中的一行 serif italic（见 D7）。Tafcm 的辨识度来自内容与排版品质，不来自装饰性卡片。
 
 ### D5: Floating Toolbar (Not Keyboard Attachment)  *(v2.0 已被 D8 取代)*
 ~~The editor formatting toolbar floats as a pill bar above the keyboard area, not as a full-width keyboard attachment. This preserves screen real estate and feels lightweight.~~

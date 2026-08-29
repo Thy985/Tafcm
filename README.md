@@ -1,7 +1,8 @@
-# FormulaFix
+# Tafcm
 
-> 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。
-> 目标：让手机端也能拥有 Typora 级别的所见即所得（WYSIWYG）写作体验。
+> **T**ypeset · **A**gent-native · **F**ormula-aware · **C**LI-native · **M**arkdown-first
+> 移动端 Typora 类排版写作工具：所见即所得（WYSIWYG），以公式 / 图表 / 学术写作为特色。
+> 目标：让手机端也能拥有 Typora 级别的排版级写作体验，任意 .md 即开即看。
 
 [![CI](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml/badge.svg)](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml)
 [![Phase](https://img.shields.io/badge/phase-3.12%20Info%20Architecture-blue)](docs/ROADMAP.md)
@@ -11,14 +12,15 @@
 
 ## 这是什么
 
-FormulaFix 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产品**：
+Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产品**，五维定位：
 
-- ✅ **所见即所得**：块级 WYSIWYG 编辑，无"编辑/预览"模式切换
-- ✅ **手机优先**：为触屏 + 单手握持重新设计的交互范式
-- ✅ **学术写作特色**：原生支持 LaTeX 公式、Mermaid 图表、代码高亮
-- ✅ **便携查看器**：任意来源 .md 文件即开即看，无需导入到 Vault
-- ✅ **离线可用**：100% 本地渲染，无云端依赖
-- ✅ **多平台**：Android / Windows / Web
+- **T · Typeset**：排版优先——用户看到的是 Document 而不是 Block，所见即所得，无"编辑/预览"模式切换
+- **A · Agent-native**：Agent 可诊断、可驱动的文档工具（ADI 诊断接口 + issue triage）
+- **F · Formula-aware**：原生支持 LaTeX 公式（SVG 矢量渲染）、Mermaid 图表、代码高亮
+- **C · CLI-native**：CLI 优先的文档处理（ffx-cli 诊断 / 验证 / 分析工具链）
+- **M · Markdown-first**：.md 单一真相源，任意来源文件即开即看，无需导入到 Vault
+
+其他特性：**手机优先**（触屏 + 单手握持重新设计）、**离线可用**（100% 本地渲染，无云端依赖）、**多平台**（Android / Windows / Web）。
 
 ## 核心能力
 

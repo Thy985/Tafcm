@@ -1,13 +1,13 @@
 # AGENTS.md — AI 协作开发规范
 
-> 本文件是 FormulaFix 项目对所有 AI 协作开发者（含 TRAE Agent / Claude Code / Cursor / 人工协作者）的强制规范。
+> 本文件是 Tafcm 项目对所有 AI 协作开发者（含 TRAE Agent / Claude Code / Cursor / 人工协作者）的强制规范。
 > 所有 PR 必须通过本文档的检查项才能合并。
 
 ---
 
 ## 0. 项目愿景与定位
 
-**FormulaFix** 的目标是演进为 **移动端 Typora 类产品**：
+**Tafcm**（Typeset · Agent-native · Formula-aware · CLI-native · Markdown-first，见 [ADR-0031](docs/decisions/ADR/0031-rebrand-tafcm.md)）的目标是演进为 **移动端 Typora 类产品**：
 
 - 不是"带预览的 Markdown 编辑器"，而是 **所见即所得（WYSIWYG）** 编辑器
 - 不是"桌面端 Typora 的功能搬运"，而是 **手机优先（mobile-first）** 的重新设计
@@ -413,7 +413,7 @@ AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/A
 
 ### 9.5 ADI 诊断工作流（引用 ADR-0024 §1.4）
 
-AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math2/docs/decisions/ADR/0024-agent-diagnostic-interface.md)：
+AI Agent 调试 Tafcm 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math2/docs/decisions/ADR/0024-agent-diagnostic-interface.md)：
 
 1. **Query first** — 先 `adi latest-error --json` 获取 Observation，不凭空假设
 2. **Inspect before edit** — 改代码前先 `adi trace show <id>` 理解因果链
@@ -594,11 +594,11 @@ await tester.pump();  // Frame 2：postFrame 执行 → listener 触发
 
 ### 11.7 `document_list_screen.dart` 占位缺失 AppBar → router_integration_test 失败
 
-**症状**：CI Test 报 `test/router_integration_test.dart: DocumentListScreen 可构建，AppBar 显示"FormulaFix"` 失败。
+**症状**：CI Test 报 `test/router_integration_test.dart: DocumentListScreen 可构建，AppBar 显示"Tafcm"` 失败。
 
-**根因**：因 main 仓库缺失真实 `document_list_screen.dart` blob（§12.1），写了占位但占位不含 `AppBar(title: Text('FormulaFix'))`。
+**根因**：因 main 仓库缺失真实 `document_list_screen.dart` blob（§12.1），写了占位但占位不含 `AppBar(title: Text('Tafcm'))`。
 
-**修复**：占位必须含 `Scaffold(appBar: AppBar(title: const Text('FormulaFix')))`。
+**修复**：占位必须含 `Scaffold(appBar: AppBar(title: const Text('Tafcm')))`。
 
 **教训出处**：PR #78 `6f88844` → CI 30227895402 Test 失败 1 个。
 
@@ -663,7 +663,7 @@ error: github.com:Thy985/fixmath.git did not send all necessary objects
 **绕过**：
 - 写最小占位文件替换（满足 import 解析 + test 守门）：
   - `editor_tokens.dart`：完整 PR #71 字段集（9 主题字段 + 3 主题实例 + `of(context)`）——仅 1-2 字段不够，`code_block`/`mermaid_block` 等引用完整字段集
-  - `document_list_screen.dart`：`Scaffold + AppBar(title: Text('FormulaFix'))` ——满足 `router_integration_test.dart:55`
+  - `document_list_screen.dart`：`Scaffold + AppBar(title: Text('Tafcm'))` ——满足 `router_integration_test.dart:55`
 - **PR commit parent 不要用 main (02afb030)**——push 时 GitHub 因 parent tree 引用 missing blob 拒收
 - 用 self-consistent base（如 PR #78 的 `7c9abc4`）+ 写入 main 全部改动
 
@@ -908,7 +908,7 @@ D:\Projects\Active\math2\
 │   │       └── tests/            # 170+ pytest cases passing
 │   └── adi/                      # Agent Diagnostic Interface（Dart CLI）
 │       └── adi.dart
-├── flutter_app/                  # FormulaFix Flutter App（主项目）
+├── flutter_app/                  # Tafcm Flutter App（主项目）
 │   ├── lib/                      # 业务代码（六层架构）
 │   │   ├── main.dart
 │   │   ├── core/                 # 基础设施（parser / renderers / services / router / utils）

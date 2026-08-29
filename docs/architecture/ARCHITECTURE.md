@@ -1,6 +1,6 @@
-# FormulaFix 架构总览
+# Tafcm 架构总览
 
-> 本文描述 FormulaFix 的**当前架构、目标架构、已知问题与重构风险**。  
+> 本文描述 Tafcm 的**当前架构、目标架构、已知问题与重构风险**。  
 > 所有内容基于实际代码分析，不凭空设计。
 >
 > **状态更新（2026-08-10，Phase 3.7 完成后）**：本文为 Phase 0 末（2026-07-18）的历史快照 + Phase 1 关闭后（2026-07-19）的局部更新。§1.1/§1.3 已滞后于 Phase 3 后的实际代码结构（presentation 层已从 4 子目录扩展为 13 子目录，数据流已从"编辑/预览双模式"改为 WYSIWYG）。完整 Phase 3 后的架构见 [Component-Tree.md](UI-COMPONENT-MODEL.md) + [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) + [ADR-0009](../decisions/ADR/0009-ui-architecture-design.md)。
@@ -138,7 +138,7 @@ Phase 3 后实际结构（13 子目录）：
 
 | 决策 | ADR |
 |------|-----|
-| 项目命名为 FormulaFix，目录结构 6 层 | [ADR-0001](../decisions/ADR/0001-project-naming-and-structure.md) |
+| 项目命名为 Tafcm（原 FormulaFix），目录结构 6 层 | [ADR-0031](../decisions/ADR/0031-rebrand-tafcm.md)（取代 ADR-0001 §1） |
 | 状态管理选 Riverpod | [ADR-0002](../decisions/ADR/0002-state-management-riverpod.md) |
 | 存储目标：.md 文件作为单一真相（**Phase 1 已达成，ADR-0003 Implemented**） | [ADR-0003](../decisions/ADR/0003-storage-single-source-md-files.md) |
 | 解析器扩展策略：补齐缺失元素而非重写 | [ADR-0004](../decisions/ADR/0004-markdown-parser-extension-strategy.md) |
@@ -173,7 +173,7 @@ Phase 3 后实际结构（13 子目录）：
 ### 2.2 P1 体验
 
 - 预览被卡片包裹，浪费手机宽度
-- AppBar 标题写死 "FormulaFix"
+- AppBar 标题写死 "Tafcm"
 - 每次按键全量重解析（性能瓶颈）
 - WebView 冷启动 2-3 秒
 - 单条公式 30s 超时，导出整体 120s 超时

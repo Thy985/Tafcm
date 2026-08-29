@@ -20,7 +20,7 @@
 | 1 | FFX 不应"自己知道怎么测每个功能"（防巨型 if/else） | §3.1 **Capability Adapter Registry**：统一契约 `discover/prepare/execute/collect_evidence/evaluate`，orchestrator 核心能力无关 |
 | 2 | 矩阵不应是唯一机器契约源 | §4.1 **`contracts/*.json` 提升为机器真相源**，Feature Matrix 改为派生投影 + schema 校验 |
 | 3 | **Runtime Bridge 缺失**：FFX 现在调不到真实 Dart production path | §3.2 **Runtime Bridge**：`tools/ffx-runtime/` dart capability runner 直调真实 `markdown_parser.dart`/serializer/exporter |
-| 4 | Word/PDF 真实导出缺 Producer Bridge | §3.3 **Artifact Producer Adapter**：`ffx/harness/producers/`（dart_exporter.py/flutter_runtime.py），"FFX orchestrates, FormulaFix produces" |
+| 4 | Word/PDF 真实导出缺 Producer Bridge | §3.3 **Artifact Producer Adapter**：`ffx/harness/producers/`（dart_exporter.py/flutter_runtime.py），"FFX orchestrates, Tafcm produces" |
 | 5 | diagnostic_id 应从故障产生点生成，非事后随机 | §4.3 **Failure Record 不变量**：`diagnostic_id` 必须引用真实 Failure Record；trc_ 来自 ADI 既有 trace、art_ 来自 FFX Artifact Failure Record，禁止虚拟 ID |
 | 6 | repair-verify 不应依赖 Agent 声明为证明 | §5.3 **证明 = before/after/regression 实证**，Agent 声明仅是触发条件；输出固定 JSON |
 | 7 | P0 顺序调整：diagnose/repair 提前 | §6/§13 **P0 = 最小完整闭环** `verify → diagnose → repair-verify`（markdown 先跑通），word/pdf 移 P1 |
@@ -164,7 +164,7 @@ dart run tools/ffx-runtime/bin/capability_runner.dart <capability> <corpus_dir> 
 
 > **验收红线**：verify markdown 的 parser 证据必须来自 `markdown_parser.dart` 运行结果，**禁止 Python 侧重新实现解析**。否则"看起来很漂亮的 Orchestrator 验证的仍是台架"。
 
-### 3.3 Artifact Producer Adapter（评审点 4 —— "FFX orchestrates, FormulaFix produces"）
+### 3.3 Artifact Producer Adapter（评审点 4 —— "FFX orchestrates, Tafcm produces"）
 
 `ffx/harness/producers/`：
 
