@@ -119,6 +119,6 @@ jobs:
             最终结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
 
           claude_args: |
-            --model MiniMax-M3
+            --model agnes-2.5-flash
             --max-turns ${{ steps.analyze.outputs.max_turns }}
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
