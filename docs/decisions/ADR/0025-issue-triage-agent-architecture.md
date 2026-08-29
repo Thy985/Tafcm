@@ -1,6 +1,6 @@
 # ADR-0025：Issue 自动挖掘与分类 Agent 架构
 
-> **状态**：Proposed（随本 ADR 提交，Human Owner 签字即 Accepted）
+> **状态**：Accepted（2026-08-30 批量追认——Issue Triage Agent 已实施：issue-triage workflow + scripts + fixtures + findings schema，CI 常驻）
 > **版本**：v1.0
 > **作者**：AI 协作开发者（基于 Human Owner 契约评审意见）
 > **关联**：`docs/decisions/ADR/0024-agent-diagnostic-interface.md`（ADI）· `.github/workflows/claude-review.yml`（四级审查基线）· `.github/pull_request_template.md`

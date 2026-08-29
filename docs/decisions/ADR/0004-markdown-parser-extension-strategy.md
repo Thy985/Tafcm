@@ -1,6 +1,6 @@
 # ADR-0004: Markdown 解析器扩展策略
 
-- **状态**：Proposed（Phase 1 P0 #5 执行）
+- **状态**：Accepted（2026-08-30 批量追认——Phase 1 P0 #5 已执行：补齐 7 类元素解析 + edge_case_test 守门，见 AGENTS.md §10）
 - **生效日期**：待 Phase 1 P0 #5 启动时 Accept
 - **决策者**：首席架构工程师
 

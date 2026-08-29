@@ -1,6 +1,6 @@
 # ADR-0017：设计系统 Token 与字体对齐（Design System Token & Typography Alignment）
 
-> **状态**：Proposed（随 Phase 3.4.5 Design System Alignment 提交，Human Owner 签字即 Accepted）
+> **状态**：Accepted（2026-08-30 批量追认——Design System Token 已实施：tokens.json + AppTheme 映射 + EditorTokens（Phase 3.4.5））
 > **版本**：v1.0
 > **起草日期**：2026-07-28
 > **起草人**：AI Agent 起草，Human Owner 评审决策

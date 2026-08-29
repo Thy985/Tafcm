@@ -1,6 +1,6 @@
 # ADR-0018：App Shell 导航与跨屏数据流（App Shell Navigation & Cross-Screen Data Flow）
 
-> **状态**：Proposed（随 PR #93 评审整改提交，Human Owner 签字即 Accepted）
+> **状态**：Accepted（2026-08-30 批量追认——App Shell 导航已实施：StatefulShellRoute + 底部导航收敛（P0-2 后 2 tab））
 > **版本**：v1.1
 > **起草日期**：2026-07-29
 > **起草人**：AI Agent 起草，Human Owner 评审决策
