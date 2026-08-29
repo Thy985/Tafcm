@@ -128,7 +128,7 @@ jobs:
           name: issue-triage-context
           path: .tmp/issue-triage/
 
-      # D9: Anthropic 推理层配置与 claude-review.yml 对齐（同一 minimaxi 代理 + DEEPSEEK_API_KEY）
+      # D9: 推理层配置与 codex-review.yml 对齐（AGNES 网关 chat 端点 + AGNES_API_KEY）
       #     模型使用 MiniMax-M3，analyze 仅读、无写权
       - name: Run Claude Code analyze
         id: claude

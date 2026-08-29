@@ -1,0 +1,18 @@
+# Tafcm 仓库 Codex 配置（codex-home）
+#
+# 背景：AGNES 网关（apihub.agnes-ai.com）仅支持 OpenAI Chat Completions
+# 协议（/v1/chat/completions，实测 HTTP 200），不支持 Responses API 与
+# Anthropic Messages（均 HTTP 000）。故 Codex CLI 通过自定义 model_provider
+# 直连 AGNES chat 端点（wire_api = "chat"），密钥从环境变量 AGNES_API_KEY 读取
+# （workflow 中注入 secrets.AGNES_API_KEY，GitHub 日志自动遮蔽）。
+#
+# 注意：本文件属受信任 workflow 配置（openai/codex-action README 明确
+# codex-home/config.toml 不受 codex-args 校验拦截），勿从不可信来源覆盖。
+
+model_provider = "agnes"
+
+[model_providers.agnes]
+name = "agnes"
+base_url = "https://apihub.agnes-ai.com/v1"
+env_key = "AGNES_API_KEY"
+wire_api = "chat"
