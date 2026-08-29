@@ -1,6 +1,6 @@
 # ADR-0023：Editor Observability System（编辑器可观测系统）
 
-- **状态**：Proposed（实施已完成 2026-08-06，待 Human Owner 签字 Accepted）
+- **状态**：Accepted（2026-08-30 批量追认——实施已完成 2026-08-06：ObservabilityService + 诊断导出 + ADI 采集，Phase 3.7 合入）
 - **日期**：2026-08-03
 - **决策者**：Human Owner（待签字）
 - **关联**：[ADR-0008 Editor Transaction Model](./0008-editor-transaction-model.md) / [ADR-0012 Live Editing State](./0012-live-editing-state.md) / [ADR-0013 Autosave Architecture](./0013-autosave-architecture.md) / [ADR-0019 Editor Interaction Layer](./0019-editor-interaction-layer.md) / [E2E_TEST_PLAN.md](../../engineering/VERIFICATION-POLICY-source-e2e.md)

@@ -1,6 +1,6 @@
 # ADR-0013：自动保存架构（Autosave Architecture）
 
-> **状态**：Proposed（随 Phase 3.4 Task Contract v1.0 提交，Human Owner 签字即 Accepted）
+> **状态**：Accepted（2026-08-30 批量追认——AutosaveService（debounce 1.5s）已实施并合入，见 ARCHITECTURE.md 编辑流）
 > **版本**：v1.1
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent 起草，Human Owner 评审决策

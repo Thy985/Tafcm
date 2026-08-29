@@ -1,6 +1,6 @@
 # ADR-0029：ListElement 嵌套 AST 结构（修复嵌套列表 round-trip 不保真）
 
-- **状态**：Proposed（Run #008 Batch 4，2026-08-18）
+- **状态**：Accepted（2026-08-30 批量追认——ListElement 嵌套 AST 已落地（Run #008）：修复嵌套列表 round-trip 不保真，list_block.dart 实现）
 - **日期**：2026-08-18
 - **决策者**：Human Owner（评审通过后 Accepted）
 - **关联**：[ADR-0004 Markdown Parser Extension Strategy](./0004-markdown-parser-extension-strategy.md) / [ADL-LOOP-RUN-008.md](../../archive/runs/adl/ADL-LOOP-RUN-008.md)（BUG-5）

@@ -6,12 +6,13 @@
 
 ---
 
-## 1. 顶层文档（40 篇）
+## 1. 顶层文档（41 篇）
 
 ### 1.1 架构与路线图
 
 | 文档 | 说明 |
 |------|------|
+| [ENGINEERING.md](ENGINEERING.md) | ★ 工程手册（唯一入口：L0-L5 地图，2026-08-30 新增） |
 | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | 架构总览（当前 + 目标 + 问题 + 风险） |
 | [ROADMAP.md](ROADMAP.md) | 路线图（Phase 0-4，含 Phase 3.10/3.11） |
 | [DESIGN.md](product/PRODUCT.md) | 总体设计 |
@@ -75,7 +76,7 @@
 
 ### 2.1 ADR（架构决策记录，30 篇）
 
-见 [ADR/](ADR/) —— 按编号递增（0001 ~ 0031）。状态机 `Proposed → Accepted → Superseded/Deprecated`。
+见 [ADR/](decisions/ADR/) —— 按编号递增（0001 ~ 0031）。状态机 `Proposed → Accepted → Superseded/Deprecated`。
 关键：ADR-0003（存储单一真相源）/ 0024（ADI）/ 0028（CLI before schema）/ 0029（嵌套 AST）/ 0030（Verification Orchestrator）/ 0031（品牌改名 Tafcm，取代 ADR-0001 §1）。
 
 ### 2.2 contracts（任务契约，16 篇）
@@ -106,9 +107,28 @@
 
 见 [assets/](assets/) —— `ui-prototype/` 设计稿资产。
 
+### 2.8 principles（工程原则，4 篇，2026-08-30 新增）
+
+见 [principles/](principles/) —— 稳定总原则（不随 session 变）：
+| 文档 | 说明 |
+|------|------|
+| [engineering-principles.md](principles/engineering-principles.md) | 工程总原则 + 文档准入四问 |
+| [architecture-principles.md](principles/architecture-principles.md) | 分层 / 存储 / 编辑器 / 状态 / 渲染原则 |
+| [testing-principles.md](principles/testing-principles.md) | 门禁 / 证据等级 / 回归纪律 |
+| [agent-collaboration.md](principles/agent-collaboration.md) | Agent 权限 / Memory Distillation |
+
+### 2.9 guides（开发指南，3 篇，2026-08-30 新增）
+
+见 [guides/](guides/) —— 怎么做：
+| 文档 | 说明 |
+|------|------|
+| [development.md](guides/development.md) | 开发指南（环境 / 流程 / 规范速查 / 常见坑） |
+| [testing.md](guides/testing.md) | 测试指南（怎么跑 / 怎么写） |
+| [debugging.md](guides/debugging.md) | 调试指南（ADI 工作流 + 排查手册） |
+
 ## 3. RUN 报告（35 篇，按类型归档）
 
-### 3.1 Phase 3.11 Capability Hardening Loop（16 篇）—— [runs/phase3.11/](runs/phase3.11/)
+### 3.1 Phase 3.11 Capability Hardening Loop（16 篇）—— [runs/phase3.11/](archive/runs/phase3.11/)
 
 | 文档 | 说明 |
 |------|------|
@@ -129,14 +149,14 @@
 | [RUN-015](archive/runs/phase3.11/PHASE3.11-RUN-015-E8-VISION-WIRING.md) | E8 真实视觉提取 + FFX verify 接线 |
 | [RUN-016](archive/runs/phase3.11/PHASE3.11-RUN-016-VLM-STRUCTURE-MODE.md) | E8 VLM 结构模式（三态判定） |
 
-### 3.2 ADL Loop（12 篇，含 PLAN）—— [runs/adl/](runs/adl/)
+### 3.2 ADL Loop（12 篇，含 PLAN）—— [runs/adl/](archive/runs/adl/)
 
 | 文档 | 说明 |
 |------|------|
 | [RUN-001](archive/runs/adl/ADL-LOOP-RUN-001.md) ~ [RUN-008](archive/runs/adl/ADL-LOOP-RUN-008.md) | ADL 闭环报告（Run #001-008） |
 | `*PLAN.md` ×4 | ADL 各轮计划（RUN-002/005/006/008） |
 
-### 3.3 Dogfood（7 篇）—— [runs/dogfood/](runs/dogfood/)
+### 3.3 Dogfood（7 篇）—— [runs/dogfood/](archive/runs/dogfood/)
 
 | 文档 | 说明 |
 |------|------|
@@ -146,7 +166,8 @@
 
 ## 4. 索引核对
 
-- 顶层 md：40 篇（含本 INDEX）
+- 顶层 md：41 篇（含本 INDEX + ENGINEERING.md）
 - ADR：30 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇 | archive：2 篇
+- principles：4 篇 | guides：3 篇（2026-08-30 新增）
 - RUN 报告：35 篇（phase3.11 ×16 + adl ×12 + dogfood ×7）
-- 合计：**136 篇**
+- 合计：**144 篇**

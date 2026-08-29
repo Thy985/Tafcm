@@ -1,6 +1,6 @@
 # ADR-0008：Editor Transaction Model
 
-**状态**：Proposed（v1.1 修订）
+**状态**：Accepted（2026-08-30 批量追认——v1.1 修订已落地：Transaction/commit-rollback/coalescing 实现于 editor 内核，AGENTS.md §14.2 引用）
 **日期**：2026-07-19（v1.0）/ 2026-07-20（v1.1）
 **决策者**：AI Agent（GLM-5.2）起草，Human Owner 审批
 

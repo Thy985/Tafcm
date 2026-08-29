@@ -1,6 +1,6 @@
 # ADR-0015：主题架构迁移（Theme Architecture Migration）
 
-> **状态**：Proposed（随 Phase 3.4 Task Contract v1.0 提交，Human Owner 签字即 Accepted）
+> **状态**：Accepted（2026-08-30 批量追认——AppTheme light/dark/sepia 三主题已实施（Phase 3.4.3），EditorTokens 主题化已落地）
 > **版本**：v1.1
 > **起草日期**：2026-07-26
 > **起草人**：AI Agent 起草，Human Owner 评审决策
