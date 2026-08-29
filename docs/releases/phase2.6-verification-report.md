@@ -13,14 +13,14 @@
 
 | 模块 | 范围 | 对应 ADR |
 |------|------|---------|
-| BlockOperation 五原语 | insert / delete / merge / split / move apply/revert 幂等 | [ADR-0007 §4.1](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| EditOperation sealed class | BlockOperation + TextOperation 联合类型 | [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| Transaction 容器 | Transaction + TransactionId + Metadata + Origin（6 值） | [ADR-0008 §1 / §8](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| TransactionBuilder | commit / rollback + 嵌套合并 | [ADR-0008 §3](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| EditorHistory | 包装 HistoryManager + Coalescing 7 触发条件 | [ADR-0008 §4 / §6](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| IME 集成 | 铁律 1 守门（assertBlockMutationAllowed） | [ADR-0008 §5](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| BlockId 生命周期 | in-memory only，不跨序列化持久化 | [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| TransactionExecutor 设计方向 | 已知 tech debt 登记，Phase 2.8+ 候选 | [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
+| BlockOperation 五原语 | insert / delete / merge / split / move apply/revert 幂等 | [ADR-0007 §4.1](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| EditOperation sealed class | BlockOperation + TextOperation 联合类型 | [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| Transaction 容器 | Transaction + TransactionId + Metadata + Origin（6 值） | [ADR-0008 §1 / §8](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| TransactionBuilder | commit / rollback + 嵌套合并 | [ADR-0008 §3](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| EditorHistory | 包装 HistoryManager + Coalescing 7 触发条件 | [ADR-0008 §4 / §6](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| IME 集成 | 铁律 1 守门（assertBlockMutationAllowed） | [ADR-0008 §5](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| BlockId 生命周期 | in-memory only，不跨序列化持久化 | [ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| TransactionExecutor 设计方向 | 已知 tech debt 登记，Phase 2.8+ 候选 | [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
 
 **未涵盖项**（明确移至后续 Phase）：
 
@@ -109,7 +109,7 @@
 
 | 项 | 描述 | 解除 Phase | 跟踪 |
 |----|------|-----------|------|
-| BlockOperations 隐式执行器 | 持有 DocumentEditor + TransactionBuilder，承担执行器角色 | Phase 2.8+ | [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
+| BlockOperations 隐式执行器 | 持有 DocumentEditor + TransactionBuilder，承担执行器角色 | Phase 2.8+ | [ADR-0008 v1.1 §10](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
 | EditorHistory onChange 回调链复杂 | 调用方需自行注入正确回调链 | Phase 2.8+ | 同上 |
 | eager apply 模式 | 每个原语调用立即 apply，失败回滚由调用方负责 | Phase 2.8+（候选 deferred 模式） | [Phase 2.6 Task Contract §3.7](file:///d:/Projects/Active/math2/docs/contracts/phase2.6-task-contract.md) |
 
@@ -162,7 +162,7 @@
 
 - 新增 [Phase 2.6 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase2.6-task-contract.md) v1.2（已 approved）
 - 新增本文件 [Phase 2.6 Verification Report](file:///d:/Projects/Active/math2/docs/releases/phase2.6-verification-report.md)
-- 修订 [ADR-0008](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) v1.1（新增 §9 / §10）
+- 修订 [ADR-0008](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) v1.1（新增 §9 / §10）
 - 更新 [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) Phase 2 任务表 + 当前阶段
 
 ---

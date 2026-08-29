@@ -3,7 +3,7 @@
 > Version 2.0 | 2026-07-18 初版 · 2026-07-21 Typora 化修订
 > Visual prototype: `formulafix-redesign.design/` (14 screens，含 5 张 Typora 化对比页)
 > Design tokens: `design-system/tokens.json`
-> UI specification: `docs/UI_SPEC.md`
+> UI specification: `docs/product/UX-GUIDE.md`
 
 ## 0. Design Philosophy
 

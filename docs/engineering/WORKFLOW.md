@@ -49,7 +49,7 @@ ROADMAP 任务 / Issue
 | 来源 | 粒度 | 示例 |
 |------|------|------|
 | [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) 任务 | 1-3 天 | `ROADMAP 1.5` 补齐解析器 |
-| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/REFACTOR_DESIGN.md) 阶段 | 1-2 周 | R1 地基重构 |
+| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/archive/REFACTOR_DESIGN.md) 阶段 | 1-2 周 | R1 地基重构 |
 | GitHub Issue | 可变 | 用户反馈的 bug |
 | Human Owner 指令 | 可变 | "增加暗色主题" |
 
@@ -453,7 +453,7 @@ develop 集成测试通过
 ```
 1. 识别到需要架构决策
 2. 读已有 ADR，确认未覆盖
-3. 创建 docs/ADR/NNNN-xxx.md（Proposed）
+3. 创建 docs/decisions/ADR/NNNN-xxx.md（Proposed）
 4. Human Owner 审核 → Accepted
 5. 按 ADR 执行开发
 ```

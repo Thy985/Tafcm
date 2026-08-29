@@ -26,7 +26,7 @@ Phase 2.4 已完成（PR #30 合并，commit `2f718dd`），AST 在 Phase 2 保�
 
 ### 待决问题
 
-[ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
+[ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md)
 已定义 `EditOperation` sealed class 联合类型骨架（`BlockOperation` + `TextOperation`），
 但只描述了 **数据结构形状**，未落地以下关键问题：
 
@@ -46,9 +46,9 @@ Phase 2.4 已完成（PR #30 合并，commit `2f718dd`），AST 在 Phase 2 保�
 
 ### 现有约束
 
-- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
+- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md)
   已定义 `EditOperation` sealed class 骨架（不可推翻，本 ADR 仅扩展细节）
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)
   `.md` 文件作为单一真相源，Transaction 不得引入第五套持久化存储
 - [AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) Phase 2 禁区：
   UI 行为冻结，Transaction Model 必须能脱离 UI 独立运行（纯 Dart 逻辑）
@@ -251,7 +251,7 @@ class HistoryManager {
 
 ### 5. 与 IME 三铁律的交互（Phase 2.5 预留接口）
 
-[ADR-0007 §3.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
+[ADR-0007 §3.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md)
 IME 三铁律：
 
 1. 组合态中间不切块
@@ -323,7 +323,7 @@ class EditorHistory {
 
 **理由**：
 
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)
   `.md` 文件是单一真相源，Transaction 持久化等于引入第五套存储
 - 编辑器关闭重启后 Undo/Redo 历史清空是用户预期行为（VSCode / Typora 都这么做）
 - 跨 session Undo 不是 Phase 2 目标
@@ -372,7 +372,7 @@ class TransactionId {
 
 **为何不持久化 BlockId**：
 
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) `.md` 是单一真相源，BlockId 是派生数据
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) `.md` 是单一真相源，BlockId 是派生数据
 - 持久化 BlockId 需在 `.md` frontmatter 或 sidecar 文件存储，引入第五套存储违反 ADR-0003 §边界约束 5
 - 协同编辑场景下的 stable identity 需求，应作为独立 ADR 评估（如未来 ADR-0012 候选：Operational Transform / CRDT 基础）
 
@@ -628,19 +628,19 @@ Phase 2.6 实施步骤（参考本 ADR）：
 
 ### 与现有 ADR 的关系
 
-- **扩展** [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md)
+- **扩展** [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md)
   的 `EditOperation` 骨架（不推翻，仅补充 Transaction 容器）
-- **遵守** [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)
+- **遵守** [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)
   不持久化 Transaction
-- **预留** [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/) IME Lifecycle Model
+- **预留** [ADR-0009](file:///d:/Projects/Active/math2/docs/decisions/ADR/) IME Lifecycle Model
   的接口（origin=ime）
 
 ---
 
 ## 参考
 
-- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) EditOperation 骨架
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
+- [ADR-0007 §4.2](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) EditOperation 骨架
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
 - [ROADMAP Phase 2.6](file:///d:/Projects/Active/math2/docs/ROADMAP.md) 块级操作
 - [history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart) 现有泛型栈
 - [block_editor.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_editor.dart) BlockEditor 抽象

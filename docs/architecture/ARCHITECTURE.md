@@ -164,7 +164,7 @@ Phase 3 后实际结构（13 子目录）：
 
 1. **范式错位**：编辑/预览分离，与 Typora WYSIWYG 灵魂对立 → **Phase 3 待修复**  
    证据：[editor_screen.dart:300-321](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)
-2. ~~**三套存储并存**~~ → ✅ Phase 1 1.2 已修复（commit `b43e5c1`，[ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) Implemented）
+2. ~~**三套存储并存**~~ → ✅ Phase 1 1.2 已修复（commit `b43e5c1`，[ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) Implemented）
 3. ~~**DocumentListScreen 是死代码**~~ → ✅ Phase 1 1.3 已修复（commit `b36d930`，路由合并到 `/files`）
 4. ~~**Provider 重复定义**~~ → ✅ Phase 1 1.1 已修复（commit `ec76f06`，[provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门）
 5. ~~**解析器缺 7 类元素**~~ → ✅ Phase 1 1.5 已修复（commit `da4ab00`，[edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) 覆盖）
@@ -239,9 +239,9 @@ Phase 3 后实际结构（13 子目录）：
 - **单一真相**：`.md` 文件（应用沙盒内 + 用户可见目录）— ✅ [FileRepository](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_repository.dart) + [StorageMigration](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/storage_migration.dart)
 - 文档列表 = 扫描 `.md` 文件 + FrontMatterParser 解析元数据 — ✅
 - **已废弃**：`formula_fix_documents.json`（迁移期保留 .bak）、`SharedPreferences['pref_last_content']` — ✅
-- 文档元数据（最近打开、收藏、置顶）走 `SharedPreferences` 或 SQLite — Phase 2 派生缓存（受 [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5 守护，**可重建**而非真相源）
+- 文档元数据（最近打开、收藏、置顶）走 `SharedPreferences` 或 SQLite — Phase 2 派生缓存（受 [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) §边界约束 5 守护，**可重建**而非真相源）
 
-详见 [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)（状态：Implemented）。
+详见 [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)（状态：Implemented）。
 
 ### 3.3 解析器目标
 
@@ -249,7 +249,7 @@ Phase 3 后实际结构（13 子目录）：
 - AST 扩展，每个 inline 元素一个子类
 - 块级渲染时**只重解析光标所在块**，非全量
 
-详见 [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md)。
+详见 [ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md)。
 
 ---
 

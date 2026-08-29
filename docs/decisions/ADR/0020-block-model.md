@@ -21,7 +21,7 @@ Phase 2 进入块级编辑内核后，出现三类反复出现的架构问题：
 
 ### 文档审计状态
 
-- **ADR-0019（Editor Interaction Layer）文档已落盘并签字 ✅**：其决策已在 PR #97（Intent Layer）实现并合入 main；`docs/ADR/0019-editor-interaction-layer.md` 已增补为 **✅ Accepted（v1.1，2026-07-29）**，并与本 ADR D5（BlockRenderer 不裁决行为）建立审计关系（见 ADR-0019 §0）。**本审计缺口已闭合（PR #101）**。原草稿曾误置于 `flutter_app/docs/ADR/`，现统一归位到 canonical `docs/ADR/`（与全部 ADR 一致）。
+- **ADR-0019（Editor Interaction Layer）文档已落盘并签字 ✅**：其决策已在 PR #97（Intent Layer）实现并合入 main；`docs/decisions/ADR/0019-editor-interaction-layer.md` 已增补为 **✅ Accepted（v1.1，2026-07-29）**，并与本 ADR D5（BlockRenderer 不裁决行为）建立审计关系（见 ADR-0019 §0）。**本审计缺口已闭合（PR #101）**。原草稿曾误置于 `flutter_app/docs/decisions/ADR/`，现统一归位到 canonical `docs/decisions/ADR/`（与全部 ADR 一致）。
 - **本 ADR（0020）此前仅在记忆笔记中起草**，本次为首次落盘（PR #100 已合 main）。
 
 ### 0.1 Owner 评审要点（2026-07-29，未签字前记录）

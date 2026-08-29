@@ -18,7 +18,7 @@
 | [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) | 项目核心规范、禁止事项（以 RSL 为准，见上方优先级） |
 | [AI_POLICY.md](file:///d:/Projects/Active/math2/.agent/AI_POLICY.md) | Agent 权限边界、停止条件 |
 | [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) | 当前 Phase、任务优先级 |
-| [WORKFLOW.md](file:///d:/Projects/Active/math2/docs/WORKFLOW.md) | 开发流程、CI/CD 门禁 |
+| [WORKFLOW.md](file:///d:/Projects/Active/math2/docs/engineering/WORKFLOW.md) | 开发流程、CI/CD 门禁 |
 
 > **优先级裁决**：RSL 四份 > AGENTS.md > 会话记忆。任何与 RSL 冲突的旧规则，以 RSL 为准（详见 .agent/REPO_POLICY.md §2）。
 
@@ -32,23 +32,23 @@
 
 | 文件 | 原因 |
 |------|------|
-| [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) | 架构总览 |
-| [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) | 已知问题清单 |
-| [GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/GIT_WORKFLOW.md) | Git 详细流程 |
+| [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/architecture/ARCHITECTURE.md) | 架构总览 |
+| [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/archive/audits/CRITICAL-REVIEW.md) | 已知问题清单 |
+| [GIT_WORKFLOW.md](file:///d:/Projects/Active/math2/docs/engineering/GIT-WORKFLOW.md) | Git 详细流程 |
 
 ### Phase 1（底层重构）
 
 | 文件 | 原因 |
 |------|------|
-| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/REFACTOR_DESIGN.md) | 重构方案 |
-| [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) | 架构总览 |
-| [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/CRITICAL_REVIEW.md) | 已知问题清单 |
+| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/archive/REFACTOR_DESIGN.md) | 重构方案 |
+| [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/architecture/ARCHITECTURE.md) | 架构总览 |
+| [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math2/docs/archive/audits/CRITICAL-REVIEW.md) | 已知问题清单 |
 
 ### Phase 2（编辑模型）
 
 | 文件 | 原因 |
 |------|------|
-| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/REFACTOR_DESIGN.md) | 编辑模型设计 |
+| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/archive/REFACTOR_DESIGN.md) | 编辑模型设计 |
 | 所有相关 ADR | 历史决策 |
 
 ### Phase 3（UI Implementation）
@@ -63,7 +63,7 @@
 
 | 文件 | 原因 |
 |------|------|
-| [ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) | 存储架构决策 |
+| [ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) | 存储架构决策 |
 | `lib/core/services/file_service.dart` | 当前实现 |
 | `lib/data/models/document.dart` | 数据模型 |
 
@@ -71,7 +71,7 @@
 
 | 文件 | 原因 |
 |------|------|
-| [ADR/0004-markdown-parser-extension-strategy.md](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) | 解析器扩展策略 |
+| [ADR/0004-markdown-parser-extension-strategy.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) | 解析器扩展策略 |
 | `lib/core/parser/` | 当前实现 |
 | `lib/data/models/document.dart` | AST 定义 |
 
@@ -79,7 +79,7 @@
 
 | 文件 | 原因 |
 |------|------|
-| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/REFACTOR_DESIGN.md) | 编辑器重构方案 |
+| [REFACTOR_DESIGN.md](file:///d:/Projects/Active/math2/docs/archive/REFACTOR_DESIGN.md) | 编辑器重构方案 |
 | `lib/presentation/screens/editor_screen.dart` | 当前实现 |
 | `lib/presentation/widgets/preview_content.dart` | 预览组件 |
 
@@ -87,7 +87,7 @@
 
 | 文件 | 原因 |
 |------|------|
-| [ADR/0005-exporter-facade-dependency-injection.md](file:///d:/Projects/Active/math2/docs/ADR/0005-exporter-facade-dependency-injection.md) | 导出架构决策 |
+| [ADR/0005-exporter-facade-dependency-injection.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0005-exporter-facade-dependency-injection.md) | 导出架构决策 |
 | `lib/domain/services/export_service.dart` | 导出服务 |
 | `lib/domain/services/exporters/` | 各导出器实现 |
 
@@ -95,7 +95,7 @@
 
 | 文件 | 原因 |
 |------|------|
-| [ADR/0002-state-management-riverpod.md](file:///d:/Projects/Active/math2/docs/ADR/0002-state-management-riverpod.md) | 状态管理决策 |
+| [ADR/0002-state-management-riverpod.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0002-state-management-riverpod.md) | 状态管理决策 |
 | `lib/providers/` | 当前 Provider |
 | `lib/domain/providers/` | 业务 Provider |
 
@@ -104,7 +104,7 @@
 | 文件 | 原因 |
 |------|------|
 | [.github/workflows/ci.yml](file:///d:/Projects/Active/math2/.github/workflows/ci.yml) | CI 配置 |
-| [ADR/0006-ci-github-actions.md](file:///d:/Projects/Active/math2/docs/ADR/0006-ci-github-actions.md) | CI 架构决策 |
+| [ADR/0006-ci-github-actions.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0006-ci-github-actions.md) | CI 架构决策 |
 
 ---
 

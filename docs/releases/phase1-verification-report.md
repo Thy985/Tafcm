@@ -14,9 +14,9 @@
 
 | 模块 | 范围 | 对应 ADR |
 |------|------|---------|
-| 存储重构 | 三套存储 → .md 单一真相源 + FileRepository | [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) |
-| Provider 清理 | 已识别重复定义，待 Phase 1 1.1 重构 | [ADR-0002](file:///d:/Projects/Active/math2/docs/ADR/0002-state-management-riverpod.md) |
-| Parser 稳定化 | 边界用例 + 已知限制登记 | [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) |
+| 存储重构 | 三套存储 → .md 单一真相源 + FileRepository | [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) |
+| Provider 清理 | 已识别重复定义，待 Phase 1 1.1 重构 | [ADR-0002](file:///d:/Projects/Active/math2/docs/decisions/ADR/0002-state-management-riverpod.md) |
+| Parser 稳定化 | 边界用例 + 已知限制登记 | [ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) |
 | 路由 | 初始路由 /files，DocumentListScreen 已注册 | - |
 | 错误消息 | classifyError 映射 + detail 不透传 UI | - |
 
@@ -98,12 +98,12 @@ golden_test_status:
 
 | ADR | 状态 | 合规证据 | 备注 |
 |-----|------|---------|------|
-| [ADR-0001](file:///d:/Projects/Active/math2/docs/ADR/0001-project-naming-and-structure.md) 项目结构与命名 | Accepted | 项目结构遵循六层架构 | - |
-| [ADR-0002](file:///d:/Projects/Active/math2/docs/ADR/0002-state-management-riverpod.md) Riverpod 状态管理 | Accepted | Provider 已落地，重复定义待 1.1 清理 | 6 个 skip 跟踪 |
-| [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) .md 单一真相源 | **Implemented** | FileRepository / StorageMigration 落地 + 测试守护 | 本 PR 推进 |
-| [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略 | Accepted | 边界测试覆盖 + 已知限制登记 | - |
-| [ADR-0005](file:///d:/Projects/Active/math2/docs/ADR/0005-exporter-facade-dependency-injection.md) Exporter facade | Accepted | classifyError 测试覆盖 | - |
-| [ADR-0006](file:///d:/Projects/Active/math2/docs/ADR/0006-ci-github-actions.md) CI GitHub Actions | Accepted | 全量测试 CI 全绿 | - |
+| [ADR-0001](file:///d:/Projects/Active/math2/docs/decisions/ADR/0001-project-naming-and-structure.md) 项目结构与命名 | Accepted | 项目结构遵循六层架构 | - |
+| [ADR-0002](file:///d:/Projects/Active/math2/docs/decisions/ADR/0002-state-management-riverpod.md) Riverpod 状态管理 | Accepted | Provider 已落地，重复定义待 1.1 清理 | 6 个 skip 跟踪 |
+| [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) .md 单一真相源 | **Implemented** | FileRepository / StorageMigration 落地 + 测试守护 | 本 PR 推进 |
+| [ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略 | Accepted | 边界测试覆盖 + 已知限制登记 | - |
+| [ADR-0005](file:///d:/Projects/Active/math2/docs/decisions/ADR/0005-exporter-facade-dependency-injection.md) Exporter facade | Accepted | classifyError 测试覆盖 | - |
+| [ADR-0006](file:///d:/Projects/Active/math2/docs/decisions/ADR/0006-ci-github-actions.md) CI GitHub Actions | Accepted | 全量测试 CI 全绿 | - |
 
 ---
 
@@ -197,7 +197,7 @@ golden_test_status:
 
 - 新增 [docs/TEST_SKIP_REGISTRY.md](../engineering/VERIFICATION-POLICY-source-skip.md)
 - 新增本文件 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math2/docs/releases/phase1-verification-report.md)
-- 更新 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 状态 `Accepted → Implemented`（**经 Human Owner 授权，§6.4 例外条款**）
+- 更新 [docs/decisions/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) 状态 `Accepted → Implemented`（**经 Human Owner 授权，§6.4 例外条款**）
 - 更新 [flutter_app/test/performance/list_perf_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc
 
 ---

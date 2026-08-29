@@ -171,14 +171,14 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 3. **BlockRenderer 抽象**：新增 Block 类型只增加 renderer，不改 BlockEditor 核心
 4. **Phase 3 冻结边界**：Phase 2.9 只产出设计文档 + Prototype Demo，不修改 `lib/presentation/` 正式代码、不接入生产路由
 
-详见 [Phase 2.9 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase2.9-task-contract.md) + [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md)。
+详见 [Phase 2.9 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase2.9-task-contract.md) + [ADR-0009](file:///d:/Projects/Active/math2/docs/decisions/ADR/0009-ui-architecture-design.md)。
 
 ### 任务
 
 | # | 任务 | 产出 | 类型 |
 |---|------|------|------|
 | 2.9.1 | UI 心智模型定义 | [UI-ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/UI-ARCHITECTURE.md) §1-2 | 架构决策类（草案） |
-| 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math2/docs/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
+| 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math2/docs/decisions/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
 | 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](architecture/UI-INTERACTION-MODEL.md) + ADR-0009 | 架构决策类（草案） |
 | 2.9.4 | UI Prototype 验证（4 个 Demo） | `flutter_app/lib/presentation/prototype/` | 新建代码目录 |
 | 2.9.5 | 核心接口冻结 | [Component-Tree.md](architecture/UI-COMPONENT-MODEL.md) + ADR-0009 | 架构决策类（草案） |
@@ -712,7 +712,7 @@ Coalescing / Focus / IME（editor）。每例登记
 | # | 任务 | 优先级 | 状态 |
 |---|------|--------|------|
 | 3.10.1 | **P0 Orchestrator 核心**：`ffx capability verify/diagnose/repair-verify` + harness（orchestrator/contract/evidence/runtime_bridge/adapters）+ contracts/markdown_parser.json + Python 单元测试（14 项） | P0 | ✅ 已合入 main（#158 + #161；评审 R1-R15 关闭） |
-| 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ✅ 五轮 Dogfood 证据链全通（RUN-001~006，`docs/runs/dogfood/`） |
+| 3.10.1D | **Dogfood（并行，P0 可运行即启动）**：① Smoke（verify markdown，断言 real_runtime_path=true）→ ② Known-Good（markdown/serializer）→ ③ Known-Bad Golden Cases（故意回退已修 Bug，verify 必须 FAIL 不误报）→ ④ ADI/Consumer 联合（RenderOverflow → verify→diagnose→replay；BUG-WORD-001 → pdf2txt ❌ 不误报 PASS）→ ⑤ Real Agent Repair（before=fail → patch → after=pass → regression=pass） | P0 | ✅ 五轮 Dogfood 证据链全通（RUN-001~006，`docs/archive/runs/dogfood/`） |
 | 3.10.2 | **contract sync 防矩阵漂移**（提前：最小版在 Dogfood 前落地，防 FFX 读错契约；Matrix says S4 ≠ Contract says S3 必须被机器发现） | P1 | ✅ 最小版落地（#162：`core/contract_sync.py` + [CONTRACT-SYNC-MINIMAL.md](architecture/CONTRACT-SYNC-MINIMAL.md)） |
 | 3.10.3 | **consumer adapter 扩展**（design §14 已批准进 P1） | P1 | ✅ word/formula adapter 双能力闭环（#162：adapters/word.py + formula.py + DOGFOOD-RUN-007） |
 
@@ -732,7 +732,7 @@ Coalescing / Focus / IME（editor）。每例登记
 - [x] **Orchestrator 自身**：capability registry / contracts / runtime bridge /
       evidence graph / exit code 语义 / diagnose / repair-verify 全部可用（Final Gate G0-G12，PHASE_3_10_PASS=真）
 - [x] **Dogfood 5 条证据链全通**：PASS path + FAIL path + DIAGNOSE path +
-      REPAIR path + REGRESSION path（RUN-001~006，`docs/runs/dogfood/`）
+      REPAIR path + REGRESSION path（RUN-001~006，`docs/archive/runs/dogfood/`）
 - [x] contract sync：矩阵与契约无漂移（机器强制；#162 落地 `core/contract_sync.py` 最小版）
 - [x] 每个真实 Bug 自动进入 `Bug → 最小复现 → Capability Case → FFX Verification
       Case → Regression → Permanent corpus`（质量资产复利；Run #005/#006 真实修复闭环验证）

@@ -17,7 +17,7 @@
 ## 版本修订记录
 
 - **v1.0（2026-07-29）**：初版。引入 Editor Interaction Layer 作为编辑器内核第三层抽象；冻结 7 项决策（统一经 `EditorIntentDispatcher`、以 spec 为行为真相源、废弃 `onSubmitted` 错误路径、Live 同步硬规则、视觉去边框、集中裁决禁 per-block 行为、工具栏移动端两级）；含被否决方案、守门与分期。
-- **v1.1（2026-07-29，Human Owner 签字补强）**：Status 由 Proposed → **Accepted**（实施 PR #97 已合 main，结论被 ADR-0020 D5 引用）；补 §0 与 ADR-0020 的审计关系；显式析出「BlockRenderer 不裁决行为」原则（即 ADR-0020 D5 的权威来源）；相对链接修正至 canonical `docs/ADR/` 位置。
+- **v1.1（2026-07-29，Human Owner 签字补强）**：Status 由 Proposed → **Accepted**（实施 PR #97 已合 main，结论被 ADR-0020 D5 引用）；补 §0 与 ADR-0020 的审计关系；显式析出「BlockRenderer 不裁决行为」原则（即 ADR-0020 D5 的权威来源）；相对链接修正至 canonical `docs/decisions/ADR/` 位置。
 
 ---
 

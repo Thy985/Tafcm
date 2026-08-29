@@ -13,13 +13,13 @@
 
 | Phase | 主题 | 关键交付物 | 关联 ADR |
 |-------|------|-----------|---------|
-| 2.1 | BlockEditor 抽象 | `DocumentEditor` 接口 + `BlockId` 稳定 identity | [ADR-0007](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| 2.2 | AST 模型 | `DocumentElement` sealed class + 9 种 BlockType | [ADR-0007 §3](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| 2.3 | BlockSerializer | `toElement` / `fromElement` 双向映射 + 单块 < 5ms 性能基线 | [ADR-0007 §3.4](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| 2.4 | BlockTypeDetector | `detectBlockType` 7 类 Markdown 快捷规则 | [ADR-0007 §4.3](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
-| 2.5 | IME Composing | 三铁律 + `ComposingController` + `ComposingHost` 接口 | [ADR-0008 §5](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| 2.6 | BlockOperations + Transaction | 五原语 + EditOperation + TransactionBuilder + EditorHistory + Coalescing 7 触发条件 | [ADR-0008 §3-§6](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md) |
-| 2.7 | Markdown 快捷映射 | `tryTransform` / `updateSource` + split 自动 transform | [ADR-0007 §4.3](file:///d:/Projects/Active/math2/docs/ADR/0007-blockeditor-abstraction-design.md) |
+| 2.1 | BlockEditor 抽象 | `DocumentEditor` 接口 + `BlockId` 稳定 identity | [ADR-0007](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| 2.2 | AST 模型 | `DocumentElement` sealed class + 9 种 BlockType | [ADR-0007 §3](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| 2.3 | BlockSerializer | `toElement` / `fromElement` 双向映射 + 单块 < 5ms 性能基线 | [ADR-0007 §3.4](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| 2.4 | BlockTypeDetector | `detectBlockType` 7 类 Markdown 快捷规则 | [ADR-0007 §4.3](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
+| 2.5 | IME Composing | 三铁律 + `ComposingController` + `ComposingHost` 接口 | [ADR-0008 §5](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| 2.6 | BlockOperations + Transaction | 五原语 + EditOperation + TransactionBuilder + EditorHistory + Coalescing 7 触发条件 | [ADR-0008 §3-§6](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md) |
+| 2.7 | Markdown 快捷映射 | `tryTransform` / `updateSource` + split 自动 transform | [ADR-0007 §4.3](file:///d:/Projects/Active/math2/docs/decisions/ADR/0007-blockeditor-abstraction-design.md) |
 | 2.8 | Integration Hardening | 5 类集成测试 + Exit Gate + Architecture Review | [Phase 2.8 Task Contract](file:///d:/Projects/Active/math2/docs/contracts/phase2.8-task-contract.md) |
 
 ---

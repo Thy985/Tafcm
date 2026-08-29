@@ -459,7 +459,7 @@ DEBT-014 Live/Committed State
 - **调查/治理**：`INVESTIGATIONS.md`、`git-governance-report.md`、`CRITICAL_REVIEW.md`、`COMPREHENSIVE-TEST-REPORT.md`、`phase3.1-review-backlog.md`、`TEST_SKIP_REGISTRY.md`
 - **真机报告**：`releases/phase3.5-realdevice-issues.md`、`releases/adi-phase38-progress-realdevice-acceptance.md`、`releases/adi-e2e-005-realdevice-verification-report.md`
 - **状态/路线**：`UI_STATUS.md`、`ROADMAP.md`
-- **ADR 库**：`docs/ADR/0001..0029`（30 份，含 0010 SKIPPED、0025 + 0025-phase-1.1）
+- **ADR 库**：`docs/decisions/ADR/0001..0029`（30 份，含 0010 SKIPPED、0025 + 0025-phase-1.1）
 - **源码标记**：`flutter_app/lib` 内 TODO / Known Issue / 临时 / hack 标注（由 Explore 子代理扫描）
 - **v1.1 代码实证**：`lib/presentation/editor/live_editing_state.dart`、`lib/core/editing/{transaction_builder,editor_history}.dart`、`lib/data/models/document.dart`、`lib/presentation/blocks/fallback_block_renderer.dart`、`lib/core/replay/`、`lib/core/parser/markdown_parser.dart`、`lib/domain/services/exporters/{word_ooxml_builder,pdf_exporter}.dart`、`lib/core/constants/app_constants.dart`、`lib/presentation/theme/app_theme.dart`、`integration_test/e2e/core/e2e_core_001..006_*.dart`、`test/parser/roundtrip_fuzz_test.dart`
 

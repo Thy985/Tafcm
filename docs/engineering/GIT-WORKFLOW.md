@@ -37,10 +37,10 @@
 
 以下文件的 commit **专属 Human Owner**，AI 不得自行 commit：
 
-- `docs/ADR/*.md`（架构决策记录）
+- `docs/decisions/ADR/*.md`（架构决策记录）
 - `AGENTS.md`（协作规范本身）
-- `docs/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/REFACTOR_DESIGN.md` 等顶层架构文档
-- `docs/CRITICAL_REVIEW.md`（架构评审）
+- `docs/architecture/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/archive/REFACTOR_DESIGN.md` 等架构文档
+- `docs/archive/audits/CRITICAL-REVIEW.md`（架构评审）
 
 **例外**：当 Human Owner 在任务说明中明确授权时（如"请你同时更新 ADR-0007"），AI 可以 commit 该次涉及的具体架构决策文件，但仍必须走独立 branch + PR 流程，且不得自行 merge。
 
@@ -241,7 +241,7 @@ ROADMAP 0.4
 ```
 docs: 建立 ADR 体系
 
-新增 docs/ADR/ 下 6 份架构决策记录，
+新增 docs/decisions/ADR/ 下 6 份架构决策记录，
 覆盖命名 / 状态管理 / 存储 / 解析器 / 导出器 / CI。
 
 ROADMAP 0.3
