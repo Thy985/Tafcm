@@ -10,12 +10,12 @@ library;
 import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/presentation/commands/editor_command.dart'
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/presentation/commands/editor_command.dart'
     show TemplateInsertMode;
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_intent.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_intent.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;

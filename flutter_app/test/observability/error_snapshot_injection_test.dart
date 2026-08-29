@@ -10,11 +10,11 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/error_snapshot.dart';
-import 'package:formula_fix/core/observability/error_snapshotter.dart';
-import 'package:formula_fix/core/observability/models.dart';
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
+import 'package:tafcm/core/observability/error_snapshot.dart';
+import 'package:tafcm/core/observability/error_snapshotter.dart';
+import 'package:tafcm/core/observability/models.dart';
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
 
 /// 创建正确关联的 ObservabilityService + ErrorSnapshotter 对。
 ///

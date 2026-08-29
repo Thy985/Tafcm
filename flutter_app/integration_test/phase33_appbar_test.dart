@@ -14,11 +14,11 @@ library;
 import 'package:flutter/material.dart' show EditableText;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/chrome/editor_app_bar.dart';
+import 'package:tafcm/core/editing/block_types.dart';
 import 'helpers/test_fixture.dart';
 
 /// 从 widget 树取出真实 [EditorCoordinator]（UI 绑定的同一实例）。
@@ -41,12 +41,12 @@ void main() {
       final c = _coordinator(tester);
 
       // 链 2：coordinator.title 透传到 AppBar 标题
-      expect(c.title, 'FormulaFix Demo');
+      expect(c.title, 'Tafcm Demo');
       // 仅限定 AppBar 子树：正文首块（Heading）也渲染同名文本。
       expect(
         find.descendant(
           of: find.byType(EditorAppBar),
-          matching: find.text('FormulaFix Demo'),
+          matching: find.text('Tafcm Demo'),
         ),
         findsOneWidget,
       );
@@ -73,7 +73,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(EditorAppBar),
-          matching: find.text('FormulaFix Demo'),
+          matching: find.text('Tafcm Demo'),
         ),
         findsOneWidget,
       );

@@ -13,7 +13,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/parser/markdown_parser.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
 
 /// 构造一份 1000 行混合语法的 Markdown 文档，覆盖：
 /// - 标题（H1~H6）

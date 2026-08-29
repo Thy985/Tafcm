@@ -1,8 +1,8 @@
-# Software-Specific SOP — FormulaFix CLI
+# Software-Specific SOP — Tafcm CLI
 
 ## Analysis
 
-**Software**: FormulaFix (Flutter + Dart)
+**Software**: Tafcm (Flutter + Dart)
 **Type**: Mobile WYSIWYG Markdown editor with LaTeX/Mermaid support
 **Backend**: Self-contained Dart library (no external binary)
 **Data model**: `.md` files (single source of truth, ADR-0003)

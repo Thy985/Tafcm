@@ -13,9 +13,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
-import 'package:formula_fix/presentation/states/coordinator_state.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
+import 'package:tafcm/presentation/states/coordinator_state.dart';
 
 void main() {
   group('P0 真机问题 1+5: focusOn viewState 缺失', () {

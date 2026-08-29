@@ -15,10 +15,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/screens/home_screen.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/providers/file_repository_provider.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/screens/home_screen.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/providers/file_repository_provider.dart';
 import 'golden_helpers.dart';
 
 /// 5 篇文档：前 3 篇落入「最近」，后 2 篇落入「更早」，两区均渲染。

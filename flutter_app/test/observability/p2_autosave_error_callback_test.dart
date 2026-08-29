@@ -11,8 +11,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/editor/autosave_service.dart';
-import 'package:formula_fix/presentation/editor/dirty_state_source.dart';
+import 'package:tafcm/presentation/editor/autosave_service.dart';
+import 'package:tafcm/presentation/editor/dirty_state_source.dart';
 
 import '../presentation/editor/autosave_test_helpers.dart';
 

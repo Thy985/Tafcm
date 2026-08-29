@@ -1,15 +1,15 @@
 import 'package:flutter/gestures.dart' show kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/blocks/shared/block_drag_handle.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/blocks/shared/block_drag_handle.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// T1-2 真实拖拽手势测试（Phase 3.5.5 / TEST_GAP_PLAN Tier 1）。
 ///

@@ -12,8 +12,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/services/formula_svg_service.dart';
-import 'package:formula_fix/core/services/mermaid_service.dart';
+import 'package:tafcm/core/services/formula_svg_service.dart';
+import 'package:tafcm/core/services/mermaid_service.dart';
 
 void main() {
   // 所有测试都需重置回调，避免相互污染。

@@ -107,7 +107,7 @@ void main() {
             // 使 observabilityProvider 拿到的就是已安装错误钩子的实例。
             observabilityProvider.overrideWithValue(globalObservability),
           ],
-          child: const FormulaFixApp(),
+          child: const TafcmApp(),
         ),
       );
     },
@@ -121,14 +121,14 @@ void main() {
   );
 }
 
-class FormulaFixApp extends ConsumerStatefulWidget {
-  const FormulaFixApp({super.key});
+class TafcmApp extends ConsumerStatefulWidget {
+  const TafcmApp({super.key});
 
   @override
-  ConsumerState<FormulaFixApp> createState() => _FormulaFixAppState();
+  ConsumerState<TafcmApp> createState() => _TafcmAppState();
 }
 
-class _FormulaFixAppState extends ConsumerState<FormulaFixApp> {
+class _TafcmAppState extends ConsumerState<TafcmApp> {
   /// 热启动监听订阅：应用已在后台时，外部应用再次通过 ACTION_VIEW 拉起本应用，
   /// MainActivity.onNewIntent → invokeMethod → uriStream 推送 URI。
   /// 此处监听并跳转到 /editor?externalUri=... 替换当前页面。
@@ -138,7 +138,7 @@ class _FormulaFixAppState extends ConsumerState<FormulaFixApp> {
   void initState() {
     super.initState();
     _externalUriSub = ExternalFileService.instance.uriStream.listen((uri) {
-      debugPrint('FormulaFixApp: warm-start external URI received: $uri');
+      debugPrint('TafcmApp: warm-start external URI received: $uri');
       // 用 appRouter.go 而非 context.go：listener 回调时 context 可能未挂载。
       // appRouter 是全局单例，go() 会触发顶层 Navigator 重建。
       appRouter.go('/editor?externalUri=${Uri.encodeComponent(uri)}');
@@ -156,7 +156,7 @@ class _FormulaFixAppState extends ConsumerState<FormulaFixApp> {
     final mode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'FormulaFix',
+      title: 'Tafcm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.themeFor(mode),
       routerConfig: appRouter,

@@ -5,9 +5,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/widgets/formula_renderer.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/widgets/formula_renderer.dart';
 import 'package:integration_test/integration_test.dart';
 
 // stdout 回传是 integration_test 与 ffx adapter 之间的唯一证据通道

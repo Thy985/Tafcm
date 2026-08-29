@@ -11,14 +11,14 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart' show BlockId;
-import 'package:formula_fix/core/editing/edit_operation.dart';
-import 'package:formula_fix/core/editing/transaction.dart' as edit
+import 'package:tafcm/core/editing/block_types.dart' show BlockId;
+import 'package:tafcm/core/editing/edit_operation.dart';
+import 'package:tafcm/core/editing/transaction.dart' as edit
     show TransactionOrigin;
-import 'package:formula_fix/core/editing/transaction_builder.dart';
-import 'package:formula_fix/core/observability/models.dart' as obs;
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
+import 'package:tafcm/core/editing/transaction_builder.dart';
+import 'package:tafcm/core/observability/models.dart' as obs;
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
 
 void main() {
   setUp(() {

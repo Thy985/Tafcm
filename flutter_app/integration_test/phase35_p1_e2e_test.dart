@@ -17,13 +17,13 @@ import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 
-import 'package:formula_fix/domain/services/export_service.dart';
-import 'package:formula_fix/presentation/blocks/code/code_block.dart';
-import 'package:formula_fix/presentation/blocks/shared/block_toolbar.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/domain/services/export_service.dart';
+import 'package:tafcm/presentation/blocks/code/code_block.dart';
+import 'package:tafcm/presentation/blocks/shared/block_toolbar.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 import 'helpers/test_fixture_file.dart';
 
 EditorCoordinator _coord(WidgetTester tester) {

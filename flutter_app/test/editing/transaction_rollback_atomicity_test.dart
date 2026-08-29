@@ -15,13 +15,13 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_operations.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/editing/transaction.dart';
-import 'package:formula_fix/core/editing/transaction_builder.dart';
-import 'package:formula_fix/core/editing/transaction_rollback.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_operations.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/editing/transaction.dart';
+import 'package:tafcm/core/editing/transaction_builder.dart';
+import 'package:tafcm/core/editing/transaction_rollback.dart';
+import 'package:tafcm/data/models/document.dart';
 
 import 'helpers/mock_document_editor.dart';
 

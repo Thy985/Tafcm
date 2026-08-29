@@ -12,7 +12,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
+import 'package:tafcm/core/services/file_repository.dart';
 
 /// 用临时目录模拟 `getApplicationDocumentsDirectory()`，
 /// 使 FileRepository 可在单测中运行而不污染真实 App 数据。
@@ -28,7 +28,7 @@ late Directory _tmp;
 
 void main() {
   setUp(() async {
-    _tmp = await Directory.systemTemp.createTemp('formulafix_crud_test_');
+    _tmp = await Directory.systemTemp.createTemp('tafcm_crud_test_');
     PathProviderPlatform.instance = _MockPathProvider(_tmp.path);
   });
 
@@ -139,9 +139,9 @@ void main() {
 
     test('搜索功能可定位已创建文档', () async {
       final repo = FileRepository();
-      final p = await repo.createDocument('可搜索文档', '包含独特关键词 formulafix_unique_token_2026');
+      final p = await repo.createDocument('可搜索文档', '包含独特关键词 tafcm_unique_token_2026');
 
-      final results = await repo.searchDocuments('formulafix_unique_token_2026');
+      final results = await repo.searchDocuments('tafcm_unique_token_2026');
       expect(results.any((m) => m.path == p), isTrue,
           reason: 'searchDocuments 应能定位含关键词的文档');
 

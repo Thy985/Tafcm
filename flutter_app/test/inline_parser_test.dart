@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/domain/services/exporters/text_exporter.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/domain/services/exporters/text_exporter.dart';
 
 void main() {
   group('行内样式解析（ADR-0004 优先级）', () {

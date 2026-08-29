@@ -272,7 +272,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
       case 'about':
         showAboutDialog(
           context: context,
-          applicationName: 'FormulaFix',
+          applicationName: 'Tafcm',
           applicationVersion: 'Phase 3.3',
           applicationLegalese: 'WYSIWYG 编辑器 · Phase 3.0+',
         );

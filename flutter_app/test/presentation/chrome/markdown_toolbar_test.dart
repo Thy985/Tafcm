@@ -17,13 +17,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/presentation/chrome/editor_strings.dart';
-import 'package:formula_fix/presentation/chrome/markdown_toolbar.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/presentation/chrome/editor_strings.dart';
+import 'package:tafcm/presentation/chrome/markdown_toolbar.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;

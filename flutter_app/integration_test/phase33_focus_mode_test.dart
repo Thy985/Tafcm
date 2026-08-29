@@ -18,9 +18,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/chrome/markdown_toolbar.dart';
-import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
-import 'package:formula_fix/presentation/chrome/editor_status_bar.dart';
+import 'package:tafcm/presentation/chrome/markdown_toolbar.dart';
+import 'package:tafcm/presentation/chrome/editor_app_bar.dart';
+import 'package:tafcm/presentation/chrome/editor_status_bar.dart';
 import 'helpers/test_fixture.dart';
 
 void main() {

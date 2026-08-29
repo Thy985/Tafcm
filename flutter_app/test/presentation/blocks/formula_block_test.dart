@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/constants/app_constants.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/blocks/formula/formula_block.dart';
-import 'package:formula_fix/presentation/widgets/formula_renderer.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/theme/app_typography.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/core/constants/app_constants.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/blocks/formula/formula_block.dart';
+import 'package:tafcm/presentation/widgets/formula_renderer.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/theme/app_typography.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
 
 /// FormulaRenderer / FormulaBlock 的 Typora 化「公式块严格还原」验证（Phase 3.5.1）。
 ///

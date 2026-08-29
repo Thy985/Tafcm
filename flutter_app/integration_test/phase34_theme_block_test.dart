@@ -8,9 +8,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/blocks/code/code_block.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/presentation/blocks/code/code_block.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
 
 import 'helpers/test_fixture_file.dart';
 

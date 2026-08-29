@@ -32,13 +32,13 @@ void main() {
       await enterTextInFocusedBlock(tester, 'Undo 测试文本');
 
       // 点击标题块使段落失焦 → 触发 commit → undo 栈有内容
-      await tapBlockByText(tester, 'FormulaFix Demo');
+      await tapBlockByText(tester, 'Tafcm Demo');
 
       // 编辑后 Undo 启用
       expectUndoEnabled(tester);
       expectRedoDisabled(tester);
       // 标题块内容可见（渲染态）
-      expectTextVisible(tester, 'FormulaFix Demo');
+      expectTextVisible(tester, 'Tafcm Demo');
 
       // 点击 Undo → 恢复原始内容
       await tapUndo(tester);
@@ -62,7 +62,7 @@ void main() {
       // 第一次编辑并 commit
       await tapBlockByText(tester, 'Hello, Block Editor!');
       await enterTextInFocusedBlock(tester, '第一次编辑');
-      await tapBlockByText(tester, 'FormulaFix Demo');  // 失焦 commit
+      await tapBlockByText(tester, 'Tafcm Demo');  // 失焦 commit
 
       // Undo 回原始
       await tapUndo(tester);
@@ -72,7 +72,7 @@ void main() {
       // 第二次编辑（新编辑清空 Redo 栈）
       await tapBlockByText(tester, 'Hello, Block Editor!');
       await enterTextInFocusedBlock(tester, '第二次编辑');
-      await tapBlockByText(tester, 'FormulaFix Demo');  // 失焦 commit
+      await tapBlockByText(tester, 'Tafcm Demo');  // 失焦 commit
       expectRedoDisabled(tester);
       expectTextVisible(tester, '第二次编辑');
     });

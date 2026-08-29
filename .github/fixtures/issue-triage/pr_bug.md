@@ -1,6 +1,6 @@
 # Source
 type: pull_request_review
-repository: Thy985/fixmath
+repository: Thy985/Tafcm
 pr: 142
 base: feat/issue-triage-workflow
 branch: feat/issue-triage-pr-bug

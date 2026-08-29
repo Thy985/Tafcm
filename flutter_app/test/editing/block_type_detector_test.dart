@@ -14,8 +14,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_type_detector.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/block_type_detector.dart';
+import 'package:tafcm/core/editing/block_types.dart';
 
 void main() {
   group('TC-EDIT-4.1 规则正样本', () {

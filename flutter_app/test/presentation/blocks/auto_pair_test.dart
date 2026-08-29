@@ -13,9 +13,9 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/blocks/input/auto_pair_rules.dart';
-import 'package:formula_fix/presentation/commands/commands.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/blocks/input/auto_pair_rules.dart';
+import 'package:tafcm/presentation/commands/commands.dart';
 
 void main() {
   const blockId = BlockId('1');

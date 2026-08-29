@@ -13,17 +13,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview_platform_interface/flutter_inappwebview_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/panels/file_tree_panel.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/widgets/formula_insert_dialog.dart';
-import 'package:formula_fix/providers/file_repository_provider.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/services/file_repository.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/panels/file_tree_panel.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/widgets/formula_insert_dialog.dart';
+import 'package:tafcm/providers/file_repository_provider.dart';
 
 /// 测试用 `InAppWebViewPlatform` 桩：返回空 Widget，避免单元测试初始化平台 WebView。
 class _FakeInAppWebViewPlatform extends InAppWebViewPlatform {

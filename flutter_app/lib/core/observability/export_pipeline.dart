@@ -1,6 +1,6 @@
 /// ExportPipeline：诊断导出管道。
 ///
-/// 生成 `formula_fix_debug_YYYYMMDD_HHmmss.zip`，包含：
+/// 生成 `tafcm_debug_YYYYMMDD_HHmmss.zip`，包含：
 /// - metadata.json：版本、设备、时间、observability 级别、各 trace count
 /// - trace.json：完整的事件流（Interaction + Command + Transaction + Render）
 /// - snapshot.json：当前 Error Snapshot（如有）
@@ -41,7 +41,7 @@ class ExportPipeline {
       final now = DateTime.now();
       final date = '${now.year}${_pad(now.month)}${_pad(now.day)}';
       final time = '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
-      final fileName = 'formula_fix_debug_${date}_$time.zip';
+      final fileName = 'tafcm_debug_${date}_$time.zip';
       final filePath = '${dir}${Platform.pathSeparator}$fileName';
 
       final archive = Archive();
@@ -335,7 +335,7 @@ class ExportPipeline {
 
   /// 构建 README.txt。
   String _buildReadme() {
-    return 'FormulaFix Debug Report\n'
+    return 'Tafcm Debug Report\n'
         '========================\n\n'
         'This archive contains diagnostic data for debugging.\n\n'
         'Files:\n'

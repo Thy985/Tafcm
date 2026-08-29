@@ -10,9 +10,9 @@
 /// **不持有 UI 状态**：UI 状态由 [BlockViewState] 单独建模。
 library;
 
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/editing/transaction.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/editing/transaction.dart';
+import 'package:tafcm/data/models/document.dart';
 
 import '../../../core/editing/block_types.dart';
 import '../../commands/command_handler.dart';

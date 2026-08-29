@@ -17,9 +17,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/prototype/_shared/in_memory_document_editor.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/prototype/_shared/in_memory_document_editor.dart';
 
 void main() {
   group('R3 InMemoryDocumentEditor CRUD', () {

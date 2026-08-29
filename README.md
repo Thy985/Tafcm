@@ -3,7 +3,7 @@
 > 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。
 > 目标：让手机端也能拥有 Typora 级别的所见即所得（WYSIWYG）写作体验。
 
-[![CI](https://github.com/Thy985/fixmath/actions/workflows/ci.yml/badge.svg)](https://github.com/Thy985/fixmath/actions/workflows/ci.yml)
+[![CI](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml/badge.svg)](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml)
 [![Phase](https://img.shields.io/badge/phase-3.12%20Info%20Architecture-blue)](docs/ROADMAP.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 

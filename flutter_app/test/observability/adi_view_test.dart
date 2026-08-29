@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_view.dart';
+import 'package:tafcm/core/observability/adi_view.dart';
 
 void main() {
   group('AdiErrorView', () {

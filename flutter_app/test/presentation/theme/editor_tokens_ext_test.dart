@@ -9,8 +9,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
 
 void main() {
   group('风险1 守门：三主题 EditorTokens 注入完整性', () {

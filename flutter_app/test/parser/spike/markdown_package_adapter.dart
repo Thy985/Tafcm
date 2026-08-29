@@ -1,8 +1,8 @@
-/// Migration Spike A 侧：package:markdown → FormulaFix AST Adapter。
+/// Migration Spike A 侧：package:markdown → Tafcm AST Adapter。
 ///
 /// Phase 3.9 §2.1 Spike 计划：评估 package:markdown 替代「CommonMark/GFM
 /// 语法识别层」的可行性。本文件实现 Adapter/Mapper —— 把官方 markdown 包
-/// 的 AST（Node，统一 `Element(tag)` 结构）映射到 FormulaFix 的
+/// 的 AST（Node，统一 `Element(tag)` 结构）映射到 Tafcm 的
 /// DocumentElement。
 ///
 /// 注意：这是 **Spike 实验代码**（仅测试用），不是生产实现。生产替换与否
@@ -11,9 +11,9 @@ library;
 
 import 'package:markdown/markdown.dart' as md;
 
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/data/models/document.dart';
 
-/// 把 markdown 包 AST 映射为 FormulaFix DocumentElement 列表。
+/// 把 markdown 包 AST 映射为 Tafcm DocumentElement 列表。
 ///
 /// 覆盖：heading / paragraph（含 inline）/ list（含 task-list）/
 /// code / table / quote / formula（`$...$` / `$$...$$`）/ mermaid /
@@ -29,7 +29,7 @@ List<DocumentElement> adaptDocument(String source) {
   return nodes.expand(adaptNode).toList();
 }
 
-/// 映射单个节点（可能产生 0..n 个 FormulaFix 元素）。
+/// 映射单个节点（可能产生 0..n 个 Tafcm 元素）。
 List<DocumentElement> adaptNode(md.Node node) {
   if (node is md.Text) {
     return [ParagraphElement(children: [TextElement(node.text)])];
@@ -163,7 +163,7 @@ TableElement _adaptTable(md.Element table) {
   return TableElement(headers: headers, rows: body);
 }
 
-/// inline 节点 → FormulaFix InlineElement（按 tag 分发）。
+/// inline 节点 → Tafcm InlineElement（按 tag 分发）。
 List<InlineElement> adaptInlines(List<md.Node> nodes) {
   final result = <InlineElement>[];
   for (final n in nodes) {

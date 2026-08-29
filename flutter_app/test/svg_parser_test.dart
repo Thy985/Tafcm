@@ -5,8 +5,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/renderers/svg_ast.dart';
-import 'package:formula_fix/core/renderers/svg_parser.dart';
+import 'package:tafcm/core/renderers/svg_ast.dart';
+import 'package:tafcm/core/renderers/svg_parser.dart';
 
 void main() {
   group('parseSvgString - 基础解析', () {

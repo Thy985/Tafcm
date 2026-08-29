@@ -14,7 +14,7 @@ import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/presentation/chrome/toolbar_components.dart';
+import 'package:tafcm/presentation/chrome/toolbar_components.dart';
 
 import 'helpers/test_fixture_file.dart';
 

@@ -1,4 +1,4 @@
-package com.formulafix.formula_fix
+package com.tafcm.app
 
 import android.content.Intent
 import android.net.Uri
@@ -41,8 +41,8 @@ import java.io.ByteArrayOutputStream
 class MainActivity : FlutterActivity() {
 
     companion object {
-        private const val TAG = "FormulaFix/Main"
-        private const val CHANNEL = "formulafix.app/external_file"
+        private const val TAG = "Tafcm/Main"
+        private const val CHANNEL = "tafcm.app/external_file"
         private const val METHOD_READ_BYTES = "readUriBytes"
         private const val METHOD_INITIAL_URI = "initialUri"
         private const val METHOD_GET_INITIAL_URI = "getInitialUri"

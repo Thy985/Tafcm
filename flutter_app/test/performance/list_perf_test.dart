@@ -22,7 +22,7 @@
 /// ## Phase 1 Gate 阈值（经 Human Owner 评审 2026-07-19 确认）
 ///
 /// 原始基线 500ms 经实测确认无法在当前实现下达成，经 Human Owner 评审：
-/// - 「1000 文件不是高频场景」（FormulaFix 是移动端 Typora 类工具）
+/// - 「1000 文件不是高频场景」（Tafcm 是移动端 Typora 类工具）
 /// - 「不要为了 500ms 提前引入复杂系统」
 ///
 /// **调整后阈值**（本地与 CI 统一）：
@@ -48,7 +48,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
+import 'package:tafcm/core/services/file_repository.dart';
 
 class _MockPathProvider extends PathProviderPlatform {
   _MockPathProvider(this.root);
@@ -64,7 +64,7 @@ String _p(String base, String part) => '$base${Platform.pathSeparator}$part';
 
 void main() {
   setUp(() async {
-    _tmp = await Directory.systemTemp.createTemp('formulafix_perf_test_');
+    _tmp = await Directory.systemTemp.createTemp('tafcm_perf_test_');
     PathProviderPlatform.instance = _MockPathProvider(_tmp.path);
   });
 
@@ -127,7 +127,7 @@ void main() {
     // 原 PHASE1_TEST_PLAN.md §14.2 基线为 500ms，但实测确认当前实现
     // （FileRepository._readAll 顺序读 1000 份文件 + FrontMatterParser
     // 解析）无法在 500ms 内完成。Phase 0 UI Prototype Freeze 禁止优化
-    // FileRepository 业务逻辑，1000 文件也不是 FormulaFix 当前高频场景
+    // FileRepository 业务逻辑，1000 文件也不是 Tafcm 当前高频场景
     // （移动端 Typora 类工具）。
     //
     // 按用户评审：「1000 文件不是高频场景」「不要为了 500ms 提前引入

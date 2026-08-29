@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/editor/feature_flag.dart';
+import 'package:tafcm/presentation/editor/feature_flag.dart';
 
 void main() {
   // 项目的根目录（test/ 上一层是 lib/，再上一层是 flutter_app/）

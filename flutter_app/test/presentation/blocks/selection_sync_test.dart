@@ -14,13 +14,13 @@ library;
 import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/commands/commands.dart';
-import 'package:formula_fix/presentation/commands/editor_command.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/commands/commands.dart';
+import 'package:tafcm/presentation/commands/editor_command.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;
