@@ -321,10 +321,10 @@ Phase 3 后实际结构（13 子目录）：
 - [CODING_RULES.md](../engineering/DEVELOPMENT-RULES.md) — 详细编码规范
 - [GIT_WORKFLOW.md](../engineering/GIT-WORKFLOW.md) — Git 流程
 - [CRITICAL_REVIEW.md](../archive/audits/CRITICAL-REVIEW.md) — 现状批判
-- [ADR/](ADR/) — 架构决策记录（24 份）
+- [ADR/](../decisions/ADR/) — 架构决策记录（30 份）
 - [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) — UI 架构心智模型（Phase 2.9 产出，Accepted）
 - [Interaction-Model.md](UI-INTERACTION-MODEL.md) — 交互事件模型（Phase 2.9 产出，Accepted）
 - [Component-Tree.md](UI-COMPONENT-MODEL.md) — 组件树与核心接口冻结（Phase 2.9 产出，Accepted）
 - [UI_SPEC.md](../product/UX-GUIDE.md) — UI 设计规范（产品视觉 source of truth）
 - [E2E_TEST_PLAN.md](../engineering/VERIFICATION-POLICY-source-e2e.md) — E2E 测试计划
-- [releases/](releases/) — 各 Phase Verification Report
+- [releases/](../releases/) — 各 Phase Verification Report

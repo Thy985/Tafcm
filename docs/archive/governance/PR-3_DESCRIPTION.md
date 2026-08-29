@@ -1,7 +1,7 @@
 ## docs: record PR-3 golden failure PNG cleanup (PR-3)
 
 ### 关联文档
-- 调研报告：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 §5.3
+- 调研报告：docs/REPO_AUDIT_2026-08-25.md v4 §5.3（注：该报告未入库，内容以本 PR 执行为准）
 - 上游 PR：PR-1 #167（已合入 origin/main `8b1c4b0`）+ PR-2（已合入 origin/main via merge commit `92e4c45`）
 - 本 PR：**0 代码变更**，仅添加审计文档
 

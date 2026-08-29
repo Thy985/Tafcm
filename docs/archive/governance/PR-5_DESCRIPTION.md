@@ -1,7 +1,7 @@
 ## docs(agents): sync AGENTS.md §14.1 顶层目录清单 (PR-5)
 
 ### 关联文档
-- 调研报告：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 §3.3 / §5.5
+- 调研报告：docs/REPO_AUDIT_2026-08-25.md v4 §3.3 / §5.5（注：该报告未入库，内容以本 PR 执行为准）
 - 关联 PR：#167 + #168（已合入 origin/main `9e37e86`） + #169 (PR-2) + #170 (PR-3) + #171 (PR-4) 全部 MERGED，main HEAD = `10cbf4b`
 - 本 PR：base = origin/main `10cbf4b`
 
@@ -19,7 +19,7 @@
 |------|----|----|------|
 | tracked 顶层目录 | 4 (.agent/flutter_app/tools/docs) | **17** (.agent/.arts/.githooks/.github/AGENTS.md/LICENSE/README.md/contracts/design-system/docs/flutter_app/formulafix-redesign.design/skills/tests/tools + 2 git 元数据) | `git ls-tree --name-only HEAD` 实测 |
 | ignored 顶层 | 0 | **10** (.adi/.claude/hooks.log/.codeartsdoer/.debug/.ffx/.openwiki/.wt/.workbuddy/flutter_app/build/ flutter_app/.dart_tool/) | PR-1 + PR-2 .gitignore 验证 |
-| ADR 数量 | 26 | **29** | [docs/ADR/](docs/ADR/) 目录计数 |
+| ADR 数量 | 26 | **29** | [docs/decisions/ADR/](../../decisions/ADR/) 目录计数 |
 | flutter_app/test | 175 | **175+** | 增量更新 |
 | ffx-cli tests passing | 40 | **170+** | 增量更新（新增 E8 / harness / adapters / 视觉验证）|
 | 完整目录树 | 缺大量子目录 | .agent/context/ + .agent/templates/ + .agent/tools/ + .agent/state/ + .claude/{settings.json,hooks.log} + ffx-cli/6 个子目录 + flutter_app/tool/ | git ls-tree -r 抽样 |

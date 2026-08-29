@@ -346,9 +346,9 @@ class BlockRendererRegistry {
 |------|---------|---------|
 | `BlockEditor` API | [ADR-0007 §1.1](0007-blockeditor-abstraction-design.md) | 接口签名 |
 | `Transaction` / `TransactionBuilder` | [ADR-0008 §1-3](0008-editor-transaction-model.md) | commit / rollback / 嵌套 |
-| `BlockOperations` 五原语 + transform | [block_operations.dart](flutter_app/lib/core/editing/block_operations.dart) | 6 个方法签名 |
-| `EditorHistory` coalescing | [editor_history.dart](flutter_app/lib/core/editing/editor_history.dart) | 7 触发条件 |
-| `ComposingController` 三铁律 | [composing_controller.dart](flutter_app/lib/core/editing/composing_controller.dart) | 3 条铁律 |
+| `BlockOperations` 五原语 + transform | [block_operations.dart](../../../flutter_app/lib/core/editing/block_operations.dart) | 6 个方法签名 |
+| `EditorHistory` coalescing | [editor_history.dart](../../../flutter_app/lib/core/editing/editor_history.dart) | 7 触发条件 |
+| `ComposingController` 三铁律 | [composing_controller.dart](../../../flutter_app/lib/core/editing/composing_controller.dart) | 3 条铁律 |
 
 **新增接口**（Phase 2.9 设计，Phase 3 实现）：
 - `EditorCommand`（abstract class）
