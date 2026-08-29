@@ -26,7 +26,7 @@
 > | 顶部栏高度 | 48px Floating Top Bar | 56dp AppBar (`kToolbarHeight`) |
 >
 > 冲突未解决前，Phase 3.0 代码以 [design/ui-spec.md](../design/ui-spec.md) 为准
-> （因为已落地为 [EditorTokens](../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
+> （因为已落地为 [EditorTokens](../../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
 
 ---
 

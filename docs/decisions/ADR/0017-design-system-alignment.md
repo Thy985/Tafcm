@@ -7,7 +7,7 @@
 > **关联文档**：
 > - [Phase 3.4.5 Design System Alignment](../../ROADMAP.md)（ROADMAP §Phase 3.4.5）
 > - [ADR-0015 Theme Architecture Migration](./0015-theme-architecture-migration.md)（主题机制：static const → ThemeExtension）
-> - [design-system/tokens.json](../../design-system/tokens.json)（产品 token 权威源，2026-07-18 提取自高保真稿）
+> - [design-system/tokens.json](../../../design-system/tokens.json)（产品 token 权威源，2026-07-18 提取自高保真稿）
 > - [docs/design/ui-spec.md](../../design/ui-spec.md)（工程实现参考，待向本 ADR 对齐）
 
 ---
@@ -187,7 +187,7 @@ Phase 3.4 Advanced Capabilities 主体已完成，进入产品化阶段。Phase 
 ## 参考文档
 - [ROADMAP.md §Phase 3.4.5 Design System Alignment](../../ROADMAP.md)
 - [ADR-0015 Theme Architecture Migration](./0015-theme-architecture-migration.md)
-- [design-system/tokens.json](../../design-system/tokens.json)
+- [design-system/tokens.json](../../../design-system/tokens.json)
 - [docs/design/ui-spec.md](../../design/ui-spec.md)
 
 ---

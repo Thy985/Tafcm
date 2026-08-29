@@ -417,7 +417,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 
 - [ ] 更新 [ROADMAP.md Phase 3.1+ 退出条件](../ROADMAP.md)
 - [ ] 更新 [docs/design/ui-spec.md](../design/ui-spec.md)（标注已实施部分）
-- [ ] 完成 [docs/releases/phase3.1-verification-report.md](../releases/phase3.1-verification-report.md)
+- [ ] 完成 docs/releases/phase3.1-verification-report.md（注：该报告未单独产出，阶段验证并入 phase3.2-verification-report）
 - [ ] 标注 [docs/phase3.1-review-backlog.md](../decisions/REVIEW-BACKLOG.md) 中 R1/R2/R3 状态为"延后到 3.1-B/C"
 
 ---

@@ -1,7 +1,7 @@
 ## chore: root cleanup + tracked state corrections (PR-2)
 
 ### 关联文档
-- 调研报告：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4（注：该报告 v3 章节有事实错误，实际以本 PR 执行为准）
+- 调研报告：docs/REPO_AUDIT_2026-08-25.md v4（注：该报告未入库，章节内容以本 PR 执行为准）
 - 上游 PR：PR-1 `chore/restore-root-gitignore`（必须先合入）
 
 ### 改动说明

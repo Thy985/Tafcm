@@ -438,7 +438,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **解决方案**：
 1. **UI 层 debounce**：300ms 内多次文本变化合并为一次 `UpdateBlockSourceCommand`
-2. **Coalescing 自动合并**：[EditorHistory](flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation（< 500ms）
+2. **Coalescing 自动合并**：[EditorHistory](../../flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation（< 500ms）
 
 **Coalescing 与 Command 的边界**：
 - Coalescing 在 Transaction 层（内核）
@@ -482,7 +482,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 **对 Command 的影响**：
 - composing 态下，所有 Command 执行失败（`BlockOperation` 守门）
 - UI 层应在 composing 态下禁用键盘快捷键（如 Alt+Up / Shift+Enter）
-- composing commit 自动触发 `UpdateBlockSourceCommand`（通过 [ComposingController.onComposingCommit](flutter_app/lib/core/editing/composing_controller.dart)）
+- composing commit 自动触发 `UpdateBlockSourceCommand`（通过 [ComposingController.onComposingCommit](../../flutter_app/lib/core/editing/composing_controller.dart)）
 
 ---
 
@@ -518,7 +518,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **实现**：
 - 每个 Command 产生一个 Transaction
-- Undo 时撤销一个 Transaction（[EditorHistory.undo](flutter_app/lib/core/editing/editor_history.dart)）
+- Undo 时撤销一个 Transaction（[EditorHistory.undo](../../flutter_app/lib/core/editing/editor_history.dart)）
 - Coalescing 合并的多个 Transaction 在 Undo 时一次撤销
 
 ### 6.2 Redo 行为
@@ -526,7 +526,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 **核心原则**：一次 Redo = 重做一个 Command
 
 **实现**：
-- [EditorHistory.redo](flutter_app/lib/core/editing/editor_history.dart)
+- [EditorHistory.redo](../../flutter_app/lib/core/editing/editor_history.dart)
 - Redo 后 UI 需重建对应 BlockWidget
 
 ### 6.3 Undo/Redo 时的 UI 同步
@@ -555,7 +555,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **解决方案**：
 - **UI 层 debounce**：300ms 内多次文本变化合并为一次 `UpdateBlockSourceCommand`
-- **Coalescing 自动合并**：[EditorHistory](flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation
+- **Coalescing 自动合并**：[EditorHistory](../../flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation
 
 **实现**：
 ```dart
@@ -605,7 +605,7 @@ class _BlockWidgetState extends State<BlockWidget> {
 
 **策略**：
 - `BlockOperation.apply` 失败时，op 不加入 TransactionBuilder
-- 已 apply 的 op 需调用方逆序 revert（[transaction_rollback_atomicity_test.dart](flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 的 rollback helper）
+- 已 apply 的 op 需调用方逆序 revert（[transaction_rollback_atomicity_test.dart](../../flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 的 rollback helper）
 - UI 层在 Command 内捕获异常并返回 false
 
 ### 8.3 不显示 detail 给用户
