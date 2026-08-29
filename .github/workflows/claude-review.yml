@@ -79,23 +79,17 @@ jobs:
 
           echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(cat "$GITHUB_OUTPUT" | grep level_name | cut -d= -f2)"
 
-      # 临时诊断（定位后移除）：实测网关协议端点
-      - name: 临时诊断-实测协议端点
+      # 临时诊断（定位后移除）：探测 agnes 是否支持 Responses API
+      - name: 临时诊断-探测Responses端点
         shell: bash --noprofile --norc {0}
         env:
           AGNES_KEY: ${{ secrets.AGNES_API_KEY }}
         run: |
-          echo "=== OpenAI /v1/chat/completions ==="
+          echo "=== Responses API /v1/responses ==="
           curl -s -m 30 -w "\nHTTP %{http_code}\n" \
             -H "Authorization: Bearer ${AGNES_KEY}" -H "Content-Type: application/json" \
-            -d '{"model":"agnes-2.5-flash","messages":[{"role":"user","content":"hi"}],"max_tokens":5}' \
-            https://apihub.agnes-ai.com/v1/chat/completions | head -c 2000
-          echo ""
-          echo "=== Anthropic /v1/messages ==="
-          curl -s -m 30 -w "\nHTTP %{http_code}\n" \
-            -H "x-api-key: ${AGNES_KEY}" -H "anthropic-version: 2023-06-01" -H "Content-Type: application/json" \
-            -d '{"model":"agnes-2.5-flash","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}' \
-            https://apihub.agnes-ai.com/v1/messages | head -c 2000
+            -d '{"model":"agnes-2.5-flash","input":"hi","max_output_tokens":10}' \
+            https://apihub.agnes-ai.com/v1/responses | head -c 1500
           echo ""
 
       - uses: anthropics/claude-code-action@v1
