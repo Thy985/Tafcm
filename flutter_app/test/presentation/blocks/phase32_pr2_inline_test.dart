@@ -15,7 +15,7 @@ void main() {
 
   group('TC-BLOCK-LINK-1 LinkElement inline rendering', () {
     test('ParagraphBlock inline renderer 支持 LinkElement', () {
-      final file = File('lib/presentation/blocks/paragraph/paragraph_block.dart');
+      final file = File('lib/presentation/blocks/shared/inline_spans.dart');
       expect(file.existsSync(), isTrue);
       final content = file.readAsStringSync();
 
@@ -27,7 +27,7 @@ void main() {
     });
 
     test('LinkElement 渲染为蓝色 + 下划线', () {
-      final file = File('lib/presentation/blocks/paragraph/paragraph_block.dart');
+      final file = File('lib/presentation/blocks/shared/inline_spans.dart');
       final content = file.readAsStringSync();
 
       // 必须使用 EditorTokens.linkColor（不硬编码 Colors.blue）
@@ -51,7 +51,7 @@ void main() {
     });
 
     test('LinkElement 不显示多余 URL 后缀', () {
-      final file = File('lib/presentation/blocks/paragraph/paragraph_block.dart');
+      final file = File('lib/presentation/blocks/shared/inline_spans.dart');
       final content = file.readAsStringSync();
 
       // 不应有 " ($url)" 后缀（Phase 3.2 §3.7 移除）
@@ -69,7 +69,7 @@ void main() {
 
   group('TC-BLOCK-IMAGE-1 ImageElement inline rendering', () {
     test('ParagraphBlock inline renderer 支持 ImageElement', () {
-      final file = File('lib/presentation/blocks/paragraph/paragraph_block.dart');
+      final file = File('lib/presentation/blocks/shared/inline_spans.dart');
       final content = file.readAsStringSync();
 
       expect(
@@ -80,7 +80,7 @@ void main() {
     });
 
     test('ImageElement 渲染为 [图片: alt] 占位 + 次要颜色', () {
-      final file = File('lib/presentation/blocks/paragraph/paragraph_block.dart');
+      final file = File('lib/presentation/blocks/shared/inline_spans.dart');
       final content = file.readAsStringSync();
 
       // 必须有 [图片: 占位文本

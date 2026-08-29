@@ -12,9 +12,12 @@ import '../themes/editor_tokens.dart';
 /// [IndexedStack] 常驻，保持其 Navigator 与滚动位置，避免 `context.go()` 重建
 /// 整页导致的状态丢失（见评审 1.2）。
 ///
-/// 设计语言：固定在底部、卡片背景 + 半透明、顶部分隔线；4 列等宽；当前 tab 用
-/// `colorScheme.primary`，其余用 `colorScheme.onSurfaceVariant`；底部附带 iOS
-/// home indicator 小横条。
+/// 设计语言：固定在底部、卡片背景 + 半透明、顶部分隔线；列等宽；当前 tab 用
+/// `colorScheme.primary`，其余用 `colorScheme.onSurfaceVariant`。
+///
+/// P0-4（2026-08-29）：移除自绘 iOS home indicator 小横条——设备装饰应由系统
+/// 提供，APP 不复制（UI_FIX_PLAN P0-4 设计还原铁律；iOS 上与系统手势条双重
+/// 叠加，Android 上是一根无意义装饰条）。
 class HomeBottomBar extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -25,8 +28,6 @@ class HomeBottomBar extends StatelessWidget {
   static const List<_TabItem> _items = [
     _TabItem(label: '首页', icon: Icons.home_outlined),
     _TabItem(label: '文件', icon: Icons.folder_outlined),
-    _TabItem(label: '阅读', icon: Icons.menu_book_outlined),
-    _TabItem(label: '我的', icon: Icons.person_outline),
   ];
 
   @override
@@ -44,35 +45,19 @@ class HomeBottomBar extends StatelessWidget {
         top: false,
         child: SizedBox(
           height: _height,
-          child: Column(
+          child: Row(
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    for (var i = 0; i < _items.length; i++)
-                      Expanded(
-                        child: _TabButton(
-                          item: _items[i],
-                          active: navigationShell.currentIndex == i,
-                          onTap: () {
-                            saveShellBranch(i);
-                            navigationShell.goBranch(i);
-                          },
-                        ),
-                      ),
-                  ],
+              for (var i = 0; i < _items.length; i++)
+                Expanded(
+                  child: _TabButton(
+                    item: _items[i],
+                    active: navigationShell.currentIndex == i,
+                    onTap: () {
+                      saveShellBranch(i);
+                      navigationShell.goBranch(i);
+                    },
+                  ),
                 ),
-              ),
-              // iOS home indicator
-              Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                width: 128,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.onSurface.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
             ],
           ),
         ),

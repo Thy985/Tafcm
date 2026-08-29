@@ -5,7 +5,6 @@ import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
 import '../../presentation/screens/home_screen.dart';
-import '../../presentation/screens/placeholder_screens.dart';
 import '../../presentation/widgets/home_shell.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
@@ -24,14 +23,22 @@ import '../../providers/last_opened_path_provider.dart';
 final appRouter = GoRouter(
   // Phase 3.4.2：启动先经 BootstrapScreen 决定恢复上次文件还是进入文件管理页。
   initialLocation: '/',
-  errorBuilder: (context, state) => _ErrorScreen(error: state.error?.toString()),
+  errorBuilder: (context, state) {
+    // P0-3 UI/UX 修复（2026-08-29）：原始 error 仅记录日志（debugPrint），
+    // 不上屏——AGENTS.md §4.4 禁止把 detail/stack 直接显示给用户。
+    final err = state.error;
+    if (err != null) debugPrint('[Router] navigation error: $err');
+    return const _ErrorScreen();
+  },
   routes: [
     // Phase 3.4.2：启动引导——读取"上次打开文件"偏好，恢复或进入 /files。
     GoRoute(
       path: '/',
       builder: (context, state) => const BootstrapScreen(),
     ),
-    // Phase 3.5 首页 / 文件 / 阅读 / 我的：StatefulShellRoute 持久化各 tab 状态。
+    // Phase 3.5 首页 / 文件：StatefulShellRoute 持久化各 tab 状态。
+    // P0-2 UI/UX 修复（2026-08-29）：阅读 / 我的 为占位屏（"即将上线"），
+    // 从底部导航移除（死 tab），待 Phase 4 实现真实功能后再恢复。
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
           HomeScaffold(navigationShell: navigationShell),
@@ -41,12 +48,6 @@ final appRouter = GoRouter(
         ]),
         StatefulShellBranch(routes: [
           GoRoute(path: '/files', builder: (context, state) => const FileManagerScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/reader', builder: (context, state) => const ReaderPlaceholderScreen()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/me', builder: (context, state) => const MePlaceholderScreen()),
         ]),
       ],
     ),
@@ -88,51 +89,40 @@ final appRouter = GoRouter(
 );
 
 class _ErrorScreen extends StatelessWidget {
-  final String? error;
-
-  const _ErrorScreen({this.error});
+  const _ErrorScreen();
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              Icon(Icons.error_outline, size: 64, color: scheme.error),
               const SizedBox(height: AppSpacing.lg),
-              const Text(
+              Text(
                 '页面加载失败',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
+                  color: scheme.onSurface,
                 ),
               ),
-              if (error != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.darkTextSecondary,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '请返回首页重试',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+              ),
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton.icon(
                 onPressed: () => context.go('/home'),
                 icon: const Icon(Icons.home),
                 label: const Text('返回首页'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
               ),
             ],
           ),
@@ -205,7 +195,10 @@ class BootstrapScreen extends StatelessWidget {
 }
 
 /// 恢复到指定 Shell branch（ADR-0018 Decision 4）。
-const _branchRoutes = ['/home', '/files', '/reader', '/me'];
+///
+/// P0-2（2026-08-29）：分支收敛为 2 个（首页 / 文件）；历史 session 保存的
+/// branch index（2/3，对应已移除的 阅读/我的）经 [_goToBranch] 越界钳制回 /home。
+const _branchRoutes = ['/home', '/files'];
 void _goToBranch(BuildContext context, int index) {
   context.go(index >= 0 && index < _branchRoutes.length
       ? _branchRoutes[index]

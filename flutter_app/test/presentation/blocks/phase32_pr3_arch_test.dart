@@ -49,30 +49,37 @@ void main() {
       );
     });
 
-    test('ADR-0022：ListElement / TaskListItemElement / HorizontalRuleElement '
-        '经 FallbackBlockRenderer 降级渲染（不抛 UnimplementedError）', () {
+    test('P0-1：ListElement / TaskListItemElement / HorizontalRuleElement '
+        '已有专用渲染器（WYSIWYG，fallback 已删除）', () {
       final file = File('lib/presentation/blocks/block_renderer.dart');
       final content = file.readAsStringSync();
 
-      // 3 种未实现类型必须有显式 case 分支
+      // 3 种类型必须有显式 case 分支
       expect(
-        content.contains('ListElement()') &&
-            content.contains('TaskListItemElement()') &&
-            content.contains('HorizontalRuleElement()'),
+        content.contains('ListElement le =>') &&
+            content.contains('TaskListItemElement tle =>') &&
+            content.contains('HorizontalRuleElement hre =>'),
         isTrue,
-        reason: 'ADR-0022 §2.2：3 种未实现类型必须有显式 case 分支',
+        reason: 'P0-1：3 种类型必须有显式 case 分支',
       );
-      // 必须经 FallbackBlockRenderer 降级（不抛 UnimplementedError）
+      // 必须经专用渲染器（不抛 UnimplementedError）
+      expect(
+        content.contains('ListElement le => ListBlock') &&
+            content.contains('TaskListItemElement tle => TaskListBlock') &&
+            content.contains('HorizontalRuleElement hre => HorizontalRuleBlock'),
+        isTrue,
+        reason: 'P0-1：3 种类型必须经专用渲染器（ListBlock / TaskListBlock / '
+            'HorizontalRuleBlock）',
+      );
       expect(
         content.contains('FallbackBlockRenderer'),
-        isTrue,
-        reason: 'ADR-0022 §2.2：3 种未实现类型必须经 FallbackBlockRenderer '
-            '降级渲染',
+        isFalse,
+        reason: 'P0-1：FallbackBlockRenderer 已删除（switch 全量 exhaustive）',
       );
       expect(
         content.contains('throw UnimplementedError'),
         isFalse,
-        reason: 'ADR-0022 §2.1：block_renderer.dart 不应含 throw UnimplementedError '
+        reason: 'ADR-0022 §2.1 延续：block_renderer.dart 不应含 throw UnimplementedError '
             '语句',
       );
     });
