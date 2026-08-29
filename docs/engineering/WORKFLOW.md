@@ -1,4 +1,4 @@
-# FormulaFix 开发工作流与 CI/CD
+# Tafcm 开发工作流与 CI/CD
 
 > 本文是 [GIT_WORKFLOW.md](GIT-WORKFLOW.md) 和 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 的上层编排，定义从需求到上线的全链路流程。
 

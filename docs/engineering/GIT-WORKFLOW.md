@@ -1,4 +1,4 @@
-# FormulaFix Git 工作流
+# Tafcm Git 工作流
 
 > 本文是 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 第 5 章的展开版。
 

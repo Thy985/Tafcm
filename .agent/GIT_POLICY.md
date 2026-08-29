@@ -1,6 +1,6 @@
 # GIT_POLICY.md — Agent 仓库策略（Repository Reliability System）
 
-> 本文件定义 **Agent（AI 协作者）** 在 FormulaFix 仓库中的 Git 行为边界。
+> 本文件定义 **Agent（AI 协作者）** 在 Tafcm 仓库中的 Git 行为边界。
 > 它是 AGENTS.md 的运行时约束补充：AGENTS.md 规定「AI 提交分工」，
 > 本文件规定「Agent 能/不能改哪些仓库状态」，是治理闭环的第四层。
 

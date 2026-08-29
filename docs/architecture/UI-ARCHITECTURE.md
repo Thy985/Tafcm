@@ -5,7 +5,7 @@
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
 > **关联 ADR**：[ADR-0009](../decisions/ADR/0009-ui-architecture-design.md)
-> **范围**：定义 FormulaFix UI 架构心智模型 + 状态模型 + 组件结构
+> **范围**：定义 Tafcm UI 架构心智模型 + 状态模型 + 组件结构
 
 ## 版本修订记录
 
@@ -22,7 +22,7 @@
 
 ### 1.1 编辑器是什么？
 
-**FormulaFix 是 Block-based Structured Editor**，不是 "TextField + Markdown Preview"。
+**Tafcm 是 Block-based Structured Editor**，不是 "TextField + Markdown Preview"。
 
 **三层心智模型**：
 1. **块是第一公民**：所有内容以块为单位组织（Paragraph / Heading / Code / Table / Formula 等）
@@ -84,7 +84,7 @@ HeadingElement(           ┌─────────────────
 
 ### 2.1 与传统 Markdown 编辑器对比
 
-| 模型 | 编辑 | 预览 | 切换 | FormulaFix 是否采用 |
+| 模型 | 编辑 | 预览 | 切换 | Tafcm 是否采用 |
 |------|------|------|------|---------------------|
 | TextField + Preview | 编辑 Markdown 源 | 单独区域渲染 | 显式切换按钮 | ❌ |
 | Typora 双态 | 编辑当前块 source | 失焦后渲染 | 隐式（focus 驱动） | ✅ |
@@ -103,7 +103,7 @@ HeadingElement(           ┌─────────────────
 - 块级操作（insert / delete / move）
 - 块类型可转换
 
-**FormulaFix 差异**：
+**Tafcm 差异**：
 - 移动端优先（mobile-first）
 - 学术写作特色（公式 / Mermaid / 表格可视化编辑）
 - 任意来源 .md 文件即开即看（不绑定 Vault）

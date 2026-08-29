@@ -1,4 +1,4 @@
-# FormulaFix 编码规范
+# Tafcm 编码规范
 
 > 本文是 [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) 第 2-4 章的展开版。  
 > 所有规则基于现有代码分析，不凭空设计。
@@ -53,7 +53,7 @@ import '../../core/constants/app_constants.dart';
 import '../../data/models/document.dart';
 ```
 
-每组之间空一行。**禁止** `package:formulafix/...`，统一用相对路径。
+每组之间空一行。**禁止** `package:tafcm/...`，统一用相对路径。
 
 ---
 

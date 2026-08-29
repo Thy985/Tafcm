@@ -1,6 +1,6 @@
-# FormulaFix Roadmap
+# Tafcm Roadmap
 
-> 从"Markdown + 公式预览原型"演进为"移动端 Typora 类产品"的分阶段路线图。  
+> 从"Markdown + 公式预览原型"演进为"移动端 Typora 类产品"（Tafcm：Typeset · Agent-native · Formula-aware · CLI-native · Markdown-first）的分阶段路线图。  
 > 每个 Phase 内的任务尽量独立，可并行 / 可独立 PR。
 
 ---
@@ -210,7 +210,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 **定位**：不是"做 UI"，而是**建立 Editor Shell Architecture & Presentation Foundation**。Phase 2 完成的是"编辑内核（Editing Engine）"，Phase 3.0 完成的是"把用户行为接入内核"的运行时层 + 建立 EditorShell（TopBar / Workspace / LeftPanel / EditorViewport / BlockRenderer / StatusBar）的外壳架构。
 
-**类比 VS Code**：VS Code 不是先做插件，而是先建立 Window（Activity Bar / Side Bar / Editor Group / Status Bar / Command System），插件只是挂进去。FormulaFix 的 TOC / 文件树 / 主题 / 字号 / 焦点模式等全部只是插槽扩展。
+**类比 VS Code**：VS Code 不是先做插件，而是先建立 Window（Activity Bar / Side Bar / Editor Group / Status Bar / Command System），插件只是挂进去。Tafcm 的 TOC / 文件树 / 主题 / 字号 / 焦点模式等全部只是插槽扩展。
 
 **前置条件**：Phase 2.9 全部退出（核心接口冻结 + 4 个 Prototype 验证通过 + PR 合并 main）。
 
@@ -433,7 +433,7 @@ Phase 3.3 Mobile Markdown Editing Experience 全部 9 个任务已完成并合�
 
 ### 双线模型
 
-FormulaFix 当前状态：
+Tafcm 当前状态：
 
 | 维度 | 完成度 | 说明 |
 |------|--------|------|
@@ -473,7 +473,7 @@ FormulaFix 当前状态：
 
 ## Phase 3.4.5 — Design System Alignment（产品化对齐）
 
-**目标**：从 "Functional Editor" 变成 "FormulaFix Product Identity"。把 redesign 的视觉语言（深蓝主色 + 暖纸 + 衬线 + 公式块）接入生产 UI，建立 `Design Token → ThemeExtension → Widget → Renderer` 的单向链路。
+**目标**：从 "Functional Editor" 变成 "Tafcm Product Identity"。把 redesign 的视觉语言（深蓝主色 + 暖纸 + 衬线 + 公式块）接入生产 UI，建立 `Design Token → ThemeExtension → Widget → Renderer` 的单向链路。
 
 **前置条件**：Phase 3.4+ Advanced Capabilities 主体完成（TOC / 自动保存 / 主题架构 / 文件树 / 图片链路已落地）。
 
@@ -523,11 +523,11 @@ FormulaFix 当前状态：
 
 ### Phase 3.5 — Formula Rendering System（公式渲染系统）
 
-**目标**：FormulaFix 的差异化立身之本——把 "Markdown 编辑器 + 数学公式 + WYSIWYG" 真正打通。承接 Phase 3.4.5 的 FormulaBlock UI 原型（§3.4.5.4），落地真实公式渲染内核。
+**目标**：Tafcm 的差异化立身之本——把 "Markdown 编辑器 + 数学公式 + WYSIWYG" 真正打通。承接 Phase 3.4.5 的 FormulaBlock UI 原型（§3.4.5.4），落地真实公式渲染内核。
 
 **前置条件**：Phase 3.4.5 Design System Alignment 完成（公式块视觉原型就绪 + token 体系到位）。
 
-**核心理念**：市场上 Markdown + WYSIWYG 编辑器很多，但 "Markdown + 数学公式 + WYSIWYG" 才是 FormulaFix 的定位。公式块不能提前做假卡片（见 §3.4.5.4），必须等 **ADR + AST 定稿** 后实施。公式渲染不应直接走 Mermaid 路径，`FormulaSvgService` 成熟度 + AST 表达方式（`FormulaElement` vs 新类型）需评审。
+**核心理念**：市场上 Markdown + WYSIWYG 编辑器很多，但 "Markdown + 数学公式 + WYSIWYG" 才是 Tafcm 的定位。公式块不能提前做假卡片（见 §3.4.5.4），必须等 **ADR + AST 定稿** 后实施。公式渲染不应直接走 Mermaid 路径，`FormulaSvgService` 成熟度 + AST 表达方式（`FormulaElement` vs 新类型）需评审。
 
 ### 任务（Formula Rendering 主线）
 
@@ -676,7 +676,7 @@ FormulaFix 当前状态：
 > [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md)。
 
 **目标**：能力无关的验证编排器——Agent 通过 `ffx capability verify/diagnose/repair-verify`
-驱动真实 FormulaFix 生产路径（runtime_bridge），按契约（contracts/*.json）判定能力完成度，
+驱动真实 Tafcm 生产路径（runtime_bridge），按契约（contracts/*.json）判定能力完成度，
 形成「审计 → 修复 → 资产化」的自反馈工程基线。
 
 **节奏（2026-08-19 Owner 修订）**：**不做串行「实现完再测」**——P0 可运行即开始
@@ -688,7 +688,7 @@ Dogfood，两条线并行：
           ┌──────────┴──────────┐
           ↓                     ↓
    Orchestrator Build       Dogfood
-   3.10.1（+3.10.2 最小版）   FormulaFix
+   3.10.1（+3.10.2 最小版）   Tafcm
           │                     │
           └──────────┬──────────┘
                      ↓
@@ -740,12 +740,12 @@ Coalescing / Focus / IME（editor）。每例登记
 
 ---
 
-## Phase 3.11：FormulaFix Capability Hardening Loop（能力加固循环）
+## Phase 3.11：Tafcm Capability Hardening Loop（能力加固循环）
 
 > **状态**：✅ **已关闭（PHASE_3_11_EXIT，2026-08-22 Owner 判定通过）**
 > 开启时间：2026-08-20（Phase 3.10 G0-G12 Final Gate 通过后）
 > **边界**：Phase 3.10 验证「验证系统本身」（FFX Orchestrator 闭环验收 ✅）；
-> **Phase 3.11 用已建成的 Agent Verification Harness 系统性清算 FormulaFix
+> **Phase 3.11 用已建成的 Agent Verification Harness 系统性清算 Tafcm
 > 剩余能力与技术债**——不是「测试阶段」，是「逐个能力加固循环」。
 
 **目标**：把 Feature Capability Coverage Matrix 从「Conditionally Complete」

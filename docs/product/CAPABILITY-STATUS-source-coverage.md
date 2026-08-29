@@ -1,4 +1,4 @@
-# Feature Capability Coverage Matrix — FormulaFix
+# Feature Capability Coverage Matrix — Tafcm
 
 > **文档性质**：功能能力覆盖矩阵（Feature Capability Coverage System，只读复盘，零代码改动）
 > **日期**：2026-08-19
@@ -6,7 +6,7 @@
 > **作者**：AI Agent 起草，Human Owner 评审决策
 > **回答的问题**：比"有没有验证"更关键的一层——
 >
-> > **FormulaFix 的每一个功能，到底覆盖了哪些能力？覆盖到什么程度（S0–S5）？没覆盖什么？因此最终能宣称到什么边界？**
+> > **Tafcm 的每一个功能，到底覆盖了哪些能力？覆盖到什么程度（S0–S5）？没覆盖什么？因此最终能宣称到什么边界？**
 >
 > 本矩阵回答的是 **"做到什么程度"**（capability coverage），与另两份 Phase 3.10 产物构成三个正交真相层：
 
@@ -39,12 +39,12 @@
 
 ---
 
-## 1. FormulaFix Capability Map（总览树）
+## 1. Tafcm Capability Map（总览树）
 
-> 一张图回答：**"FormulaFix 到底做了什么、做到什么程度？"**
+> 一张图回答：**"Tafcm 到底做了什么、做到什么程度？"**
 
 ```
-FormulaFix Capability Map
+Tafcm Capability Map
 ├── Markdown
 │   ├── Parser
 │   │   ├── Block  ── Paragraph S5 · Heading S5 · Blockquote S4 · Bullet List S4

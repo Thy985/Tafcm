@@ -106,7 +106,7 @@ Word Export 状态：未知风险 → 受控风险（已收口，冻结深挖）
 ## 5. QA Pipeline 架构
 
 ```text
-                         FormulaFix
+                         Tafcm
                              ↓
                            .docx
                              │

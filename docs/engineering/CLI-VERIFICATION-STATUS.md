@@ -66,7 +66,7 @@ Run #008（产品审计）：Capability 12 项 + Behavior 163 项 + fuzz 扩展
 
 | 功能 | 状态 | 阻塞/计划 |
 |------|------|----------|
-| **真实产品 Capability E2E**（FormulaFix 全链路） | ⏳ | 目前 F7 只覆盖 FFX API regression；真实 parser/export/undo 在真机完整链路待验证（Phase 3.9 Batch 6） |
+| **真实产品 Capability E2E**（Tafcm 全链路） | ⏳ | 目前 F7 只覆盖 FFX API regression；真实 parser/export/undo 在真机完整链路待验证（Phase 3.9 Batch 6） |
 | **Experience Audit**（真机/Golden/手势/主题/输入延迟） | ⏳ | 需模拟器/真机基础设施（Maven Central 403 网络抖动风险） |
 | **IME 真实输入**（模拟器软键盘 composing 序列） | ⏳ | 现有验证为 widget test 层；真机 IME 行为未覆盖 |
 | **真机文件读写**（.md 打开/保存/GBK 编码） | ⏳ | 仅单元测试覆盖 `decodeBytesAuto`；真机文件系统未验证 |

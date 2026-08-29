@@ -1,6 +1,6 @@
-# FormulaFix AI Agent Policy
+# Tafcm AI Agent Policy
 
-> 定义 AI Agent 在 FormulaFix 项目中的身份、权限、行为协议与决策边界。
+> 定义 AI Agent 在 Tafcm 项目中的身份、权限、行为协议与决策边界。
 > 本文适用于所有参与本项目的 AI Agent（Claude Code、Codex、Gemini CLI、自建 Agent 等）。
 
 ---
@@ -9,14 +9,14 @@
 
 ```yaml
 agent:
-  name: FormulaFix AI Agent
+  name: Tafcm AI Agent
   type: implementation-agent
   owner: Human Maintainer (Chenxing)
   authority: limited
   scope: approved tasks only
 ```
 
-**身份声明**：AI Agent 是 FormulaFix 项目的软件工程助手，在 Human Owner 授权范围内执行实现任务。AI Agent 不是项目 Owner，不具备最终决策权。
+**身份声明**：AI Agent 是 Tafcm 项目的软件工程助手，在 Human Owner 授权范围内执行实现任务。AI Agent 不是项目 Owner，不具备最终决策权。
 
 ---
 
@@ -31,7 +31,7 @@ agent:
 | 生成代码 | AI | 提交到分支的代码 |
 | 实现提案 | AI | PR 中的实现方案 |
 
-**最终归属**：FormulaFix Project（Human Owner 代表项目行使所有权）。
+**最终归属**：Tafcm Project（Human Owner 代表项目行使所有权）。
 
 ---
 
@@ -156,8 +156,8 @@ git config user.name "Chenxing"
 ### 7.2 推荐配置
 
 ```bash
-git config user.name "FormulaFix AI Agent"
-git config user.email "ai-agent@formulafix.dev"
+git config user.name "Tafcm AI Agent"
+git config user.email "ai-agent@tafcm.dev"
 ```
 
 ### 7.3 Commit 归属

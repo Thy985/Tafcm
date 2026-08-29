@@ -1,5 +1,5 @@
 # Phase 3.10 — Engineering Debt & Historical Decision Review
-## FormulaFix Engineering Baseline v1
+## Tafcm Engineering Baseline v1
 
 > **文档性质**：复盘 / 决策文档（Review-only，零代码改动）
 > **日期**：2026-08-19
@@ -26,7 +26,7 @@
 - "以前的人怎么写成这样" → 陷入找人背锅，而不是判断旧约束是否还存在；
 - "既然现在知道这么多历史问题，那全部修掉" → **债务清零幻觉**，把低成本/低风险/用户无感的合理妥协也一并推翻。
 
-本复盘的第一个结论：**FormulaFix 当前最大的技术债，不是代码，而是"已经失效的架构假设仍然被当成规则"**。因此本基线文档的首要读者是未来的 Agent（Claude / Codex / 下一个协作者），让它看到一段"奇怪代码"时，能先知道：
+本复盘的第一个结论：**Tafcm 当前最大的技术债，不是代码，而是"已经失效的架构假设仍然被当成规则"**。因此本基线文档的首要读者是未来的 Agent（Claude / Codex / 下一个协作者），让它看到一段"奇怪代码"时，能先知道：
 
 ```
 这是历史妥协 / 这是已接受技术债 / 这是刻意设计 / 这是已过期设计 / 这是明确该修的 bug
@@ -41,7 +41,7 @@
 本次复盘将历史问题归并为 **6 大类（A–F）**，对 **30 个 ADR** 做 4 态复盘，并将 45 个已盘点的历史问题（来自 11 个子系统）按状态精确对账为 **5 类最终归属**（Core Stable / Debt Accepted / Refactor Needed / Verification Gap / Research Q，详见 §1.1 与 §8 单页真相表）。
 
 ```
-              FormulaFix Engineering Baseline v1
+              Tafcm Engineering Baseline v1
                             │
         ┌──────────┬────────┼─────────┬──────────┐
         ↓          ↓        ↓         ↓          ↓
@@ -572,4 +572,4 @@ DEBT-014 Live/Committed State
 
 ---
 
-*本文件为 FormulaFix Engineering Baseline v1。后续历史问题经 Human Owner 评审后，以追加条目方式更新，不覆盖历史决策。*
+*本文件为 Tafcm Engineering Baseline v1。后续历史问题经 Human Owner 评审后，以追加条目方式更新，不覆盖历史决策。*

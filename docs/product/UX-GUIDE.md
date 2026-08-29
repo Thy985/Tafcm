@@ -1,4 +1,4 @@
-# FormulaFix UI Specification
+# Tafcm UI Specification
 
 > Version 2.0 | 2026-07-18 初版 · 2026-07-21 Typora 化修订
 > Tokens: `design-system/tokens.json`
@@ -193,7 +193,7 @@
 - Buttons: 7 icon buttons (32x32px, rounded-full)
   - bold (active: bg primary/10, text primary)
   - italic
-  - function (primary color — FormulaFix signature button)
+  - function (primary color — Tafcm signature button)
   - code
   - list
   - quote
@@ -501,7 +501,7 @@
 - 字体嵌入 — toggle ON
 
 #### Group "关于"
-- 关于 FormulaFix — chevron-right
+- 关于 Tafcm — chevron-right
 - 给个好评 — chevron-right
 - 反馈建议 — chevron-right
 
@@ -511,7 +511,7 @@
 
 ### 8.5 Footer
 - Centered, margin-top 24px, margin-bottom 16px
-- "FormulaFix v0.1.0" 11px muted
+- "Tafcm v0.1.0" 11px muted
 - "Made with ∫ for scholars" 10px muted/60 serif italic
 
 ### 8.6 Bottom Tab Bar
@@ -553,7 +553,7 @@
 ### 10.2 Minimal Header
 - Padding horizontal 20px, 8px top
 - Layout: flex justify-between items-center
-  - Left: wordmark "FormulaFix" 19px serif font-semibold foreground
+  - Left: wordmark "Tafcm" 19px serif font-semibold foreground
   - Right: 两个低调图标按钮，w-10 h-10 rounded-full hover:bg-muted
     - search 18px muted-foreground
     - plus 18px muted-foreground（新建文档入口，取代 FAB）
@@ -741,7 +741,7 @@ home-v2 是"便携查看器"定位的首页。Typora 化后移除 Hero CTA/快�
 
 ### 12.2 Minimal Header（Typora 化）
 - Padding horizontal 20px, 8px top
-- Left: wordmark "FormulaFix" 19px serif font-semibold foreground
+- Left: wordmark "Tafcm" 19px serif font-semibold foreground
 - Right: search + plus 两个 w-10 h-10 rounded-full hover:bg-muted 图标按钮
 - **无问候语、无头像、无 Hero CTA**
 
