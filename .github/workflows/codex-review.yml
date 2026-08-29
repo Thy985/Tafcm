@@ -112,9 +112,11 @@ jobs:
           最终结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
           Be concise and specific. Output in Chinese.
           PROMPT_EOF
+          set +e
           codex exec --model agnes-2.5-flash --sandbox read-only "$(cat /tmp/codex-prompt.md)" \
             > /tmp/codex-review.md 2>/tmp/codex-stderr.log
           rc=$?
+          set -e
           if [ $rc -ne 0 ]; then
             echo "--- codex stderr (tail) ---"
             tail -40 /tmp/codex-stderr.log
