@@ -19,7 +19,7 @@ class SessionError(Exception):
 class ProjectSession:
     """In-memory project backed by an optional JSON file on disk.
 
-    A *project* here is a lightweight representation of a FormulaFix `.md`
+    A *project* here is a lightweight representation of a Tafcm `.md`
     document plus its related assets. The session tracks modifications so
     that auto-save knows when to persist.
     """

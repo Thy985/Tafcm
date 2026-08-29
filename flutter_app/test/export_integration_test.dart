@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/domain/services/export_service.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/domain/services/exporters/pdf_exporter.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/domain/services/export_service.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/domain/services/exporters/pdf_exporter.dart';
 
 void main() {
   setUp(() {

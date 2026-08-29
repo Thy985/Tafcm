@@ -12,10 +12,10 @@
 /// 本文件仅用于 test/，不放入 lib/。
 library;
 
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/document_editor.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/document_editor.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 用于单测的 [DocumentEditor] mock 实现。
 ///

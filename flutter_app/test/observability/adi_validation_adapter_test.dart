@@ -9,13 +9,13 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_replay_adapter.dart';
-import 'package:formula_fix/core/observability/adi_validation_adapter.dart';
-import 'package:formula_fix/core/observability/adi_view.dart';
-import 'package:formula_fix/core/observability/models.dart';
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
-import 'package:formula_fix/core/replay/replay_engine.dart';
+import 'package:tafcm/core/observability/adi_replay_adapter.dart';
+import 'package:tafcm/core/observability/adi_validation_adapter.dart';
+import 'package:tafcm/core/observability/adi_view.dart';
+import 'package:tafcm/core/observability/models.dart';
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
+import 'package:tafcm/core/replay/replay_engine.dart';
 
 void main() {
   late ObservabilityService service;

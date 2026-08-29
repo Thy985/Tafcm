@@ -13,8 +13,8 @@ library;
 import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
 
 void main() {
   group('R3 BlockViewState copyWith 不变性', () {

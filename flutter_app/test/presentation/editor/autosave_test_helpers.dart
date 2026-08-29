@@ -6,7 +6,7 @@ library;
 
 import 'dart:async';
 
-import 'package:formula_fix/presentation/editor/dirty_state_source.dart';
+import 'package:tafcm/presentation/editor/dirty_state_source.dart';
 
 /// 受控定时器：创建即登记，由测试显式 [fire] 触发，不占用真实时钟。
 class FakeTimer implements Timer {

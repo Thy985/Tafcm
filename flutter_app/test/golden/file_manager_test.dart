@@ -18,10 +18,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/screens/file_manager_screen.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/providers/file_repository_provider.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/screens/file_manager_screen.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/providers/file_repository_provider.dart';
 import 'golden_helpers.dart';
 
 /// 空文档列表 —— 用于覆盖 [documentListProvider]，绕过真实文件 I/O。

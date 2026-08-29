@@ -23,7 +23,7 @@ class PrototypeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FormulaFix Prototype',
+      title: 'Tafcm Prototype',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: const PrototypeHome(),
     );

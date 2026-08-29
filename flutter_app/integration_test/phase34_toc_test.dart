@@ -9,9 +9,9 @@ library;
 import 'package:flutter/material.dart' show Icons, Key;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
 import 'helpers/test_fixture.dart';
 
 /// 从 widget 树取出真实 [EditorCoordinator]（UI 绑定的同一实例）。

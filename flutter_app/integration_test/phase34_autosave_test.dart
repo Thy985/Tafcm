@@ -8,7 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
 import 'helpers/test_fixture.dart';
 
 void main() {

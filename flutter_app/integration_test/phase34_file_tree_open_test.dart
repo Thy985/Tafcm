@@ -15,7 +15,7 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/panels/file_tree_panel.dart';
+import 'package:tafcm/presentation/panels/file_tree_panel.dart';
 import 'helpers/test_fixture_file.dart';
 
 void main() {

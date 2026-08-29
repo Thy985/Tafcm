@@ -8,9 +8,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/composing_controller.dart';
-import 'package:formula_fix/core/editing/composing_state.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/composing_controller.dart';
+import 'package:tafcm/core/editing/composing_state.dart';
 
 /// Mock ComposingHost 用于隔离 Flutter TextEditingController。
 ///

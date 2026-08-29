@@ -14,9 +14,9 @@ library;
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/core/parser/markdown_serializer.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/core/parser/markdown_serializer.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 可复现的随机语料生成器（固定 seed）。
 class MarkdownCorpusGenerator {

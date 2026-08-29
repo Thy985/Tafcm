@@ -4,7 +4,7 @@
 ///
 /// **覆盖**：
 /// - [EditorPage] 构造成功（无抛异常）
-/// - SeedDocuments demo1（标题 "FormulaFix Demo"）正确显示
+/// - SeedDocuments demo1（标题 "Tafcm Demo"）正确显示
 /// - [EditorShell] 挂载（AppBar + Viewport + StatusBar 三层结构）
 ///
 /// **不在范围**：
@@ -14,8 +14,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
-import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/chrome/editor_app_bar.dart';
 import 'helpers/test_fixture.dart';
 
 void main() {
@@ -23,13 +23,13 @@ void main() {
     testWidgets('EditorPage 启动后显示 SeedDocuments demo1 标题', (tester) async {
       await pumpEditorApp(tester, seedSelector: 0);
 
-      // AppBar 标题应显示 SeedDocuments demo1 的 title（"FormulaFix Demo"）
+      // AppBar 标题应显示 SeedDocuments demo1 的 title（"Tafcm Demo"）
       // 仅限定 AppBar 子树：正文首块（Heading）也渲染同名文本,
       // 不限定会命中 2 个 widget（§12.5 E2E 收敛修复）。
       expect(
         find.descendant(
           of: find.byType(EditorAppBar),
-          matching: find.text('FormulaFix Demo'),
+          matching: find.text('Tafcm Demo'),
         ),
         findsOneWidget,
         reason: 'AppBar 应显示 SeedDocuments demo1 的 title',
@@ -48,7 +48,7 @@ void main() {
       await pumpEditorApp(tester, seedSelector: 1);
 
       // demo2 标题应不同于 demo1（验证 seedSelector 路由参数生效）
-      expect(find.text('FormulaFix Demo'), findsNothing,
+      expect(find.text('Tafcm Demo'), findsNothing,
           reason: 'demo2 不应显示 demo1 的标题');
     });
 
@@ -56,7 +56,7 @@ void main() {
       await pumpEditorApp(tester, seedSelector: 2);
 
       // demo3 标题应不同于 demo1
-      expect(find.text('FormulaFix Demo'), findsNothing,
+      expect(find.text('Tafcm Demo'), findsNothing,
           reason: 'demo3 不应显示 demo1 的标题');
     });
   });

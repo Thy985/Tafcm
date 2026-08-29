@@ -1,6 +1,6 @@
 # Source
 type: pull_request_review
-repository: Thy985/fixmath
+repository: Thy985/Tafcm
 pr: 143
 base: feat/issue-triage-workflow
 branch: external-contributor-injection

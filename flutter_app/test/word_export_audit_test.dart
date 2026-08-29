@@ -12,8 +12,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/domain/services/exporters/word_ooxml_builder.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/domain/services/exporters/word_ooxml_builder.dart';
 
 /// 审计 helper：解析 md → 生成 document.xml（无图片 rels）。
 String _buildXml(String md, {Map<String, FormulaImageInfo?>? formulaRels}) {

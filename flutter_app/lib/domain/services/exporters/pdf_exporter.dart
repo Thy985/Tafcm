@@ -227,9 +227,9 @@ class PdfExporter {
     final monoFont = pw.Font.courier();
 
     final pdf = pw.Document(
-      title: title ?? 'FormulaFix 文档',
-      author: author ?? 'FormulaFix',
-      creator: 'FormulaFix',
+      title: title ?? 'Tafcm 文档',
+      author: author ?? 'Tafcm',
+      creator: 'Tafcm',
       subject: 'Markdown with LaTeX formulas',
       theme: theme,
     );
@@ -272,7 +272,7 @@ class PdfExporter {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(40, 60, 40, 60),
-        header: (ctx) => buildPdfHeader(title ?? 'FormulaFix', ctx, isDark: isDark),
+        header: (ctx) => buildPdfHeader(title ?? 'Tafcm', ctx, isDark: isDark),
         footer: (ctx) => buildPdfFooter(ctx, isDark: isDark),
         theme: theme,
         build: (_) => body,

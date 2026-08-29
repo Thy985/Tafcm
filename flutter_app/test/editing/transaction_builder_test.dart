@@ -12,10 +12,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
-import 'package:formula_fix/core/editing/transaction.dart';
-import 'package:formula_fix/core/editing/transaction_builder.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/edit_operation.dart';
+import 'package:tafcm/core/editing/transaction.dart';
+import 'package:tafcm/core/editing/transaction_builder.dart';
 
 import 'helpers/mock_document_editor.dart';
 

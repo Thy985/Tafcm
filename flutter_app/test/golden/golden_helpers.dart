@@ -15,11 +15,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// 在 [setUpAll] 中调用，显式加载打包字体。
 Future<void> setUpGoldenFonts() async {

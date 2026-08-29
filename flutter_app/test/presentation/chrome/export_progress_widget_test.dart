@@ -17,13 +17,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/domain/providers/export_progress_provider.dart';
-import 'package:formula_fix/domain/services/export_service.dart';
-import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/widgets/export_progress_overlay.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/domain/providers/export_progress_provider.dart';
+import 'package:tafcm/domain/services/export_service.dart';
+import 'package:tafcm/presentation/chrome/editor_app_bar.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/widgets/export_progress_overlay.dart';
 
 /// 空 editor coordinator（in-memory，无 seed doc），用于 EditorAppBar widget 测试。
 EditorCoordinator _emptyCoordinator() {

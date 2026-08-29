@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/presentation/blocks/code/code_block.dart';
+import 'package:tafcm/presentation/blocks/code/code_block.dart';
 import 'helpers/test_fixture_file.dart';
 
 void main() {

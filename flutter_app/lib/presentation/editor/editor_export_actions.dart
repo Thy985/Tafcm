@@ -50,7 +50,7 @@ class EditorExportActions {
             onPressed: () async {
               await Share.shareXFiles(
                 [XFile(path)],
-                subject: 'FormulaFix 诊断数据',
+                subject: 'Tafcm 诊断数据',
               );
             },
           ),

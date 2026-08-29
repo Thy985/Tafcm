@@ -15,10 +15,10 @@
 /// UI 层不变（[EditorCoordinator] 通过接口依赖，不直接耦合 [InMemoryDocumentEditor]）。
 library;
 
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/document_editor.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/document_editor.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 内存态 [DocumentEditor] 实现（Phase 3.0 production 路径）。
 ///

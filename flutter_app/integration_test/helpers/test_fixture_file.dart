@@ -11,9 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:formula_fix/presentation/editor/editor_page.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/providers/asset_provider.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/providers/asset_provider.dart';
 
 /// 原始的种子文档入口（无文件 I/O）。
 Future<EditorPage> pumpEditorApp(

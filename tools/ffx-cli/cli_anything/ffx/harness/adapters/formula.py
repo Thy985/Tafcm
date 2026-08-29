@@ -50,8 +50,8 @@ _E6_CAPTURE_RE = re.compile(
     r"(?:\s+latex=(?P<latex>.*))?$",
     re.MULTILINE,
 )
-# 设备端 FormulaFix debug 包名（旧格式 run-as 拉取应用私有目录截图用）
-_E6_APP_PACKAGE = "com.formulafix.formula_fix"
+# 设备端 Tafcm debug 包名（旧格式 run-as 拉取应用私有目录截图用）
+_E6_APP_PACKAGE = "com.tafcm.app"
 
 
 def _parse_e6_captures(run_output: str) -> list[dict[str, Any]]:

@@ -17,9 +17,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/chrome/editor_app_bar.dart';
-import 'package:formula_fix/presentation/chrome/editor_status_bar.dart';
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/chrome/editor_app_bar.dart';
+import 'package:tafcm/presentation/chrome/editor_status_bar.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
 import 'helpers/test_fixture.dart';
 
 void main() {
@@ -29,12 +29,12 @@ void main() {
 
       expect(find.byType(EditorAppBar), findsOneWidget,
           reason: 'EditorAppBar 应挂载');
-      // AppBar 应包含标题文本（demo1 的 "FormulaFix Demo"）
+      // AppBar 应包含标题文本（demo1 的 "Tafcm Demo"）
       // 仅限定 AppBar 子树：正文首块（Heading）也渲染同名文本。
       expect(
         find.descendant(
           of: find.byType(EditorAppBar),
-          matching: find.text('FormulaFix Demo'),
+          matching: find.text('Tafcm Demo'),
         ),
         findsOneWidget,
       );

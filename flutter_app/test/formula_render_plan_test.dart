@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:formula_fix/domain/services/exporters/formula_render_plan.dart';
+import 'package:tafcm/domain/services/exporters/formula_render_plan.dart';
 
 /// 断言字符串中不存在未配对的 UTF-16 代理（孤立 high 或 low surrogate）。
 ///

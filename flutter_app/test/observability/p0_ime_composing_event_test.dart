@@ -24,11 +24,11 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/composing_controller.dart';
-import 'package:formula_fix/core/editing/composing_state.dart';
-import 'package:formula_fix/core/observability/models.dart' as obs;
-import 'package:formula_fix/core/observability/observability_service.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/composing_controller.dart';
+import 'package:tafcm/core/editing/composing_state.dart';
+import 'package:tafcm/core/observability/models.dart' as obs;
+import 'package:tafcm/core/observability/observability_service.dart';
 
 /// 路径提供桩：避免 path_provider 在测试环境抛 MissingPluginException。
 class _MockPathProviderPlatform extends PathProviderPlatform {

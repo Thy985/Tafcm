@@ -20,7 +20,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:formula_fix/core/services/file_service.dart';
+import 'package:tafcm/core/services/file_service.dart';
 
 /// 测试用 [FilePicker] 桩：记录 pickFiles 调用参数，按构造时指定的结果返回。
 ///

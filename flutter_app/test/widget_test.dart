@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview_platform_interface/flutter_inappwebview_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:formula_fix/main.dart';
+import 'package:tafcm/main.dart';
 
 /// 测试用 `InAppWebViewPlatform` 桩：返回固定大小的空 Widget，
 /// 避免在 `flutter test` 单元测试中尝试初始化平台 WebView。
@@ -47,7 +47,7 @@ void main() {
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: FormulaFixApp(),
+        child: TafcmApp(),
       ),
     );
 

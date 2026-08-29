@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/composing_state.dart';
+import 'package:tafcm/core/editing/composing_state.dart';
 
 void main() {
   group('TC-EDIT-5.1 状态机转换', () {

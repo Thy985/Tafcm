@@ -12,8 +12,8 @@
 /// 详见 Phase 2.6 Task Contract §3.1（v1.1 评审反馈 2 修订）+ ADR-0008 §2。
 library;
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/core/editing/block_types.dart';
 
 /// Document 编辑器抽象接口。
 ///

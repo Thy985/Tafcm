@@ -1,6 +1,6 @@
 /// CommandTracer：记录每个 [EditorCommand] 的执行轨迹。
 ///
-/// 这是 FormulaFix 可观测系统最重要的一层——Command 是系统行为的原子单位。
+/// 这是 Tafcm 可观测系统最重要的一层——Command 是系统行为的原子单位。
 /// 大量编辑器 bug 发生在 Command 生成/参数/执行层面。
 ///
 /// 落地 ADR-0021 §2.2。

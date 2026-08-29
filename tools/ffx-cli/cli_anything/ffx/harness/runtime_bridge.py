@@ -1,4 +1,4 @@
-"""Runtime Bridge — FFX 调用真实 FormulaFix production path 的唯一通道。
+"""Runtime Bridge — FFX 调用真实 Tafcm production path 的唯一通道。
 
 禁止 Python 侧重实现解析/导出逻辑；本模块只做 subprocess 编排：
   flutter test tool/capability_runner/capability_runner_test.dart

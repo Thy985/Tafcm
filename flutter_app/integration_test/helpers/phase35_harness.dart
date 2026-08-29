@@ -3,15 +3,15 @@
 ///
 /// 不挂载时 [FormulaSvgService.renderToSvg] 会抛
 /// "MermaidRendererHost is not mounted" → 公式降级 flutter_math_fork。
-/// 对应 `main.dart` 的 `FormulaFixApp` 挂载方式（仅 T3-2 公式测试需要真实 SVG）。
+/// 对应 `main.dart` 的 `TafcmApp` 挂载方式（仅 T3-2 公式测试需要真实 SVG）。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/presentation/editor/editor_page.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/widgets/mermaid_host.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/widgets/mermaid_host.dart';
 
 /// 打开真实 .md 文件并挂载 [MermaidRendererHost]，使公式走真实 WebView SVG。
 Future<EditorPage> pumpEditorFromFileWithMermaid(

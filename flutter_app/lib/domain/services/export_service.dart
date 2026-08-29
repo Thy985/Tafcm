@@ -513,7 +513,7 @@ class ExportService {
       ExportFormat.docx => 'docx',
       ExportFormat.txt => 'txt',
     };
-    final safeName = '${fileName ?? 'FormulaFix 文档'}.$ext';
+    final safeName = '${fileName ?? 'Tafcm 文档'}.$ext';
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$safeName');
     await file.writeAsBytes(bytes, flush: true);
@@ -574,7 +574,7 @@ class ExportService {
     // 阶段 2: 写临时文件 + 调起分享
     final tempDir = await getTemporaryDirectory();
     final extension = format.name;
-    final rawTitle = (title == null || title.trim().isEmpty) ? 'formulafix' : title;
+    final rawTitle = (title == null || title.trim().isEmpty) ? 'tafcm' : title;
     final sanitizedTitle = rawTitle
         .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
         .replaceAll(RegExp(r'\s+'), '_');
@@ -590,7 +590,7 @@ class ExportService {
       try {
         await Share.shareXFiles(
           [XFile(file.path)],
-          text: 'FormulaFix $extension',
+          text: 'Tafcm $extension',
         ).timeout(_shareTimeout);
         debugPrint('[Export:$formatLabel] share completed in ${sw.elapsedMilliseconds}ms');
       } on TimeoutException {

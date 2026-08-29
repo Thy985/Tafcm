@@ -6,7 +6,7 @@ library;
 
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
+import 'package:tafcm/core/services/file_repository.dart';
 
 void main() {
   group('TC-RECOVERY-1 写入中断恢复', () {

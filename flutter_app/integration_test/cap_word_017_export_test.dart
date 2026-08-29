@@ -12,7 +12,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/domain/services/exporters/word_exporter.dart';
+import 'package:tafcm/domain/services/exporters/word_exporter.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 

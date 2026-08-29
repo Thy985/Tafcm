@@ -11,9 +11,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/models.dart';
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
+import 'package:tafcm/core/observability/models.dart';
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
 
 void main() {
   setUp(() {

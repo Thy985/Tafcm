@@ -10,11 +10,11 @@ library;
 import 'package:flutter/material.dart' show EditableText;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/blocks/code/code_block.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/blocks/code/code_block.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/core/editing/block_types.dart';
 import 'helpers/test_fixture.dart';
 
 EditorCoordinator _coordinator(WidgetTester tester) =>

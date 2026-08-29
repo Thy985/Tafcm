@@ -394,7 +394,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   AppBar _buildAppBar(AppThemeMode mode) {
     return AppBar(
       title: const Text(
-        'FormulaFix',
+        'Tafcm',
         overflow: TextOverflow.fade,
         softWrap: false,
         style: TextStyle(fontWeight: FontWeight.w600),

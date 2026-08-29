@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/constants/app_constants.dart';
+import 'package:tafcm/core/constants/app_constants.dart';
 
 void main() {
   group('AppShadows light —— tokens.json shadow.sm~xl', () {

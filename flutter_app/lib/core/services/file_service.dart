@@ -91,7 +91,7 @@ class FileService {
     
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final name = filename ?? 'formulafix_${DateTime.now().millisecondsSinceEpoch}.md';
+      final name = filename ?? 'tafcm_${DateTime.now().millisecondsSinceEpoch}.md';
       final file = File('${dir.path}/$name');
       await file.writeAsString(content);
       return file.path;

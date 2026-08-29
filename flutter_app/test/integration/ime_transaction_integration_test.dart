@@ -18,15 +18,15 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_operations.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/composing_controller.dart';
-import 'package:formula_fix/core/editing/composing_state.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/editing/transaction.dart';
-import 'package:formula_fix/core/editing/transaction_builder.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_operations.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/composing_controller.dart';
+import 'package:tafcm/core/editing/composing_state.dart';
+import 'package:tafcm/core/editing/edit_operation.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/editing/transaction.dart';
+import 'package:tafcm/core/editing/transaction_builder.dart';
+import 'package:tafcm/data/models/document.dart';
 
 import '../editing/helpers/mock_composing_host.dart';
 import '../editing/helpers/mock_document_editor.dart';

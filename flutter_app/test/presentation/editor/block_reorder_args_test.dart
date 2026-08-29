@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/editor/block_reorder.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/editor/block_reorder.dart';
 
 /// [blockReorderArgs] 纯函数单测（Phase 3.5.5）。
 ///

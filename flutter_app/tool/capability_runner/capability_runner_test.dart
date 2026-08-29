@@ -17,9 +17,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/core/parser/markdown_serializer.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/core/parser/markdown_serializer.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 内置 corpus：覆盖核心 Block/Inline/编码/降级路径，保证无外部输入也能跑。
 const List<String> _builtinCorpus = [

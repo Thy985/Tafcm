@@ -9,13 +9,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/panels/toc_panel.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/panels/toc_panel.dart';
 
 /// 用 markdown 构造 [EditorCoordinator]（仅内存，不触达磁盘）。
 EditorCoordinator _buildCoordinator(String markdown) {

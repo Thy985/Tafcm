@@ -8,13 +8,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_query_adapter.dart';
-import 'package:formula_fix/core/observability/adi_record.dart';
-import 'package:formula_fix/core/observability/adi_storage.dart';
+import 'package:tafcm/core/observability/adi_query_adapter.dart';
+import 'package:tafcm/core/observability/adi_record.dart';
+import 'package:tafcm/core/observability/adi_storage.dart';
 
-import 'package:formula_fix/core/observability/models.dart';
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
+import 'package:tafcm/core/observability/models.dart';
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
 
 void main() {
   late String tempDir;

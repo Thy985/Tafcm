@@ -4,7 +4,7 @@
 ///
 /// **Hard Rule**（v2.1 §3.3.1）：
 /// - 所有 E2E 用例必须通过 [TestFixture] 启动 app
-/// - 禁止直接 `pumpWidget(ProviderScope(child: FormulaFixApp()))`（会走真实存储）
+/// - 禁止直接 `pumpWidget(ProviderScope(child: TafcmApp()))`（会走真实存储）
 /// - 禁止依赖 `path_provider` / `SharedPreferences` 真实存储
 ///
 /// **设计**：
@@ -27,8 +27,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:formula_fix/presentation/editor/editor_page.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// integration_test 唯一入口：构造 [EditorPage] 并 pump 到 [tester]。
 ///

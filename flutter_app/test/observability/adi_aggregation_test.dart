@@ -5,8 +5,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_aggregation.dart';
-import 'package:formula_fix/core/observability/adi_record.dart';
+import 'package:tafcm/core/observability/adi_aggregation.dart';
+import 'package:tafcm/core/observability/adi_record.dart';
 
 void main() {
   group('aggregateErrors', () {

@@ -1,5 +1,5 @@
-name: formula_fix
-description: "FormulaFix - 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。"
+name: tafcm
+description: "Tafcm - 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。"
 publish_to: "none"
 version: 0.1.0+1
 
@@ -61,9 +61,9 @@ dev_dependencies:
   # 该结论记入 Word Migration Spike 报告。不引入 docx_creator。
 
 patrol:
-  app_name: FormulaFix
+  app_name: Tafcm
   android:
-    package_name: com.formulafix.formula_fix
+    package_name: com.tafcm.app
 
 dependency_overrides:
   # 锁定 inappwebview 全家桶到稳定版，避免 pub 选择 beta 版本

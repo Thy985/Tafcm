@@ -3,9 +3,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/models.dart' as obs;
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/domain/services/exporters/pdf_exporter.dart';
+import 'package:tafcm/core/observability/models.dart' as obs;
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/domain/services/exporters/pdf_exporter.dart';
 
 void main() {
   group('P1-2: renderBufferSize 配置接线', () {

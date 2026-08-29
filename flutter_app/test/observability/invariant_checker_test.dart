@@ -17,9 +17,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 
-import 'package:formula_fix/core/observability/invariant_checker.dart';
-import 'package:formula_fix/core/observability/models.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/observability/invariant_checker.dart';
+import 'package:tafcm/core/observability/models.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 构造单个 [EditorInvariantContext] 的 helper。
 EditorInvariantContext _ctx({
