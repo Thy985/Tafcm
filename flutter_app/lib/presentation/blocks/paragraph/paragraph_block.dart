@@ -18,12 +18,14 @@
 /// 2. 用户输入 → `TextEditingController` 记录
 /// 3. 失焦 → `coordinator.handle(UpdateBlockSourceCommand(...))` 提交
 /// 4. `coordinator.notifyListeners()` → `AnimatedBuilder` 重建
+///
+/// **行内渲染**（2026-08-29，P0-1 UI/UX 修复）：inline span 构建已提取到
+/// [blocks/shared/inline_spans.dart]，与列表 / 任务块共用同一实现。
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../../core/editing/block_types.dart';
-import '../../../core/utils/asset_image_resolver.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
@@ -31,7 +33,7 @@ import '../../theme/app_typography.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 import '../formula/formula_block.dart';
-import '../../widgets/formula_renderer.dart';
+import '../shared/inline_spans.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
 class ParagraphBlock extends StatefulWidget {
@@ -117,7 +119,18 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           ),
           borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
         ),
-        child: _buildInlineSpans(widget.element.children, context),
+        child: Text.rich(
+          buildInlineSpans(
+            widget.element.children,
+            const TextStyle(
+              fontFamily: AppTypography.serif,
+              fontSize: EditorTokens.paragraphFontSize,
+              height: 1.85,
+            ),
+            context,
+            baseDir: widget.baseDir,
+          ),
+        ),
       ),
     );
   }
@@ -130,111 +143,5 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
     if (element.children.length != 1) return false;
     final only = element.children.first;
     return only is FormulaElement && only.displayMode;
-  }
-
-  /// 把 [InlineElement] 列表渲染为 [Text.rich]，支持 bold / italic / code / formula。
-  ///
-  /// **Phase 3.0 简化实现**：仅渲染基本 inline 类型，复杂嵌套留到 Phase 3.2+。
-  Widget _buildInlineSpans(List<InlineElement> children, BuildContext context) {
-    final span = _buildInlineList(
-      children,
-      const TextStyle(
-        fontFamily: AppTypography.serif,
-        fontSize: EditorTokens.paragraphFontSize,
-        height: 1.85,
-      ),
-      context,
-    );
-    return Text.rich(span);
-  }
-
-  InlineSpan _buildInlineList(
-      List<InlineElement> children, TextStyle baseStyle, BuildContext context) {
-    return TextSpan(
-      style: baseStyle,
-      children: children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
-    );
-  }
-
-  InlineSpan _buildInlineSpan(InlineElement element, TextStyle baseStyle, BuildContext context) {
-    return switch (element) {
-      TextElement(:final text) => TextSpan(text: text, style: baseStyle),
-      BoldElement(:final children) => TextSpan(
-          style: baseStyle.copyWith(fontWeight: FontWeight.bold),
-          children:
-              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
-        ),
-      ItalicElement(:final children) => TextSpan(
-          style: baseStyle.copyWith(fontStyle: FontStyle.italic),
-          children:
-              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
-        ),
-      StrikethroughElement(:final children) => TextSpan(
-          style: baseStyle.copyWith(decoration: TextDecoration.lineThrough),
-          children:
-              children.map((e) => _buildInlineSpan(e, baseStyle, context)).toList(),
-        ),
-      InlineCodeElement(:final code) => TextSpan(
-          text: code,
-          style: baseStyle.copyWith(
-            fontFamily: 'monospace',
-            backgroundColor: Colors.grey.shade200,
-          ),
-        ),
-      // 公式（行内 / 块级）Typora 化：纯 serif italic，无卡片（ui-spec.md §3.1/§7）。
-      // 经统一 [FormulaRenderer] 真实渲染（编辑器 render 态 WYSIWYG；颜色随 EditorTokens 主题）。
-      FormulaElement(:final latex, :final displayMode) => WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: FormulaRenderer(
-            element: FormulaElement(latex: latex, displayMode: displayMode),
-            displayMode: displayMode,
-          ),
-        ),
-      // Phase 3.2 §3.7：Link inline rendering（蓝色 + 下划线,不显示多余 URL）
-      // 使用 EditorTokens.linkColor（TextSpan 不支持运行时 Theme 查找,需编译时常量）
-      LinkElement(:final text) => TextSpan(
-          text: text,
-          style: baseStyle.copyWith(
-            color: EditorTokens.linkColor,
-            decoration: TextDecoration.underline,
-          ),
-        ),
-      // ADR-0014：本地相对图片路径（assets/img_xxx.png）用 [Image.file] 渲染；
-      // 网络地址仍占位文本（WebView 网络图留 Phase 3.5）。
-      // [baseDir] 为空或文件不存在时回退占位文本（保持可读）。
-      ImageElement(:final alt, :final url) =>
-          _buildImageInline(url, alt, baseStyle, context),
-    };
-  }
-
-  /// 渲染 [ImageElement] 为 [InlineSpan]。
-  ///
-  /// 本地相对路径（[baseDir] 非空且文件存在）→ [WidgetSpan] + [Image.file]；
-  /// 否则回退占位文本（网络地址 / data uri / 缺基目录 / 文件缺失）。
-  InlineSpan _buildImageInline(
-    String url,
-    String alt,
-    TextStyle baseStyle,
-    BuildContext context,
-  ) {
-    final placeholder = TextSpan(
-      text: alt.isNotEmpty ? '[图片: $alt]' : '[图片]',
-      style: baseStyle.copyWith(
-        color: EditorTokens.of(context).textSecondary,
-        fontStyle: FontStyle.italic,
-      ),
-    );
-    // TC-ARCH-1：presentation 不直接 File()，经 core/utils 解析。
-    final file = resolveLocalImageFile(widget.baseDir, url);
-    if (file == null) return placeholder;
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: Image.file(
-        file,
-        height: 120,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Text(alt.isNotEmpty ? alt : '[图片]'),
-      ),
-    );
   }
 }

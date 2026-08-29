@@ -168,8 +168,11 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       widget.onOpenFile?.call(path);
     } catch (e) {
       if (!mounted) return;
+      // P0-3 UI/UX 修复（2026-08-29）：原始异常仅 debugPrint，SnackBar 用友好文案
+      // （AGENTS.md §4.4 禁止把 detail 直接显示给用户）。
+      debugPrint('[EditorShell] open file failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('打开文件失败：$e')),
+        const SnackBar(content: Text('打开文件失败，请重试')),
       );
     }
   }
@@ -277,6 +280,9 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               Expanded(
                 // 编辑区：双指缩放（onScaleUpdate）
                 // 缩放仅作用于编辑区文本（MediaQuery.textScaler），chrome 保持默认字号。
+                // P0-5 UI/UX 修复（2026-08-29）：缩放与系统字体缩放**相乘**，
+                // 不再用 linear(_zoomScale) 覆盖系统 a11y 字号（原实现把系统
+                // textScaleFactor 重置为 1.0，系统开大字号用户进入编辑器即失效）。
                 // 双击仅用于「退出」焦点模式（_focusMode 时绑定 onDoubleTap），避免 GestureDetector
                 // 在非焦点模式注册 onDoubleTap 触发 gesture arena 的 ~300ms 单击延迟,
                 // 影响编辑区 TextField 光标定位 / 选词。进入焦点模式走 AppBar 全屏图标。
@@ -292,8 +298,11 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                   },
                   onDoubleTap: _focusMode ? _toggleFocus : null,
                   child: MediaQuery(
-                    data: MediaQuery.of(context)
-                        .copyWith(textScaler: TextScaler.linear(_zoomScale)),
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.linear(
+                        MediaQuery.textScalerOf(context).scale(1.0) * _zoomScale,
+                      ),
+                    ),
                     child: Workspace(
                       coordinator: coordinator,
                       scrollController: _scrollController,

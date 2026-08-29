@@ -19,6 +19,9 @@
 /// 触发 `TaskListItemElement` 时崩溃（snapshot.json 实证）。ADR-0022 改为
 /// 经 `FallbackBlockRenderer` 降级渲染（不 crash + 不丢数据 + 可编辑）。
 /// 未实现类型检测责任转移到 observability `UnsupportedBlockFallback` 事件。
+///
+/// P0-1 变更（2026-08-29）：list / task / hr 已有专用渲染器，fallback 已删除，
+/// switch 全量 exhaustive（10 种 DocumentElement 子类型全覆盖）。
 library;
 
 import 'dart:io';
@@ -100,20 +103,33 @@ void main() {
         isTrue,
         reason: 'Phase 3.2 PR #3：BlockRenderer 必须支持 MermaidElement',
       );
-      // 其他 3 种类型必须经 FallbackBlockRenderer 降级渲染（ADR-0022）
+      // P0-1（2026-08-29）：3 种类型已有专用渲染器，fallback 已删除
       // 不允许 throw UnimplementedError（用户路径不能 crash）
-      // MathBlock 留 Phase 3.5+（依赖 FormulaSvgService 集成）
       expect(
         content.contains('throw UnimplementedError'),
         isFalse,
         reason: 'ADR-0022 §2.1：block_renderer.dart 不应含 throw UnimplementedError '
-            '语句。未实现类型必须经 FallbackBlockRenderer 降级渲染。',
+            '语句。所有 DocumentElement 子类型均有专用渲染器。',
+      );
+      expect(
+        content.contains('ListElement le => ListBlock'),
+        isTrue,
+        reason: 'P0-1：ListElement → ListBlock 专用渲染器（WYSIWYG）',
+      );
+      expect(
+        content.contains('TaskListItemElement tle => TaskListBlock'),
+        isTrue,
+        reason: 'P0-1：TaskListItemElement → TaskListBlock 专用渲染器（WYSIWYG）',
+      );
+      expect(
+        content.contains('HorizontalRuleElement hre => HorizontalRuleBlock'),
+        isTrue,
+        reason: 'P0-1：HorizontalRuleElement → HorizontalRuleBlock 专用渲染器（WYSIWYG）',
       );
       expect(
         content.contains('FallbackBlockRenderer'),
-        isTrue,
-        reason: 'ADR-0022 §2.2：未实现的 3 种类型必须经 FallbackBlockRenderer '
-            '降级渲染（不 crash + 不丢数据 + 可编辑）',
+        isFalse,
+        reason: 'P0-1：FallbackBlockRenderer 已删除（switch 全量 exhaustive）',
       );
     });
   });

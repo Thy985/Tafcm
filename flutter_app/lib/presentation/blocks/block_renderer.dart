@@ -4,10 +4,9 @@
 /// + [ADR-0022 Renderer Failure Policy]。
 ///
 /// **核心原则（Hard Rule 3 + Hard Rule 8 + ADR-0022）**：
-/// - **exhaustive switch**：6 种已实现 BlockType 显式 case 分支
+/// - **exhaustive switch**：10 种已实现 BlockType 显式 case 分支
 /// - **不允许 `_ =>` fallback**：所有 [DocumentElement] 子类型必须显式 case
-/// - **未实现类型经 [FallbackBlockRenderer] 降级渲染**（ADR-0022 §2.1）：
-///   不抛 `UnimplementedError`，避免用户路径崩溃
+/// - **不抛 `UnimplementedError`**（ADR-0022 §2.1 延续）：全部子类型均有专用渲染器
 /// - **新增 Block 类型必须显式增加 case 分支**（避免默默退化显示）
 /// - **依赖方向**：blocks/ → editor/ → core/editing/（单向依赖）
 ///
@@ -19,10 +18,11 @@
 /// - [TableElement] → [TableBlock]（Phase 3.2 §3.5 任务 3.2.4,PR #2）
 /// - [MermaidElement] → [MermaidBlock]（Phase 3.2 §3.3 任务 3.2.2,PR #3）
 ///
-/// **Phase 3.5+ 待实现类型**（PR #3 后）：listItem / taskListItem /
-/// horizontalRule / math（块级公式 WebView 渲染留 Phase 3.5+）。
-/// 这些类型目前经 [FallbackBlockRenderer] 降级为 markdown source 显示，
-/// 不 crash、不丢数据、可编辑（ADR-0022）。
+/// **P0-1 UI/UX 修复（2026-08-29）**：补齐剩余 3 种类型的专用渲染器，
+/// 降级渲染路径已删除（switch 全量 exhaustive）：
+/// - [ListElement] → [ListBlock]（无序 / 有序 + ADR-0029 嵌套）
+/// - [TaskListItemElement] → [TaskListBlock]（checkbox + 点击勾选）
+/// - [HorizontalRuleElement] → [HorizontalRuleBlock]（分割线）
 ///
 /// **行内元素不在 BlockRenderer 范围**（[ImageElement] / [LinkElement]）：
 /// 由 [ParagraphBlock] 的 inline renderer 渲染,不进入此 switch。
@@ -35,12 +35,14 @@ import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
 import 'code/code_block.dart';
-import 'fallback_block_renderer.dart';
 import 'heading/heading_block.dart';
+import 'hr/hr_block.dart';
+import 'list/list_block.dart';
 import 'mermaid/mermaid_block.dart';
 import 'paragraph/paragraph_block.dart';
 import 'quote/quote_block.dart';
 import 'table/table_block.dart';
+import 'task/task_list_block.dart';
 
 /// Block 渲染分发器（StatelessWidget）。
 ///
@@ -104,20 +106,24 @@ class BlockRenderer extends StatelessWidget {
           element: me,
           coordinator: coordinator,
         ),
-      // ADR-0022 Renderer Failure Policy：
-      // 未实现专用 Renderer 的 3 种类型经 FallbackBlockRenderer 降级渲染。
-      // 不抛 UnimplementedError —— 用户路径不能因未来能力缺失而 crash。
-      // FallbackBlockRenderer 会反向序列化为 markdown source 委托给
-      // ParagraphBlock，保留可读 + 可编辑 + 不丢数据。
-      // Phase 3.5+ 实现专用 Renderer 后替换此 case。
-      ListElement() ||
-      TaskListItemElement() ||
-      HorizontalRuleElement() =>
-        FallbackBlockRenderer(
+      // P0-1 UI/UX 修复（2026-08-29）：列表 / 任务 / 分隔线从 fallback 降级
+      // （原始 Markdown 源码显示）升级为专用 WYSIWYG 渲染器。
+      ListElement le => ListBlock(
           state: state,
-          element: element,
+          element: le,
           coordinator: coordinator,
           baseDir: baseDir,
+        ),
+      TaskListItemElement tle => TaskListBlock(
+          state: state,
+          element: tle,
+          coordinator: coordinator,
+          baseDir: baseDir,
+        ),
+      HorizontalRuleElement hre => HorizontalRuleBlock(
+          state: state,
+          element: hre,
+          coordinator: coordinator,
         ),
       // EmptyLineElement 不在 BlockEditor 范围（不应到达此处）
       EmptyLineElement() => throw ArgumentError(

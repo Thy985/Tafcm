@@ -42,8 +42,10 @@ void main() {
       // - components/bottom_sheet.dart:27 → Colors.grey[300]（拖拽指示色）
       // - blocks/paragraph/paragraph_block.dart:181 → Colors.grey.shade200
       //   （代码块底色，P3 迁移目标：codeBackground 令牌）
+      //   P0-1（2026-08-29）：行内渲染提取到 blocks/shared/inline_spans.dart:62，
+      //   allowlist 随迁移同步（同一处既有豁免，未新增）。
       const knownOffenders = <String>[
-        'lib/presentation/blocks/paragraph/paragraph_block.dart:181',
+        'lib/presentation/blocks/shared/inline_spans.dart:62',
         'lib/presentation/components/bottom_sheet.dart:27',
         'lib/presentation/components/loading.dart:104',
         'lib/presentation/components/loading.dart:112',
