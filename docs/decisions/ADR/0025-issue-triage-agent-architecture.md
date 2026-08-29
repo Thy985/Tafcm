@@ -3,7 +3,7 @@
 > **状态**：Proposed（随本 ADR 提交，Human Owner 签字即 Accepted）
 > **版本**：v1.0
 > **作者**：AI 协作开发者（基于 Human Owner 契约评审意见）
-> **关联**：`docs/ADR/0024-agent-diagnostic-interface.md`（ADI）· `.github/workflows/claude-review.yml`（四级审查基线）· `.github/pull_request_template.md`
+> **关联**：`docs/decisions/ADR/0024-agent-diagnostic-interface.md`（ADI）· `.github/workflows/claude-review.yml`（四级审查基线）· `.github/pull_request_template.md`
 
 ---
 
@@ -182,7 +182,7 @@ job: create（写）
 
 ### D8. 治理（Governance）——本 ADR 属于 Human-Owner 文件
 
-- `docs/ADR/*`、`docs/ARCHITECTURE.md` 等为本仓库 Human-Owner 专属文件，AI 仅在 Human Owner 明确授权（本次为显式评审授权）下可提交，必须走独立分支 + PR，**永不经自 merged**。
+- `docs/decisions/ADR/*`、`docs/architecture/ARCHITECTURE.md` 等为本仓库 Human-Owner 专属文件，AI 仅在 Human Owner 明确授权（本次为显式评审授权）下可提交，必须走独立分支 + PR，**永不经自 merged**。
 - `.issue-triage/history.json` 的累积写入由 create job 执行（确定性脚本），属系统运行时状态而非 AI 业务改动；其提交策略由 Human Owner 在首次落地时裁决。
 
 ### D9. 分类触发与并发

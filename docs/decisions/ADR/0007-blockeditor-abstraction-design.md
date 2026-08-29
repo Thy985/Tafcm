@@ -3,7 +3,7 @@
 - **状态**：Accepted（Human Owner 于 2026-07-19 授权进入 Phase 2.2 实现）
 - **生效日期**：2026-07-19
 - **决策者**：首席架构工程师
-- **关联**：[ROADMAP Phase 2.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md) / [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) / [CRITICAL_REVIEW §1.1](../../archive/audits/CRITICAL-REVIEW.md)
+- **关联**：[ROADMAP Phase 2.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md) / [ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) / [CRITICAL_REVIEW §1.1](../../archive/audits/CRITICAL-REVIEW.md)
 
 ---
 
@@ -27,7 +27,7 @@ Phase 2 的核心目标是：**设计并实现块级编辑内核**，让光标�
 
 ### 现有约束
 
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 已落地：`.md` 文件作为单一真相源，BlockEditor 抽象**不得引入第四套存储**
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) 已落地：`.md` 文件作为单一真相源，BlockEditor 抽象**不得引入第四套存储**
 - [AGENTS.md §6.5](file:///d:/Projects/Active/math2/AGENTS.md) Phase 2 禁区：UI 行为仍冻结，BlockEditor 抽象必须能 **脱离 UI 独立运行**（纯 Dart 逻辑）
 - [ROADMAP Phase 2 退出条件](file:///d:/Projects/Active/math2/docs/ROADMAP.md)：块编辑内核可脱离 UI 独立运行 + 1000 行增量解析 < 16ms + IME 组合态正确处理
 
@@ -106,7 +106,7 @@ CodeElement          <---->  CodeBlock
 - **映射函数**：`BlockEditor.fromElement(DocumentElement)` + `BlockEditor.toElement()`
 - **不引入"扁平 inline 编辑"**：inline 元素（Bold/Italic/...）仍是 `List<InlineElement>`，块内编辑时整段重解析 inline（Phase 2.3 增量解析）
 
-**否决 Flattening 方案的理由**：将 inline 元素铺平为 token 流会破坏 AST 与导出器的耦合，且需要重写 [markdown_parser.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart) 的 inline 解析，违反 [ADR-0004 §决策 4](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md)（保留自研解析器）。
+**否决 Flattening 方案的理由**：将 inline 元素铺平为 token 流会破坏 AST 与导出器的耦合，且需要重写 [markdown_parser.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/parser/markdown_parser.dart) 的 inline 解析，违反 [ADR-0004 §决策 4](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md)（保留自研解析器）。
 
 #### 1.4 聚焦态/非聚焦态切换机制
 
@@ -385,7 +385,7 @@ historyManager.endBatch();  // 1 个 Undo 单元
 #### 4.4 边界约束
 
 - **不修改 DocumentElement 子类签名**：保护导出器
-- **不引入派生缓存**（[ADR-0003 §边界约束 5](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)）：Block 列表 = .md 解析结果，无 SQLite / FileIndex
+- **不引入派生缓存**（[ADR-0003 §边界约束 5](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)）：Block 列表 = .md 解析结果，无 SQLite / FileIndex
 - **块数上限**：10000 块（移动端单 Document 容量上限，超出报错而非崩）
 
 ---
@@ -425,7 +425,7 @@ historyManager.endBatch();  // 1 个 Undo 单元
 ### 正面
 
 1. **Phase 3 UI 重写有清晰契约**：UI 层只需实现 `BlockEditor` 接口的渲染，不碰编辑逻辑
-2. **AST 不破坏**：[ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) 的扩展策略继续生效
+2. **AST 不破坏**：[ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) 的扩展策略继续生效
 3. **可独立测试**：BlockEditor 抽象是纯 Dart 逻辑，不依赖 Flutter UI（满足 ROADMAP Phase 2 退出条件）
 4. **IME 隔离**：通过 `ComposingRegion` 抽象，未来可适配不同 IME（搜狗 / Gboard / 系统输入法）
 
@@ -624,8 +624,8 @@ Document
 ## 参考
 
 - [ROADMAP.md Phase 2](file:///d:/Projects/Active/math2/docs/ROADMAP.md)
-- [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
-- [ADR-0004](file:///d:/Projects/Active/math2/docs/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略
+- [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) 存储单一真相源
+- [ADR-0004](file:///d:/Projects/Active/math2/docs/decisions/ADR/0004-markdown-parser-extension-strategy.md) Parser 扩展策略
 - [CRITICAL_REVIEW §1.1](../../archive/audits/CRITICAL-REVIEW.md) 编辑/预览分离问题
 - [data/models/document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) 现有 AST
 - [core/utils/history_manager.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/utils/history_manager.dart) Undo/Redo 栈

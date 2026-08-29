@@ -197,7 +197,7 @@ UI  →  Provider  →  Service  →  File / SharedPreferences / WebView
 
 ### 6.2 单一真相源（目标，未达成）
 
-详见 [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)。
+详见 [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)。
 
 - 当前：三套并存
 - 目标：`.md` 文件为唯一真相
@@ -563,6 +563,6 @@ flutter precache
 
 - [AGENTS.md](file:///d:/Projects/Active/math2/AGENTS.md) — 总体规范
 - [GIT_WORKFLOW.md](GIT-WORKFLOW.md) — Git 流程
-- [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/ARCHITECTURE.md) — 架构总览
+- [ARCHITECTURE.md](file:///d:/Projects/Active/math2/docs/architecture/ARCHITECTURE.md) — 架构总览
 - [ROADMAP.md](file:///d:/Projects/Active/math2/docs/ROADMAP.md) — 路线图
-- [ADR/](file:///d:/Projects/Active/math2/docs/ADR) — 架构决策记录
+- [ADR/](file:///d:/Projects/Active/math2/docs/decisions/ADR/) — 架构决策记录

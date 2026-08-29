@@ -798,9 +798,9 @@ flutter_app/test/observability/
 | FallbackBlockRenderer | `lib/presentation/blocks/fallback_block_renderer.dart:37` |
 | analyze.py | `tools/ffx-analyze/analyze.py` |
 | replay determinism test | `test/observability/replay_determinism_test.dart` |
-| ADR-0023 | `docs/ADR/0023-editor-observability-system.md` |
-| ADR-0022 | `docs/ADR/0022-renderer-failure-policy.md` |
-| ADR-0024 | `docs/ADR/0024-agent-diagnostic-interface.md` |
+| ADR-0023 | `docs/decisions/ADR/0023-editor-observability-system.md` |
+| ADR-0022 | `docs/decisions/ADR/0022-renderer-failure-policy.md` |
+| ADR-0024 | `docs/decisions/ADR/0024-agent-diagnostic-interface.md` |
 
 ---
 

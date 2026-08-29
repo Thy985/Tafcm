@@ -86,7 +86,7 @@ editor_history.dart ──→ utils/history_manager.dart
 
 **Phase 3 UI 接入时可信赖的承诺**：
 
-1. **`BlockId` 稳定 identity**（[ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/ADR/0008-editor-transaction-model.md)）：BlockId 在 in-memory 生命周期内不变，不跨序列化持久化
+1. **`BlockId` 稳定 identity**（[ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md)）：BlockId 在 in-memory 生命周期内不变，不跨序列化持久化
 2. **Eager apply 语义**：`BlockOperations` 每个原语调用立即 apply 到 `DocumentEditor`，调用方可直接读 editor 状态
 3. **Coalescing 7 触发条件**：连续 keyboard TextOperation 自动合并，UI 无需感知
 4. **IME 三铁律**：composing 中 BlockOperation 被拒绝，commit 入栈 origin=ime，cancel 不入栈

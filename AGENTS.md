@@ -146,7 +146,7 @@ import '../../data/models/document.dart';
 
 **目标**：`.md` 文件作为文档唯一存储，废弃 `formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']`。
 
-**理由**：见 [docs/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md)。
+**理由**：见 [docs/decisions/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)。
 
 **过渡期规则**：在 ADR-0003 执行前，**禁止新增第四套存储**。
 
@@ -295,10 +295,10 @@ PR 描述必须包含：
 | 架构决策类文件 commit | ❌ 禁止 | ✅ 专属权限 |
 
 **架构决策类文件**指：
-- `docs/ADR/*.md`（架构决策记录）
+- `docs/decisions/ADR/*.md`（架构决策记录）
 - `AGENTS.md`（协作规范本身）
-- `docs/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/REFACTOR_DESIGN.md` 等顶层架构文档
-- `docs/CRITICAL_REVIEW.md`（架构评审）
+- `docs/architecture/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/archive/REFACTOR_DESIGN.md` 等架构文档
+- `docs/archive/audits/CRITICAL-REVIEW.md`（架构评审）
 
 **例外**：当 Human Owner 明确授权时（如在任务说明里写明"请你同时更新 ADR-XXXX"），AI 可以 commit 架构决策类文件，但仍必须走 PR 流程。
 
@@ -309,7 +309,7 @@ PR 描述必须包含：
 1. ❌ 修改 UI 行为（Phase 1-2 仍属 UI Prototype Freeze 期，UI 在 Phase 3 重写）
 2. ❌ 新增 Phase 3 才有的功能（主题切换 / TOC / 图片管理 / 焦点模式等）—— 详见 [ROADMAP Phase 3](file:///d:/Projects/Active/math2/docs/ROADMAP.md)
 3. ❌ 在 BlockEditor 抽象稳定前（Phase 2.1）实现 2.2~2.7 的细节
-4. ❌ 跨阶段引入 SQLite / FileIndex 等派生缓存（[ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5）—— 留到 Phase 2 性能优化
+4. ❌ 跨阶段引入 SQLite / FileIndex 等派生缓存（[ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) §边界约束 5）—— 留到 Phase 2 性能优化
 
 ---
 
@@ -331,20 +331,21 @@ PR 描述必须包含：
 │   └── task-contract.md       任务契约模板
 └── state/                     运行时状态（.gitignore 忽略，不入库）
 
-docs/
-├── ARCHITECTURE.md          架构总览（当前 + 目标 + 问题 + 风险）
-├── ROADMAP.md                路线图（Phase 0-4）
-├── CODING_RULES.md           详细编码规范
-├── GIT_WORKFLOW.md           Git 详细流程
-├── WORKFLOW.md                开发流程与 CI/CD
-├── CRITICAL_REVIEW.md        现状严厉批判报告
-└── ADR/                      架构决策记录（每条决策一份）
-    ├── 0001-project-naming-and-structure.md
-    ├── 0002-state-management-riverpod.md
-    ├── 0003-storage-single-source-md-files.md
-    ├── 0004-markdown-parser-extension-strategy.md
-    ├── 0005-exporter-facade-dependency-injection.md
-    └── 0006-ci-github-actions.md
+docs/                        四层信息架构（人类入口 / 工程真相 / 历史档案 / 机器资产）
+├── README.md                人类导航（按阅读目的：新人 / 改代码 / 决策 / 验证 / 历史）
+├── INDEX.md                 全量索引
+├── ROADMAP.md               路线图（Phase 0-4）
+├── product/                 产品真相（PRODUCT / UX-GUIDE / TYPORA-GAP / CAPABILITY-STATUS）
+├── architecture/            架构真相（ARCHITECTURE / EDITOR-MODEL / EXPORT-MODEL / UI-*）
+├── engineering/             工程真相（BASELINE / GATE-REPORT / RULES / WORKFLOW / VERIFICATION-POLICY）
+├── decisions/               决策真相（INDEX 状态表 + ADR/ 29 篇）
+│   └── ADR/                 架构决策记录（每条决策一份）
+├── contracts/               任务契约
+├── design/                  设计文档
+├── releases/                11 篇 release notes
+├── regression/              回归用例包（BUG-001~003）
+├── evidence/                证据索引（capability / visual / consumer）
+└── archive/                 历史档案（audits / runs / spikes / investigations / old-designs / governance）
 ```
 
 ### ADR 编写规则
@@ -412,7 +413,7 @@ AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/A
 
 ### 9.5 ADI 诊断工作流（引用 ADR-0024 §1.4）
 
-AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math2/docs/ADR/0024-agent-diagnostic-interface.md)：
+AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface），**MUST** 遵守 [ADR-0024 §1.4 Agent Interaction Contract](file:///d:/Projects/Active/math2/docs/decisions/ADR/0024-agent-diagnostic-interface.md)：
 
 1. **Query first** — 先 `adi latest-error --json` 获取 Observation，不凭空假设
 2. **Inspect before edit** — 改代码前先 `adi trace show <id>` 理解因果链
@@ -421,7 +422,7 @@ AI Agent 调试 FormulaFix 时，若使用 ADI（Agent Diagnostic Interface）�
 5. **Never trust candidate_causes as truth** — `candidate_causes` 是假设非结论，修复决策需 Agent 推理
 6. **Respect invariant report** — `invariant_report.violated` 非空 = 状态损坏（真 bug）；全通过 = 渲染降级或既定行为（ADR-0022）
 
-ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入口：`dart run tools/adi/adi.dart <command>`。详见 [ADR-0024](file:///d:/Projects/Active/math2/docs/ADR/0024-agent-diagnostic-interface.md) + [ADI Design Document](file:///d:/Projects/Active/math2/docs/design/adi-design-v1.md)。
+ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入口：`dart run tools/adi/adi.dart <command>`。详见 [ADR-0024](file:///d:/Projects/Active/math2/docs/decisions/ADR/0024-agent-diagnostic-interface.md) + [ADI Design Document](file:///d:/Projects/Active/math2/docs/design/adi-design-v1.md)。
 
 ---
 
@@ -434,7 +435,7 @@ ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入�
 | 问题 | 修复 commit / PR | 证据 |
 |------|----------------|------|
 | Provider 重复定义 | `ec76f06`（1.1） | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门 |
-| 三套存储并存 | `b43e5c1`（1.2） | [ADR-0003](file:///d:/Projects/Active/math2/docs/ADR/0003-storage-single-source-md-files.md) Implemented |
+| 三套存储并存 | `b43e5c1`（1.2） | [ADR-0003](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md) Implemented |
 | 解析器缺 7 类元素 | `da4ab00`（1.5） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/parser/edge_case_test.dart) |
 | DocumentListScreen 死代码 | `b36d930`（1.3） | 路由已合并到 `/files` |
 | 错误 detail 透传 UI | `f6a73af`（1.7） | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/error/message_friendly_test.dart) |
@@ -875,36 +876,23 @@ D:\Projects\Active\math2\
 │   └── hooks.log                 # 运行时日志（gitignore）
 ├── contracts/                    # 任务契约文件（11 个 tracked）
 ├── design-system/                # 设计 tokens 源（tracked）
-├── docs/                         # 架构文档 + ADR + 设计
-│   ├── ADR/                      # 29 篇架构决策记录
-│   ├── ARCHITECTURE.md
-│   ├── ROADMAP.md
-│   ├── CRITICAL_REVIEW.md
-│   ├── INDEX.md                  # 全量索引（135+ 文档）
-│   ├── COMPREHENSIVE-TEST-REPORT.md
-│   ├── DESIGN.md
-│   ├── COMPONENT-Tree.md
-│   ├── BEHAVIOR-AUDIT-COVERAGE.md
-│   ├── EXPERIENCE-AUDIT-COVERAGE.md
-│   ├── DOCX-QA-PIPELINE.md
-│   ├── E2E_TEST_PLAN.md
-│   ├── CLI-ANYTHING-VERIFICATION-STATUS.md
-│   ├── ADI-CLOSED-LOOP-AUDIT.md
-│   ├── CONTRACT-SYNC-MINIMAL.md
-│   ├── PHASE3.10-ENGINEERING-BASELINE-v1.md
-│   ├── PR-1_DESCRIPTION.md
-│   ├── PR-2_DESCRIPTION.md
-│   ├── PR-3_DESCRIPTION.md
-│   ├── BRANCH_AUDIT_2026-08-25.md
-│   ├── REPO_AUDIT_2026-08-25.md   # 本次治理调研报告（⚠️ 未入库，引用悬空待补录）
-│   ├── contracts/                # capability contracts
+├── docs/                         # 文档体系（四层信息架构，详见 INFO-ARCHITECTURE-DESIGN.md）
+│   ├── README.md                 # 人类入口导航（按阅读目的）
+│   ├── INDEX.md                  # 全量索引
+│   ├── ROADMAP.md                # 路线图（Phase 0-4）
+│   ├── INFO-ARCHITECTURE-DESIGN.md  # 信息架构设计
+│   ├── MIGRATION-MAP.md          # 目录迁移映射
+│   ├── product/                  # 产品真相（PRODUCT / UX-GUIDE / TYPORA-GAP / CAPABILITY-STATUS）
+│   ├── architecture/             # 架构真相（ARCHITECTURE / EDITOR-MODEL / EXPORT-MODEL / UI-*）
+│   ├── engineering/              # 工程真相（BASELINE / GATE-REPORT / RULES / WORKFLOW / VERIFICATION-POLICY）
+│   ├── decisions/                # 决策真相（INDEX 状态表 + ADR/ 29 篇）
+│   ├── contracts/                # 任务契约
 │   ├── design/                   # 设计文档
 │   ├── releases/                 # 11 篇 release notes
-│   ├── runs/                     # RUN 报告（phase3.11/adl/dogfood）
-│   └── archive/                  # 过期文档归档
-│       ├── PHASE1_TEST_PLAN.md
-│       ├── REFACTOR_DESIGN.md
-│       └── 2026-08-12-git-governance-snapshot.md
+│   ├── regression/               # 回归用例包（BUG-001~003）
+│   ├── evidence/                 # 证据索引（capability / visual / consumer）
+│   ├── assets/                   # 文档资产
+│   └── archive/                  # 历史档案（audits / runs / spikes / investigations / old-designs / governance）
 ├── formulafix-redesign.design/   # 设计稿（HTML，18 个 tracked）
 ├── openwiki/                     # OpenWiki 证据索引（gitignore, 由 GitHub Action 生成）
 ├── skills/                       # Skills 目录（tracked）

@@ -15,7 +15,7 @@
 
 本文件是 **Phase 3.0 Editor Shell 的 UI 设计参考**，回答"用什么颜色 / 间距 / 字号 / 布局来渲染 Phase 3.0 的 EditorShell 与 3 种 Block（paragraph / heading / code）"。
 
-**与 [docs/UI_SPEC.md](../product/UX-GUIDE.md) 的关系**：
+**与 [UX-GUIDE.md](../product/UX-GUIDE.md) 的关系**：
 - [UI_SPEC.md](../product/UX-GUIDE.md)（顶层）：**产品视觉设计 source of truth**，覆盖 14 个屏幕（含 5 张 Typora 化对比页），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
 - 本文件（design/ui-spec.md）：**Phase 3.0+ 工程实现参考**，仅覆盖 EditorShell + 3 种 Block + chrome 组件，对应 `lib/presentation/` 代码实现
 
