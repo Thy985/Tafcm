@@ -86,6 +86,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
+          show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
