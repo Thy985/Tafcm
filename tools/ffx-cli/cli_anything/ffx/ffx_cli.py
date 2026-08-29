@@ -322,10 +322,11 @@ def file(ctx, path):
 @analyze.command()
 @click.pass_context
 def adr(ctx):
-    """List and analyze all ADRs in docs/ADR/."""
+    """List and analyze all ADRs in docs/decisions/ADR/."""
     try:
         root = find_flutter_root() or str(Path.cwd())
-        adr_dir = Path(root) / "docs" / "ADR"
+        # 3.12 信息架构迁移后 ADR 位于 docs/decisions/ADR/（旧 docs/ADR 已移动）
+        adr_dir = Path(root) / "docs" / "decisions" / "ADR"
         if not adr_dir.is_dir():
             click.echo(json.dumps({"status": "not_found", "path": str(adr_dir)}))
             return
@@ -363,7 +364,7 @@ def structure(ctx):
             "test_count": _count_files(root_p / "flutter_app" / "test", "*.dart"),
             "integration_test_count": _count_files(root_p / "flutter_app" / "integration_test", "*.dart"),
             "docs_count": _count_files(root_p / "docs", "*"),
-            "adr_count": _count_files(root_p / "docs" / "ADR", "*.md"),
+            "adr_count": _count_files(root_p / "docs" / "decisions" / "ADR", "*.md"),
             "tools": {
                 "adi": (root_p / "tools" / "adi" / "adi.dart").is_file(),
                 "ffx_analyze": (root_p / "tools" / "ffx-analyze" / "analyze.py").is_file(),

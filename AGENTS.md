@@ -844,7 +844,7 @@ cd flutter_app && flutter test 2>&1 | tee /tmp/flutter_test.log
 ### 14.1 整体结构
 
 > **同步时间**：2026-08-25（PR-5 `docs/sync-top-level-inventory-2026-08-25`）
-> **依据**：[docs/REPO_AUDIT_2026-08-25.md](docs/REPO_AUDIT_2026-08-25.md) v4 + `git ls-tree --name-only HEAD` 实测（⚠️ 该报告文件未入库，引用暂悬空，待 Owner 补录或改链）
+> **依据**：`git ls-tree --name-only HEAD` 实测（2026-08-25 治理轮 PR #167-#172 执行结果为准；原 `REPO_AUDIT_2026-08-25.md` v4 报告未入库，本节以实测与治理轮执行为权威）
 > **tracked 顶层**（17 个）：`.agent` `.arts` `.githooks` `.github` `AGENTS.md` `LICENSE` `README.md` `contracts` `design-system` `docs` `flutter_app` `formulafix-redesign.design` `skills` `tests` `tools` + 2 git 元数据文件 `.gitattributes` `.gitignore`
 > **ignored 顶层**（10 个，gitignore 拦截）：`.adi` `.claude/hooks.log` `.codeartsdoer` `.debug` `.ffx` `.openwiki` `.wt` `.workbuddy` `flutter_app/build/` `flutter_app/.dart_tool/` + 等等
 > **临时 untracked**（通常应忽略）：`.atomcode/memory.md`（preflight Windows fix 备忘，待后续 PR 评估）

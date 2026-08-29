@@ -11,16 +11,16 @@
 
 ## 1. 依赖方向评审
 
-### 1.1 六层架构合规性（[AGENTS.md §1.1](file:///d:/Projects/Active/math2/AGENTS.md)）
+### 1.1 六层架构合规性（[AGENTS.md §1.1](../../AGENTS.md)）
 
 | 层 | 范围 | 反向 import 检查 | 守门测试 |
 |----|------|----------------|---------|
-| `presentation/` | UI | 历史违规模块已记录（5 处） | [layer_dependency_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/layer_dependency_test.dart) |
+| `presentation/` | UI | 历史违规模块已记录（5 处） | [layer_dependency_test.dart](../../flutter_app/test/architecture/layer_dependency_test.dart) |
 | `providers/` | Riverpod Provider | ✅ 通过 | 同上 |
 | `domain/` | 业务服务 | ✅ 通过 | 同上 |
 | `data/` | 数据模型 | ✅ 通过 | 同上 |
 | `core/` | 基础设施 | ✅ 通过 | 同上 |
-| `core/editing/` | 编辑内核（Phase 2 新增） | ✅ **0 反向 import** | [editing_layer_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/editing_layer_test.dart) |
+| `core/editing/` | 编辑内核（Phase 2 新增） | ✅ **0 反向 import** | [editing_layer_test.dart](../../flutter_app/test/architecture/editing_layer_test.dart) |
 
 **关键结论**：Phase 2 新增的 `lib/core/editing/` 子树**零反向依赖**，无任何 `presentation/` / `domain/` / `providers/` import。
 
@@ -64,16 +64,16 @@ editor_history.dart ──→ utils/history_manager.dart
 
 | API | 稳定性 | 签名 | 测试覆盖 |
 |-----|--------|------|---------|
-| `DocumentEditor` 接口 | ✅ Stable | `blockCount` / `getBlock` / `indexOf` / `insertBlock` / `removeBlock` / `replaceBlock` / `updateBlockContent` | [document_editor_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/document_editor_test.dart) |
-| `BlockOperations` 高层 API | ✅ Stable | `insertAfter` / `delete` / `merge` / `split` / `move` / `tryTransform` / `updateSource` | [block_operations_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/block_operations_test.dart) + TC-EDIT-8.x |
-| `TransactionBuilder` | ✅ Stable | `add` / `commit` / `rollback` / `ops` / `opCount` / `isCompleted` / 嵌套 `parent` | [transaction_builder_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/transaction_builder_test.dart) |
-| `EditorHistory` | ✅ Stable v1.3 | `push` / `undo` / `redo` / `clear` / `canUndo` / `canRedo` / `lastOrNull` / `maxHistorySize`（v1.3 新增） | [editor_history_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/editor_history_test.dart) |
-| `ComposingController` | ✅ Stable | `onComposingStart` / `onComposingCommit` / `onComposingCancel` / `assertBlockMutationAllowed` / `state` | [ime_mutation_forbidden_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/ime_mutation_forbidden_test.dart) + TC-EDIT-8.3 |
-| `BlockSerializer` | ✅ Stable | `toElement(source, type)` / `fromElement(element)` | [block_serializer_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/block_serializer_test.dart) |
-| `detectBlockType` | ✅ Stable | `detectBlockType(source) → BlockType`（7 条规则，不含 table） | [block_type_detector_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/block_type_detector_test.dart) |
-| `BlockOperation` apply/revert | ✅ Stable | 6 种 `BlockOpType` × apply/revert 幂等 | [block_operation_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/block_operation_test.dart) |
-| `TextOperation` apply/revert | ✅ Stable | `blockId` / `offset` / `deleted` / `inserted` | [edit_operation_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/edit_operation_test.dart) |
-| `BlockId` | ✅ Stable | `@immutable` value object + `BlockId(int)` | [block_types_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/block_types_test.dart) |
+| `DocumentEditor` 接口 | ✅ Stable | `blockCount` / `getBlock` / `indexOf` / `insertBlock` / `removeBlock` / `replaceBlock` / `updateBlockContent` | [document_editor_test.dart](../../flutter_app/test/editing/document_editor_test.dart) |
+| `BlockOperations` 高层 API | ✅ Stable | `insertAfter` / `delete` / `merge` / `split` / `move` / `tryTransform` / `updateSource` | [block_operations_test.dart](../../flutter_app/test/editing/block_operations_test.dart) + TC-EDIT-8.x |
+| `TransactionBuilder` | ✅ Stable | `add` / `commit` / `rollback` / `ops` / `opCount` / `isCompleted` / 嵌套 `parent` | [transaction_builder_test.dart](../../flutter_app/test/editing/transaction_builder_test.dart) |
+| `EditorHistory` | ✅ Stable v1.3 | `push` / `undo` / `redo` / `clear` / `canUndo` / `canRedo` / `lastOrNull` / `maxHistorySize`（v1.3 新增） | [editor_history_test.dart](../../flutter_app/test/editing/editor_history_test.dart) |
+| `ComposingController` | ✅ Stable | `onComposingStart` / `onComposingCommit` / `onComposingCancel` / `assertBlockMutationAllowed` / `state` | [ime_mutation_forbidden_test.dart](../../flutter_app/test/editing/ime_mutation_forbidden_test.dart) + TC-EDIT-8.3 |
+| `BlockSerializer` | ✅ Stable | `toElement(source, type)` / `fromElement(element)` | [block_serializer_test.dart](../../flutter_app/test/editing/block_serializer_test.dart) |
+| `detectBlockType` | ✅ Stable | `detectBlockType(source) → BlockType`（7 条规则，不含 table） | [block_type_detector_test.dart](../../flutter_app/test/editing/block_type_detector_test.dart) |
+| `BlockOperation` apply/revert | ✅ Stable | 6 种 `BlockOpType` × apply/revert 幂等 | [block_operation_test.dart](../../flutter_app/test/editing/block_operation_test.dart) |
+| `TextOperation` apply/revert | ✅ Stable | `blockId` / `offset` / `deleted` / `inserted` | [edit_operation_test.dart](../../flutter_app/test/editing/edit_operation_test.dart) |
+| `BlockId` | ✅ Stable | `@immutable` value object + `BlockId(int)` | [block_types_test.dart](../../flutter_app/test/editing/block_types_test.dart) |
 | `BlockType` enum | ✅ Stable | 9 值 + `fromElement` 1:1 映射 | 同上 |
 
 ### 2.2 Phase 2.8 新增 API（v1.3）
@@ -86,7 +86,7 @@ editor_history.dart ──→ utils/history_manager.dart
 
 **Phase 3 UI 接入时可信赖的承诺**：
 
-1. **`BlockId` 稳定 identity**（[ADR-0008 v1.1 §9](file:///d:/Projects/Active/math2/docs/decisions/ADR/0008-editor-transaction-model.md)）：BlockId 在 in-memory 生命周期内不变，不跨序列化持久化
+1. **`BlockId` 稳定 identity**（[ADR-0008 v1.1 §9](../decisions/ADR/0008-editor-transaction-model.md)）：BlockId 在 in-memory 生命周期内不变，不跨序列化持久化
 2. **Eager apply 语义**：`BlockOperations` 每个原语调用立即 apply 到 `DocumentEditor`，调用方可直接读 editor 状态
 3. **Coalescing 7 触发条件**：连续 keyboard TextOperation 自动合并，UI 无需感知
 4. **IME 三铁律**：composing 中 BlockOperation 被拒绝，commit 入栈 origin=ime，cancel 不入栈
@@ -104,7 +104,7 @@ editor_history.dart ──→ utils/history_manager.dart
 | rollback 责任 | commit 失败时逆序 revert 已 apply 的 op | **不在 commit 时 revert**（rollback 仅清空 ops，不 revert） |
 | 原子性保证 | TransactionBuilder 提供原子性 | **原子性责任在调用方**（BlockOperations eager apply，失败需调用方逆序 revert） |
 
-**这是有意的设计决策**（已 dartdoc 文档化在 [transaction_builder.dart:12-13](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction_builder.dart)）：
+**这是有意的设计决策**（已 dartdoc 文档化在 [transaction_builder.dart:12-13](../../flutter_app/lib/core/editing/transaction_builder.dart)）：
 
 > **apply 责任**：本类只负责 **收集** op + 构造 [Transaction]。
 > 实际 apply 到 [DocumentEditor] 的责任在 [EditorHistory] 或调用方。
@@ -112,14 +112,14 @@ editor_history.dart ──→ utils/history_manager.dart
 **理由**：
 - `BlockOperations` 采用 eager apply 语义：每个原语调用立即 apply 到 editor，让调用方可直接读 editor 状态
 - TransactionBuilder 保持职责单一（只构造 Transaction），避免与 DocumentEditor 直接耦合
-- 失败回滚由调用方负责（[transaction_rollback_atomicity_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 已有 rollback helper 范本）
+- 失败回滚由调用方负责（[transaction_rollback_atomicity_test.dart](../../flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 已有 rollback helper 范本）
 
 **对 Phase 3 UI 接入的影响**：
 - ✅ UI 在 `TransactionBuilder.onChange` 回调中 push 到 `EditorHistory` + 触发 UI rebuild
 - ⚠️ 若 UI 需要原子性（多个 BlockOperation 必须全部成功或全部失败），UI 需自行实现 rollback helper
 - 建议在 ADR-0009 TransactionExecutor 启动时统一提供原子性保证（已登记为 Phase 2.8+ 候选）
 
-**Action Item**：Phase 2.6 Task Contract §3.5 的伪代码已过时，但 Phase 2.6 已 closed 不修改。本节作为权威澄清，以实际代码 [transaction_builder.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction_builder.dart) 为准。
+**Action Item**：Phase 2.6 Task Contract §3.5 的伪代码已过时，但 Phase 2.6 已 closed 不修改。本节作为权威澄清，以实际代码 [transaction_builder.dart](../../flutter_app/lib/core/editing/transaction_builder.dart) 为准。
 
 ---
 
@@ -129,25 +129,25 @@ editor_history.dart ──→ utils/history_manager.dart
 
 | ADR 章节 | 实现位置 | 合规性 |
 |---------|---------|--------|
-| §3 AST 模型 | [document.dart](file:///d:/Projects/Active/math2/flutter_app/lib/data/models/document.dart) `sealed class DocumentElement` | ✅ |
-| §3.4 BlockSerializer | [block_serializer.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_serializer.dart) | ✅ |
-| §4.1 五原语 | [block_operations.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_operations.dart) | ✅ |
-| §4.2 EditOperation sealed | [edit_operation.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/edit_operation.dart) | ✅ |
-| §4.3 transform 映射（7 类规则） | [block_operations.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_operations.dart) `tryTransform` + `updateSource` | ✅（Phase 2.7 实现） |
-| §5 IME 交互 | [composing_controller.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/composing_controller.dart) | ✅（Phase 2.5 实现） |
+| §3 AST 模型 | [document.dart](../../flutter_app/lib/data/models/document.dart) `sealed class DocumentElement` | ✅ |
+| §3.4 BlockSerializer | [block_serializer.dart](../../flutter_app/lib/core/editing/block_serializer.dart) | ✅ |
+| §4.1 五原语 | [block_operations.dart](../../flutter_app/lib/core/editing/block_operations.dart) | ✅ |
+| §4.2 EditOperation sealed | [edit_operation.dart](../../flutter_app/lib/core/editing/edit_operation.dart) | ✅ |
+| §4.3 transform 映射（7 类规则） | [block_operations.dart](../../flutter_app/lib/core/editing/block_operations.dart) `tryTransform` + `updateSource` | ✅（Phase 2.7 实现） |
+| §5 IME 交互 | [composing_controller.dart](../../flutter_app/lib/core/editing/composing_controller.dart) | ✅（Phase 2.5 实现） |
 
 ### 3.2 ADR-0008（Editor Transaction Model）
 
 | ADR 章节 | 实现位置 | 合规性 |
 |---------|---------|--------|
-| §1 Transaction 容器 | [transaction.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction.dart) | ✅ |
-| §3 TransactionBuilder commit/rollback | [transaction_builder.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction_builder.dart) | ✅ |
-| §4 Coalescing 7 触发条件 | [editor_history.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/editor_history.dart) `_defaultCanCoalesce` | ✅（v1.2 从 6 升级为 7 条件） |
-| §5 IME 铁律 | [composing_controller.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/composing_controller.dart) | ✅ |
-| §6 包装而非重写 HistoryManager | [editor_history.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/editor_history.dart) | ✅ |
+| §1 Transaction 容器 | [transaction.dart](../../flutter_app/lib/core/editing/transaction.dart) | ✅ |
+| §3 TransactionBuilder commit/rollback | [transaction_builder.dart](../../flutter_app/lib/core/editing/transaction_builder.dart) | ✅ |
+| §4 Coalescing 7 触发条件 | [editor_history.dart](../../flutter_app/lib/core/editing/editor_history.dart) `_defaultCanCoalesce` | ✅（v1.2 从 6 升级为 7 条件） |
+| §5 IME 铁律 | [composing_controller.dart](../../flutter_app/lib/core/editing/composing_controller.dart) | ✅ |
+| §6 包装而非重写 HistoryManager | [editor_history.dart](../../flutter_app/lib/core/editing/editor_history.dart) | ✅ |
 | §7 不跨 session Undo | 未实现持久化 | ✅（合规：明确不实现） |
-| §8 TransactionOrigin 枚举 | [transaction.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/transaction.dart) | ✅ |
-| §9 BlockId 生命周期 | [block_types.dart](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) `@immutable BlockId` | ✅（v1.1 新增声明） |
+| §8 TransactionOrigin 枚举 | [transaction.dart](../../flutter_app/lib/core/editing/transaction.dart) | ✅ |
+| §9 BlockId 生命周期 | [block_types.dart](../../flutter_app/lib/core/editing/block_types.dart) `@immutable BlockId` | ✅（v1.1 新增声明） |
 | §10 TransactionExecutor 设计方向 | 未实现（已登记 tech debt） | ✅（合规：明示 Phase 2.8+ 候选） |
 
 ### 3.3 ADR-0003（存储单一真相源）
@@ -171,13 +171,13 @@ editor_history.dart ──→ utils/history_manager.dart
 | TD-EDIT-4 | `block_operation.dart` 文件略超 400 行（408 行） | 维护成本 | Low | Phase 3 评估是否拆分 |
 | TD-EDIT-5 | `HistoryManager` 默认 maxHistorySize=50 | 影响 1000+ 步 undo 场景 | Low | Phase 3 UI 接入时按需配置 |
 
-### 4.2 跨层 tech debt（[AGENTS.md §10 已记录](file:///d:/Projects/Active/math2/AGENTS.md)）
+### 4.2 跨层 tech debt（[AGENTS.md §10 已记录](../../AGENTS.md)）
 
 | ID | 描述 | 修复 Phase |
 |----|------|-----------|
-| TD-CROSS-1 | `EditorScreen` 直接调 `FileService`（[§4.2 例外](file:///d:/Projects/Active/math2/AGENTS.md)） | Phase 3 |
-| TD-CROSS-2 | `editor_screen.dart:51-65` 静态缓存 hack（[§3.4](file:///d:/Projects/Active/math2/AGENTS.md)） | Phase 3 WYSIWYG 重构 |
-| TD-CROSS-3 | `editor_screen.dart:230-253` 异常 detail 透传 UI（[§4.4](file:///d:/Projects/Active/math2/AGENTS.md)） | Phase 3 |
+| TD-CROSS-1 | `EditorScreen` 直接调 `FileService`（[§4.2 例外](../../AGENTS.md)） | Phase 3 |
+| TD-CROSS-2 | `editor_screen.dart:51-65` 静态缓存 hack（[§3.4](../../AGENTS.md)） | Phase 3 WYSIWYG 重构 |
+| TD-CROSS-3 | `editor_screen.dart:230-253` 异常 detail 透传 UI（[§4.4](../../AGENTS.md)） | Phase 3 |
 | TD-CROSS-4 | Provider 重复定义（`sharedPreferencesProvider` / `darkModeProvider`） | Phase 1 已修复（PR #23） |
 
 ---
@@ -194,7 +194,7 @@ editor_history.dart ──→ utils/history_manager.dart
 4. **事务层**：`TransactionBuilder` commit/rollback/嵌套 + `EditorHistory` Coalescing + `Transaction` 容器
 5. **IME 层**：`ComposingController` 三铁律 + `ComposingHost` 接口（UI 实现 Host）
 
-### 5.2 Phase 3 第一波任务（[ROADMAP Phase 3](file:///d:/Projects/Active/math2/docs/ROADMAP.md)）
+### 5.2 Phase 3 第一波任务（[ROADMAP Phase 3](../ROADMAP.md)）
 
 | # | 任务 | 涉及 Phase 2 API |
 |---|------|------------------|
@@ -240,7 +240,7 @@ editor_history.dart ──→ utils/history_manager.dart
 ### 6.3 待 Human Owner 操作
 
 - [ ] 审批本 Architecture Review Report
-- [ ] 审批 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math2/docs/releases/phase2-exit-gate-report.md)
+- [ ] 审批 [Phase 2 Exit Gate Report](../releases/phase2-exit-gate-report.md)
 - [ ] 决定是否启动 ADR-0009 TransactionExecutor（建议 Phase 3 后再评估）
 - [ ] 合并 `feat/phase2.8-integration-hardening` PR 后启动 Phase 3
 
