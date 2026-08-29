@@ -196,12 +196,12 @@ flutter analyze --no-fatal-infos --fatal-warnings
 | [lib/presentation/editor/in_memory_document_editor.dart](../../flutter_app/lib/presentation/editor/in_memory_document_editor.dart) | 145 | DocumentEditor 实现 |
 | [lib/presentation/editor/seed_documents.dart](../../flutter_app/lib/presentation/editor/seed_documents.dart) | 56 | 3 个种子文档工厂 |
 | [lib/presentation/blocks/block_renderer.dart](../../flutter_app/lib/presentation/blocks/block_renderer.dart) | 92 | exhaustive switch 渲染分发器 |
-| [lib/presentation/blocks/paragraph_block.dart](../../flutter_app/lib/presentation/blocks/paragraph_block.dart) | ~210 | 段落块（render + edit 双态） |
-| [lib/presentation/blocks/heading_block.dart](../../flutter_app/lib/presentation/blocks/heading_block.dart) | ~130 | 标题块（level 1-6 字号梯度） |
-| [lib/presentation/blocks/code_block.dart](../../flutter_app/lib/presentation/blocks/code_block.dart) | ~110 | 代码块（language chip + monospace） |
+| [lib/presentation/blocks/paragraph/paragraph_block.dart](../../flutter_app/lib/presentation/blocks/paragraph/paragraph_block.dart) | ~210 | 段落块（render + edit 双态） |
+| [lib/presentation/blocks/heading/heading_block.dart](../../flutter_app/lib/presentation/blocks/heading/heading_block.dart) | ~130 | 标题块（level 1-6 字号梯度） |
+| [lib/presentation/blocks/code/code_block.dart](../../flutter_app/lib/presentation/blocks/code/code_block.dart) | ~110 | 代码块（language chip + monospace） |
 | [lib/presentation/chrome/editor_app_bar.dart](../../flutter_app/lib/presentation/chrome/editor_app_bar.dart) | 80 | AppBar（title + modified indicator） |
 | [lib/presentation/chrome/editor_status_bar.dart](../../flutter_app/lib/presentation/chrome/editor_status_bar.dart) | 60 | StatusBar（块数 / 字数 / Undo 状态） |
-| [lib/presentation/panels/side_panel_host.dart](../../flutter_app/lib/presentation/panels/side_panel_host.dart) | 60 | 侧栏容器占位（Phase 3.0 不显示） |
+| [lib/presentation/editor/workspace.dart](../../flutter_app/lib/presentation/editor/workspace.dart) | 60 | 侧栏容器占位（Phase 3.0 不显示） |
 | [lib/presentation/themes/editor_tokens.dart](../../flutter_app/lib/presentation/themes/editor_tokens.dart) | 89 | 主题 token 常量 |
 
 ### 5.2 修改文件（lib/）
@@ -241,7 +241,7 @@ flutter analyze --no-fatal-infos --fatal-warnings
 | 1 | `flutter run` 看到 EditorShell 正常显示 | ✅ 代码实现 | 运行 `/editor3` 路由进入 EditorPage |
 | 2 | 3 种 Block（paragraph / heading / code）渲染正确 | ✅ 代码实现 | [block_renderer.dart](../../flutter_app/lib/presentation/blocks/block_renderer.dart) + 3 子组件 |
 | 3 | Block 双态切换（render ↔ edit）Demo 可用 | ✅ 代码实现 | ParagraphBlock / HeadingBlock / CodeBlock 均实现双态 |
-| 4 | SidePanel / StatusBar 插槽存在（占位） | ✅ 代码实现 | [side_panel_host.dart](../../flutter_app/lib/presentation/panels/side_panel_host.dart) + [editor_status_bar.dart](../../flutter_app/lib/presentation/chrome/editor_status_bar.dart) |
+| 4 | SidePanel / StatusBar 插槽存在（占位） | ✅ 代码实现 | [side_panel_host.dart](../../flutter_app/lib/presentation/editor/workspace.dart) + [editor_status_bar.dart](../../flutter_app/lib/presentation/chrome/editor_status_bar.dart) |
 | 5 | Widget 不直接访问 AST（通过 EditorCoordinator） | ✅ 守门 | TC-ARCH-UI-3 通过 |
 | 6 | Widget 不直接调用 DocumentEditor mutation（通过 CommandHandler） | ✅ 守门 | TC-ARCH-UI-1 + TC-ARCH-UI-2 通过 |
 | 7 | Command 是唯一用户行为入口 | ✅ 守门 | TC-ARCH-UI-1 + TC-ARCH-UI-2 通过 |

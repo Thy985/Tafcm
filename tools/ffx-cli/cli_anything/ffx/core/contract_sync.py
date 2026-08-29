@@ -23,7 +23,8 @@ from ..harness.contract import repo_root
 
 
 def matrix_path() -> Path:
-    return repo_root() / "docs" / "FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md"
+    # 3.12 信息架构迁移后矩阵位于 docs/product/（旧 docs/FEATURE-CAPABILITY-COVERAGE-MATRIX-v1.md 已移动）
+    return repo_root() / "docs" / "product" / "CAPABILITY-STATUS-source-coverage.md"
 
 
 def _norm(name: str) -> str:
@@ -254,6 +255,11 @@ def _capability_of_matrix_name(name: str) -> str:
 
 
 def render_sync_report(result: dict[str, Any]) -> str:
+    if result.get("status") == "error":
+        return "\n".join(
+            ["contract sync: status=error"]
+            + [f"  ✗ {e}" for e in result.get("errors", [])]
+        )
     lines = [
         f"contract sync: status={result['status']}",
         f"  matrix S0       : {result['matrix_s0']}",

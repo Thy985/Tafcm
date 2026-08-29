@@ -73,10 +73,10 @@
 
 ## 2. 子目录
 
-### 2.1 ADR（架构决策记录，29 篇）
+### 2.1 ADR（架构决策记录，30 篇）
 
-见 [ADR/](ADR/) —— 按编号递增（0001 ~ 0030）。状态机 `Proposed → Accepted → Superseded/Deprecated`。
-关键：ADR-0003（存储单一真相源）/ 0024（ADI）/ 0028（CLI before schema）/ 0029（嵌套 AST）/ 0030（Verification Orchestrator）。
+见 [ADR/](ADR/) —— 按编号递增（0001 ~ 0031）。状态机 `Proposed → Accepted → Superseded/Deprecated`。
+关键：ADR-0003（存储单一真相源）/ 0024（ADI）/ 0028（CLI before schema）/ 0029（嵌套 AST）/ 0030（Verification Orchestrator）/ 0031（品牌改名 Tafcm，取代 ADR-0001 §1）。
 
 ### 2.2 contracts（任务契约，16 篇）
 
@@ -97,6 +97,14 @@
 |------|------|
 | [REFACTOR_DESIGN.md](archive/REFACTOR_DESIGN.md) | 重构方案设计（被 ADR + Phase 3.10 Baseline 取代，2026-08-22 归档） |
 | [PHASE1_TEST_PLAN.md](archive/PHASE1_TEST_PLAN.md) | Phase 1 测试计划（Phase 1 已完结，2026-08-22 归档） |
+
+### 2.6 evidence（证据索引）
+
+见 [evidence/](evidence/) —— 能力 / 视觉 / 消费证据索引（人类可追溯判定）。
+
+### 2.7 assets（设计资产）
+
+见 [assets/](assets/) —— `ui-prototype/` 设计稿资产。
 
 ## 3. RUN 报告（35 篇，按类型归档）
 
@@ -139,6 +147,6 @@
 ## 4. 索引核对
 
 - 顶层 md：40 篇（含本 INDEX）
-- ADR：29 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇 | archive：2 篇
+- ADR：30 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇 | archive：2 篇
 - RUN 报告：35 篇（phase3.11 ×16 + adl ×12 + dogfood ×7）
-- 合计：**135 篇**
+- 合计：**136 篇**

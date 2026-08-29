@@ -12,7 +12,7 @@
 
 | ADR | 主题 | 文档状态 | 判词 | 说明 |
 |-----|------|---------|------|------|
-| [0001](ADR/0001-project-naming-and-structure.md) | 项目命名与目录结构 | Accepted | ✅ VALID | 基础约定 |
+| [0001](ADR/0001-project-naming-and-structure.md) | 项目命名与目录结构 | Superseded by 0031 | ✅ VALID | §1 命名条款被 ADR-0031 取代；§2 目录结构保留 |
 | [0002](ADR/0002-state-management-riverpod.md) | Riverpod 状态管理 | Accepted | ✅ VALID | 唯一状态方案 |
 | [0003](ADR/0003-storage-single-source-md-files.md) | .md 单一真相源 | Implemented | ✅ VALID | 存储统一 |
 | [0004](ADR/0004-markdown-parser-extension-strategy.md) | 手写 Markdown 解析器 | Proposed | 🟡 VALID-BUT-COSTLY | 保留手写；建议升级 Accepted + fuzz 守门 |
@@ -41,6 +41,7 @@
 | [0028](ADR/0028-cli-adi-validation-before-schema.md) | CLI adi validate before schema | Accepted | ✅ VALID | schema 收敛 |
 | [0029](ADR/0029-list-element-nested-ast.md) | ListElement 嵌套 AST | Proposed | ⚪ 待签字 | 解决 BUG-5 |
 | [0030](ADR/0030-ffx-verification-orchestrator.md) | FFX Verification Orchestrator | Accepted | ✅ VALID | Phase 3.10 根决策 |
+| [0031](ADR/0031-rebrand-tafcm.md) | 品牌改名（FormulaFix → Tafcm） | Accepted | ✅ VALID | 取代 ADR-0001 §1；L0+L1+L2 已落地（2026-08-29） |
 
 ---
 

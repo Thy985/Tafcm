@@ -1,9 +1,10 @@
 # ADR-0022：Renderer Failure Policy（渲染层失败策略）
 
-- **状态**：Accepted
+- **状态**：Superseded（§2.2 `FallbackBlockRenderer` 机制已随 P0-1 修复轮退役——2026-08-29，List/TaskList/HR 专用渲染器落地 + switch 全量 exhaustive，fallback 分支删除；§2.1 "Renderer 不得因未知 BlockElement crash" 原则仍有效，改由全量实现保证）
 - **日期**：2026-08-06
 - **决策者**：Human Owner
 - **关联**：[ADR-0009 UI Architecture](./0009-ui-architecture-design.md) / [ADR-0020 Block Model](./0020-block-model.md) / [ADR-0023 Editor Observability](./0023-editor-observability-system.md)
+- **退役原因**：[P0-1 WYSIWYG 修复轮（PR #176）](../ADR/0031-rebrand-tafcm.md) 配套——`block_renderer.dart` switch 全量 exhaustive（List / TaskList / HorizontalRule 专用渲染器），`FallbackBlockRenderer` 及 `fallback_block_renderer.dart` 删除；测试契约改为 TC-FALLBACK 系列 + `ui_exhaustive_switch_test` 断言新 case 语法
 - **取代**：Phase 3.2 PR #3 中"`ListElement / TaskListItemElement / HorizontalRuleElement` 显式抛 `UnimplementedError`"的设计（无独立 ADR，散落在 `block_renderer.dart` docstring + `ui_exhaustive_switch_test.dart` 守门）
 
 ---
