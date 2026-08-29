@@ -1,4 +1,4 @@
-package com.formulafix.formula_fix;
+package com.tafcm.app;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;

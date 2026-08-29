@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/presentation/blocks/shared/block_convert.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/presentation/blocks/shared/block_convert.dart';
 
 /// applyBlockPrefix 纯函数单测（T1-4）。
 ///

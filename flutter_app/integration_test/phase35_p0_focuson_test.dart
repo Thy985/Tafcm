@@ -10,9 +10,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
 import 'helpers/test_fixture_file.dart';
 
 /// 从 widget 树获取 EditorCoordinator（EditorScope 在 EditorPage.build 内创建）。

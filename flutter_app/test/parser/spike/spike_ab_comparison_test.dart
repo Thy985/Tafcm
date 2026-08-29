@@ -1,8 +1,8 @@
 /// Migration Spike A/B 对比（Phase 3.9 §2.1）。
 ///
 /// 统一喂现有 fuzz corpus（MarkdownCorpusGenerator），两路解析：
-///   A 侧：CurrentParser（手写 markdown_parser.dart）→ FormulaFix AST
-///   B 侧：package:markdown 7.3.1 → Adapter → FormulaFix AST
+///   A 侧：CurrentParser（手写 markdown_parser.dart）→ Tafcm AST
+///   B 侧：package:markdown 7.3.1 → Adapter → Tafcm AST
 ///
 /// 采集 7 维度：
 ///   1. 解析成功率（不抛异常）
@@ -20,9 +20,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/parser/markdown_parser.dart';
-import 'package:formula_fix/core/parser/markdown_serializer.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/parser/markdown_parser.dart';
+import 'package:tafcm/core/parser/markdown_serializer.dart';
+import 'package:tafcm/data/models/document.dart';
 
 import '../roundtrip_fuzz_test.dart' show MarkdownCorpusGenerator;
 import 'markdown_package_adapter.dart' as spike;

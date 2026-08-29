@@ -1,8 +1,8 @@
 library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/panels/file_tree_panel.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/panels/file_tree_panel.dart';
 
 Document _doc(String id, String title, DateTime updatedAt) => Document(
       id: id,

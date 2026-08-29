@@ -12,9 +12,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/models.dart' as obs;
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/render_tracer.dart';
+import 'package:tafcm/core/observability/models.dart' as obs;
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/render_tracer.dart';
 
 void main() {
   group('RenderTracer 基本功能', () {

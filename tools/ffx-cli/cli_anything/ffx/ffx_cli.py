@@ -1,4 +1,4 @@
-"""FormulaFix CLI — diagnostic and document analysis tool for FormulaFix projects."""
+"""Tafcm CLI — diagnostic and document analysis tool for Tafcm projects."""
 from __future__ import annotations
 
 import json
@@ -39,7 +39,7 @@ def _effective_json(ctx: click.Context) -> bool:
               help="Project root (defaults to cwd or nearest pubspec.yaml)")
 @click.pass_context
 def cli(ctx, use_json, project_path, dry_run, project_root):
-    """ffx — FormulaFix diagnostic and document analysis CLI."""
+    """ffx — Tafcm diagnostic and document analysis CLI."""
     ctx.ensure_object(dict)
     ctx.obj["use_json"] = use_json
     ctx.obj["project_path"] = project_path
@@ -749,7 +749,7 @@ def _print_help(ctx, use_json):
         }
         print(json.dumps({"mode": "repl", "commands": cmds, "hint": "use --help for details"}))
     else:
-        click.echo("FormulaFix CLI — run a subcommand or use --help")
+        click.echo("Tafcm CLI — run a subcommand or use --help")
         click.echo("Available groups: project, analyze, adi, diag, capability")
         click.echo("Try: ffx --help")
 

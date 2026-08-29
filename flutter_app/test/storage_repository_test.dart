@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:formula_fix/core/services/front_matter_parser.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
-import 'package:formula_fix/core/services/storage_migration.dart';
+import 'package:tafcm/core/services/front_matter_parser.dart';
+import 'package:tafcm/core/services/file_repository.dart';
+import 'package:tafcm/core/services/storage_migration.dart';
 
 /// 用临时目录模拟 `getApplicationDocumentsDirectory()`，
 /// 使 FileRepository / StorageMigration 可在单测中运行。
@@ -24,7 +24,7 @@ String _p(String base, String part) => '$base${Platform.pathSeparator}$part';
 
 void main() {
   setUp(() async {
-    _tmp = await Directory.systemTemp.createTemp('formulafix_store_test_');
+    _tmp = await Directory.systemTemp.createTemp('tafcm_store_test_');
     PathProviderPlatform.instance = _MockPathProvider(_tmp.path);
   });
 

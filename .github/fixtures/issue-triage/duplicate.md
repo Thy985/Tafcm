@@ -1,6 +1,6 @@
 # Source
 type: branch_scan
-repository: Thy985/fixmath
+repository: Thy985/Tafcm
 pr: null
 base: main
 branch: feat/issue-triage-workflow

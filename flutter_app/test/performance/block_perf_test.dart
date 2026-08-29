@@ -14,8 +14,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/block_types.dart';
 
 /// 构造一份 1000 块的 Markdown 样本（按 7:2:1 混合 paragraph/heading/code）。
 ///

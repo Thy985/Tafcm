@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/domain/services/exporters/word_exporter.dart';
+import 'package:tafcm/domain/services/exporters/word_exporter.dart';
 
 /// Word 真实导出 runner（3.11 Word Full Golden Loop）：
 /// 真实 md 输入 → FormulaFix WordExporter → 真实 docx 产物（FFX_OUT_DIR）。

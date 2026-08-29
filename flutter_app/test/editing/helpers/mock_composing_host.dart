@@ -4,8 +4,8 @@
 /// 验证铁律 1（不切块）被强制执行。
 library;
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/composing_controller.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/composing_controller.dart';
 
 /// 用于单测的 [ComposingHost] mock 实现。
 ///

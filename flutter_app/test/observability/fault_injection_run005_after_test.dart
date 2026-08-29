@@ -21,21 +21,21 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/observability/adi_storage.dart';
-import 'package:formula_fix/core/observability/fault_injection.dart';
-import 'package:formula_fix/core/observability/models.dart' as obs;
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/core/observability/trace_context.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/domain/services/export_service.dart';
-import 'package:formula_fix/presentation/blocks/code/code_block.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/observability/adi_storage.dart';
+import 'package:tafcm/core/observability/fault_injection.dart';
+import 'package:tafcm/core/observability/models.dart' as obs;
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/core/observability/trace_context.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/domain/services/export_service.dart';
+import 'package:tafcm/presentation/blocks/code/code_block.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
 
 /// 由驱动脚本注入：仅当为 true 时本测试才执行（fix 已应用到生产源码）。
 const _afterFix = bool.fromEnvironment('ADL_RUN005_AFTER');

@@ -35,7 +35,7 @@ class HomeScreen extends ConsumerWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       // P1-4 修复（2026-08-03 真机验证）：P0-4 (PR #108) 当初有意 SafeArea(top:false)
       // 让 Header 顶到屏幕最顶，假设系统状态栏透明叠加在纸色背景上。但真机状态栏
-      // 不透明（小米 Android 16 实测），遮挡 "FormulaFix" 字标与右上角按钮组。
+      // 不透明（小米 Android 16 实测），遮挡 "Tafcm" 字标与右上角按钮组。
       // 改回 top:true 让出状态栏，与 editor_shell 焦点模式 SafeArea 修复保持一致。
       // bottom:true 让出 home indicator / 底部手势条。
       body: SafeArea(
@@ -191,7 +191,7 @@ class _Header extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('FormulaFix',
+          Text('Tafcm',
               style: TextStyle(
                 fontFamily: AppTypography.serif,
                 fontSize: 19,

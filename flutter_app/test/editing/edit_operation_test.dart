@@ -10,9 +10,9 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/edit_operation.dart';
+import 'package:tafcm/data/models/document.dart';
 
 import 'helpers/mock_document_editor.dart';
 

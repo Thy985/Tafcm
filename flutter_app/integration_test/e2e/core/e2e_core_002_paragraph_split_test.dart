@@ -38,7 +38,7 @@ void main() {
       await pumpE2EApp(tester, seedSelector: 0);
 
       // 聚焦标题块
-      await tapBlockByText(tester, 'FormulaFix Demo');
+      await tapBlockByText(tester, 'Tafcm Demo');
 
       // 输入新标题
       await enterTextInFocusedBlock(tester, '# 新标题');

@@ -8,10 +8,10 @@
 /// 提取到 lib/ 供 Prototype Demo 使用。**不修改内核**。
 library;
 
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/document_editor.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/document_editor.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 内存态 [DocumentEditor] 实现（Prototype 专用）。
 ///

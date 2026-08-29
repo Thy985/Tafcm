@@ -19,11 +19,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/core/services/file_repository.dart';
-import 'package:formula_fix/presentation/screens/home_screen.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/providers/file_repository_provider.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/core/services/file_repository.dart';
+import 'package:tafcm/presentation/screens/home_screen.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/providers/file_repository_provider.dart';
 
 /// 测试用 [FilePicker] 桩：记录 pickFiles 调用参数，按构造时指定的结果返回。
 ///

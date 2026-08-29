@@ -15,7 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// 轻量编辑器宿主：直接挂一个可输入 TextField + 文本回显，
 /// 验证输入→渲染延迟 smoke（不依赖完整编辑器启动，纯 widget 层）。

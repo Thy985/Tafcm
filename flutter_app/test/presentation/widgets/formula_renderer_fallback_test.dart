@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/theme/app_typography.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
-import 'package:formula_fix/presentation/widgets/formula_renderer.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/theme/app_typography.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/presentation/widgets/formula_renderer.dart';
 
 /// T1-3 FormulaRenderer 降级链路测试（Phase 3.5.1 / TEST_GAP_PLAN Tier 1）。
 ///

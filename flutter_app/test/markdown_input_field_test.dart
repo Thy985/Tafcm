@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:formula_fix/presentation/widgets/markdown_input_field.dart';
+import 'package:tafcm/presentation/widgets/markdown_input_field.dart';
 
 /// ROADMAP 1.6 回归测试：工具栏按钮必须与解析器能力对齐。
 ///

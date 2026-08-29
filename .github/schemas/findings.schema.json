@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/Thy985/fixmath/.github/schemas/findings.schema.json",
+  "$id": "https://github.com/Thy985/Tafcm/.github/schemas/findings.schema.json",
   "title": "Issue Triage findings.json",
   "description": "Claude(Untrusted Reasoner) 的结构化输出契约。fingerprint 由 create 阶段据此计算，不出现于此。",
   "type": "object",

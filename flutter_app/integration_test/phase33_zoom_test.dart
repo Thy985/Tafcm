@@ -9,8 +9,8 @@ library;
 import 'package:flutter/material.dart' show IconButton, Icons;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/presentation/chrome/editor_status_bar.dart';
-import 'package:formula_fix/presentation/editor/editor_shell.dart';
+import 'package:tafcm/presentation/chrome/editor_status_bar.dart';
+import 'package:tafcm/presentation/editor/editor_shell.dart';
 import 'helpers/test_fixture.dart';
 
 // Icons.add 同时用于「StatusBar 缩放放大」与「Toolbar 模板菜单 +」,

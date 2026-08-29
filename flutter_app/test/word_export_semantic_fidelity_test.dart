@@ -11,7 +11,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/domain/services/exporters/word_exporter.dart';
+import 'package:tafcm/domain/services/exporters/word_exporter.dart';
 
 /// 语义模型：从 document.xml 提取的计数。
 class DocxSemanticModel {

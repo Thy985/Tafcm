@@ -42,7 +42,7 @@ void main() {
       expectTextVisible(tester, 'abc');
 
       // 点击标题块使段落失焦
-      await tapBlockByText(tester, 'FormulaFix Demo');
+      await tapBlockByText(tester, 'Tafcm Demo');
 
       // Undo 直到恢复原始内容（coalescing 合并则 1 次，未合并则最多 3 次）
       await tapUndo(tester);
@@ -68,7 +68,7 @@ void main() {
       await tapBlockByText(tester, 'Hello, Block Editor!');
       await enterTextInFocusedBlock(tester, 'coalescing test');
       // 失焦 commit
-      await tapBlockByText(tester, 'FormulaFix Demo');
+      await tapBlockByText(tester, 'Tafcm Demo');
 
       // 编辑后 Undo 可用
       expectUndoEnabled(tester);

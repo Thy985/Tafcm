@@ -13,11 +13,11 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/presentation/blocks/input/input_handler.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/presentation/blocks/input/input_handler.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;

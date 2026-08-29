@@ -19,9 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
-import 'package:formula_fix/providers/editor_providers.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/providers/editor_providers.dart';
 
 /// 最小主题宿主：镜像 main.dart 的接线（watch themeModeProvider → themeFor），
 /// 并在 body 内经 [EditorTokens.of] 取色以验证完整链路 + 注入完整性。

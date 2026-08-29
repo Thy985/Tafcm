@@ -2,12 +2,12 @@
 name: >-
   cli-anything-ffx
 description: >-
-  Command-line interface for Ffx - A Python CLI for the FormulaFix Flutter project — diagnostic, ADI wrapper, and markdown analysis.
+  Command-line interface for Ffx - A Python CLI for the Tafcm Flutter project — diagnostic, ADI wrapper, and markdown analysis.
 ---
 
 # cli-anything-ffx
 
-A Python CLI for the FormulaFix Flutter project — diagnostic, ADI wrapper, and markdown analysis.
+A Python CLI for the Tafcm Flutter project — diagnostic, ADI wrapper, and markdown analysis.
 
 ## Installation
 

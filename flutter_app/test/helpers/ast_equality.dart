@@ -9,7 +9,7 @@
 /// 本文件仅用于 test/，不放入 lib/。
 library;
 
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/data/models/document.dart';
 
 /// 递归比较两个 [DocumentElement] AST 是否等价。
 bool astDeepEquals(DocumentElement a, DocumentElement b) {

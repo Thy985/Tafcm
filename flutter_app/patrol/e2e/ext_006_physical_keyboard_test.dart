@@ -15,8 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:formula_fix/presentation/editor/editor_page.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 void main() {
   patrolTest(
@@ -33,7 +33,7 @@ void main() {
       await $.pumpAndSettle();
 
       // 验证编辑器已加载
-      expect(find.text('FormulaFix Demo'), findsWidgets,
+      expect(find.text('Tafcm Demo'), findsWidgets,
           reason: '编辑器应正常加载并显示种子文档');
 
       // 验证 Undo 按钮初始为禁用

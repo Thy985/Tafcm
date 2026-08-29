@@ -11,7 +11,7 @@ import 'dart:io' as io;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/domain/services/export_service.dart';
+import 'package:tafcm/domain/services/export_service.dart';
 
 void main() {
   group('T3-4 export full-chain E2E', () {

@@ -11,10 +11,10 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/presentation/editor/autosave_service.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/seed_documents.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/presentation/editor/autosave_service.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/seed_documents.dart';
 
 import 'autosave_test_helpers.dart';
 

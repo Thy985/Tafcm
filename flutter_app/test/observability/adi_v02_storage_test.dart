@@ -9,8 +9,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_record.dart';
-import 'package:formula_fix/core/observability/adi_storage.dart';
+import 'package:tafcm/core/observability/adi_record.dart';
+import 'package:tafcm/core/observability/adi_storage.dart';
 
 void main() {
   late String tempDir;

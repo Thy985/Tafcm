@@ -14,7 +14,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/domain/services/exporters/word_exporter.dart';
+import 'package:tafcm/domain/services/exporters/word_exporter.dart';
 import 'package:xml/xml.dart' as xml;
 
 /// 导出真实 docx 并解包，返回 (zip, 文件表)。

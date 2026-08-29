@@ -8,9 +8,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:formula_fix/core/renderers/svg_ast.dart';
-import 'package:formula_fix/core/renderers/svg_parser.dart';
-import 'package:formula_fix/core/renderers/svg_to_pdf.dart';
+import 'package:tafcm/core/renderers/svg_ast.dart';
+import 'package:tafcm/core/renderers/svg_parser.dart';
+import 'package:tafcm/core/renderers/svg_to_pdf.dart';
 
 void main() {
   group('SvgPdfWidget 集成', () {

@@ -15,11 +15,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:formula_fix/core/services/formula_svg_service.dart';
-import 'package:formula_fix/core/services/mermaid_service.dart';
-import 'package:formula_fix/presentation/editor/editor_page.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
-import 'package:formula_fix/presentation/themes/editor_tokens.dart';
+import 'package:tafcm/core/services/formula_svg_service.dart';
+import 'package:tafcm/core/services/mermaid_service.dart';
+import 'package:tafcm/presentation/editor/editor_page.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/themes/editor_tokens.dart';
 import 'helpers/test_fixture_file.dart';
 import 'helpers/phase35_harness.dart';
 

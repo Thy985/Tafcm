@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/editor/editor_coordinator.dart';
-import 'package:formula_fix/presentation/editor/editor_intent.dart';
-import 'package:formula_fix/presentation/editor/editor_scope.dart';
-import 'package:formula_fix/presentation/editor/in_memory_document_editor.dart';
-import 'package:formula_fix/presentation/editor/workspace.dart';
-import 'package:formula_fix/presentation/states/block_view_state.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_intent.dart';
+import 'package:tafcm/presentation/editor/editor_scope.dart';
+import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/editor/workspace.dart';
+import 'package:tafcm/presentation/states/block_view_state.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// 真机 P0 回归（phase3.5-realdevice-issues.md）：
 /// - #1 回车分块 / 即点即插（AS-1.1 / AS-1.2 / AS-1.3）

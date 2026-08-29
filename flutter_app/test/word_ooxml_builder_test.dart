@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/domain/services/exporters/word_ooxml_builder.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/domain/services/exporters/word_ooxml_builder.dart';
 
 void main() {
   group('parseSvgViewBox', () {

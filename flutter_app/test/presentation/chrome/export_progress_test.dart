@@ -14,9 +14,9 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/domain/providers/export_progress_provider.dart';
-import 'package:formula_fix/domain/services/export_service.dart';
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/domain/providers/export_progress_provider.dart';
+import 'package:tafcm/domain/services/export_service.dart';
 
 /// 假 PDF exporter：仅发出预定 onProgress 序列并返回最小字节（验证
 /// MarkdownExporter 透传 onProgress 给下游实现）。

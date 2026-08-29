@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/presentation/screens/home_screen.dart';
-import 'package:formula_fix/presentation/theme/app_theme.dart';
+import 'package:tafcm/presentation/screens/home_screen.dart';
+import 'package:tafcm/presentation/theme/app_theme.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -36,8 +36,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     // 品牌字标
-    expect(find.text('FormulaFix'), findsOneWidget,
-        reason: '首页应包含 serif 品牌字标 FormulaFix');
+    expect(find.text('Tafcm'), findsOneWidget,
+        reason: '首页应包含 serif 品牌字标 Tafcm');
     // 「最近」区块标题（无条件渲染）
     expect(find.text('最近'), findsOneWidget, reason: '应包含「最近」区块');
     // 空文档时「更早」区块不应出现（仅 earlier.isNotEmpty 时渲染）

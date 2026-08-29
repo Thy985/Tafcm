@@ -15,10 +15,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/transaction.dart';
-import 'package:formula_fix/presentation/commands/commands.dart';
-import 'package:formula_fix/presentation/commands/editor_command.dart';
-import 'package:formula_fix/presentation/prototype/_shared/block_editor_facade.dart';
+import 'package:tafcm/core/editing/transaction.dart';
+import 'package:tafcm/presentation/commands/commands.dart';
+import 'package:tafcm/presentation/commands/editor_command.dart';
+import 'package:tafcm/presentation/prototype/_shared/block_editor_facade.dart';
 
 void main() {
   group('R3 CommandHandler Transaction 生命周期', () {

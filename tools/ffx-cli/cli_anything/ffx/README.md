@@ -1,6 +1,6 @@
-# FormulaFix CLI (`ffx`)
+# Tafcm CLI (`ffx`)
 
-A Python CLI for the FormulaFix Flutter project — diagnostic, ADI wrapper, and markdown analysis.
+A Python CLI for the Tafcm Flutter project — diagnostic, ADI wrapper, and markdown analysis.
 
 ## Installation
 

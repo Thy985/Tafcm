@@ -44,7 +44,7 @@ case "$GH_MOCK" in
 esac
 : "${HIGH_THRESHOLD:=0.8}"
 : "${MED_THRESHOLD:=0.5}"
-: "${REPO:=Thy985/fixmath}"
+: "${REPO:=Thy985/Tafcm}"
 : "${PR_NUMBER:=}"
 : "${MENTION_WHITELIST:=Thy985}"
 

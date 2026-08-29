@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'editor_providers.dart' show sharedPreferencesProvider;
 
 /// SharedPreferences 键：上次打开的 .md 文件路径。
-const String kLastOpenedPathPrefKey = 'formulafix.lastOpenedPath';
+const String kLastOpenedPathPrefKey = 'tafcm.lastOpenedPath';
 
 final lastOpenedPathProvider =
     StateNotifierProvider<LastOpenedPathNotifier, String?>(

@@ -11,10 +11,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/editing/transaction.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/edit_operation.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/editing/transaction.dart';
 
 void main() {
   group('TC-EDIT-6.3 EditorHistory 基本 push/undo/redo', () {

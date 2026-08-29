@@ -12,14 +12,14 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/commands/command_handler.dart';
-import 'package:formula_fix/presentation/commands/commands.dart';
-import 'package:formula_fix/presentation/commands/editor_command.dart';
-import 'package:formula_fix/presentation/prototype/_shared/in_memory_document_editor.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/commands/command_handler.dart';
+import 'package:tafcm/presentation/commands/commands.dart';
+import 'package:tafcm/presentation/commands/editor_command.dart';
+import 'package:tafcm/presentation/prototype/_shared/in_memory_document_editor.dart';
 
 void main() {
   group('图片 Markdown 往返（parser ↔ serializer）', () {

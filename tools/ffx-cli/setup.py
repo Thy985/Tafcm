@@ -1,10 +1,10 @@
-"""FormulaFix CLI — diagnostic and document analysis tool."""
+"""Tafcm CLI — diagnostic and document analysis tool."""
 from setuptools import setup, find_namespace_packages
 
 setup(
     name="cli-anything-ffx",
     version="0.1.0",
-    description="FormulaFix CLI: diagnostic, ADI wrapper, and markdown analysis for FormulaFix Flutter project.",
+    description="Tafcm CLI: diagnostic, ADI wrapper, and markdown analysis for Tafcm Flutter project.",
     author="Thy985",
     license="MIT",
     packages=find_namespace_packages(include=["cli_anything.*"]),

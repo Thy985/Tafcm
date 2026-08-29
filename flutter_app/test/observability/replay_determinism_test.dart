@@ -16,16 +16,16 @@ library;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/editor_history.dart';
-import 'package:formula_fix/core/observability/canonical_fingerprint.dart';
-import 'package:formula_fix/core/observability/models.dart' hide CommandOrigin;
-import 'package:formula_fix/core/observability/observability_service.dart';
-import 'package:formula_fix/data/models/document.dart';
-import 'package:formula_fix/presentation/commands/command_handler.dart';
-import 'package:formula_fix/presentation/commands/commands.dart';
-import 'package:formula_fix/presentation/observability/command_replayer.dart';
-import 'package:formula_fix/presentation/prototype/_shared/in_memory_document_editor.dart';
+import 'package:tafcm/core/editing/block_types.dart';
+import 'package:tafcm/core/editing/editor_history.dart';
+import 'package:tafcm/core/observability/canonical_fingerprint.dart';
+import 'package:tafcm/core/observability/models.dart' hide CommandOrigin;
+import 'package:tafcm/core/observability/observability_service.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/presentation/commands/command_handler.dart';
+import 'package:tafcm/presentation/commands/commands.dart';
+import 'package:tafcm/presentation/observability/command_replayer.dart';
+import 'package:tafcm/presentation/prototype/_shared/in_memory_document_editor.dart';
 
 /// 从 DocumentEditor 计算当前 fingerprint。
 String _computeFingerprint(InMemoryDocumentEditor editor) {

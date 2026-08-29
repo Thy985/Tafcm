@@ -11,7 +11,7 @@
 #   TARGET_BRANCH / BASE_BRANCH （branch_scan 模式，可选）
 set -euo pipefail
 
-REPO="${GITHUB_REPOSITORY:-Thy985/fixmath}"
+REPO="${GITHUB_REPOSITORY:-Thy985/Tafcm}"
 EVENT_NAME="${GITHUB_EVENT_NAME:-workflow_dispatch}"
 EVENT_PATH="${GITHUB_EVENT_PATH:-}"
 PR_NUMBER="${PR_NUMBER:-}"

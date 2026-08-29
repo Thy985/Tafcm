@@ -1,6 +1,6 @@
 /// 外部文件入口服务（Android ACTION_VIEW Intent 桥接）。
 ///
-/// 监听 [MethodChannel]("formulafix.app/external_file")，接收从
+/// 监听 [MethodChannel]("tafcm.app/external_file")，接收从
 /// [MainActivity] 传递过来的外部 URI（content:// 或 file://）。
 ///
 /// 当用户在微信 / QQ / 浏览器等第三方应用选择 .md 文件 → "其他应用打开"
@@ -28,7 +28,7 @@ import 'package:flutter/services.dart';
 import 'file_service.dart' show decodeBytesAuto;
 
 /// 与 [MainActivity.kt] 配套的 MethodChannel 名。
-const _kChannelName = 'formulafix.app/external_file';
+const _kChannelName = 'tafcm.app/external_file';
 
 /// 单例服务：监听外部应用通过 ACTION_VIEW 传来的 .md 文件 URI。
 ///
@@ -36,7 +36,7 @@ const _kChannelName = 'formulafix.app/external_file';
 /// 1. App 启动时 await [ExternalFileService.instance.initialize] 注册监听 +
 ///    主动查询冷启动缓存的 URI（[getInitialUri]）。
 /// 2. [BootstrapScreen] 同步检查 [initialUri]，若非空直接跳 /editor?externalUri=...
-/// 3. [FormulaFixApp] 订阅 [uriStream]，热启动时（onNewIntent）收到 URI 后跳转。
+/// 3. [TafcmApp] 订阅 [uriStream]，热启动时（onNewIntent）收到 URI 后跳转。
 /// 4. [EditorPage] 收到 externalUri 参数时调用 [readBytes] 读字节并加载。
 class ExternalFileService {
   ExternalFileService._();
@@ -94,7 +94,7 @@ class ExternalFileService {
     // 冷启动场景：主动向原生侧查询 pendingUri。
     // 时序：MainActivity.onCreate 缓存 URI 到 pendingUri → main() 运行 →
     // 这里调用 getInitialUri 取回。若返回非空，同时推送到 stream（让
-    // FormulaFixApp 的 uriStream 监听者也能收到，统一处理路径）。
+    // TafcmApp 的 uriStream 监听者也能收到，统一处理路径）。
     try {
       final uri = await _channel.invokeMethod<String>('getInitialUri');
       if (uri != null && uri.isNotEmpty) {

@@ -14,8 +14,8 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:formula_fix/core/editing/block_serializer.dart';
-import 'package:formula_fix/data/models/document.dart';
+import 'package:tafcm/core/editing/block_serializer.dart';
+import 'package:tafcm/data/models/document.dart';
 
 void main() {
   // ============ TC-BLOCK-RENDERER-1 全类型专用渲染器 ============

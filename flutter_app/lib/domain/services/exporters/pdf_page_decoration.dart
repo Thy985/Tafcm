@@ -32,7 +32,7 @@ pw.Widget buildPdfHeader(String title, pw.Context ctx, {bool isDark = false}) {
           ),
         ),
         pw.Text(
-          'FormulaFix',
+          'Tafcm',
           style: pw.TextStyle(
             fontSize: 9,
             color: textColor,

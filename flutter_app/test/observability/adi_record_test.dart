@@ -6,8 +6,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:formula_fix/core/observability/adi_record.dart';
-import 'package:formula_fix/core/observability/error_snapshot.dart';
+import 'package:tafcm/core/observability/adi_record.dart';
+import 'package:tafcm/core/observability/error_snapshot.dart';
 
 void main() {
   group('AdiErrorRecord', () {
