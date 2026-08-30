@@ -26,10 +26,16 @@ import 'mermaid_service.dart' show MermaidErrorCallback, MermaidService;
 class FormulaSvgService {
   FormulaSvgService._();
 
-  static const Duration _renderTimeout = Duration(seconds: 30);
+  static const Duration _renderTimeout = Duration(seconds: 10);
   static const int _maxConcurrent = 4;
   static const int _maxCacheEntries = 256;
   static const int _maxCacheBytes = 32 * 1024 * 1024; // 32 MB
+
+  /// PR-C：连续超时阈值。单公式超时先降级（PNG/文本），连续超过
+  /// 该次数才重置 WebView——避免一次超时级联清空整批（历史 198 公式
+  /// 123 timeout = resetRenderer 级联放大：1 个超时清空所有等待/活动请求）。
+  static const int _maxConsecutiveTimeoutsBeforeReset = 3;
+  static int _consecutiveTimeouts = 0;
 
   static final LinkedHashMap<String, String> _cache = LinkedHashMap();
   static int _totalCacheBytes = 0;
@@ -47,6 +53,49 @@ class FormulaSvgService {
   static List<FormulaRenderTelemetry> get telemetryEntries => _telemetry.toList();
 
   static void clearTelemetry() => _telemetry.clear();
+
+  /// PR-C：telemetry 聚合报告（导出结束后调用，debugPrint 输出到 logcat）。
+  ///
+  /// 真机采集用：logcat 里 grep `FormulaTelemetry` 一行即可拿到
+  /// 样本数 / result 分布（success/timeout/error → timeout_rate）/
+  /// queue_wait / render / total 的 P50/P95/P99 + 均值，
+  /// 以及瓶颈判定（queue_wait 均值 > 2× render 均值 → 排队瓶颈；
+  /// 否则单个公式渲染本身慢）。不记 latex 原文（诊断数据最小化）。
+  static String telemetrySummary() {
+    final entries = _telemetry.toList();
+    if (entries.isEmpty) {
+      return 'FormulaTelemetry: empty (no renders recorded)';
+    }
+    final byResult = <String, int>{};
+    for (final e in entries) {
+      byResult[e.result] = (byResult[e.result] ?? 0) + 1;
+    }
+    List<int> sortedBy(int Function(FormulaRenderTelemetry) pick) {
+      final v = entries.map(pick).toList()..sort();
+      return v;
+    }
+
+    double pct(List<int> sorted, double p) {
+      if (sorted.isEmpty) return 0;
+      return sorted[((sorted.length - 1) * p).round()].toDouble();
+    }
+
+    double avg(List<int> v) =>
+        v.isEmpty ? 0 : v.reduce((a, b) => a + b) / v.length;
+
+    final qw = sortedBy((e) => e.queueWaitMs);
+    final rn = sortedBy((e) => e.renderMs);
+    final tot = sortedBy((e) => e.totalMs);
+    final qwAvg = avg(qw);
+    final rnAvg = avg(rn);
+    final bottleneck = qwAvg > rnAvg * 2
+        ? 'QUEUE-bound (queue_wait > 2x render)'
+        : 'RENDER-bound (single formula slow)';
+    return 'FormulaTelemetry: ${entries.length} samples | result=$byResult | '
+        'queue_wait p50=${pct(qw, .5)} p95=${pct(qw, .95)} p99=${pct(qw, .99)} avg=${qwAvg.toStringAsFixed(1)}ms | '
+        'render p50=${pct(rn, .5)} p95=${pct(rn, .95)} p99=${pct(rn, .99)} avg=${rnAvg.toStringAsFixed(1)}ms | '
+        'total p50=${pct(tot, .5)} p95=${pct(tot, .95)} p99=${pct(tot, .99)}ms | $bottleneck';
+  }
 
   /// 记录一次渲染请求的完整生命周期指标。
   ///
@@ -236,8 +285,16 @@ class FormulaSvgService {
     try {
       await controller.evaluateJavascript(source: script).timeout(_renderTimeout);
     } on TimeoutException {
-      // WebView 进程卡死，重置渲染器
-      MermaidService.resetRenderer();
+      // PR-C：单公式超时先标记失败降级（PNG/文本兜底），**不立即**重置
+      // WebView——一次超时若 resetRenderer 会级联清空整批等待/活动请求
+      // （历史 198 公式 123 timeout = 级联放大）。连续超时达到阈值才重置
+      //（说明 WebView JS 线程真卡死）。
+      _consecutiveTimeouts++;
+      _completePendingError(p.requestId, 'render timeout');
+      if (_consecutiveTimeouts >= _maxConsecutiveTimeoutsBeforeReset) {
+        _consecutiveTimeouts = 0;
+        MermaidService.resetRenderer();
+      }
     } catch (e) {
       _completePendingError(p.requestId, 'evaluateJavascript failed: $e');
     }
@@ -338,6 +395,9 @@ class FormulaSvgService {
     if (p != null && !p.completer.isCompleted) {
       p.completer.complete(svg);
     }
+    // PR-C：成功渲染重置连续超时计数（避免偶发超时后正常渲染被误判为
+    // WebView 卡死而触发 resetRenderer）。
+    _consecutiveTimeouts = 0;
     // P0-5：成功路径 telemetry。
     if (p != null) {
       _recordTelemetry(p, DateTime.now(), result: 'success');

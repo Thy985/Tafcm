@@ -14,6 +14,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/parser/markdown_parser.dart';
 import '../../../core/services/formula_pdf_renderer.dart';
+import '../../../core/services/formula_svg_service.dart';
 import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
@@ -36,6 +37,8 @@ class WordExporter {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+    // PR-C：导出开始前清空 telemetry，聚合报告只含本次导出样本。
+    FormulaSvgService.clearTelemetry();
 
     // Phase 1: 解析 + 收集公式 / Mermaid 集合。
     onProgress?.call(const ExportProgress(
@@ -256,6 +259,8 @@ class WordExporter {
       completed: 1,
       total: 1,
     ));
+    // PR-C：导出结束输出 telemetry 聚合报告（logcat grep FormulaTelemetry）。
+    debugPrint(FormulaSvgService.telemetrySummary());
     return Uint8List.fromList(encoded);
   }
 
