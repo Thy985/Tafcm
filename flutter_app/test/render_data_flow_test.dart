@@ -117,6 +117,46 @@ para $P$ text
       expect(inlines.whereType<FormulaElement>().isNotEmpty, true);
       expect(inlines.whereType<FormulaElement>().first.latex, 'x^2');
     });
+
+    test('R2: collectAllFormulasByDisplayMode 按 displayMode 分组（inline/block）', () {
+      // R2 修复（实测bug1.md §4）：缓存 key 含 displayMode 维度（I| vs B|），
+      // 预渲染必须与 buildFormulaPlan 的 c.displayMode 一致，否则块级公式
+      // 预渲染缓存永远 miss。
+      // 注：多行 `$$\n...\n$$` 在段落解析中会被拆解（独立解析 bug，另行记录），
+      // 此测试用单行块级公式验证分组逻辑。
+      const md = r'''
+正文含行内公式 $E=mc^2$ 与 $x_1$。
+
+$$\int_0^1 x^2 dx$$
+
+表格块级：| c |
+| --- |
+| $$\Delta$$ |
+''';
+      final elements = MarkdownParser.parse(md);
+      final grouped = MarkdownExporter.collectAllFormulasByDisplayMode(elements);
+      expect(grouped.inline, containsAll(<String>['E=mc^2', 'x_1']));
+      expect(grouped.block, containsAll(<String>[r'\int_0^1 x^2 dx', r'\Delta']));
+      // inline 与 block 不相交（同一公式不同 displayMode 属不同缓存 key 维度）
+      expect(grouped.inline.intersection(grouped.block), isEmpty);
+    });
+
+    test('R2: 行内/块级缓存 key 维度不同（I| vs B|），分组后互不 miss', () {
+      // FormulaSvgService._cacheKey 对同一 latex 的 inline/block 生成不同 key，
+      // 修复前 preRenderAll 固定 displayMode:false 导致块级公式永远 miss。
+      // 注：多行 `$$\n...\n$$` 会被段落解析拆解（独立解析 bug），用单行块级。
+      const md = r'''
+行内 $E=mc^2$。
+
+$$E=mc^2$$
+''';
+      final elements = MarkdownParser.parse(md);
+      final grouped = MarkdownExporter.collectAllFormulasByDisplayMode(elements);
+      // 同一 latex 同时出现在 inline 与 block 时分别计入两组（key 维度不同，
+      // 语义上需要两次独立渲染）。
+      expect(grouped.inline.contains('E=mc^2'), true);
+      expect(grouped.block.contains('E=mc^2'), true);
+    });
   });
 
   group('Fix 3: 缓存策略 (含 format 维度)', () {

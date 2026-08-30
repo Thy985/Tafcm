@@ -91,6 +91,17 @@ class MarkdownExporter {
     return PdfExporter.collectAllFormulas(elements);
   }
 
+  /// R2 修复：按 displayMode 分组收集公式（inline / block 两组）。
+  ///
+  /// 缓存 key 含 displayMode 维度（`I|` vs `B|`），预渲染必须与
+  /// [PdfExporter.buildFormulaPlan] 的 `c.displayMode` 一致，否则块级公式
+  /// 预渲染缓存永远 miss。转发到 [PdfExporter.collectAllFormulasByDisplayMode]。
+  static ({Set<String> inline, Set<String> block}) collectAllFormulasByDisplayMode(
+    List<DocumentElement> elements,
+  ) {
+    return PdfExporter.collectAllFormulasByDisplayMode(elements);
+  }
+
   /// 把 Markdown 文本导出为 PDF 字节流。
   ///
   /// [onProgress]（3.4.4 Slice 7）：在阶段切换（解析 → 公式预渲染 → block 渲染 → 拼装）
