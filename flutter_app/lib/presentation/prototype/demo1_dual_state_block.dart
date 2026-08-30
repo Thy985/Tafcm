@@ -220,7 +220,7 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
             style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
           ),
         ),
-      BlockquoteElement(:final text) => Container(
+      BlockquoteElement(:final children) => Container(
           padding: const EdgeInsets.only(left: 12),
           decoration: BoxDecoration(
             border: Border(
@@ -228,7 +228,7 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
             ),
           ),
           child: Text(
-            text,
+            _serializeInline(children),
             style: const TextStyle(
               fontStyle: FontStyle.italic,
               color: Colors.grey,
@@ -267,7 +267,7 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
               children: headers
                   .map((h) => Padding(
                         padding: const EdgeInsets.all(6),
-                        child: Text(h,
+                        child: Text(_serializeInline(h),
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
                       ))
@@ -277,7 +277,7 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
                   children: r
                       .map((c) => Padding(
                             padding: const EdgeInsets.all(6),
-                            child: Text(c),
+                            child: Text(_serializeInline(c)),
                           ))
                       .toList(),
                 )),

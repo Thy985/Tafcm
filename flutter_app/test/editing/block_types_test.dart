@@ -69,7 +69,10 @@ void main() {
     test('TableElement → table', () {
       expect(
         BlockType.fromElement(
-          const TableElement(headers: ['a'], rows: []),
+          const TableElement(
+            headers: [[TextElement('a')]],
+            rows: [],
+          ),
         ),
         equals(BlockType.table),
       );
@@ -77,7 +80,9 @@ void main() {
 
     test('BlockquoteElement → blockquote', () {
       expect(
-        BlockType.fromElement(const BlockquoteElement(text: 'q')),
+        BlockType.fromElement(
+          const BlockquoteElement(children: [TextElement('q')]),
+        ),
         equals(BlockType.blockquote),
       );
     });

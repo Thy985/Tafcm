@@ -14,7 +14,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../../core/observability/models.dart' as obs;
 import '../../../core/observability/observability_service.dart';
-import '../../../core/parser/formula_extractor.dart';
 import '../../../core/parser/markdown_parser.dart';
 import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/formula_svg_service.dart';
@@ -321,32 +320,20 @@ class PdfExporter {
       } else if (e is ListElement) {
         walkInline(e.children);
       } else if (e is TableElement) {
-        // TableElement 当前不持有 inline children，但若未来扩展，walkInline 仍然兼容。
-        // 现阶段 headers + rows 是 String，每个 cell 可能含 `$..$`，由 MarkdownParser
-        // 暂未解析为 InlineElement；这里用 _scanForInlineFormulas 做字符串兜底。
+        // PR-2：TableElement 已持有 InlineElement cell（解析只发生一次），
+        // 直接 walkInline 收集公式，不再需要字符串兜底扫描。
         for (final h in e.headers) {
-          _scanForInlineFormulas(h, out);
+          walkInline(h);
         }
         for (final row in e.rows) {
           for (final cell in row) {
-            _scanForInlineFormulas(cell, out);
+            walkInline(cell);
           }
         }
       }
     }
     return out;
   }
-
-  /// 对单个字符串扫描 `$..$` / `$$..$$` 形式的内联公式并加入集合。
-  /// 用作 TableElement 字符串 cell 的兜底（MarkdownParser 暂未把 cell 解析为 InlineElement）。
-  static void _scanForInlineFormulas(String s, Set<String> out) {
-    if (s.isEmpty || !s.contains(r'$')) return;
-    final formulas = FormulaExtractor.extractFormulas(s);
-    for (final f in formulas) {
-      out.add(f.latex);
-    }
-  }
-
   // --- 元素 → PDF widget 派发 ---
 
   static Future<pw.Widget?> _elementToPdfWidgetAsync(
@@ -367,7 +354,7 @@ class PdfExporter {
     } else if (element is CodeElement) {
       return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont, observability: observability);
     } else if (element is BlockquoteElement) {
-      return _pdfBlockquote(element.text, isDark: isDark, cjkFont: cjkFont);
+      return _pdfBlockquote(element.children, isDark: isDark, cjkFont: cjkFont);
     } else if (element is MermaidElement) {
       return await buildMermaidPdfWidget(element.code, cjkFont: cjkFont);
     } else if (element is TableElement) {
@@ -639,10 +626,9 @@ class PdfExporter {
     return false;
   }
 
-  static pw.Widget _pdfBlockquote(String text,
-      {bool isDark = false, pw.Font? cjkFont}) {
+  static Future<pw.Widget> _pdfBlockquote(List<InlineElement> children,
+      {bool isDark = false, pw.Font? cjkFont}) async {
     final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey50;
-    final textColor = isDark ? PdfColors.grey300 : PdfColors.grey800;
     final borderColor = isDark ? PdfColors.blue400 : PdfColors.blue700;
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
@@ -653,35 +639,44 @@ class PdfExporter {
         ),
         color: bgColor,
       ),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          font: cjkFont,
-          fontSize: 13,
-          fontStyle: pw.FontStyle.italic,
-          color: textColor,
-        ),
+      child: await _pdfBlockquoteContent(
+        children,
+        isDark: isDark,
+        cjkFont: cjkFont,
       ),
     );
   }
 
+  /// 引用块内容：PR-2 后 children 已是 Inline AST，与段落共用同一渲染路径
+  /// （加粗 / 斜体 / 公式在导出 PDF 时正常呈现）。
+  static Future<pw.Widget> _pdfBlockquoteContent(
+    List<InlineElement> children, {
+    bool isDark = false,
+    pw.Font? cjkFont,
+  }) =>
+      _pdfParagraphAsync(
+        children,
+        fontSize: 13,
+        isDark: isDark,
+        cjkFont: cjkFont,
+      );
+
   // --- 表格 ---
 
   static Future<pw.Widget> _pdfTable(
-    List<String> headers,
-    List<List<String>> rows, {
+    List<List<InlineElement>> headers,
+    List<List<List<InlineElement>>> rows, {
     bool isDark = false,
     pw.Font? cjkFont,
   }) async {
     if (headers.isEmpty) return pw.SizedBox();
 
-    // 把每个 header / cell 解析为 inline children，公式走矢量/位图渲染。
+    // PR-2：cell 已是 Inline AST，直接渲染（公式走矢量/位图渲染）。
     final headerCells = <pw.Widget>[];
     for (final h in headers) {
-      final inlines = MarkdownParser.parseInline(h);
       headerCells.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 12, bold: true, isDark: isDark, cjkFont: cjkFont),
+        child: await _pdfParagraphAsync(h, fontSize: 12, bold: true, isDark: isDark, cjkFont: cjkFont),
       ));
     }
 
@@ -709,16 +704,15 @@ class PdfExporter {
   }
 
   /// 构造一个数据行（带斑马纹 + 公式渲染）。
-  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<String> cells,
+  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<List<InlineElement>> cells,
       {bool isDark = false, pw.Font? cjkFont}) async {
     final children = <pw.Widget>[];
     final evenBgColor = isDark ? PdfColors.grey800 : PdfColors.white;
      final oddBgColor = isDark ? PdfColors.grey700 : PdfColors.grey50;
     for (final cell in cells) {
-      final inlines = MarkdownParser.parseInline(cell);
       children.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 11, isDark: isDark, cjkFont: cjkFont),
+        child: await _pdfParagraphAsync(cell, fontSize: 11, isDark: isDark, cjkFont: cjkFont),
       ));
     }
     return pw.TableRow(

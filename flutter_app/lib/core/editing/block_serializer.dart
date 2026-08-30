@@ -70,8 +70,8 @@ String fromElement(DocumentElement element) {
       return '```$lang\n$code\n```';
     case TableElement(:final headers, :final rows):
       return _serializeTable(headers, rows);
-    case BlockquoteElement(:final text):
-      return '> $text';
+    case BlockquoteElement(:final children):
+      return '> ${InlineSerializer.serialize(children)}';
     case MermaidElement(:final code):
       return '```mermaid\n$code\n```';
     case HorizontalRuleElement():
@@ -173,16 +173,17 @@ MermaidElement _parseMermaid(String source) {
 
 TableElement _parseTable(String source) {
   final lines = source.split('\n');
-  final dataRows = <List<String>>[];
+  final dataRows = <List<List<InlineElement>>>[];
   for (final line in lines) {
     if (_isTableSeparatorRow(line)) continue;
     final cells = _parseTableRow(line);
     if (cells != null && cells.isNotEmpty) {
-      dataRows.add(cells);
+      // PR-2：cell 在序列化层即解析为 Inline AST（解析只发生一次）。
+      dataRows.add(cells.map(MarkdownParser.parseInline).toList());
     }
   }
   if (dataRows.isEmpty) {
-    return const TableElement(headers: [], rows: []);
+    return TableElement(headers: [], rows: []);
   }
   return TableElement(headers: dataRows.first, rows: dataRows.skip(1).toList());
 }
@@ -190,9 +191,12 @@ TableElement _parseTable(String source) {
 BlockquoteElement _parseBlockquote(String source) {
   final match = RegExp(r'^>\s?(.*)$').firstMatch(source);
   if (match == null) {
-    return BlockquoteElement(text: source);
+    // PR-2：引用内容解析为 Inline AST（解析只发生一次）。
+    return BlockquoteElement(children: MarkdownParser.parseInline(source));
   }
-  return BlockquoteElement(text: (match.group(1) ?? '').trim());
+  return BlockquoteElement(
+    children: MarkdownParser.parseInline((match.group(1) ?? '').trim()),
+  );
 }
 
 bool _isTableSeparatorRow(String line) {
@@ -218,11 +222,15 @@ List<String>? _parseTableRow(String line) {
   return cells;
 }
 
-String _serializeTable(List<String> headers, List<List<String>> rows) {
+String _serializeTable(
+  List<List<InlineElement>> headers,
+  List<List<List<InlineElement>>> rows,
+) {
   final buffer = StringBuffer();
+  String cell(List<InlineElement> c) => InlineSerializer.serialize(c);
   // header row
   buffer.write('|');
-  buffer.write(headers.join('|'));
+  buffer.write(headers.map(cell).join('|'));
   buffer.writeln('|');
   // separator row
   buffer.write('|');
@@ -231,7 +239,7 @@ String _serializeTable(List<String> headers, List<List<String>> rows) {
   // data rows
   for (final row in rows) {
     buffer.write('|');
-    buffer.write(row.join('|'));
+    buffer.write(row.map(cell).join('|'));
     buffer.writeln('|');
   }
   // 移除末尾换行

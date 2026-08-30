@@ -99,8 +99,8 @@ class PreviewContent extends StatelessWidget {
           baseDir: baseDir,
         ),
       CodeElement(:final code) => CodeRenderer(code: code, isDark: isDark),
-      BlockquoteElement(:final text) => BlockquoteRenderer(
-          text: text, isDark: isDark),
+      BlockquoteElement(:final children) => BlockquoteRenderer(
+          children: children, isDark: isDark),
       MermaidElement(:final code) => MermaidElementWidget(
           code: code,
           theme: isDark ? MermaidTheme.dark : MermaidTheme.light,

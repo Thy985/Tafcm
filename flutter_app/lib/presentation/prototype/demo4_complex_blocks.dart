@@ -293,7 +293,7 @@ class _Demo4ComplexBlocksState extends State<Demo4ComplexBlocks> {
             ],
           ),
         ),
-      BlockquoteElement(:final text) => Container(
+      BlockquoteElement(:final children) => Container(
           width: double.infinity,
           padding: const EdgeInsets.only(left: 12),
           decoration: BoxDecoration(
@@ -301,11 +301,13 @@ class _Demo4ComplexBlocksState extends State<Demo4ComplexBlocks> {
               left: BorderSide(color: Colors.grey.shade400, width: 3),
             ),
           ),
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontStyle: FontStyle.italic,
-              color: Colors.grey,
+          child: Text.rich(
+            TextSpan(
+              children: _buildInlineSpans(children),
+              style: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
             ),
           ),
         ),

@@ -239,8 +239,13 @@ print("第二个代码块")
       const paragraph = ParagraphElement(children: []);
       const list = ListElement(children: [TextElement('列表项')]);
       const code = CodeElement(code: 'code');
-      const table = TableElement(headers: ['A'], rows: []);
-      const blockquote = BlockquoteElement(text: '引用');
+      const table = TableElement(
+        headers: [
+          [TextElement('A')],
+        ],
+        rows: [],
+      );
+      const blockquote = BlockquoteElement(children: [TextElement('引用')]);
       const mermaid = MermaidElement(code: 'graph TD');
       const empty = EmptyLineElement();
 
@@ -284,10 +289,22 @@ print("第二个代码块")
 
     test('TableElement 结构', () {
       const table = TableElement(
-        headers: ['列1', '列2', '列3'],
+        headers: [
+          [TextElement('列1')],
+          [TextElement('列2')],
+          [TextElement('列3')],
+        ],
         rows: [
-          ['a', 'b', 'c'],
-          ['d', 'e', 'f'],
+          [
+            [TextElement('a')],
+            [TextElement('b')],
+            [TextElement('c')],
+          ],
+          [
+            [TextElement('d')],
+            [TextElement('e')],
+            [TextElement('f')],
+          ],
         ],
       );
 

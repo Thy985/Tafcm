@@ -11,6 +11,7 @@ library;
 
 import 'package:markdown/markdown.dart' as md;
 
+import 'package:tafcm/core/parser/markdown_parser.dart';
 import 'package:tafcm/data/models/document.dart';
 
 /// 把 markdown 包 AST 映射为 Tafcm DocumentElement 列表。
@@ -74,7 +75,11 @@ List<DocumentElement> adaptNode(md.Node node) {
   }
   // 引用
   if (tag == 'blockquote') {
-    return [BlockquoteElement(text: e.textContent)];
+    return [
+      BlockquoteElement(
+        children: MarkdownParser.parseInline(e.textContent),
+      ),
+    ];
   }
   // 水平分割线
   if (tag == 'hr') {
@@ -160,7 +165,13 @@ TableElement _adaptTable(md.Element table) {
   }
   final headers = cells.isNotEmpty ? cells.first : <String>[];
   final body = cells.length > 1 ? cells.sublist(1) : <List<String>>[];
-  return TableElement(headers: headers, rows: body);
+  // PR-2：cell 字符串解析为 Inline AST（与 MarkdownParser 一致）。
+  return TableElement(
+    headers: headers.map(MarkdownParser.parseInline).toList(),
+    rows: body
+        .map((row) => row.map(MarkdownParser.parseInline).toList())
+        .toList(),
+  );
 }
 
 /// inline 节点 → Tafcm InlineElement（按 tag 分发）。

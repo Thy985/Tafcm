@@ -428,13 +428,19 @@ class CommandReplayer implements ReplayCommandExecutor {
         language: m['language'] as String?,
       ),
       'table' => TableElement(
-        headers: (m['headers'] as List?)?.cast<String>() ?? [],
+        headers: ((m['headers'] as List?) ?? [])
+            .map((h) => _parseInlines(h as List))
+            .toList(),
         rows: ((m['rows'] as List?) ?? [])
-            .map((r) => (r as List).cast<String>())
+            .map(
+              (r) => (r as List)
+                  .map((c) => _parseInlines(c as List))
+                  .toList(),
+            )
             .toList(),
       ),
       'blockquote' => BlockquoteElement(
-        text: m['text'] as String? ?? '',
+        children: _parseInlines(m['children'] as List? ?? []),
       ),
       'mermaid' => MermaidElement(
         code: m['code'] as String? ?? '',

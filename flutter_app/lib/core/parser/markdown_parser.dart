@@ -275,7 +275,11 @@ class MarkdownParser {
           flushParagraph();
           flushListItems();
           flushTable();
-          elements.add(BlockquoteElement(text: trimmedLine.substring(2).trim()));
+          // PR-2：引用内容在解析器层即转为 Inline AST（解析只发生一次），
+          // 渲染/导出直接消费 children，不再各自补字符串解析。
+          elements.add(BlockquoteElement(
+            children: _parseInline(trimmedLine.substring(2).trim()),
+          ));
           continue;
         }
 
@@ -289,10 +293,12 @@ class MarkdownParser {
 
           final cells = _parseTableRow(trimmedLine);
           if (cells != null && cells.isNotEmpty) {
+            // PR-2：cell 字符串在解析器层即转为 Inline AST（解析只发生一次）。
+            final inlineCells = cells.map(_parseInline).toList();
             if (currentTable == null) {
-              currentTable = TableElement(headers: cells, rows: []);
+              currentTable = TableElement(headers: inlineCells, rows: []);
             } else {
-              currentTable!.rows.add(cells);
+              currentTable!.rows.add(inlineCells);
             }
             continue;
           }

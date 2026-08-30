@@ -140,11 +140,12 @@ bool _elementEqual(DocumentElement a, DocumentElement b) {
   }
   if (a is TableElement) {
     final x = a, y = b as TableElement;
-    return _strListEqual(x.headers, y.headers) && _rowsEqual(x.rows, y.rows);
+    return _inlineListListEqual(x.headers, y.headers) &&
+        _inlineRowsEqual(x.rows, y.rows);
   }
   if (a is BlockquoteElement) {
     final x = a, y = b as BlockquoteElement;
-    return x.text == y.text;
+    return _inlineEqual(x.children, y.children);
   }
   if (a is MermaidElement) {
     final x = a, y = b as MermaidElement;
@@ -209,10 +210,26 @@ bool _strListEqual(List<String> a, List<String> b) {
   return true;
 }
 
-bool _rowsEqual(List<List<String>> a, List<List<String>> b) {
+/// PR-2：比较两个表头 cell（`List<List<InlineElement>>`）。
+bool _inlineListListEqual(
+  List<List<InlineElement>> a,
+  List<List<InlineElement>> b,
+) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
-    if (!_strListEqual(a[i], b[i])) return false;
+    if (!_inlineEqual(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+/// PR-2：比较两个数据行 cell（`List<List<List<InlineElement>>>`）。
+bool _inlineRowsEqual(
+  List<List<List<InlineElement>>> a,
+  List<List<List<InlineElement>>> b,
+) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!_inlineListListEqual(a[i], b[i])) return false;
   }
   return true;
 }

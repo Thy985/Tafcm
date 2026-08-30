@@ -25,6 +25,7 @@ import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
+import '../shared/inline_spans.dart';
 
 /// 表格块 Widget（StatefulWidget,依赖 BaseBlockState 共享样板）。
 class TableBlock extends StatefulWidget {
@@ -116,12 +117,16 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          child: Text(
-                            h,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: EditorTokens.tableCellFontSize,
-                              color: Theme.of(context).colorScheme.onSurface,
+                          child: Text.rich(
+                            buildInlineSpans(
+                              h,
+                              TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: EditorTokens.tableCellFontSize,
+                                color:
+                                    Theme.of(context).colorScheme.onSurface,
+                              ),
+                              context,
                             ),
                           ),
                         ),
@@ -138,11 +143,15 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          child: Text(
-                            cell,
-                            style: TextStyle(
-                              fontSize: EditorTokens.tableCellFontSize,
-                              color: Theme.of(context).colorScheme.onSurface,
+                          child: Text.rich(
+                            buildInlineSpans(
+                              cell,
+                              TextStyle(
+                                fontSize: EditorTokens.tableCellFontSize,
+                                color:
+                                    Theme.of(context).colorScheme.onSurface,
+                              ),
+                              context,
                             ),
                           ),
                         ),

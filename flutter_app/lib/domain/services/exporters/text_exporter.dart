@@ -125,15 +125,16 @@ class TextExporter {
     } else if (element is CodeElement) {
       return '```${element.language ?? ''}\n${element.code}\n```';
     } else if (element is BlockquoteElement) {
-      return '> ${element.text}';
+      return '> ${_inlineToText(element.children)}';
     } else if (element is MermaidElement) {
       return '```mermaid\n${element.code}\n```';
     } else if (element is TableElement) {
       final lines = <String>[];
-      lines.add('| ${element.headers.join(' | ')} |');
+      String cell(List<InlineElement> c) => _inlineToText(c);
+      lines.add('| ${element.headers.map(cell).join(' | ')} |');
       lines.add('| ${element.headers.map((_) => '---').join(' | ')} |');
       for (final row in element.rows) {
-        lines.add('| ${row.join(' | ')} |');
+        lines.add('| ${row.map(cell).join(' | ')} |');
       }
       return lines.join('\n');
     } else if (element is TaskListItemElement) {

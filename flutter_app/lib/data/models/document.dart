@@ -39,16 +39,22 @@ class CodeElement extends DocumentElement {
 }
 
 class TableElement extends DocumentElement {
-  final List<String> headers;
-  final List<List<String>> rows;
+  /// 表头 cell 的行内 AST（PR-2：解析只发生一次，cell 在解析器层
+  /// 即转为 InlineElement，渲染/导出直接消费，不再各自补字符串解析）。
+  final List<List<InlineElement>> headers;
+
+  /// 数据行 cell 的行内 AST（每行 → 每 cell → InlineElement 列表）。
+  final List<List<List<InlineElement>>> rows;
 
   const TableElement({required this.headers, required this.rows});
 }
 
 class BlockquoteElement extends DocumentElement {
-  final String text;
+  /// 引用内容的行内 AST（PR-2：解析只发生一次，`> **bold**` / `> $formula$`
+  /// 在解析器层即转为 InlineElement，渲染/导出直接消费）。
+  final List<InlineElement> children;
 
-  const BlockquoteElement({required this.text});
+  const BlockquoteElement({required this.children});
 }
 
 class MermaidElement extends DocumentElement {

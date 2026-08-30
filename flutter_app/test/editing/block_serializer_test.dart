@@ -107,15 +107,28 @@ void main() {
       final element = toElement(source, BlockType.table);
       expect(element, isA<TableElement>());
       final table = element as TableElement;
-      expect(table.headers, equals(['a', 'b']));
+      // PR-2：cell 已是 Inline AST，断言其文本内容。
+      expect(
+        table.headers.map((h) => h.map((c) => _textOf(c)).join()).toList(),
+        equals(['a', 'b']),
+      );
       expect(table.rows.length, equals(1));
-      expect(table.rows[0], equals(['1', '2']));
+      expect(
+        table.rows[0].map((c) => c.map((x) => _textOf(x)).join()).toList(),
+        equals(['1', '2']),
+      );
     });
 
     test('blockquote', () {
       final element = toElement('> quote', BlockType.blockquote);
       expect(element, isA<BlockquoteElement>());
-      expect((element as BlockquoteElement).text, equals('quote'));
+      expect(
+        (element as BlockquoteElement)
+            .children
+            .map((c) => _textOf(c))
+            .join(),
+        equals('quote'),
+      );
     });
 
     test('horizontalRule', () {
@@ -229,15 +242,23 @@ void main() {
 
     test('table', () {
       const element = TableElement(
-        headers: ['a', 'b'],
-        rows: [['1', '2']],
+        headers: [
+          [TextElement('a')],
+          [TextElement('b')],
+        ],
+        rows: [
+          [
+            [TextElement('1')],
+            [TextElement('2')],
+          ],
+        ],
       );
       const expected = '|a|b|\n|---|---|\n|1|2|';
       expect(fromElement(element), equals(expected));
     });
 
     test('blockquote', () {
-      const element = BlockquoteElement(text: 'quote');
+      const element = BlockquoteElement(children: [TextElement('quote')]);
       expect(fromElement(element), equals('> quote'));
     });
 
@@ -347,3 +368,9 @@ void main() {
     });
   });
 }
+
+/// PR-2 helper：提取 InlineElement 的纯文本内容（供 cell/引用断言）。
+String _textOf(InlineElement e) => switch (e) {
+      TextElement(:final text) => text,
+      _ => '',
+    };
