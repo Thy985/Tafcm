@@ -344,7 +344,7 @@ class PdfExporter {
     ObservabilityService? observability,
   }) async {
     if (element is HeadingElement) {
-      return _pdfHeading(element.level, element.text, isDark: isDark, cjkFont: cjkFont);
+      return _pdfHeading(element.level, element.children, isDark: isDark, cjkFont: cjkFont);
     } else if (element is ParagraphElement) {
       return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
     } else if (element is ListElement) {
@@ -498,8 +498,8 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _pdfHeading(int level, String text,
-      {bool isDark = false, pw.Font? cjkFont}) {
+  static Future<pw.Widget> _pdfHeading(int level, List<InlineElement> children,
+      {bool isDark = false, pw.Font? cjkFont}) async {
     final size = switch (level) {
       1 => 22.0,
       2 => 18.0,
@@ -507,20 +507,18 @@ class PdfExporter {
       4 => 13.0,
       _ => 12.0,
     };
-    final color = isDark ? PdfColors.grey100 : PdfColors.grey900;
     return pw.Padding(
       padding: pw.EdgeInsets.only(
         top: level == 1 ? 16 : 12,
         bottom: 6,
       ),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          font: cjkFont,
-          fontSize: size,
-          fontWeight: pw.FontWeight.bold,
-          color: color,
-        ),
+      // PR-3：标题内容走统一行内渲染（加粗/公式正常呈现），不再字符串直出。
+      child: await _pdfParagraphAsync(
+        children,
+        fontSize: size,
+        bold: true,
+        isDark: isDark,
+        cjkFont: cjkFont,
       ),
     );
   }

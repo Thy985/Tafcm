@@ -122,7 +122,7 @@ bool _elementEqual(DocumentElement a, DocumentElement b) {
   // 用显式类型检查（AGENTS.md §11.3：保守写法优先）。
   if (a is HeadingElement) {
     final x = a, y = b as HeadingElement;
-    return x.level == y.level && x.text == y.text;
+    return x.level == y.level && _inlineEqual(x.children, y.children);
   }
   if (a is ParagraphElement) {
     final x = a, y = b as ParagraphElement;
@@ -198,14 +198,6 @@ bool _inlineEqual(List<InlineElement> a, List<InlineElement> b) {
         (x.url != y.url || x.alt != y.alt)) {
       return false;
     }
-  }
-  return true;
-}
-
-bool _strListEqual(List<String> a, List<String> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
   }
   return true;
 }

@@ -15,7 +15,7 @@ void main() {
       expect(elements[0], isA<HeadingElement>());
       final h = elements[0] as HeadingElement;
       expect(h.level, 1);
-      expect(h.text, '一级标题');
+      expect(h.children.map((c) => (c as TextElement).text).join(), '一级标题');
     });
 
     test('解析多级标题', () {

@@ -25,7 +25,7 @@ void main() {
     editor.insertBlock(editor.blockCount,
         ParagraphElement(children: [TextElement('hello')]));
     editor.insertBlock(editor.blockCount,
-        const HeadingElement(level: 1, text: 'title'));
+        const HeadingElement(level: 1, children: [TextElement('title')]));
     editor.insertBlock(editor.blockCount,
         const CodeElement(code: 'x=1', language: 'py'));
     coordinator = EditorCoordinator(
@@ -69,7 +69,7 @@ void main() {
 
     test('Heading（空块）→ SplitBlockCommand（空标题 Enter = 退出标题，落为段落兄弟）', () {
       final editor = InMemoryDocumentEditor(title: 'empty_h1');
-      editor.insertBlock(0, const HeadingElement(level: 2, text: ''));
+      editor.insertBlock(0, const HeadingElement(level: 2, children: [TextElement('')]));
       final c = EditorCoordinator(
         editor: editor,
         history: EditorHistory(maxHistorySize: 20),

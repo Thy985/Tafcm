@@ -22,7 +22,7 @@ void main() {
   testWidgets('code block light：代码块渲染', (tester) async {
     final editor = InMemoryDocumentEditor(title: 'golden-code-block');
     editor
-      ..insertBlock(0, HeadingElement(level: 2, text: 'Sample Code'))
+      ..insertBlock(0, HeadingElement(level: 2, children: [TextElement('Sample Code')]))
       ..insertBlock(
         1,
         CodeElement(

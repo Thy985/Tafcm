@@ -73,7 +73,8 @@ Map<String, Object?> elementToJson(DocumentElement element) {
     HeadingElement e => {
       'type': 'heading',
       'level': e.level,
-      'text': e.text,
+      // PR-3：children 已是 Inline AST。
+      'children': e.children.map(inlineToJson).toList(),
     },
     ParagraphElement e => {
       'type': 'paragraph',

@@ -48,7 +48,10 @@ void main() {
         expect(transformed, isA<HeadingElement>());
         final heading = transformed as HeadingElement;
         expect(heading.level, equals(1));
-        expect(heading.text, equals('Title'));
+        expect(
+          heading.children.map((c) => (c as TextElement).text).join(),
+          equals('Title'),
+        );
 
         // source 不变
         expect(editor.sourceOf(id), equals('# Title'));
@@ -65,7 +68,10 @@ void main() {
 
         final heading = editor.getBlock(id) as HeadingElement;
         expect(heading.level, equals(3));
-        expect(heading.text, equals('Section'));
+        expect(
+          heading.children.map((c) => (c as TextElement).text).join(),
+          equals('Section'),
+        );
       });
 
       test('paragraph → listItem（- item）', () {

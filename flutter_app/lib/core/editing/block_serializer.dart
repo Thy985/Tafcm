@@ -52,8 +52,8 @@ DocumentElement toElement(String source, BlockType type) {
 /// [EmptyLineElement] 不在 BlockEditor 范围，调用方需自行过滤。
 String fromElement(DocumentElement element) {
   switch (element) {
-    case HeadingElement(:final level, :final text):
-      return '${'#' * level} $text';
+    case HeadingElement(:final level, :final children):
+      return '${'#' * level} ${InlineSerializer.serialize(children)}';
     case ParagraphElement(:final children):
       return InlineSerializer.serialize(children);
     case ListElement(:final children, :final ordered, :final indent, :final nested):
@@ -93,11 +93,15 @@ HeadingElement _parseHeading(String source) {
   final match = RegExp(r'^(#{1,6})\s+(.*)$').firstMatch(source);
   if (match == null) {
     // 非法 heading 源，降级为 level=1 + 原文
-    return HeadingElement(level: 1, text: source);
+    return HeadingElement(
+      level: 1,
+      children: MarkdownParser.parseInline(source),
+    );
   }
   return HeadingElement(
     level: match.group(1)!.length,
-    text: match.group(2) ?? '',
+    // PR-3：标题内容解析为 Inline AST（解析只发生一次）。
+    children: MarkdownParser.parseInline(match.group(2) ?? ''),
   );
 }
 

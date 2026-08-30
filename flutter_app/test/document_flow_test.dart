@@ -73,7 +73,10 @@ sequenceDiagram
       final headings = elements.whereType<HeadingElement>().toList();
       expect(headings.length, greaterThanOrEqualTo(5));
       expect(headings[0].level, 1);
-      expect(headings[0].text, '项目报告');
+      expect(
+        headings[0].children.map((c) => (c as TextElement).text).join(),
+        '项目报告',
+      );
 
       final lists = elements.whereType<ListElement>().toList();
       expect(lists.length, greaterThanOrEqualTo(2));
@@ -152,7 +155,9 @@ $$
 
       expect(tables.length, 1);
       expect(tables[0].rows.length, 3);
-      expect(tables[0].rows[2], ['7', '8', '9']);
+      String cellText(List<InlineElement> cell) =>
+          cell.map((c) => (c as TextElement).text).join();
+      expect(tables[0].rows[2].map(cellText).toList(), ['7', '8', '9']);
     });
 
     test('代码块边界情况', () {
@@ -235,7 +240,7 @@ print("第二个代码块")
     });
 
     test('DocumentElement 类型检查', () {
-      const heading = HeadingElement(level: 1, text: '标题');
+      const heading = HeadingElement(level: 1, children: [TextElement('标题')]);
       const paragraph = ParagraphElement(children: []);
       const list = ListElement(children: [TextElement('列表项')]);
       const code = CodeElement(code: 'code');
@@ -310,8 +315,10 @@ print("第二个代码块")
 
       expect(table.headers.length, 3);
       expect(table.rows.length, 2);
-      expect(table.rows[0], ['a', 'b', 'c']);
-      expect(table.rows[1], ['d', 'e', 'f']);
+      String cellText(List<InlineElement> cell) =>
+          cell.map((c) => (c as TextElement).text).join();
+      expect(table.rows[0].map(cellText).toList(), ['a', 'b', 'c']);
+      expect(table.rows[1].map(cellText).toList(), ['d', 'e', 'f']);
     });
   });
 }

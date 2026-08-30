@@ -54,7 +54,12 @@ class WordOoxmlBuilder {
     final buffer = StringBuffer();
 
     final docTitle = title ?? 'Tafcm 文档';
-    buffer.write(_heading(0, docTitle));
+    // 文档标题是纯文本（非 HeadingElement），包成 TextElement 走统一渲染。
+    buffer.write(_heading(
+      0,
+      [TextElement(docTitle)],
+      formulaRels: formulaRels,
+    ));
 
     for (final element in elements) {
       buffer.write(_elementToXml(
@@ -116,7 +121,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     required Map<String, MermaidImageInfo> mermaidRels,
   }) {
     if (element is HeadingElement) {
-      return _heading(element.level, element.text);
+      return _heading(element.level, element.children, formulaRels: formulaRels);
     } else if (element is ParagraphElement) {
       return _paragraph(element.children, formulaRels: formulaRels);
     } else if (element is ListElement) {
@@ -151,15 +156,20 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
 
   // --- 标题 / 段落 / 列表 ---
 
-  static String _heading(int level, String text) {
-    final escaped = _esc(text);
+  static String _heading(
+    int level,
+    List<InlineElement> children, {
+    required Map<String, FormulaImageInfo?> formulaRels,
+  }) {
     // level 0 是文档标题（Title 样式），1..6 是 Heading1..Heading6
     // 样式表里的 size/bold 等由 pStyle 决定，run 上不再重复 <w:sz>，避免与样式冲突
+    // PR-3：标题内容走统一行内渲染（加粗/公式正常呈现）。
+    final runs = _renderInlineRuns(children, formulaRels);
     if (level == 0) {
-      return '''<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t xml:space="preserve">$escaped</w:t></w:r></w:p>''';
+      return '<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr>$runs</w:p>';
     }
     final styleId = 'Heading$level';
-    return '''<w:p><w:pPr><w:pStyle w:val="$styleId"/></w:pPr><w:r><w:t xml:space="preserve">$escaped</w:t></w:r></w:p>''';
+    return '<w:p><w:pPr><w:pStyle w:val="$styleId"/></w:pPr>$runs</w:p>';
   }
 
   static String _paragraph(

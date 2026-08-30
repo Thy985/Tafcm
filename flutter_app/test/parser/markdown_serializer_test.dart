@@ -22,7 +22,7 @@ void main() {
 
     test('单 Heading', () {
       final elements = [
-        HeadingElement(level: 2, text: 'Section'),
+        HeadingElement(level: 2, children: [TextElement('Section')]),
       ];
       expect(MarkdownSerializer.serialize(elements), '## Section');
     });
@@ -61,7 +61,7 @@ void main() {
 
     test('混合块类型（heading + paragraph + code + quote）', () {
       final elements = [
-        HeadingElement(level: 1, text: 'Title'),
+        HeadingElement(level: 1, children: [TextElement('Title')]),
         ParagraphElement(children: [TextElement('intro')]),
         const CodeElement(code: 'print(1)', language: 'dart'),
         const BlockquoteElement(children: [TextElement('quote')]),

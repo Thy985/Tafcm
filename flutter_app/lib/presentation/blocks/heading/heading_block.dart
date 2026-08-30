@@ -31,6 +31,7 @@ import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
 import '../../theme/app_typography.dart';
 import '../base_block_state.dart';
+import '../shared/inline_spans.dart';
 
 /// 标题块（render + edit 双态，level 1-6）。
 class HeadingBlock extends StatefulWidget {
@@ -90,9 +91,12 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
           ),
           borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
         ),
-        child: Text(
-          widget.element.text,
-          style: _styleForLevel(widget.element.level),
+        child: Text.rich(
+          buildInlineSpans(
+            widget.element.children,
+            _styleForLevel(widget.element.level),
+            context,
+          ),
         ),
       ),
     );

@@ -31,9 +31,38 @@ BlockId _headingId(EditorCoordinator c, String contains) {
   return c.allIds.firstWhere(
     (id) {
       final e = c.getBlock(id);
-      return e is HeadingElement && e.text.contains(contains);
+      return e is HeadingElement && _inlineText(e.children).contains(contains);
     },
   );
+}
+
+/// 递归提取 Inline AST 的纯文本（与 TocPanel._inlineText 同语义：
+/// `**Hello** world` → 'Hello world'，测试断言用）。
+String _inlineText(List<InlineElement> children) {
+  final buf = StringBuffer();
+  for (final c in children) {
+    if (c is TextElement) {
+      buf.write(c.text);
+    } else if (c is BoldElement) {
+      buf.write(_inlineText(c.children));
+    } else if (c is ItalicElement) {
+      buf.write(_inlineText(c.children));
+    } else if (c is StrikethroughElement) {
+      buf.write(_inlineText(c.children));
+    } else if (c is LinkElement) {
+      buf.write(c.text);
+    } else if (c is InlineCodeElement) {
+      buf.write(c.code);
+    } else if (c is FormulaElement) {
+      buf
+        ..write(r'$')
+        ..write(c.latex)
+        ..write(r'$');
+    } else if (c is ImageElement) {
+      buf.write(c.alt);
+    }
+  }
+  return buf.toString();
 }
 
 /// 收集 TOC 面板内所有 RichText 的纯文本（inline 渲染产物）。

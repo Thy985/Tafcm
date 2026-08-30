@@ -213,7 +213,8 @@ class MarkdownParser {
           }
           elements.add(HeadingElement(
             level: level,
-            text: line.substring(level).trim(),
+            // PR-3：标题内容走 _parseInline（解析只发生一次）。
+            children: _parseInline(line.substring(level).trim()),
           ));
           continue;
         }

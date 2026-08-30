@@ -4,9 +4,12 @@ sealed class DocumentElement {
 
 class HeadingElement extends DocumentElement {
   final int level;
-  final String text;
 
-  const HeadingElement({required this.level, required this.text});
+  /// PR-3：标题内容已是 Inline AST（`# **bold**` / `# $formula$` 在解析器层
+  /// 即转为 InlineElement），导出/渲染直接消费，不再各自补字符串解析。
+  final List<InlineElement> children;
+
+  const HeadingElement({required this.level, required this.children});
 }
 
 class ParagraphElement extends DocumentElement {

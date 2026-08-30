@@ -43,7 +43,12 @@ List<DocumentElement> adaptNode(md.Node node) {
   // 标题
   if (tag.startsWith('h') && tag.length == 2) {
     final level = int.tryParse(tag.substring(1)) ?? 1;
-    return [HeadingElement(level: level, text: e.textContent)];
+    return [
+      HeadingElement(
+        level: level,
+        children: MarkdownParser.parseInline(e.textContent),
+      ),
+    ];
   }
   // 段落
   if (tag == 'p') {

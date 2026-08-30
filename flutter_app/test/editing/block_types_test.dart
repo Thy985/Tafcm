@@ -31,7 +31,7 @@ void main() {
   group('TC-EDIT-1.2 BlockType.fromElement 1:1 映射', () {
     test('HeadingElement → heading', () {
       expect(
-        BlockType.fromElement(const HeadingElement(level: 1, text: 't')),
+        BlockType.fromElement(const HeadingElement(level: 1, children: [TextElement('t')])),
         equals(BlockType.heading),
       );
     });

@@ -24,7 +24,7 @@ void main() {
   testWidgets('formula block sepia：护眼主题块级公式渲染', (tester) async {
     final editor = InMemoryDocumentEditor(title: 'golden-formula-block-sepia');
     editor
-      ..insertBlock(0, HeadingElement(level: 2, text: 'Mass-Energy Equivalence'))
+      ..insertBlock(0, HeadingElement(level: 2, children: [TextElement('Mass-Energy Equivalence')]))
       ..insertBlock(
         1,
         ParagraphElement(children: [

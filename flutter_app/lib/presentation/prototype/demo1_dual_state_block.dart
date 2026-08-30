@@ -201,8 +201,8 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
 
   Widget _buildRenderedElement(DocumentElement element) {
     return switch (element) {
-      HeadingElement(:final level, :final text) => Text(
-          text,
+      HeadingElement(:final level, :final children) => Text(
+          _serializeInline(children),
           style: TextStyle(
             fontSize: 28 - (level - 1) * 4.0,
             fontWeight: FontWeight.bold,
