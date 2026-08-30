@@ -137,6 +137,33 @@ void main() {
       );
     });
 
+    test('blockquote 回车后多行（Bug1 回归：不再吞行 / 不叠加 > 前缀）', () {
+      // 引用块内回车 → source 变为 `> line1\nline2`（第二行无 > 前缀，
+      // lazy continuation）。旧实现正则整体匹配失败 → 兜底把 `>` 当字面
+      // 文本 → round-trip 序列化叠加 `> ` 前缀（用户所见「回车时前面加 >」）。
+      final element =
+          toElement('> line1\nline2', BlockType.blockquote);
+      expect(element, isA<BlockquoteElement>());
+      expect(
+        (element as BlockquoteElement)
+            .children
+            .map((c) => _textOf(c))
+            .join(),
+        equals('line1\nline2'),
+      );
+      // round-trip 稳定：序列化不再叠加前缀
+      expect(fromElement(element), equals('> line1\nline2'));
+    });
+
+    test('blockquote 多行含加粗/公式（Bug1 回归：多行内容仍走 Inline AST）', () {
+      final element =
+          toElement(r'> **bold**' '\n' r'> $E=mc^2$', BlockType.blockquote);
+      final quote = element as BlockquoteElement;
+      expect(quote.children.length, greaterThanOrEqualTo(2));
+      // 第一行加粗已解析为 BoldElement（非字面 **）
+      expect(quote.children.whereType<BoldElement>(), isNotEmpty);
+    });
+
     test('horizontalRule', () {
       final element = toElement('---', BlockType.horizontalRule);
       expect(element, isA<HorizontalRuleElement>());

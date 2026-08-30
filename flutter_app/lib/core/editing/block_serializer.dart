@@ -187,20 +187,31 @@ TableElement _parseTable(String source) {
     }
   }
   if (dataRows.isEmpty) {
-    return TableElement(headers: [], rows: []);
+    return const TableElement(headers: [], rows: []);
   }
   return TableElement(headers: dataRows.first, rows: dataRows.skip(1).toList());
 }
 
 BlockquoteElement _parseBlockquote(String source) {
-  final match = RegExp(r'^>\s?(.*)$').firstMatch(source);
-  if (match == null) {
-    // PR-2：引用内容解析为 Inline AST（解析只发生一次）。
-    return BlockquoteElement(children: MarkdownParser.parseInline(source));
+  // Bug1 修复（实测bug1.md §1）：回车在引用块 source 中插入 `\n` 后，
+  // 旧实现用非 multiline 正则 `^>\s?(.*)$` 整体匹配失败（`$` 只在串尾匹配）
+  // → 兜底 parseInline(source) 把 `>` 当字面文本 → 序列化叠加 `> ` 前缀
+  // （用户所见「回车时前面加 >」）+ 状态错乱触发崩溃。
+  //
+  // 新实现：逐行剥离 `> ` 前缀（无前缀行按 lazy continuation 并入，
+  // 与 CommonMark 引用块续行语义一致），join 后再统一走一次行内解析
+  // （解析只发生一次，PR-2 原则不变）。
+  final lines = source.split('\n');
+  final contents = <String>[];
+  for (final line in lines) {
+    final match = RegExp(r'^>\s?(.*)$').firstMatch(line);
+    contents.add(match?.group(1) ?? line);
   }
-  return BlockquoteElement(
-    children: MarkdownParser.parseInline((match.group(1) ?? '').trim()),
-  );
+  final body = contents.join('\n');
+  if (body.trim().isEmpty) {
+    return const BlockquoteElement(children: [TextElement('')]);
+  }
+  return BlockquoteElement(children: MarkdownParser.parseInline(body));
 }
 
 bool _isTableSeparatorRow(String line) {
