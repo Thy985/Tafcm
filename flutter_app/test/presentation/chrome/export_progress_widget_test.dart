@@ -224,5 +224,123 @@ void main() {
       );
       expect(find.text('child-anchor'), findsOneWidget);
     });
+
+    // ==========================================================================
+    // PR-4：Completed / Failed 后 Overlay 自动 reset()，避免 provider state
+    // 永久残留（实测bug.md §Bug4）。
+    // ==========================================================================
+    testWidgets('PR-4 Completed → 2s 后 Overlay 自动 reset 回 Idle（state 回到 ExportIdleState）',
+        (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    container
+                        .read(exportProgressProvider.notifier)
+                        .complete(ExportFormat.pdf);
+                  });
+                  return const ExportProgressOverlay(child: Text('anchor'));
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // 立即：Completed SnackBar 出现
+      expect(container.read(exportProgressProvider),
+          isA<ExportCompletedState>());
+      expect(find.textContaining('已导出'), findsOneWidget);
+
+      // 推进到 2s 之后 —— SnackBar 自动 dismiss + _scheduleReset 触发
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();  // 处理 reset() 触发的 state 变化
+      await tester.pump();  // 第二次 pump 让 Overlay ref.listen 处理 Idle
+
+      // provider state 已回到 Idle
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
+    });
+
+    testWidgets('PR-4 Failed → 4s 后 Overlay 自动 reset 回 Idle', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    container.read(exportProgressProvider.notifier).fail(
+                          ExportFormat.docx,
+                          ExportFailure.writeError,
+                        );
+                  });
+                  return const ExportProgressOverlay(child: Text('anchor'));
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(container.read(exportProgressProvider), isA<ExportFailedState>());
+      expect(find.textContaining('写入失败'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump();
+      await tester.pump();
+
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
+    });
+
+    testWidgets('PR-4 widget dispose 后 _scheduleReset 不抛 unhandled future error',
+        (tester) async {
+      final container = ProviderContainer();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    container
+                        .read(exportProgressProvider.notifier)
+                        .complete(ExportFormat.pdf);
+                  });
+                  return const ExportProgressOverlay(child: Text('anchor'));
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // 立刻 dispose container（模拟页面销毁）
+      container.dispose();
+
+      // 推进到 2s —— _scheduleReset 内部 try/catch 应吞掉 dispose 异常
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      // 没 unhandled future error 即为通过
+    });
   });
 }

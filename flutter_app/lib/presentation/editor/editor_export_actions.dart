@@ -63,10 +63,11 @@ class EditorExportActions {
     }
   }
 
-  /// 导出动作入口（Phase 3.4 Slice 7 / 3.4.4）。
+  /// 导出动作入口（Phase 3.4 Slice 7 / 3.4.4 + PR-4 状态机硬化）。
   ///
-  /// 流程：start → 调 MarkdownExporter.exportToXxx 桥接 onProgress → complete
-  /// → 写临时文件 + Share.shareXFiles（v7 API）；失败用 classifyError 分类。
+  /// 流程：[ExportProgressNotifier.runWithGuard] 提供 terminal-state
+  /// guarantee —— 无论导出主流程 / 写盘 / 分享任一阶段失败，最终都回到
+  /// `ExportIdleState`，避免 SnackBar 永久残留（Bug4）。
   ///
   /// bytes 留在调用方直接写盘 / 分享，不经过 [exportProgressProvider] 状态机传输
   /// （避免 Provider state 序列化 Uint8List 导致内存/所有权混淆）。
@@ -76,51 +77,53 @@ class EditorExportActions {
     final title = coordinator.title;
     final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
 
-    notifier.start(format);
-    try {
-      final Uint8List bytes = switch (format) {
-        ExportFormat.pdf => await MarkdownExporter.exportToPdf(
-            markdown,
-            title: title,
-            isDark: isDark,
-            onProgress: (p) => notifier.report(p),
-            observability: ref.read(observabilityProvider),
-          ),
-        ExportFormat.docx => await MarkdownExporter.exportToWord(
-            markdown,
-            title: title,
-            isDark: isDark,
-            onProgress: (p) => notifier.report(p),
-          ),
-        ExportFormat.txt => await MarkdownExporter.exportToTxt(
-            markdown,
-            onProgress: (p) => notifier.report(p),
-          ),
-      };
+    // runWithGuard 保证：success → Completed；任意阶段 throw → Failed
+    // （自动 classifyError 分类）；finally 强制 → Idle。
+    // observability 由 onError 钩子在 fail 之前记录。
+    await notifier.runWithGuard<void>(
+      format,
+      () async {
+        final Uint8List bytes = switch (format) {
+          ExportFormat.pdf => await MarkdownExporter.exportToPdf(
+              markdown,
+              title: title,
+              isDark: isDark,
+              onProgress: notifier.report,
+              observability: ref.read(observabilityProvider),
+            ),
+          ExportFormat.docx => await MarkdownExporter.exportToWord(
+              markdown,
+              title: title,
+              isDark: isDark,
+              onProgress: notifier.report,
+            ),
+          ExportFormat.txt => await MarkdownExporter.exportToTxt(
+              markdown,
+              onProgress: notifier.report,
+            ),
+        };
 
-      notifier.complete(format);
-
-      final path = await ExportService.writeBytesToTempFile(
-        bytes,
-        format,
-        fileName: title,
-      );
-      await Share.shareXFiles(
-        [XFile(path, mimeType: mimeFor(format))],
-        subject: title,
-      );
-    } catch (e, st) {
-      // P2 修复（2026-08-04）：导出失败也送入 observability（captureError）。
-      debugPrint('[EditorExportActions] export failed: $e\n$st');
-      ref.read(observabilityProvider).captureError(
-            type: 'ExportError',
-            message: '$e',
-            commandName: 'handleExport',
-            commandParams: {'format': format.name},
-          );
-      final info = classifyError(e);
-      notifier.fail(format, info.kind);
-    }
+        final path = await ExportService.writeBytesToTempFile(
+          bytes,
+          format,
+          fileName: title,
+        );
+        await Share.shareXFiles(
+          [XFile(path, mimeType: mimeFor(format))],
+          subject: title,
+        );
+      },
+      onError: (e, st) {
+        // 写盘 / share 失败的兜底记录（导出主流程失败也走这里）。
+        debugPrint('[EditorExportActions] export failed: $e\n$st');
+        ref.read(observabilityProvider).captureError(
+              type: 'ExportError',
+              message: '$e',
+              commandName: 'handleExport',
+              commandParams: {'format': format.name},
+            );
+      },
+    );
   }
 
   /// [ExportFormat] → MIME，用于 `Share.shareXFiles` 的 XFile 标注。

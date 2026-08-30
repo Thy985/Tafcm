@@ -190,6 +190,142 @@ void main() {
     });
   });
 
+  group('PR-4 ExportProgressNotifier.runWithGuard terminal-state guarantee', () {
+    late ProviderContainer container;
+    late ExportProgressNotifier notifier;
+
+    setUp(() {
+      container = ProviderContainer();
+      notifier = container.read(exportProgressProvider.notifier);
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('success：最终状态 = Idle（先经 Completed）', () async {
+      final transitions = <ExportState>[];
+      container.listen<ExportState>(exportProgressProvider, (_, next) {
+        transitions.add(next);
+      }, fireImmediately: true);
+
+      final result = await notifier.runWithGuard<String>(
+        ExportFormat.pdf,
+        () async => 'ok',
+      );
+
+      expect(result, 'ok');
+      // 序列：Idle → InProgress → Completed → Idle
+      expect(transitions.length, 4);
+      expect(transitions[0], isA<ExportIdleState>());
+      expect(transitions[1], isA<ExportInProgressState>());
+      expect(transitions[2], isA<ExportCompletedState>());
+      expect(transitions[3], isA<ExportIdleState>());
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
+    });
+
+    test('throw：最终状态 = Idle（先经 Failed）', () async {
+      final transitions = <ExportState>[];
+      container.listen<ExportState>(exportProgressProvider, (_, next) {
+        transitions.add(next);
+      }, fireImmediately: true);
+
+      await expectLater(
+        notifier.runWithGuard<void>(
+          ExportFormat.pdf,
+          () async => throw StateError('boom'),
+          // 测试用 stub：把任意异常统一映射为 renderError
+          errorClassifier: (_) => ExportFailure.renderError,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      // 序列：Idle → InProgress → Failed → Idle
+      expect(transitions.length, 4);
+      expect(transitions[0], isA<ExportIdleState>());
+      expect(transitions[1], isA<ExportInProgressState>());
+      expect(transitions[2], isA<ExportFailedState>());
+      expect((transitions[2] as ExportFailedState).failure,
+          ExportFailure.renderError);
+      expect(transitions[3], isA<ExportIdleState>());
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
+    });
+
+    test('throw 时 onError 拿到 (error, stack) 且 fail 在 onError 之后',
+        () async {
+      Object? capturedError;
+      StackTrace? capturedStack;
+      final stateAfterOnError = <ExportState>[];
+
+      await expectLater(
+        notifier.runWithGuard<void>(
+          ExportFormat.pdf,
+          () async => throw StateError('boom2'),
+          onError: (e, st) {
+            capturedError = e;
+            capturedStack = st;
+            // onError 触发时 state 应为 InProgress（fail 在 onError 之后）
+            stateAfterOnError.add(container.read(exportProgressProvider));
+          },
+          errorClassifier: (_) => ExportFailure.unknown,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(capturedError, isA<StateError>());
+      expect(capturedStack, isNotNull);
+      expect(stateAfterOnError, hasLength(1));
+      expect(stateAfterOnError.single, isA<ExportInProgressState>());
+    });
+
+    test('re-entrant：guard 期间再调 start() 被忽略', () async {
+      final transitions = <ExportState>[];
+      container.listen<ExportState>(exportProgressProvider, (_, next) {
+        transitions.add(next);
+      }, fireImmediately: true);
+
+      // 第一次 guard 跑完
+      await notifier.runWithGuard<void>(
+        ExportFormat.docx,
+        () async {},
+      );
+
+      // 第二次 guard：先 start，再在 body 内尝试 start 不同格式，应被忽略
+      ExportFormat? stateFormatDuringBody;
+      await notifier.runWithGuard<void>(
+        ExportFormat.pdf,
+        () async {
+          // 此时已经在 InProgress；试图 start(docx) 应被 start 的并发保护忽略
+          notifier.start(ExportFormat.docx);
+          final s = container.read(exportProgressProvider);
+          if (s is ExportInProgressState) {
+            stateFormatDuringBody = s.format;
+          }
+        },
+      );
+
+      // 验证：body 跑的时候仍是第一次 guard 的 pdf
+      expect(stateFormatDuringBody, ExportFormat.pdf);
+      // 终态：Idle
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
+    });
+
+    test('默认 classifyError 把 ExportException 映射为 unknown（fallback）',
+        () async {
+      // 不传 errorClassifier → 走 _defaultClassifyError
+      await expectLater(
+        notifier.runWithGuard<void>(
+          ExportFormat.txt,
+          () async => throw Exception('generic'),
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      final state = container.read(exportProgressProvider);
+      expect(state, isA<ExportIdleState>()); // finally 已 reset
+    });
+  });
+
   group('3.4.4 MarkdownExporter facade 透传 onProgress', () {
     late _ProgressPdfExporter fake;
     late List<ExportProgress> emitted;

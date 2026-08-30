@@ -120,6 +120,57 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
   void reset() {
     state = const ExportIdleState();
   }
+
+  /// Terminal-state guarantee 包装器（PR-4 状态机硬化）。
+  ///
+  /// 不变量（实测bug.md §PR-4）：
+  /// > 无论 success / timeout / exception / cancel / partial failure，
+  /// > 都必须最终 `reset()` —— 不让 UI 依赖某个 happy path 调用 `complete()`。
+  ///
+  /// 行为：
+  /// 1. `start(format)`（与直接调 [start] 同样的并发保护：guard 进行中不重入）
+  /// 2. await [body] —— 调用方写导出 + 写盘 + share 等完整流程
+  /// 3. 成功：state = Completed
+  /// 4. 失败：[body] 抛异常 → 用 [classifyError] 映射为 [ExportFailure]
+  ///    → state = Failed；异常继续向上抛（调用方可继续做 observability 记录）
+  /// 5. **finally：state = Idle**（无论 1-4 哪条路径）
+  ///
+  /// **设计要点**：fail 分类由本方法内部完成（不依赖调用方记得调 [fail]）。
+  /// 这是闭环 Bug4 的关键 —— 旧实现让 UI 自己 try/catch/finally 散落
+  /// `start/complete/fail/reset`，只要"导出主流程成功但写盘/分享阶段失败"就
+  /// 漏调 fail → SnackBar 永久显示。runWithGuard 把这 4 个调用合并为一个
+  /// 不变量。
+  ///
+  /// [onError]（可选）：在 [body] 抛异常后、调 [fail] 之前调用，参数为
+  /// `(error, stack)`。用于把异常写入 observability / 日志。
+  ///
+  /// [errorClassifier]（可选）：自定义异常 → [ExportFailure] 映射；默认走
+  /// `export_service.classifyError`。测试可注入 stub。
+  Future<T> runWithGuard<T>(
+    ExportFormat format,
+    Future<T> Function() body, {
+    void Function(Object error, StackTrace stack)? onError,
+    ExportFailure Function(Object error)? errorClassifier,
+  }) async {
+    start(format);
+    final classify = errorClassifier ?? _defaultClassifyError;
+    try {
+      final result = await body();
+      complete(format);
+      return result;
+    } catch (e, st) {
+      onError?.call(e, st);
+      fail(format, classify(e));
+      rethrow;
+    } finally {
+      // 无论 success / fail / throw，最终都回 Idle —— 防止"导出完成
+      // 但状态栏永久存在"（Bug4）。
+      reset();
+    }
+  }
+
+  /// 默认异常分类：委托给 `export_service.classifyError`。
+  ExportFailure _defaultClassifyError(Object e) => classifyError(e).kind;
 }
 
 /// 导出进度全局 Provider（3.4.4 Slice 7）。
