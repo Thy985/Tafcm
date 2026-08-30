@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import '../parser/formula_extractor.dart' show FormulaExtractor;
 import '../../domain/services/export_service.dart' show safeClip;
 
 /// 单个公式离屏渲染的超时上限。
@@ -390,8 +391,12 @@ class FormulaPdfRenderer {
     required double fontSize,
     required bool isDark,
     required String format,
-  }) =>
-      '$format|${fontSize.toStringAsFixed(2)}|${isDark ? 'D' : 'L'}|$latex';
+  }) {
+    // P0-4：LaTeX → Normalized Key（与 FormulaSvgService 同一归一化），
+    // 「同一公式不同 Unicode 写法」命中同一 PNG 缓存条目，跨格式复用。
+    final normalized = FormulaExtractor.normalizeLatex(latex);
+    return '$format|${fontSize.toStringAsFixed(2)}|${isDark ? 'D' : 'L'}|$normalized';
+  }
 
   static void _evictIfNeeded() {
     while (_cache.length > _maxEntries || _totalBytes > _maxBytes) {
