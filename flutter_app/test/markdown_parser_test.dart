@@ -49,7 +49,10 @@ void main() {
       expect(elements.length, 1);
       expect(elements[0], isA<BlockquoteElement>());
       final bq = elements[0] as BlockquoteElement;
-      expect(bq.text, '这是一段引用');
+      expect(
+        bq.children.map((c) => (c as TextElement).text).join(),
+        '这是一段引用',
+      );
     });
 
     test('解析代码块', () {
@@ -93,15 +96,19 @@ void main() {
     });
 
     group('表格解析', () {
+      /// PR-2 helper：cell（Inline AST）→ 纯文本（断言用）。
+      String cellText(List<InlineElement> cell) =>
+          cell.map((c) => (c as TextElement).text).join();
+
       test('解析简单表格', () {
         final elements = MarkdownParser.parse(
           '| 列1 | 列2 |\n| --- | --- |\n| A | B |',
         );
         final tables = elements.whereType<TableElement>().toList();
         expect(tables.length, 1);
-        expect(tables[0].headers, ['列1', '列2']);
+        expect(tables[0].headers.map(cellText).toList(), ['列1', '列2']);
         expect(tables[0].rows.length, 1);
-        expect(tables[0].rows[0], ['A', 'B']);
+        expect(tables[0].rows[0].map(cellText).toList(), ['A', 'B']);
       });
 
       test('解析多行表格', () {
@@ -110,7 +117,7 @@ void main() {
         );
         final tables = elements.whereType<TableElement>().toList();
         expect(tables.length, 1);
-        expect(tables[0].headers, ['A', 'B']);
+        expect(tables[0].headers.map(cellText).toList(), ['A', 'B']);
         expect(tables[0].rows.length, 2);
       });
 

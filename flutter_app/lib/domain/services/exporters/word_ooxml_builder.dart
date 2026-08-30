@@ -13,7 +13,6 @@ library;
 
 import 'dart:typed_data';
 
-import '../../../core/parser/markdown_parser.dart';
 import '../../../data/models/document.dart';
 import '../word_ooxml_templates.dart';
 
@@ -130,7 +129,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     } else if (element is CodeElement) {
       return _code(element.code, element.language);
     } else if (element is BlockquoteElement) {
-      return _blockquote(element.text);
+      return _blockquote(element.children, formulaRels: formulaRels);
     } else if (element is MermaidElement) {
       return _mermaidSvg(element.code, mermaidRels: mermaidRels);
     } else if (element is TableElement) {
@@ -200,10 +199,14 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     return '''<w:p><w:pPr><w:pStyle w:val="CodeBlock"/></w:pPr>$langTag<w:r><w:t xml:space="preserve">${_esc(code)}</w:t></w:r></w:p>''';
   }
 
-  static String _blockquote(String text) {
+  static String _blockquote(
+    List<InlineElement> children, {
+    required Map<String, FormulaImageInfo?> formulaRels,
+  }) {
     // Blockquote 样式已经包含左边框、灰底、左缩进和斜体灰色字，
     // 这里 run 上不再重复 shd/bdr/i 样式，避免冲突并保证样式可被用户统一修改。
-    return '''<w:p><w:pPr><w:pStyle w:val="Blockquote"/></w:pPr><w:r><w:t xml:space="preserve">${_esc(text)}</w:t></w:r></w:p>''';
+    // PR-2：children 已是 Inline AST，走统一行内渲染（加粗/公式正常呈现）。
+    return '''<w:p><w:pPr><w:pStyle w:val="Blockquote"/></w:pPr>${_renderInlineRuns(children, formulaRels)}</w:p>''';
   }
 
   // --- 公式图片 / 回退 ---
@@ -313,23 +316,21 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
   // --- 表格 ---
 
   static String _table(
-    List<String> headers,
-    List<List<String>> rows, {
+    List<List<InlineElement>> headers,
+    List<List<List<InlineElement>>> rows, {
     required Map<String, FormulaImageInfo?> formulaRels,
   }) {
     if (headers.isEmpty) return '<w:p/>';
 
-    // 渲染表头单元格（支持行内格式）
+    // 渲染表头单元格（支持行内格式；PR-2：cell 已是 Inline AST，直接渲染）
     final headerCells = headers.map((h) {
-      final inlines = MarkdownParser.parseInline(h);
-      return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/><w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/></w:tcBorders><w:shd w:val="clear" w:fill="DDDDDD"/></w:tcPr>${_renderInlineCell(inlines, formulaRels, bold: true)}</w:tc>''';
+      return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/><w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/></w:tcBorders><w:shd w:val="clear" w:fill="DDDDDD"/></w:tcPr>${_renderInlineCell(h, formulaRels, bold: true)}</w:tc>''';
     }).join('');
 
     // 渲染数据行单元格（支持行内格式：公式、粗体、代码）
     final dataRows = rows.map((row) {
       final cells = row.map((cell) {
-        final inlines = MarkdownParser.parseInline(cell);
-        return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders></w:tcPr>${_renderInlineCell(inlines, formulaRels)}</w:tc>''';
+        return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders></w:tcPr>${_renderInlineCell(cell, formulaRels)}</w:tc>''';
       }).join('');
       return '<w:tr>$cells</w:tr>';
     }).join('');

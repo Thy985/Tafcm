@@ -59,7 +59,10 @@ void main() {
       expect(headings[5].text, equals('H6'));
       expect(ast.whereType<HorizontalRuleElement>().length, equals(1));
       final quote = ast.whereType<BlockquoteElement>().single;
-      expect(quote.text, equals('quote'));
+      expect(
+        quote.children.map((c) => (c as TextElement).text).join(),
+        equals('quote'),
+      );
     });
   });
 
@@ -105,10 +108,13 @@ void main() {
       final mermaid = ast.whereType<MermaidElement>().single;
       expect(mermaid.code, equals('graph TD'));
       final table = ast.whereType<TableElement>().single;
-      expect(table.headers, equals(['a', 'b', 'c']));
+      // PR-2：cell 已是 Inline AST，提取文本断言。
+      String cellText(List<InlineElement> cell) =>
+          cell.map((c) => (c as TextElement).text).join();
+      expect(table.headers.map(cellText).toList(), equals(['a', 'b', 'c']));
       expect(table.rows.length, equals(2));
-      expect(table.rows[0], equals(['1', '2', '3']));
-      expect(table.rows[1], equals(['4', '5', '6']));
+      expect(table.rows[0].map(cellText).toList(), equals(['1', '2', '3']));
+      expect(table.rows[1].map(cellText).toList(), equals(['4', '5', '6']));
     });
   });
 

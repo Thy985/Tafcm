@@ -92,12 +92,16 @@ Map<String, Object?> elementToJson(DocumentElement element) {
     },
     TableElement e => {
       'type': 'table',
-      'headers': e.headers,
-      'rows': e.rows.map((row) => row).toList(),
+      // PR-2：cell 已是 Inline AST，序列化为 inline JSON 数组。
+      'headers': e.headers.map((h) => h.map(inlineToJson).toList()).toList(),
+      'rows': e.rows
+          .map((r) => r.map((c) => c.map(inlineToJson).toList()).toList())
+          .toList(),
     },
     BlockquoteElement e => {
       'type': 'blockquote',
-      'text': e.text,
+      // PR-2：children 已是 Inline AST。
+      'children': e.children.map(inlineToJson).toList(),
     },
     MermaidElement e => {
       'type': 'mermaid',

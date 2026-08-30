@@ -64,7 +64,7 @@ void main() {
         HeadingElement(level: 1, text: 'Title'),
         ParagraphElement(children: [TextElement('intro')]),
         const CodeElement(code: 'print(1)', language: 'dart'),
-        const BlockquoteElement(text: 'quote'),
+        const BlockquoteElement(children: [TextElement('quote')]),
       ];
       final result = MarkdownSerializer.serialize(elements, separator: '\n\n');
       expect(result, '# Title\n\nintro\n\n```dart\nprint(1)\n```\n\n> quote');

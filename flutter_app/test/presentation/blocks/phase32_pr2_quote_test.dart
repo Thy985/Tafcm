@@ -13,16 +13,16 @@ void main() {
   // ============ TC-BLOCK-QUOTE-1 QuoteBlock render 视觉 ============
 
   group('TC-BLOCK-QUOTE-1 QuoteBlock render 视觉', () {
-    test('QuoteBlock 使用 BlockquoteElement.text 渲染纯文本', () {
+    test('QuoteBlock 使用 BlockquoteElement.children 渲染行内 AST', () {
       final file = File('lib/presentation/blocks/quote/quote_block.dart');
       expect(file.existsSync(), isTrue, reason: 'quote_block.dart 必须存在');
       final content = file.readAsStringSync();
 
-      // 必须访问 widget.element.text（BlockquoteElement 的 text 字段）
+      // PR-2：必须访问 widget.element.children（BlockquoteElement 的 Inline AST）
       expect(
-        content.contains('widget.element.text'),
+        content.contains('widget.element.children'),
         isTrue,
-        reason: 'QuoteBlock 必须使用 BlockquoteElement.text 渲染文本',
+        reason: 'QuoteBlock 必须使用 BlockquoteElement.children 渲染行内内容',
       );
     });
 

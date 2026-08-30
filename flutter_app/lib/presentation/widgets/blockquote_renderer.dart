@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/models/document.dart';
+import 'paragraph_renderer.dart';
 
 class BlockquoteRenderer extends StatelessWidget {
-  final String text;
+  /// PR-2：引用内容已是 Inline AST，直接渲染（加粗/公式正常呈现）。
+  final List<InlineElement> children;
   final bool isDark;
 
   const BlockquoteRenderer({
     super.key,
-    required this.text,
+    required this.children,
     required this.isDark,
   });
 
@@ -22,15 +25,7 @@ class BlockquoteRenderer extends StatelessWidget {
         ),
         color: isDark ? AppColors.darkBlockquoteBg : AppColors.blockquoteBg,
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: AppSpacing.body,
-          height: 1.6,
-          fontStyle: FontStyle.italic,
-          color: isDark ? AppColors.darkTextSecondary : Colors.black54,
-        ),
-      ),
+      child: ParagraphRenderer(children: children, isDark: isDark),
     );
   }
 }

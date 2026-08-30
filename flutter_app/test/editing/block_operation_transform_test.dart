@@ -147,7 +147,10 @@ void main() {
         expect(ok, isTrue);
 
         final quote = editor.getBlock(id) as BlockquoteElement;
-        expect(quote.text, equals('quote text'));
+        expect(
+          quote.children.map((c) => (c as TextElement).text).join(),
+          equals('quote text'),
+        );
       });
 
       test('paragraph → horizontalRule（---）', () {

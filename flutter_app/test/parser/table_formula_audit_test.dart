@@ -10,6 +10,48 @@ import 'package:tafcm/core/parser/markdown_serializer.dart';
 import 'package:tafcm/data/models/document.dart';
 
 void main() {
+  /// PR-2 helper：cell（Inline AST）→ 纯文本（含公式源码文本化，断言用）。
+  String cellText(List<InlineElement> cell) => cell
+      .map((c) => switch (c) {
+            TextElement(:final text) => text,
+            FormulaElement(:final latex) => r'$' + latex + r'$',
+            _ => '',
+          })
+      .join();
+
+  /// PR-2 helper：比较两个 cell（Inline AST 列表）是否等价。
+  bool cellEq(List<InlineElement> a, List<InlineElement> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].runtimeType != b[i].runtimeType) return false;
+      if (a[i] is TextElement &&
+          (a[i] as TextElement).text != (b[i] as TextElement).text) {
+        return false;
+      }
+      if (a[i] is FormulaElement &&
+          (a[i] as FormulaElement).latex !=
+              (b[i] as FormulaElement).latex) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool tableEq(TableElement a, TableElement b) {
+    if (a.headers.length != b.headers.length) return false;
+    if (a.rows.length != b.rows.length) return false;
+    for (var i = 0; i < a.headers.length; i++) {
+      if (!cellEq(a.headers[i], b.headers[i])) return false;
+    }
+    for (var r = 0; r < a.rows.length; r++) {
+      if (a.rows[r].length != b.rows[r].length) return false;
+      for (var c = 0; c < a.rows[r].length; c++) {
+        if (!cellEq(a.rows[r][c], b.rows[r][c])) return false;
+      }
+    }
+    return true;
+  }
+
   group('表格 cell 内公式专项审计', () {
     test('round-trip 保真：cell 内公式', () {
       const md = r'''| $x$ | $\frac{1}{2}$ |
@@ -18,15 +60,14 @@ void main() {
       final e1 = MarkdownParser.parse(md);
       final t1 = e1.whereType<TableElement>().toList();
       expect(t1.length, 1, reason: '应解析为 1 个 TableElement');
-      expect(t1[0].headers.join(), contains(r'$x$'));
-      expect(t1[0].rows.first.join(), contains(r'$\alpha$'));
+      expect(t1[0].headers.map(cellText).join(), contains(r'$x$'));
+      expect(t1[0].rows.first.map(cellText).join(), contains(r'$\alpha$'));
 
       final s1 = MarkdownSerializer.serialize(e1);
       final e2 = MarkdownParser.parse(s1);
       final t2 = e2.whereType<TableElement>().toList();
       expect(t2.length, 1, reason: 'round-trip 后仍为 TableElement');
-      expect(t2[0].headers, t1[0].headers, reason: 'headers 保真: $s1');
-      expect(t2[0].rows, t1[0].rows, reason: 'rows 保真: $s1');
+      expect(tableEq(t2[0], t1[0]), isTrue, reason: 'headers 保真: $s1');
     });
 
     test('cell 内公式 + 粗体/行内代码混合', () {
@@ -40,8 +81,7 @@ void main() {
       final t2 = e2.whereType<TableElement>().toList();
       expect(t1.length, 1);
       expect(t2.length, 1);
-      expect(t2[0].headers, t1[0].headers);
-      expect(t2[0].rows, t1[0].rows);
+      expect(tableEq(t2[0], t1[0]), isTrue);
     });
 
     test('边界：公式含竖线（需 \\| 转义）', () {
@@ -66,7 +106,7 @@ void main() {
       final e2 = MarkdownParser.parse(s1);
       final t2 = e2.whereType<TableElement>().toList();
       expect(t2.length, 1, reason: '空 cell round-trip 不丢失: $s1');
-      expect(t2[0].rows, t1[0].rows);
+      expect(tableEq(t2[0], t1[0]), isTrue);
     });
 
     test('边界：分隔行含公式样式（应仍为分隔行）', () {
@@ -93,8 +133,7 @@ void main() {
       final t2 = e2.whereType<TableElement>().toList();
       expect(t1.length, 1);
       expect(t2.length, 1);
-      expect(t2[0].headers, t1[0].headers);
-      expect(t2[0].rows, t1[0].rows, reason: '多行公式 cell 保真: $s1');
+      expect(tableEq(t2[0], t1[0]), isTrue, reason: '多行公式 cell 保真: $s1');
     });
   });
 }

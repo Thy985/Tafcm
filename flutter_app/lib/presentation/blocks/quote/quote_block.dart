@@ -24,6 +24,7 @@ import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
 import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
+import '../shared/inline_spans.dart';
 
 /// 引用块 Widget（Stateless，仅持有 props）。
 class QuoteBlock extends StatefulWidget {
@@ -87,12 +88,15 @@ class _QuoteBlockState extends BaseBlockState<QuoteBlock> {
             ),
           ),
         ),
-        child: Text(
-          widget.element.text,
-          style: TextStyle(
-            fontFamily: 'serif',
-            fontSize: EditorTokens.paragraphFontSize,
-            color: Theme.of(context).colorScheme.onSurface,
+        child: Text.rich(
+          buildInlineSpans(
+            widget.element.children,
+            const TextStyle(
+              fontFamily: 'serif',
+              fontSize: EditorTokens.paragraphFontSize,
+              height: 1.85,
+            ),
+            context,
           ),
         ),
       ),

@@ -37,11 +37,11 @@ bool astDeepEquals(DocumentElement a, DocumentElement b) {
       b is CodeElement && b.code == code && b.language == language,
     TableElement(:final headers, :final rows) =>
       b is TableElement &&
-      stringListEquals(headers, b.headers) &&
+      inlineListListEquals(headers, b.headers) &&
       rows.length == b.rows.length &&
-      stringListListEquals(rows, b.rows),
-    BlockquoteElement(:final text) =>
-      b is BlockquoteElement && b.text == text,
+      inlineListListListEquals(rows, b.rows),
+    BlockquoteElement(:final children) =>
+      b is BlockquoteElement && inlineListEquals(children, b.children),
     MermaidElement(:final code) =>
       b is MermaidElement && b.code == code,
     HorizontalRuleElement() => b is HorizontalRuleElement,
@@ -94,6 +94,30 @@ bool stringListListEquals(List<List<String>> a, List<List<String>> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
     if (!stringListEquals(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+/// 比较两个 `List<List<InlineElement>>`（表头）是否等价。
+bool inlineListListEquals(
+  List<List<InlineElement>> a,
+  List<List<InlineElement>> b,
+) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!inlineListEquals(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+/// 比较两个 `List<List<List<InlineElement>>>`（数据行 cell）是否等价。
+bool inlineListListListEquals(
+  List<List<List<InlineElement>>> a,
+  List<List<List<InlineElement>>> b,
+) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!inlineListListEquals(a[i], b[i])) return false;
   }
   return true;
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/models/document.dart';
+import 'paragraph_renderer.dart';
 
 class TableRenderer extends StatelessWidget {
-  final List<String> headers;
-  final List<List<String>> rows;
+  /// PR-2：cell 已是 Inline AST，直接渲染（加粗/公式正常呈现）。
+  final List<List<InlineElement>> headers;
+  final List<List<List<InlineElement>>> rows;
   final bool isDark;
 
   const TableRenderer({
@@ -33,7 +36,12 @@ class TableRenderer extends StatelessWidget {
     );
   }
 
-  Widget _buildRow(List<String> cells, Color bg, bool isDark, bool isHeader) {
+  Widget _buildRow(
+    List<List<InlineElement>> cells,
+    Color bg,
+    bool isDark,
+    bool isHeader,
+  ) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -47,13 +55,13 @@ class TableRenderer extends StatelessWidget {
       child: Row(
         children: cells.map((cell) {
           return Expanded(
-            child: Text(
-              cell.trim(),
+            child: DefaultTextStyle.merge(
               style: TextStyle(
                 fontSize: AppSpacing.body,
                 fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
                 color: isDark ? AppColors.darkText : AppColors.lightText,
               ),
+              child: ParagraphRenderer(children: cell, isDark: isDark),
             ),
           );
         }).toList(),
