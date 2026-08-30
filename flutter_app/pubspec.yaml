@@ -1,7 +1,7 @@
 name: tafcm
 description: "Tafcm - 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。"
 publish_to: "none"
-version: 0.1.0+1
+version: 0.1.1+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
