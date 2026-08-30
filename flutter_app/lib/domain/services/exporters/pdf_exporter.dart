@@ -161,6 +161,8 @@ class PdfExporter {
 
     // 收集所有公式（含 table cell 内的）。Set 自动去重。
     final allFormulas = collectAllFormulas(elements);
+    // R2 修复：按 displayMode 分组（缓存 key 含 displayMode 维度）。
+    final grouped = collectAllFormulasByDisplayMode(elements);
 
     // 报告公式总数，后续 SVG 预渲染按此 total。
     if (allFormulas.isNotEmpty) {
@@ -176,16 +178,31 @@ class PdfExporter {
       // 会在真机低端设备上触发 GC 抖动 + 偶发 toImage 不返回。
       // PNG 缓存保留在 buildFormulaPlan 中作为最终兜底——WebView
       // 加载失败时回退到 bitmap（text fallback 之后）。
+      // R2 修复：inline 组 displayMode:false、block 组 displayMode:true，
+      // 与 buildFormulaPlan 的 c.displayMode 缓存 key 对齐（I| vs B|）。
+      var preRendered = 0;
+      final totalForProgress = grouped.inline.length + grouped.block.length;
       try {
         await FormulaSvgService.preRenderAll(
-          allFormulas,
+          grouped.inline,
           displayMode: false,
-          // Phase 2 进度：每个公式（含缓存命中）完成时回调。
+          onEachCompleted: (completed, total) {
+            preRendered = completed;
+            onProgress?.call(ExportProgress(
+              stage: ExportStage.preRenderingFormulaSvg,
+              completed: preRendered,
+              total: totalForProgress,
+            ));
+          },
+        );
+        await FormulaSvgService.preRenderAll(
+          grouped.block,
+          displayMode: true,
           onEachCompleted: (completed, total) {
             onProgress?.call(ExportProgress(
               stage: ExportStage.preRenderingFormulaSvg,
-              completed: completed,
-              total: total,
+              completed: preRendered + completed,
+              total: totalForProgress,
             ));
           },
         );
@@ -333,6 +350,43 @@ class PdfExporter {
       }
     }
     return out;
+  }
+
+  /// R2 修复（实测bug1.md §4）：按 displayMode 分组收集公式。
+  ///
+  /// 返回 `(inlineSet, blockSet)`。缓存 key 含 displayMode 维度
+  /// （`I|` vs `B|`），预渲染必须与 [buildFormulaPlan] 的 `c.displayMode`
+  /// 一致，否则块级公式预渲染缓存永远 miss（导出时逐公式重新异步渲染）。
+  static ({Set<String> inline, Set<String> block}) collectAllFormulasByDisplayMode(
+    List<DocumentElement> elements,
+  ) {
+    final inline = <String>{};
+    final block = <String>{};
+    void walkInline(List<InlineElement> children) {
+      for (final c in children) {
+        if (c is FormulaElement) {
+          (c.displayMode ? block : inline).add(c.latex);
+        }
+      }
+    }
+
+    for (final e in elements) {
+      if (e is ParagraphElement) {
+        walkInline(e.children);
+      } else if (e is ListElement) {
+        walkInline(e.children);
+      } else if (e is TableElement) {
+        for (final h in e.headers) {
+          walkInline(h);
+        }
+        for (final row in e.rows) {
+          for (final cell in row) {
+            walkInline(cell);
+          }
+        }
+      }
+    }
+    return (inline: inline, block: block);
   }
   // --- 元素 → PDF widget 派发 ---
 
