@@ -37,9 +37,23 @@ Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产
 详细能力状态见 [docs/product/CAPABILITY-STATUS.md](docs/product/CAPABILITY-STATUS.md)（人类视图）
 与 [contracts/*.json](contracts/)（机器视图）。
 
+## 下载安装
+
+**v0.1.0 已发布**（2026-08-30，首个正式版本）：
+
+| 平台 | 下载 |
+|------|------|
+| Android APK | [GitHub Releases · v0.1.0](https://github.com/Thy985/Tafcm/releases/tag/v0.1.0)（`app-release.apk`，约 95 MB） |
+
+- 要求：Android 8.0+（API 26+）
+- ⚠️ 当前为 **debug 签名**（正式 keystore 发布前占位）；包名已改为 `com.tafcm.app`
+- 安装前请卸载旧版 FormulaFix（包名不同，避免签名冲突提示）
+- 版本历史见 [CHANGELOG.md](CHANGELOG.md)；详细发布证据见 [docs/releases/](docs/releases/)
+
 ## 当前状态
 
 **Phase 0-3.11 全部完成**；Phase 3.11（Capability Hardening Loop）已按 PHASE_3_11_EXIT 判定关闭（2026-08-22）。
+**v0.1.0 已正式发布**（2026-08-30，GitHub Releases + tag `v0.1.0`）。
 当前处于 **Phase 3.12：信息架构重构**（2026-08-27，本文件即为该阶段产物）。
 
 工程地基五维状态（2026-08-22 冻结）：
@@ -124,5 +138,5 @@ Copyright (c) 2026 [Thy985](https://github.com/Thy985)
 ---
 
 **维护人**：首席架构工程师
-**最近更新**：2026-08-27
-**文档版本**：v1.0（Phase 3.12 信息架构重构）
+**最近更新**：2026-08-30（v0.1.0 发布）
+**文档版本**：v1.1（Phase 3.12 信息架构重构 + v0.1.0 发布）
