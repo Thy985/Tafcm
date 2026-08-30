@@ -7,6 +7,10 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 /// 页面加载完成后的回调签名。由 [MermaidService.markPageLoaded] 触发。
 typedef MermaidPageLoadedCallback = void Function();
 
+/// PR-D（页面加载生命周期专项）：renderer 重置通知回调签名。
+/// 由 [MermaidService.resetRenderer] 触发，host 侧监听后 reload WebView。
+typedef MermaidRendererResetCallback = void Function();
+
 /// 错误报告回调签名（P1 B-6）。
 ///
 /// core 层不能 import observability（AGENTS.md §6.1.1），通过此回调
@@ -57,6 +61,13 @@ class MermaidService {
   static final Map<String, _PendingRender> _active = {};
   static final Map<MermaidTheme, String> _themeSvgCache = {};
   static final List<MermaidPageLoadedCallback> _pageLoadedCallbacks = [];
+
+  /// PR-D（页面加载生命周期专项）：renderer 重置通知回调。
+  ///
+  /// [resetRenderer] 调用后触发，通知 host（[MermaidRendererHost]）
+  /// 重新加载 WebView——修复"reset 后 `_pageLoaded` 永久 false →
+  /// `_dispatchWaiting` 门禁永久拦截 → 导出卡死 3/95"的结构性缺陷。
+  static final List<MermaidRendererResetCallback> _rendererResetCallbacks = [];
 
   /// P1 B-6：错误回调。由 presentation 层注入（main.dart 启动时调用
   /// [attachErrorCallback]）。WebView 渲染失败 → 调用方 captureError →
@@ -139,6 +150,11 @@ class MermaidService {
     }
   }
 
+  /// PR-D：注册 renderer 重置通知回调（host 侧监听后 reload WebView）。
+  static void addRendererResetCallback(MermaidRendererResetCallback cb) {
+    _rendererResetCallbacks.add(cb);
+  }
+
   /// 异步等待页面真正加载完成。已有 completer 则复用，否则创建一个。
   /// 等待超时上限是 _renderTimeout（30s），与单次渲染超时对齐。
   ///
@@ -188,6 +204,14 @@ class MermaidService {
     }
     _active.clear();
     _cache.clear();
+    // PR-D：通知 host 重新加载 WebView，恢复页面加载状态——
+    // 否则 _pageLoaded 永久 false，FormulaSvgService._dispatchWaiting
+    // 门禁永久拦截，导出卡死（3/95）。
+    for (final cb in List.of(_rendererResetCallbacks)) {
+      try {
+        cb();
+      } catch (_) {}
+    }
   }
 
   /// 清理 WebView DOM 中的所有 payload 元素，释放内存。
