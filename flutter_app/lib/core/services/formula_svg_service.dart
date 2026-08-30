@@ -3,6 +3,8 @@ import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../observability/ring_buffer.dart' show RingBuffer;
+import '../parser/formula_extractor.dart' show FormulaExtractor;
 import 'mermaid_service.dart' show MermaidErrorCallback, MermaidService;
 
 /// MathJax 渲染 LaTeX 为 SVG 字符串服务（与 MermaidService 共享 WebView）。
@@ -35,6 +37,37 @@ class FormulaSvgService {
 
   static final List<_PendingLatex> _waiting = [];
   static final Map<String, _PendingLatex> _active = {};
+
+  /// P0-5：渲染 telemetry（最近 512 条）。瓶颈分析用：
+  /// `formula_id / latex_length / queue_wait_ms / render_ms / total_ms / result`。
+  /// 不记 latex 原文（避免敏感内容外泄，AGENTS.md 诊断数据最小化原则）。
+  static final RingBuffer<FormulaRenderTelemetry> _telemetry =
+      RingBuffer<FormulaRenderTelemetry>(512);
+
+  static List<FormulaRenderTelemetry> get telemetryEntries => _telemetry.toList();
+
+  static void clearTelemetry() => _telemetry.clear();
+
+  /// 记录一次渲染请求的完整生命周期指标。
+  ///
+  /// [enqueuedAt] 入队时刻、[dispatchedAt] 开始 evaluate 时刻、[completedAt]
+  /// 终态时刻；三者差分别量化排队等待 / 实际渲染 / 端到端耗时。
+  static void _recordTelemetry(
+    _PendingLatex p,
+    DateTime completedAt, {
+    required String result,
+  }) {
+    final dispatched = p.dispatchedAt ?? p.enqueuedAt;
+    _telemetry.add(FormulaRenderTelemetry(
+      formulaId: p.requestId,
+      latexLength: p.latex.length,
+      displayMode: p.displayMode,
+      queueWaitMs: dispatched.difference(p.enqueuedAt).inMilliseconds,
+      renderMs: completedAt.difference(dispatched).inMilliseconds,
+      totalMs: completedAt.difference(p.enqueuedAt).inMilliseconds,
+      result: result,
+    ));
+  }
 
   /// P1 B-6：错误回调。与 [MermaidService] 共享同一回调类型，
   /// 由 main.dart 统一注入 observability.captureError。
@@ -93,6 +126,8 @@ class FormulaSvgService {
       completer: completer,
       latex: latex,
       displayMode: displayMode,
+      // P0-5：入队时刻（telemetry queue_wait 起点）。
+      enqueuedAt: DateTime.now(),
     );
     _waiting.add(pending);
     _active[requestId] = pending;
@@ -105,10 +140,12 @@ class FormulaSvgService {
     } on TimeoutException {
       _active.remove(requestId);
       _waiting.remove(pending);
+      _recordTelemetry(pending, DateTime.now(), result: 'timeout');
       throw FormulaSvgException('LaTeX SVG render timeout');
     } catch (e) {
       _active.remove(requestId);
       _waiting.remove(pending);
+      _recordTelemetry(pending, DateTime.now(), result: 'error');
       rethrow;
     }
   }
@@ -192,6 +229,8 @@ class FormulaSvgService {
     InAppWebViewController controller,
     _PendingLatex p,
   ) async {
+    // P0-5：dispatch 时刻（telemetry queue_wait 终点 / render 起点）。
+    p.dispatchedAt = DateTime.now();
     final script =
         'window.renderLatex(${_js(p.requestId)}, ${_js(p.latex)}, ${p.displayMode})';
     try {
@@ -299,6 +338,10 @@ class FormulaSvgService {
     if (p != null && !p.completer.isCompleted) {
       p.completer.complete(svg);
     }
+    // P0-5：成功路径 telemetry。
+    if (p != null) {
+      _recordTelemetry(p, DateTime.now(), result: 'success');
+    }
     _dispatchWaiting();
   }
 
@@ -306,6 +349,10 @@ class FormulaSvgService {
     final p = _active.remove(requestId);
     if (p != null && !p.completer.isCompleted) {
       p.completer.completeError(FormulaSvgException(error));
+    }
+    // P0-5：失败路径 telemetry（WebView 返回 LATEX_ERR / DOM 空 SVG 等）。
+    if (p != null) {
+      _recordTelemetry(p, DateTime.now(), result: 'error');
     }
     // P1 B-6：渲染失败统一上报 observability。
     // 不传 latex 原文（可能含敏感文档内容），仅传长度 + displayMode。
@@ -322,7 +369,11 @@ class FormulaSvgService {
   }
 
   static String _cacheKey(String latex, bool displayMode) {
-    final h = md5.convert(latex.codeUnits).toString();
+    // P0-4：LaTeX → Normalized Key。Unicode 公式写法（π / ∂ / → 等）先归一为
+    // LaTeX 命令再取 md5，保证「同一公式不同写法」命中同一缓存条目，
+    // 编辑器 / PDF 矢量 / 导出预渲染跨模块复用。
+    final normalized = FormulaExtractor.normalizeLatex(latex);
+    final h = md5.convert(normalized.codeUnits).toString();
     return '${displayMode ? 'B' : 'I'}|$h';
   }
 
@@ -360,11 +411,42 @@ class _PendingLatex {
   final String latex;
   final bool displayMode;
 
+  /// P0-5：入队时刻（telemetry queue_wait 起点）。
+  final DateTime enqueuedAt;
+
+  /// P0-5：开始 evaluate 时刻（telemetry render 起点）；null = 未 dispatch。
+  DateTime? dispatchedAt;
+
   _PendingLatex({
     required this.requestId,
     required this.completer,
     required this.latex,
     required this.displayMode,
+    required this.enqueuedAt,
+  });
+}
+
+/// P0-5：单次公式渲染的 telemetry 条目（瓶颈分析输入）。
+///
+/// 不记 latex 原文，仅长度 + displayMode + 三段耗时 + 结果分类；
+/// 供 Render Scheduler 优化决策（先测瓶颈再谈并发，实测bug.md §P0-5）。
+class FormulaRenderTelemetry {
+  final String formulaId;
+  final int latexLength;
+  final bool displayMode;
+  final int queueWaitMs;
+  final int renderMs;
+  final int totalMs;
+  final String result; // success / timeout / error
+
+  const FormulaRenderTelemetry({
+    required this.formulaId,
+    required this.latexLength,
+    required this.displayMode,
+    required this.queueWaitMs,
+    required this.renderMs,
+    required this.totalMs,
+    required this.result,
   });
 }
 

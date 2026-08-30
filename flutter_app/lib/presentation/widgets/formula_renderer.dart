@@ -112,6 +112,63 @@ class _FormulaRendererState extends State<FormulaRenderer> {
   /// 请求序列号：丢弃过期异步结果，避免快速连续改公式时的竞态覆盖（review #1）。
   int _loadToken = 0;
 
+  /// P0-3：终态结果缓存（成功 + 失败都缓存）。
+  ///
+  /// 双态切换（rendered↔editing）时 [FormulaBlock] 整体移出/移回 widget 树，
+  /// State 销毁重建会重新走 `initState → _load()`；若只靠 SVG 字符串缓存，
+  /// 失败终态（timeout / invalidSvg）无法复用，切回时重新排队异步渲染
+  /// （Bug5「再点变空白」的最大放大器）。此缓存按 (latex, displayMode) 保存
+  /// 最终 [FormulaRenderResult]，重建时同步复用——成功即展示、失败即降级，
+  /// 均不重新触发 WebView 渲染。
+  static final Map<String, FormulaRenderResult> _resultCache = {};
+  static const int _maxResultCacheEntries = 512;
+  static String _resultCacheKey(String latex, bool displayMode) =>
+      '${displayMode ? 'B' : 'I'}|$latex';
+
+  static FormulaRenderResult? _resultCacheGet(String latex, bool displayMode) {
+    final key = _resultCacheKey(latex, displayMode);
+    final hit = _resultCache.remove(key);
+    if (hit != null) {
+      _resultCache[key] = hit; // LRU 触达
+      return hit;
+    }
+    return null;
+  }
+
+  static void _resultCachePut(String latex, bool displayMode, FormulaRenderResult r) {
+    final key = _resultCacheKey(latex, displayMode);
+    _resultCache[key] = r;
+    while (_resultCache.length > _maxResultCacheEntries) {
+      final firstKey = _resultCache.keys.first;
+      _resultCache.remove(firstKey);
+    }
+  }
+
+  /// P0-5：fallback 决策 telemetry（最近 256 条）。
+  ///
+  /// 记录每次降级的原因分类（timeout / invalidSvg / webViewError /
+  /// unavailable / cacheMiss）与 latex 长度、displayMode；不记 latex 原文
+  /// （敏感内容最小化）。与 FormulaSvgService.telemetryEntries 互补：
+  /// 服务层量化耗时瓶颈，本层量化 fallback 分布。
+  static final Map<String, int> fallbackReasonCounts = {};
+  static const int _maxFallbackReasons = 64;
+
+  static void _recordFallback(String reason, int latexLength, bool displayMode) {
+    fallbackReasonCounts[reason] = (fallbackReasonCounts[reason] ?? 0) + 1;
+    if (fallbackReasonCounts.length > _maxFallbackReasons) {
+      // 极端防御：只保留最多的 32 个原因分类（理论上不会触发）
+      final sorted = fallbackReasonCounts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      fallbackReasonCounts
+        ..clear()
+        ..addEntries(sorted.take(32));
+    }
+    debugPrint(
+      '[FormulaRenderer] fallback reason=$reason '
+      '(len=$latexLength, display=$displayMode)',
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -133,7 +190,13 @@ class _FormulaRendererState extends State<FormulaRenderer> {
     final token = ++_loadToken;
     final latex = widget.element.latex;
     final displayMode = widget.displayMode;
-    // 同步命中缓存直接展示，避免一帧的源码闪烁
+    // P0-3：优先复用终态缓存（成功展示 / 失败降级，不重新渲染）。
+    final cachedResult = _resultCacheGet(latex, displayMode);
+    if (cachedResult != null) {
+      if (mounted) setState(() => _result = cachedResult);
+      return;
+    }
+    // 同步命中 SVG 缓存直接展示，避免一帧的源码闪烁
     final cached = formulaSvgCached(latex, displayMode: displayMode);
     if (cached != null) {
       if (mounted) setState(() => _result = _validateResult(cached));
@@ -151,11 +214,9 @@ class _FormulaRendererState extends State<FormulaRenderer> {
           if (mounted && token == _loadToken) {
             final result = _validateResult(svg);
             if (result is FormulaRenderInvalidSvg) {
-              debugPrint(
-                '[FormulaRenderer] invalid SVG (len=${latex.length}, '
-                'display=$displayMode) → fallback',
-              );
+              _recordFallback('invalidSvg', latex.length, displayMode);
             }
+            _resultCachePut(latex, displayMode, result);
             setState(() => _result = result);
           }
         })
@@ -164,10 +225,12 @@ class _FormulaRendererState extends State<FormulaRenderer> {
           // build 据此走 flutter_math_fork 降级（绝不呈现空白）。
           if (mounted && token == _loadToken) {
             final result = _classifyError(e);
-            debugPrint(
-              '[FormulaRenderer] render ${result.runtimeType} '
-              '(len=${latex.length}, display=$displayMode) → fallback',
+            _recordFallback(
+              result.runtimeType.toString(),
+              latex.length,
+              displayMode,
             );
+            _resultCachePut(latex, displayMode, result);
             setState(() => _result = result);
           }
         });
