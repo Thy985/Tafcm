@@ -11,6 +11,32 @@ class MermaidRendererHost extends StatefulWidget {
 }
 
 class _MermaidRendererHostState extends State<MermaidRendererHost> {
+  InAppWebViewController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // PR-D（页面加载生命周期专项）：监听 renderer 重置 → reload WebView，
+    // 恢复页面加载状态。否则 resetRenderer 后 _pageLoaded 永久 false，
+    // FormulaSvgService._dispatchWaiting 门禁永久拦截，导出卡死（3/95）。
+    MermaidService.addRendererResetCallback(_handleRendererReset);
+  }
+
+  /// PR-D：renderer 重置后重新加载 WebView。
+  ///
+  /// reload 会再次触发 onLoadStop → markPageLoaded → `_pageLoaded = true`
+  /// → `_dispatchWaiting` 门禁放行，排队中的公式渲染请求恢复 dispatch。
+  void _handleRendererReset() {
+    final controller = _controller;
+    if (controller == null) return;
+    debugPrint('MermaidRendererHost: renderer reset, reloading WebView...');
+    try {
+      controller.reload();
+    } catch (e) {
+      debugPrint('MermaidRendererHost: reload failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 关键修复：即使 isReady=false 也必须挂载 WebView，否则永远无法触发
@@ -39,6 +65,7 @@ class _MermaidRendererHostState extends State<MermaidRendererHost> {
         onWebViewCreated: (controller) {
           // 立即 attach controller，使 renderToSvg 知道 WebView 已挂载。
           // 即使 JS 还在加载 JS 资源，attachController 已经让请求能排队。
+          _controller = controller; // PR-D：保存引用，reset 后 reload 用
           MermaidService.attachController(controller);
         },
         onConsoleMessage: (controller, consoleMessage) {
