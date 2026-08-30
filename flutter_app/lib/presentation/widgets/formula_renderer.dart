@@ -20,10 +20,13 @@
 /// `displayMode` 标志，不新增独立 BlockType（避免触动 BlockRenderer exhaustive switch 守门）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/services/formula_svg_service.dart';
 import '../../../providers/formula_svg_provider.dart';
 import '../../../core/constants/app_constants.dart' show AppSpacing;
 import '../../../core/parser/formula_extractor.dart';
@@ -35,6 +38,44 @@ import '../themes/editor_tokens.dart';
 /// 10 介于 [AppSpacing.sm](8) 与 [AppSpacing.md](12) 之间，无对应 token，
 /// 故提取为命名常量；水平留白直接用 [AppSpacing.xs]（== 4）。
 const double _formulaBlockVerticalPadding = 10.0;
+
+/// 公式渲染终态结果（PR-1：terminal-state invariant）。
+///
+/// 任何渲染操作结束后，结果必须归入以下一种**非空白终态**；不允许
+/// "null forever"（Bug5 空白窗口根因）。`build` 依据此结果选择展示
+/// 路径：仅 [FormulaRenderSuccess] 显示 SVG，其余一律走 flutter_math_fork
+/// 降级（[FormulaRenderer] 的 FormulaFallbackPolicy）。
+sealed class FormulaRenderResult {
+  const FormulaRenderResult();
+}
+
+/// SVG 渲染成功，且 [svg] 已通过有效性校验（非空、含实际渲染元素）。
+class FormulaRenderSuccess extends FormulaRenderResult {
+  const FormulaRenderSuccess(this.svg);
+
+  final String svg;
+}
+
+/// 渲染超时（WebView/MathJax 未在 [_renderTimeout] 内返回）。
+class FormulaRenderTimeout extends FormulaRenderResult {
+  const FormulaRenderTimeout();
+}
+
+/// 返回了 SVG 字符串但内容非法 / 空白（仅 xmlns 头、无 path/text/g 等
+/// 实际渲染元素）——`svg.isEmpty` 检查无法拦截的场景（Bug5 空白终态之一）。
+class FormulaRenderInvalidSvg extends FormulaRenderResult {
+  const FormulaRenderInvalidSvg();
+}
+
+/// WebView 通信错误（宿主未挂载 / 重置 / evaluateJavascript 失败等）。
+class FormulaRenderWebViewError extends FormulaRenderResult {
+  const FormulaRenderWebViewError();
+}
+
+/// 其它不可用情况（未分类异常 / 服务未就绪）。
+class FormulaRenderUnavailable extends FormulaRenderResult {
+  const FormulaRenderUnavailable();
+}
 
 /// 公式统一渲染 Widget（编辑器 + 预览共用）。
 ///
@@ -64,7 +105,9 @@ class FormulaRenderer extends StatefulWidget {
 }
 
 class _FormulaRendererState extends State<FormulaRenderer> {
-  String? _svg;
+  /// 渲染终态结果（PR-1）。初始 [FormulaRenderUnavailable]：build 走降级，
+  /// **任何时刻都不会呈现空白**（terminal-state invariant）。
+  FormulaRenderResult _result = const FormulaRenderUnavailable();
 
   /// 请求序列号：丢弃过期异步结果，避免快速连续改公式时的竞态覆盖（review #1）。
   int _loadToken = 0;
@@ -79,7 +122,8 @@ class _FormulaRendererState extends State<FormulaRenderer> {
   void didUpdateWidget(covariant FormulaRenderer oldWidget) {
     if (oldWidget.element.latex != widget.element.latex ||
         oldWidget.displayMode != widget.displayMode) {
-      _svg = null;
+      // 公式变化：立即回到不可用终态（build 走降级），重新异步加载。
+      _result = const FormulaRenderUnavailable();
       if (widget.displayMode) _load();
     }
     super.didUpdateWidget(oldWidget);
@@ -92,19 +136,68 @@ class _FormulaRendererState extends State<FormulaRenderer> {
     // 同步命中缓存直接展示，避免一帧的源码闪烁
     final cached = formulaSvgCached(latex, displayMode: displayMode);
     if (cached != null) {
-      if (mounted) setState(() => _svg = cached);
+      if (mounted) setState(() => _result = _validateResult(cached));
       return;
     }
-    // 异步渲染；WebView 未挂载 / 渲染失败 → catchError 不抛，build 走 flutter_math_fork 降级。
+    // 异步渲染；结果统一归入非空白终态：
+    // - 成功 → _validateResult 校验 SVG 有效性（拦截空/畸形 SVG）
+    // - 失败/超时 → _classifyError 分类（timeout / webViewError / unavailable）
     // token 校验：若期间 didUpdateWidget 触发了更新的 _load()（token 已自增），
     // 旧请求的回调会被丢弃，避免用旧公式 SVG 覆盖新公式内容（review #1）。
+    // P0-5 前置：诊断埋点，记录每个公式的渲染结果分类，供 scheduler 优化
+    // 收集数据（latex 长度 + 结果类型；不记原文，避免敏感内容外泄）。
     renderFormulaToSvg(latex, displayMode: displayMode)
         .then((svg) {
-          if (mounted && token == _loadToken) setState(() => _svg = svg);
+          if (mounted && token == _loadToken) {
+            final result = _validateResult(svg);
+            if (result is FormulaRenderInvalidSvg) {
+              debugPrint(
+                '[FormulaRenderer] invalid SVG (len=${latex.length}, '
+                'display=$displayMode) → fallback',
+              );
+            }
+            setState(() => _result = result);
+          }
         })
-        .catchError((_) {
-          // WebView 未就绪 / 渲染失败：_svg 保持 null → 降级 flutter_math_fork
+        .catchError((Object e) {
+          // WebView 未就绪 / 渲染失败 / 超时：分类为明确失败终态，
+          // build 据此走 flutter_math_fork 降级（绝不呈现空白）。
+          if (mounted && token == _loadToken) {
+            final result = _classifyError(e);
+            debugPrint(
+              '[FormulaRenderer] render ${result.runtimeType} '
+              '(len=${latex.length}, display=$displayMode) → fallback',
+            );
+            setState(() => _result = result);
+          }
         });
+  }
+
+  /// 校验 SVG 是否为可渲染终态：非空且含实际渲染元素（path/text/g 等）。
+  ///
+  /// 拦截"仅 xmlns 头的空 SVG"（`svg.isEmpty` 检查无法覆盖，Bug5 空白终态
+  /// 之一）：MathJax 可能输出合法字符串但无任何可绘制内容。
+  FormulaRenderResult _validateResult(String svg) {
+    if (!_isValidSvg(svg)) return const FormulaRenderInvalidSvg();
+    return FormulaRenderSuccess(svg);
+  }
+
+  /// 把异步渲染异常分类为明确的失败终态（FormulaFallbackPolicy 输入）。
+  FormulaRenderResult _classifyError(Object error) {
+    if (error is TimeoutException) return const FormulaRenderTimeout();
+    if (error is FormulaSvgException) return const FormulaRenderWebViewError();
+    return const FormulaRenderUnavailable();
+  }
+
+  /// SVG 有效性校验：非空 + 包含实际图形元素。
+  static bool _isValidSvg(String svg) {
+    if (svg.trim().isEmpty) return false;
+    // MathJax SVG 至少包含 <path>（字形轮廓）或 <text>/<g>（组合内容）
+    return svg.contains('<path') ||
+        svg.contains('<text') ||
+        svg.contains('<g ') ||
+        svg.contains('<rect') ||
+        svg.contains('<circle');
   }
 
   @override
@@ -158,16 +251,21 @@ class _FormulaRendererState extends State<FormulaRenderer> {
   }
 
   /// 块级公式：Typora 化（居中、无卡片）。优先 SVG，降级 flutter_math_fork。
+  ///
+  /// **PR-1 FormulaFallbackPolicy**：仅 [FormulaRenderSuccess] 显示 SVG；
+  /// 其余终态（timeout / invalidSvg / webViewError / unavailable）统一走
+  /// `flutter_math_fork` 降级——**build 永不呈现空白**（terminal-state invariant）。
   Widget _buildBlock(BuildContext context, EditorTokens tokens) {
-    final body = _svg != null
-        ? SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SvgPicture.string(
-              _svg!,
-              color: tokens.textPrimary,
-            ),
-          )
-        : _flutterMathFallback(tokens);
+    final body = switch (_result) {
+      FormulaRenderSuccess(:final svg) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SvgPicture.string(
+            svg,
+            color: tokens.textPrimary,
+          ),
+        ),
+      _ => _flutterMathFallback(tokens),
+    };
 
     return Container(
       width: double.infinity,
@@ -180,7 +278,7 @@ class _FormulaRendererState extends State<FormulaRenderer> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(child: body),
-          if (_svg != null && widget.showSource) ...[
+          if (_result is FormulaRenderSuccess && widget.showSource) ...[
             const SizedBox(height: 6),
             // 真实渲染成功时显示 mono 源码行（与高保真 prototype 一致）
             Center(
