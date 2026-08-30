@@ -105,7 +105,9 @@
 
 ### 2.7 assets（设计资产）
 
-见 [assets/](assets/) —— `ui-prototype/` 设计稿资产。
+设计稿全量原件见仓库根 [formulafix-redesign.design/](../../formulafix-redesign.design/)（冻结，目录名保留）；
+设计 token 真源见 [design-system/tokens.json](../../design-system/tokens.json)。
+~~旧子集 `docs/assets/ui-prototype/` 已于 2026-08-30 删除（陈旧派生副本，缺 5 个 typora/v3 变体，权威源为原件）。~~
 
 ### 2.8 principles（工程原则，4 篇，2026-08-30 新增）
 
