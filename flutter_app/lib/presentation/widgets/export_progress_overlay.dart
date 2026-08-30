@@ -13,6 +13,8 @@
 /// 不在 chrome/blocks 内直接使用（AGENTS.md §6.5 依赖图单向）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,40 +29,92 @@ import '../../domain/services/export_service.dart';
 ///   child: EditorShell(...),
 /// )
 /// ```
-class ExportProgressOverlay extends ConsumerWidget {
+class ExportProgressOverlay extends ConsumerStatefulWidget {
   const ExportProgressOverlay({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExportProgressOverlay> createState() =>
+      _ExportProgressOverlayState();
+}
+
+class _ExportProgressOverlayState extends ConsumerState<ExportProgressOverlay> {
+  /// PR-4：Completed / Failed SnackBar 计时器。dispose 时取消以避免
+  /// "Timer is still pending" 报错（实测bug.md §Bug4 修复的副作用）。
+  Timer? _resetTimer;
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    _resetTimer = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen<ExportState>(exportProgressProvider, (prev, next) {
       final messenger = ScaffoldMessenger.of(context);
       // 切换到新状态前先清掉旧 SnackBar，避免叠加。
       messenger.hideCurrentSnackBar();
       switch (next) {
         case ExportIdleState():
-          // reset：已经 hideCurrent，再做一次幂等保护。
+          // reset：已经 hideCurrent，再做一次幂等保护；同时取消任何
+          // 进行中的 reset 计时器（已无意义）。
           messenger.hideCurrentSnackBar();
+          _resetTimer?.cancel();
+          _resetTimer = null;
         case ExportInProgressState():
           messenger.showSnackBar(_progressSnackBar(next));
+          // InProgress 期间先 cancel 任何未触发的 reset（防误触发）。
+          _resetTimer?.cancel();
+          _resetTimer = null;
         case ExportCompletedState():
+          // PR-4：Completed SnackBar 显示完成后，主动 reset() 把 provider
+          // 拉回 Idle，避免 exportProgressProvider 永远停在 Completed
+          // 状态（实测bug.md §Bug4）。
           messenger.showSnackBar(
             SnackBar(
               content: Text('已导出 ${_formatLabel(next.format)}'),
               duration: const Duration(seconds: 2),
             ),
           );
+          _scheduleReset(const Duration(seconds: 2));
         case ExportFailedState():
+          // PR-4：Failed SnackBar 显示完成后，主动 reset()。
           messenger.showSnackBar(
             SnackBar(
               content: Text('导出失败：${_failureMessage(next.failure)}'),
               duration: const Duration(seconds: 4),
             ),
           );
+          _scheduleReset(const Duration(seconds: 4));
       }
     });
-    return child;
+    return widget.child;
+  }
+
+  /// PR-4：Completed / Failed SnackBar 显示 [delay] 后调 [reset]，让
+  /// [exportProgressProvider] 回到 Idle。避免"导出成功但 provider state
+  /// 永久停在 Completed"——下次重新进 EditorScreen 仍能看到 Completed
+  /// 状态（虽然 SnackBar 已自动消失，但 state 残留违反 state machine
+  /// 不变量）。
+  ///
+  /// 用 [Timer] 而非 `Future.delayed`：Timer 可在 [dispose] 中显式 cancel，
+  /// 避免 `Future.delayed` 留下的"pending timer"在 widget 测试 teardown 时
+  /// 触发 `'!timersPending'` 断言失败。
+  void _scheduleReset(Duration delay) {
+    _resetTimer?.cancel();
+    _resetTimer = Timer(delay, () {
+      if (!mounted) return;
+      try {
+        ref.read(exportProgressProvider.notifier).reset();
+      } catch (_) {
+        // provider 已 dispose（页面销毁时）—— 静默吞掉，避免在测试
+        // teardown 时抛 unhandled future error。
+      }
+      _resetTimer = null;
+    });
   }
 
   /// 进行中状态的 SnackBar：阶段文案 + 百分比 + LinearProgressIndicator。
