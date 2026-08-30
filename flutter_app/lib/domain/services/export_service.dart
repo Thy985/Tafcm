@@ -449,6 +449,26 @@ class ExportProgress {
   /// 0.0–1.0（`total == 0` 时返回 0.0）。
   double get fraction => total > 0 ? completed / total : 0.0;
 
+  /// PR-B-3（实测bug1.md §4 Bug3）：加权整体进度 0.0–1.0。
+  ///
+  /// 消除"进度只加 1%"：旧实现直接展示各阶段自身 [fraction]，
+  /// 阶段 total 大分母（公式 95 / block 277）把百分比稀释到 ~1%，
+  /// 且 `assembling 0/1` 会把已完成进度覆盖回 0%。
+  /// 每个阶段映射到固定权重区间，整体单调递增：
+  /// - 解析文档    0%–5%
+  /// - 渲染公式    5%–70%
+  /// - 渲染块     70%–90%
+  /// - 拼装       90%–100%
+  double get overallFraction {
+    final f = fraction.clamp(0.0, 1.0);
+    return switch (stage) {
+      ExportStage.collectingFormulas => 0.00 + 0.05 * f,
+      ExportStage.preRenderingFormulaSvg => 0.05 + 0.65 * f,
+      ExportStage.renderingBlocks => 0.70 + 0.20 * f,
+      ExportStage.assembling => 0.90 + 0.10 * f,
+    };
+  }
+
   @override
   String toString() =>
       'ExportProgress($stage $completed/$total = ${(fraction * 100).toStringAsFixed(1)}%)';

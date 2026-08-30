@@ -102,30 +102,50 @@ class PdfExporter {
   ///
   /// [cjkFont] 用于 SvgPlan 内的中文字段（论文标题里的 $\alpha\beta$ 等
   /// 实际不会含中文，但 cjkFont 提供兜底字符映射）。
+  ///
+  /// PR-B-1（实测bug1.md §4）：块渲染期**只消费预渲染缓存**，不再触发新的
+  /// WebView 渲染。预渲染阶段（[FormulaSvgService.preRenderAll]）已尝试渲染
+  /// 全部公式并写入缓存；此处 miss 说明预渲染失败（timeout / WebView 不可用）。
+  /// 若再调用 `renderToSvg`，会对同一公式发起**第二波** WebView 渲染——
+  /// 同一公式在文档中多次出现（如 208 次出现 / 160 unique）时逐出现点重试，
+  /// 每个 miss 都等 30s 超时，是导出卡死（进度 3/277 不动）的最大放大器。
   static Future<FormulaRenderPlan> buildFormulaPlan(
     String latex,
     bool displayMode, {
     pw.Font? cjkFont,
   }) async {
-    try {
-      final svg = await FormulaSvgService.renderToSvg(
-        latex,
-        displayMode: displayMode,
-      );
-      if (svg.isNotEmpty) {
-        return FormulaRenderPlan.svg(svg, latex, displayMode, cjkFont: cjkFont);
-      }
-    } catch (e) {
-      debugPrint('SVG path failed for "$latex": $e');
+    final svg = FormulaSvgService.cachedSvg(
+      latex,
+      displayMode: displayMode,
+    );
+    if (svg != null && svg.isNotEmpty) {
+      return FormulaRenderPlan.svg(svg, latex, displayMode, cjkFont: cjkFont);
     }
-    final bytes = FormulaPdfRenderer.cachedBytes(
+    final cached = FormulaPdfRenderer.cachedBytes(
       latex,
       fontSize: 16,
       isDark: false,
       format: FormulaPdfRenderer.formatPdf,
     );
-    if (bytes != null) {
-      return FormulaRenderPlan.png(bytes, latex);
+    if (cached != null) {
+      return FormulaRenderPlan.png(cached, latex);
+    }
+    // PR-B-2（实测bug1.md §4）：SVG miss 且无 PNG 缓存时，主动发起一次
+    // 离屏渲染（复用编辑器 flutter_math_fork 路径），替代纯文本终态——
+    // 用户至少得到公式图片而非 `$...$` 原文。host 未挂载或离屏失败返回
+    // null（不阻塞导出，直接文本 fallback）。
+    try {
+      final bytes = await FormulaRenderHost.render(
+        latex: latex,
+        fontSize: 16,
+        displayMode: displayMode,
+        isDark: false,
+      );
+      if (bytes != null && bytes.isNotEmpty) {
+        return FormulaRenderPlan.png(bytes, latex);
+      }
+    } catch (e) {
+      debugPrint('PNG fallback failed for "$latex": $e');
     }
     return FormulaRenderPlan.fallback(latex);
   }
