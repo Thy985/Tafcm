@@ -160,7 +160,9 @@ class EditorViewport extends StatelessWidget {
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: EdgeInsets.only(top: 6),
+                // 实测bug1.md §2：占位提示下移 0.7cm（≈27 逻辑像素，
+                // 160dpi 基准 1cm≈37.8dp），避免贴住上一块底部。
+                padding: EdgeInsets.only(top: 33),
                 child: Text(
                   '点击此处添加新块',
                   style: TextStyle(fontSize: 13, color: Colors.black38),
