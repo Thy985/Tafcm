@@ -57,10 +57,45 @@ class TocPanel extends StatelessWidget {
     for (final id in coordinator.allIds) {
       final element = coordinator.getBlock(id);
       if (element is HeadingElement) {
-        items.add(_TocItem(id: id, level: element.level, rawText: element.text));
+        // PR-3：标题已是 Inline AST，递归提取纯文本作为 TOC 标签
+        // （`**Hello** world` → 'Hello world'，去除行内标记）。
+        final rawText = _inlineText(element.children);
+        items.add(_TocItem(id: id, level: element.level, rawText: rawText));
       }
     }
     return items;
+  }
+
+  /// 递归提取 Inline AST 的纯文本（TextElement 直取，Bold/Italic/Strike/
+  /// Link 等容器递归其 children），TOC 标签不携带行内标记。
+  ///
+  /// 注：用 if-else 链而非 switch pattern（SDK 模式解析差异，AGENTS.md §11.3
+  /// 保守写法优先）；`StringBuffer.write` 返回 void，链式用 cascade `..`。
+  static String _inlineText(List<InlineElement> children) {
+    final buf = StringBuffer();
+    for (final c in children) {
+      if (c is TextElement) {
+        buf.write(c.text);
+      } else if (c is BoldElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is ItalicElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is StrikethroughElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is LinkElement) {
+        buf.write(c.text);
+      } else if (c is InlineCodeElement) {
+        buf.write(c.code);
+      } else if (c is FormulaElement) {
+        buf
+          ..write(r'$')
+          ..write(c.latex)
+          ..write(r'$');
+      } else if (c is ImageElement) {
+        buf.write(c.alt);
+      }
+    }
+    return buf.toString();
   }
 
   @override

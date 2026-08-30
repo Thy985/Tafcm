@@ -109,7 +109,7 @@ class TextExporter {
   /// 把单个 DocumentElement 序列化为单行/多行 Markdown 文本。
   static String _elementToText(DocumentElement element) {
     if (element is HeadingElement) {
-      return '${'#' * element.level} ${element.text}';
+      return '${'#' * element.level} ${_inlineToText(element.children)}';
     } else if (element is ParagraphElement) {
       return _inlineToText(element.children);
     } else if (element is ListElement) {

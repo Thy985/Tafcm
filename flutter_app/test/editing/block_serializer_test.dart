@@ -24,13 +24,19 @@ void main() {
       final element = toElement('# Title', BlockType.heading);
       expect(element, isA<HeadingElement>());
       expect((element as HeadingElement).level, equals(1));
-      expect(element.text, equals('Title'));
+      expect(
+        element.children.map((c) => (c as TextElement).text).join(),
+        equals('Title'),
+      );
     });
 
     test('heading level 6', () {
       final element = toElement('###### Deep', BlockType.heading);
       expect((element as HeadingElement).level, equals(6));
-      expect(element.text, equals('Deep'));
+      expect(
+        element.children.map((c) => (c as TextElement).text).join(),
+        equals('Deep'),
+      );
     });
 
     test('paragraph with inline', () {
@@ -148,7 +154,10 @@ void main() {
       // 无 `# ` 前缀，降级为 level=1 + 原文
       final element = toElement('no heading marker', BlockType.heading);
       expect((element as HeadingElement).level, equals(1));
-      expect(element.text, equals('no heading marker'));
+      expect(
+        element.children.map((c) => (c as TextElement).text).join(),
+        equals('no heading marker'),
+      );
     });
 
     test('invalid list 降级 unordered + 0 indent', () {
@@ -173,7 +182,7 @@ void main() {
 
   group('TC-EDIT-3.3 fromElement 正样本', () {
     test('heading', () {
-      const element = HeadingElement(level: 2, text: 'Hello');
+      const element = HeadingElement(level: 2, children: [TextElement('Hello')]);
       expect(fromElement(element), equals('## Hello'));
     });
 

@@ -23,7 +23,7 @@ void main() {
   testWidgets('formula block light：块级公式降级渲染', (tester) async {
     final editor = InMemoryDocumentEditor(title: 'golden-formula-block');
     editor
-      ..insertBlock(0, HeadingElement(level: 2, text: 'Mass-Energy Equivalence'))
+      ..insertBlock(0, HeadingElement(level: 2, children: [TextElement('Mass-Energy Equivalence')]))
       ..insertBlock(
         1,
         ParagraphElement(children: [

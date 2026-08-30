@@ -24,7 +24,7 @@ void main() {
     editor.insertBlock(editor.blockCount,
         ParagraphElement(children: [TextElement('Para 1')]));
     editor.insertBlock(
-        editor.blockCount, HeadingElement(level: 1, text: 'Heading'));
+        editor.blockCount, HeadingElement(level: 1, children: [TextElement('Heading')]));
     editor.insertBlock(editor.blockCount,
         ParagraphElement(children: [TextElement('Para 2')]));
     return EditorCoordinator(

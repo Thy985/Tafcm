@@ -26,7 +26,7 @@ void main() {
       (tester) async {
     final editor = InMemoryDocumentEditor(title: 'Golden Editor');
     editor
-      ..insertBlock(0, HeadingElement(level: 1, text: 'Golden Editor Page'))
+      ..insertBlock(0, HeadingElement(level: 1, children: [TextElement('Golden Editor Page')]))
       ..insertBlock(
         1,
         ParagraphElement(children: [

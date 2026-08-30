@@ -412,7 +412,7 @@ class CommandReplayer implements ReplayCommandExecutor {
       ),
       'heading' => HeadingElement(
         level: m['level'] as int? ?? 1,
-        text: m['text'] as String? ?? '',
+        children: _parseInlines(m['children'] as List? ?? []),
       ),
       'list' => ListElement(
         ordered: m['ordered'] as bool? ?? false,

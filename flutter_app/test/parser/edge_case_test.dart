@@ -212,7 +212,10 @@ void main() {
       final elements = MarkdownParser.parse(input);
       final headings = elements.whereType<HeadingElement>().toList();
       expect(headings.length, 1);
-      expect(headings.first.text, '中文标题测试');
+      expect(
+        headings.first.children.map((c) => (c as TextElement).text).join(),
+        '中文标题测试',
+      );
       expect(headings.first.level, 1);
     });
 

@@ -87,8 +87,8 @@ class PreviewContent extends StatelessWidget {
 
   Widget _dispatch(DocumentElement element, int Function() indexProvider) {
     return switch (element) {
-      HeadingElement(:final level, :final text) => HeadingRenderer(
-          level: level, text: text, isDark: isDark),
+      HeadingElement(:final level, :final children) => HeadingRenderer(
+          level: level, children: children, isDark: isDark),
       ParagraphElement(:final children) => ParagraphRenderer(
           children: children, isDark: isDark, baseDir: baseDir),
       ListElement(:final children, :final ordered) => ListRenderer(

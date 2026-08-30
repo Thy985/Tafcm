@@ -230,8 +230,14 @@ void main() {
 
         expect(ops.tryTransform(id), isTrue);
         expect(editor.getBlock(id), isA<HeadingElement>());
-        // HeadingElement.text 保留 '# ' 之后的所有内容（含 emoji）
-        expect((editor.getBlock(id) as HeadingElement).text, equals('😀 Title'));
+        // HeadingElement.children 保留 '# ' 之后的所有内容（含 emoji）
+        expect(
+          (editor.getBlock(id) as HeadingElement)
+              .children
+              .map((c) => (c as TextElement).text)
+              .join(),
+          equals('😀 Title'),
+        );
       });
 
       test('已 transform 过的 block 再次 tryTransform → 返回 false', () {

@@ -256,8 +256,8 @@ class _Demo4ComplexBlocksState extends State<Demo4ComplexBlocks> {
       return const Text('（空）', style: TextStyle(fontSize: 16));
     }
     return switch (element) {
-      HeadingElement(:final level, :final text) => Text(
-          text,
+      HeadingElement(:final level, :final children) => Text(
+          children.map((e) => e is TextElement ? e.text : '').join(),
           style: TextStyle(
             fontSize: 28 - (level - 1) * 4.0,
             fontWeight: FontWeight.bold,

@@ -15,8 +15,10 @@ import 'package:tafcm/data/models/document.dart';
 bool astDeepEquals(DocumentElement a, DocumentElement b) {
   if (a.runtimeType != b.runtimeType) return false;
   return switch (a) {
-    HeadingElement(:final level, :final text) =>
-      b is HeadingElement && b.level == level && b.text == text,
+    HeadingElement(:final level, :final children) =>
+      b is HeadingElement &&
+      b.level == level &&
+      inlineListEquals(children, b.children),
     ParagraphElement(:final children) =>
       b is ParagraphElement &&
       children.length == b.children.length &&

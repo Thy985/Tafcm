@@ -266,8 +266,8 @@ class _Demo2BlockNavigationState extends State<Demo2BlockNavigation> {
           children.map((e) => e is TextElement ? e.text : '').join(),
           style: const TextStyle(fontSize: 16),
         ),
-      HeadingElement(:final level, :final text) => Text(
-          text,
+      HeadingElement(:final level, :final children) => Text(
+          children.map((e) => e is TextElement ? e.text : '').join(),
           style: TextStyle(
             fontSize: 28 - (level - 1) * 4.0,
             fontWeight: FontWeight.bold,

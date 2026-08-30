@@ -54,9 +54,11 @@ void main() {
       final headings = ast.whereType<HeadingElement>().toList();
       expect(headings.length, equals(6));
       expect(headings[0].level, equals(1));
-      expect(headings[0].text, equals('H1'));
+      expect(headings[0].children.map((c) => (c as TextElement).text).join(),
+          equals('H1'));
       expect(headings[5].level, equals(6));
-      expect(headings[5].text, equals('H6'));
+      expect(headings[5].children.map((c) => (c as TextElement).text).join(),
+          equals('H6'));
       expect(ast.whereType<HorizontalRuleElement>().length, equals(1));
       final quote = ast.whereType<BlockquoteElement>().single;
       expect(
@@ -124,7 +126,12 @@ void main() {
       // 若未来误改 parser 把空行跳过，此测试必失败
       const source = '# Title\n\n\nParagraph';
       final ast = MarkdownParser.parse(source);
-      expect(ast.whereType<HeadingElement>().single.text, equals('Title'));
+      expect(
+        ast.whereType<HeadingElement>().single.children
+            .map((c) => (c as TextElement).text)
+            .join(),
+        equals('Title'),
+      );
       expect(ast.whereType<ParagraphElement>().length, equals(1));
       // 至少有一个 EmptyLineElement（保留空行格式）
       expect(

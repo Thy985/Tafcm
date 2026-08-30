@@ -23,9 +23,9 @@ void main() {
   testWidgets('heading light：标题排版梯度', (tester) async {
     final editor = InMemoryDocumentEditor(title: 'golden-heading');
     editor
-      ..insertBlock(0, HeadingElement(level: 1, text: 'Chapter One'))
-      ..insertBlock(1, HeadingElement(level: 2, text: 'Section A'))
-      ..insertBlock(2, HeadingElement(level: 3, text: 'Subsection'))
+      ..insertBlock(0, HeadingElement(level: 1, children: [TextElement('Chapter One')]))
+      ..insertBlock(1, HeadingElement(level: 2, children: [TextElement('Section A')]))
+      ..insertBlock(2, HeadingElement(level: 3, children: [TextElement('Subsection')]))
       ..insertBlock(
         3,
         ParagraphElement(children: [
