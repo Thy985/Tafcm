@@ -119,7 +119,9 @@ class _ExportProgressOverlayState extends ConsumerState<ExportProgressOverlay> {
 
   /// 进行中状态的 SnackBar：阶段文案 + 百分比 + LinearProgressIndicator。
   SnackBar _progressSnackBar(ExportInProgressState state) {
-    final pct = (state.progress.fraction * 100).toInt();
+    // PR-B-3：使用加权整体进度（overallFraction），替代阶段自身 fraction——
+    // 避免大分母阶段（公式 95 / block 277）把百分比稀释到 ~1%。
+    final pct = (state.progress.overallFraction * 100).toInt();
     final label = _stageLabel(state.progress.stage);
     final detail = state.progress.total > 0
         ? '$label · ${state.progress.completed}/${state.progress.total} ($pct%)'
@@ -136,7 +138,9 @@ class _ExportProgressOverlayState extends ConsumerState<ExportProgressOverlay> {
           children: [
             Text('正在导出 ${_formatLabel(state.format)} · $detail'),
             const SizedBox(height: 4),
-            LinearProgressIndicator(value: state.progress.fraction.clamp(0.0, 1.0)),
+            LinearProgressIndicator(
+              value: state.progress.overallFraction.clamp(0.0, 1.0),
+            ),
           ],
         ),
       ),
