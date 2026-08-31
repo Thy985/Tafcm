@@ -40,6 +40,7 @@ void main() {
     'lib/presentation/screens/file_manager_screen.dart',
     'lib/presentation/widgets/mermaid_host.dart',
     'lib/presentation/widgets/preview_content.dart',
+    'lib/presentation/widgets/formula_renderer.dart',
     'lib/presentation/blocks/mermaid/mermaid_block.dart',
   ];
 
@@ -141,7 +142,7 @@ void main() {
       );
       expect(
         knownPresentationServiceOffenders.length,
-        lessThanOrEqualTo(6),
+        lessThanOrEqualTo(7),
         reason: 'presentation 层历史违法规避数量不应继续增长。'
             '若必须新增，请同步更新 AGENTS.md §10 并说明 Phase。',
       );

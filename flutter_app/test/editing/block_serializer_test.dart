@@ -1,13 +1,7 @@
-/// TC-EDIT-3: BlockEditor 双向映射单元测试。
+/// TC-EDIT-3: BlockEditor 双向映射单元测试（ADR-0007 §1.3 + Phase 2.3）。
 ///
-/// 对应 ADR-0007 §1.3（Wrapping）+ §Phase 2.3 三项交付。
-///
-/// Round-trip 判定采用 **AST equivalence**（非字符串等价）：
-/// `parse(source) == parse(fromElement(toElement(source, type)))`
-/// Markdown 不是 canonical 形式（`*hello*` 与 `_hello_` 字符串不等但 AST 等价）。
-///
-/// InlineSerializer 的独立测试见 [inline_serializer_test.dart]。
-/// AST 等价性 helper 见 [test/helpers/ast_equality.dart]。
+/// Round-trip 判定采用 **AST equivalence**（parse 后 AST 等价，非字符串
+/// 等价——Markdown 非 canonical：`*hello*` 与 `_hello_` 字符串不等但 AST 等价）。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -138,9 +132,7 @@ void main() {
     });
 
     test('blockquote 回车后多行（Bug1 回归：不再吞行 / 不叠加 > 前缀）', () {
-      // 引用块内回车 → source 变为 `> line1\nline2`（第二行无 > 前缀，
-      // lazy continuation）。旧实现正则整体匹配失败 → 兜底把 `>` 当字面
-      // 文本 → round-trip 序列化叠加 `> ` 前缀（用户所见「回车时前面加 >」）。
+      // Bug1 回归：块内回车 lazy continuation（第二行无 > 前缀），旧实现叠加 `> ` 前缀。
       final element =
           toElement('> line1\nline2', BlockType.blockquote);
       expect(element, isA<BlockquoteElement>());
@@ -151,7 +143,6 @@ void main() {
             .join(),
         equals('line1\nline2'),
       );
-      // round-trip 稳定：序列化不再叠加前缀
       expect(fromElement(element), equals('> line1\nline2'));
     });
 
@@ -160,7 +151,6 @@ void main() {
           toElement(r'> **bold**' '\n' r'> $E=mc^2$', BlockType.blockquote);
       final quote = element as BlockquoteElement;
       expect(quote.children.length, greaterThanOrEqualTo(2));
-      // 第一行加粗已解析为 BoldElement（非字面 **）
       expect(quote.children.whereType<BoldElement>(), isNotEmpty);
     });
 
@@ -178,7 +168,6 @@ void main() {
     });
 
     test('invalid heading 降级 level=1', () {
-      // 无 `# ` 前缀，降级为 level=1 + 原文
       final element = toElement('no heading marker', BlockType.heading);
       expect((element as HeadingElement).level, equals(1));
       expect(
@@ -312,8 +301,7 @@ void main() {
   });
 
   group('TC-EDIT-3.4 Round-trip AST equivalence', () {
-    // Round-trip 判定：parse(source) == parse(fromElement(toElement(source, type)))
-    // 用 astDeepEquals 递归比较 AST 字段。
+    // Round-trip 判定：parse(source) == parse(fromElement(toElement(source, type)))，astDeepEquals 递归比较。
 
     test('heading round-trip', () {
       const source = '# Title';

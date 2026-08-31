@@ -1,8 +1,4 @@
-// 渲染数据流修复 Fix 1-3 + P0-D 集成测试
-// Fix 1: isDark 透传到 exportToWord
-// Fix 2: TableElement collectAllFormulas
-// Fix 3: Cache key 含 format 维度
-// P0-C/D: FormulaSvgService 缓存与 P0-D 密度降级回归
+// 渲染数据流修复 Fix 1-3 + P0-C/D 集成测试（isDark / collectAllFormulas / cache format / 密度降级回归）
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -399,7 +395,5 @@ $$E=mc^2$$
     });
   });
 
-// Fix 4/5 + 集成测试已移至独立文件（TC-ARCH-7，≤400 行）
-// 见：test/render_data_flow_fix4_fix5_integration_test.dart
-//     test/export/formula_density_degrade_test.dart（P0-D P0-C）
+// Fix 4/5 与 P0-D 测试已移至独立文件（TC-ARCH-7 拆分）。
 }
