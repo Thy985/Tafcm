@@ -173,6 +173,7 @@ cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/
 ## 🙏 致谢
 
 - **开源生态**：Flutter / Dart、Riverpod、dart_pdf、share_plus、flutter_inappwebview、flutter_math_fork、crypto、Click、pytest 等优秀开源项目
+- **工具链**：ffx-cli（`cli_anything` 命名空间包：诊断 / ADI 封装 / Markdown 分析，Click 实现，170+ pytest 用例）
 - **设计启发**：Typora（产品定位与交互范式参照）、[formulafix-redesign.design](formulafix-redesign.design/)（UI 设计稿）
 - **验证支持**：真机测试设备与 E2E 验证（E6 公式渲染 / E8 视觉语义真机证据）
 
