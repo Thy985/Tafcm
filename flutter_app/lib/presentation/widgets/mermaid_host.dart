@@ -22,18 +22,25 @@ class _MermaidRendererHostState extends State<MermaidRendererHost> {
     MermaidService.addRendererResetCallback(_handleRendererReset);
   }
 
-  /// PR-D：renderer 重置后重新加载 WebView。
+  /// PR-D + D2：renderer 重置后恢复 WebView。
   ///
-  /// reload 会再次触发 onLoadStop → markPageLoaded → `_pageLoaded = true`
-  /// → `_dispatchWaiting` 门禁放行，排队中的公式渲染请求恢复 dispatch。
+  /// D2 修复（状态机审计缺陷 D2）：resetRenderer 已把 `MermaidService._controller`
+  /// 置 null——仅 reload 不会重新触发 onWebViewCreated → attachController 不再
+  /// 被调用 → `_controller` 永久 null → `FormulaSvgService._dispatchWaiting`
+  /// 门禁 1（attachedController == null）永久拦截。因此 reload **前**必须
+  /// 重新 attachController 恢复 `_controller/_isReady`，形成完整恢复链路：
+  /// Reset → Attached → Loaded（reload→onLoadStop）→ Ready（markPageLoaded）。
   void _handleRendererReset() {
     final controller = _controller;
     if (controller == null) return;
-    debugPrint('MermaidRendererHost: renderer reset, reloading WebView...');
+    debugPrint('MermaidRendererHost: renderer reset, re-attaching + reloading WebView...');
     try {
+      // D2：先恢复 controller/isReady（reload 不会重新触发 onWebViewCreated）。
+      MermaidService.attachController(controller);
+      // 再 reload 触发 onLoadStop → markPageLoaded → _pageLoaded=true。
       controller.reload();
     } catch (e) {
-      debugPrint('MermaidRendererHost: reload failed: $e');
+      debugPrint('MermaidRendererHost: reset recovery failed: $e');
     }
   }
 
@@ -86,8 +93,14 @@ class _MermaidRendererHostState extends State<MermaidRendererHost> {
           // 因此必须在 onLoadStop 之后才能把待发请求 dispatch 出去。
           MermaidService.markPageLoaded();
         },
+        onLoadStart: (controller, url) {
+          // D3 埋点接线：页面开始加载（inappwebview v6 的 onPageStarted 已
+          // 更名为 onLoadStart——区分"从未加载"与"加载中"）。
+          MermaidService.pageLoadStart();
+        },
         onReceivedError: (controller, request, error) {
-          debugPrint('MermaidRendererHost: load error ${request.url}: ${error.description}');
+          // D3 埋点接线：加载失败不再静默（状态机感知 + 可观测）。
+          MermaidService.pageLoadError('${request.url}: ${error.description}');
         },
         onReceivedHttpError: (controller, request, errorResponse) {
           debugPrint('MermaidRendererHost: HTTP error ${request.url}: '

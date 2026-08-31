@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// 页面加载完成后的回调签名。由 [MermaidService.markPageLoaded] 触发。
@@ -118,7 +119,22 @@ class MermaidService {
     // 才能让 window.renderMermaid(window.cleanupPayloads 等) 真正可用。
     _pageLoaded = false;
     _pageLoadedCompleter = Completer<void>();
+    // D3 埋点：生命周期事件可观测（logcat grep MermaidLc）。
+    debugPrint('MermaidLc attach_controller attached=true ready=true pageLoaded=false');
     _dispatchWaiting();
+  }
+
+  /// 页面开始加载事件（由 host 的 `onPageStarted` 接线）。
+  static void pageLoadStart() {
+    // D3 埋点：页面加载开始（区分"从未加载"与"加载中"）。
+    debugPrint('MermaidLc page_load_start pageLoaded=$_pageLoaded');
+  }
+
+  /// 页面加载失败事件（由 host 的 `onReceivedError` 接线）。
+  static void pageLoadError(String description) {
+    // D3 埋点：加载失败不再静默（此前仅 host 侧 debugPrint，状态机无感知）。
+    _reportError('MermaidPageLoadError', description);
+    debugPrint('MermaidLc page_load_error $description');
   }
 
   /// 由 [MermaidRendererHost] 的 `onLoadStop` 回调触发。
@@ -131,6 +147,8 @@ class MermaidService {
     _pageLoaded = true;
     final c = _pageLoadedCompleter;
     if (c != null && !c.isCompleted) c.complete();
+    // D3 埋点：页面就绪（onLoadStop 已触发）。
+    debugPrint('MermaidLc page_load_stop renderer_ready pageLoaded=true');
     // 页面就绪后，dispatch 已经在 _waiting 里排队的请求。
     _dispatchWaiting();
     // 同时通知兄弟服务（FormulaSvgService 等）可以 dispatch 自己的队列。
@@ -214,6 +232,8 @@ class MermaidService {
     }
     _active.clear();
     _cache.clear();
+    // D3 埋点：renderer 重置可观测。
+    debugPrint('MermaidLc renderer_reset attached=false ready=false pageLoaded=false');
     // PR-D：通知 host 重新加载 WebView，恢复页面加载状态——
     // 否则 _pageLoaded 永久 false，FormulaSvgService._dispatchWaiting
     // 门禁永久拦截，导出卡死（3/95）。
@@ -222,6 +242,16 @@ class MermaidService {
         cb();
       } catch (_) {}
     }
+  }
+
+  /// D3：渲染器状态快照（logcat grep MermaidState 一行可读）。
+  ///
+  /// 用于状态机诊断：controller 是否挂载 / 页面是否就绪 / 排队与活动请求数。
+  /// 不记 latex 原文（诊断数据最小化）。FormulaSvgService 的队列在自身
+  /// 侧统计（[FormulaSvgService.rendererStateSnapshot]）。
+  static String rendererStateSnapshot() {
+    return 'MermaidState controller=${_controller != null} ready=$_isReady '
+        'pageLoaded=$_pageLoaded waiting=${_waiting.length} active=${_active.length}';
   }
 
   /// 清理 WebView DOM 中的所有 payload 元素，释放内存。
