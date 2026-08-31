@@ -404,7 +404,9 @@ class MermaidService {
     );
 
     _waiting.add(pending);
-    _active[requestId] = pending;
+    // D4 修复（PR-2）：排队只入 _waiting，不入 _active（与 FormulaSvgService
+    // 一致）——_active 只统计真正派发的请求，避免 active 膨胀导致
+    // _dispatchWaiting 的 while 条件永久不满足（导出卡死同源缺陷）。
     _dispatchWaiting();
 
     try {
@@ -426,6 +428,8 @@ class MermaidService {
     if (_controller == null || !_isReady || !_pageLoaded) return;
     while (_active.length < _maxConcurrent && _waiting.isNotEmpty) {
       final next = _waiting.removeAt(0);
+      // D4 修复（PR-2）：派发时才入 _active——_maxConcurrent 只算真实并发数。
+      _active[next.requestId] = next;
       if (_activeTheme != next.theme) {
         _activeTheme = next.theme;
       }
