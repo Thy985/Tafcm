@@ -37,13 +37,26 @@ Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产
 详细能力状态见 [docs/product/CAPABILITY-STATUS.md](docs/product/CAPABILITY-STATUS.md)（人类视图）
 与 [contracts/*.json](contracts/)（机器视图）。
 
+## 📱 演示
+
+> 真机实拍（v0.1.1，Android 1080×2400）——移动端所见即所得排版：公式 / 表格 / 代码 / 图表 WYSIWYG 编辑。
+
+| 首页 · 文件列表 | 文档内部 · WYSIWYG 排版 |
+|-----------------|--------------------------|
+| ![Tafcm 首页](docs/assets/screenshots/01-home.jpeg) | ![Tafcm 文档内部](docs/assets/screenshots/02-document.jpeg) |
+
+**▶️ 演示视频**：[Tafcm 移动端演示（B 站）](https://www.bilibili.com/video/BV13tt86CEVc/)
+
+> 附：App 内置演示文档「Tafcm演示文档.md」，覆盖公式 / 表格 / 代码 / Mermaid / 任务列表。
+
 ## 下载安装
 
-**v0.1.0 已发布**（2026-08-30，首个正式版本）：
+**v0.1.1 已发布**（2026-08-31，导出稳定性专项）：
 
-| 平台 | 下载 |
+| 面向 | 下载 |
 |------|------|
-| Android APK | [GitHub Releases · v0.1.0](https://github.com/Thy985/Tafcm/releases/tag/v0.1.0)（`app-release.apk`，约 95 MB） |
+| 普通用户 | [GitHub Releases · v0.1.1](https://github.com/Thy985/Tafcm/releases/tag/v0.1.1)（`app-release.apk`，约 99 MB） |
+| 开发者 | [GitHub Releases · v0.1.1](https://github.com/Thy985/Tafcm/releases/tag/v0.1.1)（`app-debug.apk`，约 231 MB，含调试日志） |
 
 - 要求：Android 8.0+（API 26+）
 - ⚠️ 当前为 **debug 签名**（正式 keystore 发布前占位）；包名已改为 `com.tafcm.app`
@@ -53,7 +66,7 @@ Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产
 ## 当前状态
 
 **Phase 0-3.11 全部完成**；Phase 3.11（Capability Hardening Loop）已按 PHASE_3_11_EXIT 判定关闭（2026-08-22）。
-**v0.1.0 已正式发布**（2026-08-30，GitHub Releases + tag `v0.1.0`）。
+**v0.1.1 已发布**（2026-08-31，导出稳定性专项：导出卡死修复 + SnackBar 残留修复；v0.1.0 为 2026-08-30 首个正式版本）。
 当前处于 **Phase 3.12：信息架构重构**（2026-08-27，本文件即为该阶段产物）。
 
 工程地基五维状态（2026-08-22 冻结）：
@@ -138,5 +151,5 @@ Copyright (c) 2026 [Thy985](https://github.com/Thy985)
 ---
 
 **维护人**：首席架构工程师
-**最近更新**：2026-08-30（v0.1.0 发布）
-**文档版本**：v1.1（Phase 3.12 信息架构重构 + v0.1.0 发布）
+**最近更新**：2026-08-31（v0.1.1 发布）
+**文档版本**：v1.2（Phase 3.12 信息架构重构 + v0.1.1 发布）
