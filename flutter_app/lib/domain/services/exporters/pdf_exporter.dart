@@ -41,6 +41,22 @@ class PdfExporter {
   /// 每片 addPage 后推进 assembling 进度（90→100%），UI 可观测、不再冻结。
   static const int kPageSliceSize = 30;
 
+  /// P0-D（ADR-0032）：片内公式 SVG 密度阈值。
+  ///
+  /// B-3 真机差分：30 块 + 12 公式 SVG 的 addPage 布局永久卡死（Case E），
+  /// 30 块 + 1 公式（含复杂公式）116-123ms 正常（Case C/C+）。阈值取 8
+  /// （12 与 1 之间的安全余量）：片内公式数 ≥ 8 时该片公式降级为文本
+  /// fallback（防多公式 SVG 布局触发真机卡死，保证导出有限性）。
+  static const int kAssemblyFormulaDensityLimit = 8;
+
+  /// P0-D（ADR-0032）：addPage watchdog 卡死检测标志。
+  ///
+  /// Timer(3s) 在 addPage 同步布局期间触发时置位（事件循环未被饿死的证据，
+  /// B-3 Case E 实测 3.005s 准时触发）。addPage 返回后检查并报告——
+  /// 若永久卡死则检查不可达（同步执行无法中断，诚实边界，见 ADR-0032），
+  /// 标志供诊断日志 / 单测断言 / 未来 isolate 方案。
+  static bool _assemblyBlocked = false;
+
   /// 清理 CJK 字体静态缓存（DEBT-016，AGENTS.md §10 静态状态污染 Phase 2）。
   ///
   /// `_cjkFont` / `_cjkFontLoadAttempted` / `_cjkFontLoadFailedAt` 是静态字段，
@@ -181,6 +197,8 @@ class PdfExporter {
     FormulaSvgService.clearTelemetry();
     // PR-3：导出级质量计数器清零（success/timeout/error 分布）。
     FormulaSvgService.clearQualityCounters();
+    // P0-D：watchdog 卡死检测标志重置（防跨导出污染，静态字段）。
+    _assemblyBlocked = false;
 
     // Phase 1: 解析 Markdown（completed/total = 0/1 表示准备阶段，ratio 总是 0）
     onProgress?.call(const ExportProgress(
@@ -298,6 +316,11 @@ class PdfExporter {
       total: elements.length,
     ));
     var rendered = 0;
+    // P0-D：每块公式数累积（分片时判断片内公式密度，≥ 阈值走降级）。
+    // 与 body 对齐（widget != null 才记录），便于分片 sublist 直接对应。
+    final formulaCountPerBlock = <int>[];
+    // P0-D：body 索引 → elements 索引映射（降级重建时需要重新遍历 elements）。
+    final bodyToElementIndex = <int>[];
     for (final element in elements) {
       // 块渲染埋点（logcat grep BlockLc）：定位导出卡死卡在哪一块。
       // 若某块 await 永久卡住，最后一条 render_start 即卡点（idx + type）。
@@ -311,6 +334,8 @@ class PdfExporter {
       );
       if (widget != null) {
         body.add(widget);
+        formulaCountPerBlock.add(_countFormulasInBlock(element));
+        bodyToElementIndex.add(rendered);
       }
       rendered++;
       blockTypes.add(element.runtimeType.toString());
@@ -341,7 +366,8 @@ class PdfExporter {
       final end = (start + kPageSliceSize) > body.length
           ? body.length
           : start + kPageSliceSize;
-      final slice = body.sublist(start, end);
+      // var：P0-D 公式密度降级时重建赋值（slice = rebuilt）。
+      var slice = body.sublist(start, end);
       // B-3 诊断：addPage 前打印该片 manifest（块类型构成 + CJK font 状态 +
       // 时间戳）。若 addPage 同步布局永久阻塞，最后一条日志即卡点片构成，
       // 配合差分 case（纯文本 / 公式 / CJK）定位 blocking primitive。
@@ -352,12 +378,37 @@ class PdfExporter {
       debugPrint('BlockLc slice_$s manifest=[${sliceTypes.join(',')}] '
           'cjkFontLoaded=${_cjkFont != null} blocks=${slice.length} '
           'ts=${DateTime.now().millisecondsSinceEpoch}');
+      // P0-D（ADR-0032）：片内公式密度 ≥ 阈值 → 该片公式降级为文本重建。
+      // 防多公式 SVG 布局真机卡死（B-3 Case E：30 块 + 12 公式 addPage
+      // 永久阻塞；纯文本布局 140ms 正常）——保证导出有限性。
+      final sliceFormulaCount = formulaCountPerBlock
+          .sublist(start, end)
+          .fold<int>(0, (a, b) => a + b);
+      if (sliceFormulaCount >= kAssemblyFormulaDensityLimit) {
+        debugPrint('BlockLc slice_$s formula_downgrade count=$sliceFormulaCount '
+            '>= $kAssemblyFormulaDensityLimit (formulas → text fallback)');
+        final rebuilt = <pw.Widget>[];
+        for (var bi = start; bi < end; bi++) {
+          final element = elements[bodyToElementIndex[bi]];
+          final w = await _elementToPdfWidgetAsync(
+            element,
+            isDark: isDark,
+            monoFont: monoFont,
+            cjkFont: cjk,
+            observability: observability,
+            forceTextFormula: true,
+          );
+          if (w != null) rebuilt.add(w);
+        }
+        slice = rebuilt;
+      }
       debugPrint('BlockLc slice_$s addPage (${slice.length} blocks, generate/layout start)');
       // B-3 watchdog 可行性探测：addPage 同步布局若永久阻塞，此 Timer 是否仍触发？
       // 触发 = 事件循环未被饿死（P0-D addPage watchdog 可行）；
       // 3s 后无 watchdog_timer_fired = 同步布局饿死事件循环（watchdog 方案失效，
       // 需 isolate / 逐块布局替代）。
       final watchdog = Timer(const Duration(seconds: 3), () {
+        _assemblyBlocked = true;
         debugPrint('BlockLc watchdog_timer_fired slice_$s '
             'ts=${DateTime.now().millisecondsSinceEpoch}');
       });
@@ -372,6 +423,13 @@ class PdfExporter {
         ),
       );
       watchdog.cancel();
+      if (_assemblyBlocked) {
+        // addPage 最终返回（慢页而非永久卡死）——报告检测到的卡死风险。
+        // 永久卡死时本行不可达（同步执行无法中断，ADR-0032 诚实边界）。
+        _assemblyBlocked = false;
+        debugPrint('BlockLc slice_$s assembly_blocked_detected '
+            '(addPage took >3s, watchdog fired)');
+      }
       debugPrint('BlockLc slice_${s}_done');
       onProgress?.call(ExportProgress(
         stage: ExportStage.assembling,
@@ -499,19 +557,20 @@ class PdfExporter {
     pw.Font? monoFont,
     pw.Font? cjkFont,
     ObservabilityService? observability,
+    bool forceTextFormula = false,
   }) async {
     if (element is HeadingElement) {
       return _pdfHeading(element.level, element.children, isDark: isDark, cjkFont: cjkFont);
     } else if (element is ParagraphElement) {
-      return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
+      return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
     } else if (element is ListElement) {
       final paragraph =
-          await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
+          await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
       return _wrapListItem(paragraph, element.indent, element.ordered);
     } else if (element is CodeElement) {
       return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont, observability: observability);
     } else if (element is BlockquoteElement) {
-      return _pdfBlockquote(element.children, isDark: isDark, cjkFont: cjkFont);
+      return _pdfBlockquote(element.children, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
     } else if (element is MermaidElement) {
       return await buildMermaidPdfWidget(element.code, cjkFont: cjkFont);
     } else if (element is TableElement) {
@@ -524,6 +583,7 @@ class PdfExporter {
         fontSize: 13,
         isDark: isDark,
         cjkFont: cjkFont,
+        forceTextFormula: forceTextFormula,
       );
       return _wrapTaskItem(paragraph, element.checked, element.indent);
     } else if (element is HorizontalRuleElement) {
@@ -534,12 +594,49 @@ class PdfExporter {
 
   // --- 段落 / 列表 / 标题 / 代码 / 引用 ---
 
+  /// P0-D：统计一个块内的公式（FormulaElement）数量。
+  ///
+  /// 与 [collectAllFormulas] 的覆盖范围一致（Paragraph / List / Table /
+  /// Blockquote），用于分片时的公式密度判断（≥ kAssemblyFormulaDensityLimit
+  /// 走文本降级，防多公式 SVG 布局真机卡死）。
+  static int _countFormulasInBlock(DocumentElement element) {
+    var n = 0;
+    void walkInline(List<InlineElement> children) {
+      for (final i in children) {
+        if (i is FormulaElement) {
+          n++;
+        } else if (i is BoldElement) {
+          walkInline(i.children);
+        }
+      }
+    }
+
+    if (element is ParagraphElement) {
+      walkInline(element.children);
+    } else if (element is ListElement) {
+      walkInline(element.children);
+    } else if (element is TableElement) {
+      for (final h in element.headers) {
+        walkInline(h);
+      }
+      for (final row in element.rows) {
+        for (final cell in row) {
+          walkInline(cell);
+        }
+      }
+    } else if (element is BlockquoteElement) {
+      walkInline(element.children);
+    }
+    return n;
+  }
+
   static Future<pw.Widget> _pdfParagraphAsync(
     List<InlineElement> children, {
     required double fontSize,
     bool bold = false,
     bool isDark = false,
     pw.Font? cjkFont,
+    bool forceTextFormula = false,
   }) async {
     final textColor = isDark ? PdfColors.grey100 : PdfColors.black;
     final boldColor = isDark ? PdfColors.grey200 : PdfColors.grey900;
@@ -558,8 +655,15 @@ class PdfExporter {
           ),
         ));
       } else if (c is FormulaElement) {
-        final plan = await buildFormulaPlan(c.latex, c.displayMode, cjkFont: cjkFont);
-        widgets.add(plan.toPdfWidget(fontSize: fontSize));
+        // P0-D（ADR-0032）：forceTextFormula 时公式直接文本 fallback，
+        // 跳过 buildFormulaPlan（防多公式 SVG 布局真机卡死——Case E 12
+        // 公式 addPage 永久阻塞，纯文本不触发）。
+        if (forceTextFormula) {
+          widgets.add(FallbackPlan(c.latex).toPdfWidget(fontSize: fontSize));
+        } else {
+          final plan = await buildFormulaPlan(c.latex, c.displayMode, cjkFont: cjkFont);
+          widgets.add(plan.toPdfWidget(fontSize: fontSize));
+        }
       } else if (c is BoldElement) {
         // 递归渲染 bold 内部
         widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark, cjkFont: cjkFont));
@@ -782,7 +886,7 @@ class PdfExporter {
   }
 
   static Future<pw.Widget> _pdfBlockquote(List<InlineElement> children,
-      {bool isDark = false, pw.Font? cjkFont}) async {
+      {bool isDark = false, pw.Font? cjkFont, bool forceTextFormula = false}) async {
     final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey50;
     final borderColor = isDark ? PdfColors.blue400 : PdfColors.blue700;
     return pw.Container(
@@ -798,6 +902,7 @@ class PdfExporter {
         children,
         isDark: isDark,
         cjkFont: cjkFont,
+        forceTextFormula: forceTextFormula,
       ),
     );
   }
@@ -808,12 +913,14 @@ class PdfExporter {
     List<InlineElement> children, {
     bool isDark = false,
     pw.Font? cjkFont,
+    bool forceTextFormula = false,
   }) =>
       _pdfParagraphAsync(
         children,
         fontSize: 13,
         isDark: isDark,
         cjkFont: cjkFont,
+        forceTextFormula: forceTextFormula,
       );
 
   // --- 表格 ---
