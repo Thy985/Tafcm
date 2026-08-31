@@ -44,17 +44,46 @@ class _ExportProgressOverlayState extends ConsumerState<ExportProgressOverlay> {
   /// "Timer is still pending" 报错（实测bug.md §Bug4 修复的副作用）。
   Timer? _resetTimer;
 
+  /// Bug（真机实测 32% 残留）：dispose 时 context 已不可用，需在 build 时
+  /// 缓存全局 ScaffoldMessenger（MaterialApp 级，跨路由存活），用于 dispose
+  /// 时显式清除残留 SnackBar——state 变化触发的 hide 在 listener detach 后
+  /// 不再执行，若不显式 hide，InProgress SnackBar（duration 1 天）会挂在
+  /// 全局 messenger 上跨路由残留（返回首页仍可见）。
+  ScaffoldMessengerState? _messenger;
+
   @override
   void dispose() {
     _resetTimer?.cancel();
     _resetTimer = null;
+    // 显式清除全局残留 SnackBar（幂等：无 SnackBar 时 no-op）。
+    // 必须延迟到下一帧：dispose 期间 element 树正在卸载，同步
+    // hideCurrentSnackBar 触发 SnackBar 退出动画 → messenger._isRoot 祖先
+    // 查找 → "Looking up a deactivated widget's ancestor" 断言（实测
+    // export_progress_widget_test）。postFrame 时 Overlay 已卸载完毕，
+    // messenger（MaterialApp 级，真机跨路由存活）若仍 mounted 则安全 hide。
+    final messenger = _messenger;
+    if (messenger != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (messenger.mounted) {
+          messenger.hideCurrentSnackBar();
+        }
+      });
+    }
+    // 强制 reset：防止 Overlay dispose 时 Timer 未触发 reset 导致 Provider
+    // state 残留（Completed/Failed），下次进入 EditorPage 仍显示 SnackBar。
+    try {
+      ref.read(exportProgressProvider.notifier).reset();
+    } catch (_) {
+      // provider 已 dispose —— 静默吞掉。
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    _messenger = ScaffoldMessenger.of(context);
     ref.listen<ExportState>(exportProgressProvider, (prev, next) {
-      final messenger = ScaffoldMessenger.of(context);
+      final messenger = _messenger ?? ScaffoldMessenger.of(context);
       // 切换到新状态前先清掉旧 SnackBar，避免叠加。
       messenger.hideCurrentSnackBar();
       switch (next) {

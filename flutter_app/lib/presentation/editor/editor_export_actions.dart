@@ -4,6 +4,7 @@
 /// 包含文档导出（PDF/DOCX/TXT）与诊断数据导出两个入口。
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -108,9 +109,22 @@ class EditorExportActions {
           format,
           fileName: title,
         );
-        await Share.shareXFiles(
-          [XFile(path, mimeType: mimeFor(format))],
-          subject: title,
+        // Bug（真机实测）：shareXFiles 的 Future 在 Android 上可能不 resolve
+        // （用户关闭分享面板后 Future 挂起）。若在此 await，runWithGuard 的
+        // body 永不返回 → complete() 永不执行 → state 永停 InProgress → 导出
+        // 完成但「正在导出 32%」SnackBar 永久残留（duration 1 天）。
+        // 写盘成功即视为导出完成，分享是用户交互，不阻塞导出状态机。
+        unawaited(
+          Share.shareXFiles(
+            [XFile(path, mimeType: mimeFor(format))],
+            subject: title,
+          ).then<void>(
+            (_) {},
+            onError: (Object e) {
+              // 分享失败不影响导出结果，仅记录（onError 兜底在 runWithGuard 层）。
+              debugPrint('[EditorExportActions] share failed: $e');
+            },
+          ),
         );
       },
       onError: (e, st) {
