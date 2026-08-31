@@ -351,6 +351,41 @@ $$E=mc^2$$
       }
     });
 
+    test('B-1：分片后 assembling 进度 total=片数且单调（块数→片数映射 + 导出不卡死）', () async {
+      // 65 个标题块（join('\n\n') 会解析出额外空行块，块数 > 30 → 多片）。
+      // B-1 修复前：单次 MultiPage 布局全部块（dart_pdf addPage 立即同步
+      // generate/layout），真机主 isolate 永久阻塞（卡 28% 根因）；修复后
+      // 逐片 addPage + 逐片 onProgress（assembling total=片数），导出可完成。
+      final md = List.generate(65, (i) => '## 标题 $i').join('\n\n');
+      // 期望片数 = ceil(实际解析块数 / kPageSliceSize)，与实现同源，自洽断言。
+      final expectedSlices =
+          (MarkdownParser.parse(md).length + PdfExporter.kPageSliceSize - 1) ~/
+              PdfExporter.kPageSliceSize;
+      expect(expectedSlices, greaterThan(1),
+          reason: '测试前提：语料块数应触发分片（>30 块 → 多片）');
+      final progresses = <ExportProgress>[];
+      final bytes = await MarkdownExporter.exportToPdf(
+        md,
+        onProgress: progresses.add,
+      );
+      // 导出不卡死（正常返回字节流）。
+      expect(bytes.isNotEmpty, true);
+      final assembling = progresses
+          .where((p) => p.stage == ExportStage.assembling)
+          .toList();
+      // 片数映射：assembling total == 期望片数。
+      expect(assembling.last.total, expectedSlices,
+          reason: 'assembling total 应为片数（块数→片数映射错误）');
+      expect(assembling.last.completed, expectedSlices,
+          reason: '最后一片完成后 completed 应达片数');
+      // assembling completed 序列单调不减（0 → 1 → ... → 片数）。
+      for (var i = 1; i < assembling.length; i++) {
+        expect(assembling[i].completed,
+            greaterThanOrEqualTo(assembling[i - 1].completed),
+            reason: '分片进度必须单调不减');
+      }
+    });
+
     test('PR-3：qualitySummary 输出 success/timeout/error 分布（进度与质量分离）', () {
       // 质量报告可读（logcat grep FormulaQuality）；导出开始清零、结束输出。
       FormulaSvgService.clearQualityCounters();
