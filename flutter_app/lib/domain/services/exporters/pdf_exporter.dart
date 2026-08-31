@@ -285,6 +285,9 @@ class PdfExporter {
     ));
     var rendered = 0;
     for (final element in elements) {
+      // 块渲染埋点（logcat grep BlockLc）：定位导出卡死卡在哪一块。
+      // 若某块 await 永久卡住，最后一条 render_start 即卡点（idx + type）。
+      debugPrint('BlockLc render_start idx=$rendered type=${element.runtimeType}');
       final widget = await _elementToPdfWidgetAsync(
         element,
         isDark: isDark,
@@ -296,6 +299,7 @@ class PdfExporter {
         body.add(widget);
       }
       rendered++;
+      debugPrint('BlockLc render_done idx=${rendered - 1}');
       onProgress?.call(ExportProgress(
         stage: ExportStage.renderingBlocks,
         completed: rendered,
@@ -376,6 +380,11 @@ class PdfExporter {
             walkInline(cell);
           }
         }
+      } else if (e is BlockquoteElement) {
+        // R3 修复（实测bugX）：引用块内公式也需预渲染，否则块渲染走 PNG 兜底
+        // 离屏 toImage（真机不稳定）→ 导出永久卡死。_pdfBlockquote 是 async
+        // 内部 await _pdfBlockquoteContent 走段落渲染，公式走 buildFormulaPlan。
+        walkInline(e.children);
       }
     }
     return out;
@@ -413,6 +422,10 @@ class PdfExporter {
             walkInline(cell);
           }
         }
+      } else if (e is BlockquoteElement) {
+        // R3 修复（实测bugX）：引用块内公式也需预渲染（与 collectAllFormulas 一致），
+        // 否则块级公式缓存 key miss → PNG 兜底 → 离屏 toImage 真机卡死。
+        walkInline(e.children);
       }
     }
     return (inline: inline, block: block);
