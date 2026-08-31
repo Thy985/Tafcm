@@ -37,6 +37,34 @@ Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产
 详细能力状态见 [docs/product/CAPABILITY-STATUS.md](docs/product/CAPABILITY-STATUS.md)（人类视图）
 与 [contracts/*.json](contracts/)（机器视图）。
 
+## 🤖 Agent 诊断接口（ADI）
+
+Tafcm 为 AI Agent 提供完整诊断闭环——让 Agent 从 Observation 出发，自主完成 **发现 → 复现 → 定位 → 修复 → 验证**（ADR-0024）：
+
+| 环节 | 能力 | 命令 |
+|------|------|------|
+| 发现 | 渲染 / 导出异常自动采集（Observability，Phase 3.7） | `adi latest-error --json` |
+| 因果追踪 | 追溯诊断链（trace），不凭空假设 | `adi trace show <id>` |
+| 复现 | 重放会话确认可复现（不能复现的 bug 不修） | `adi replay <id>` |
+| 验证 | 修复后验证闭环 | `adi validate --after-fix` |
+
+> **复用而非重采**：ADI 消费 Phase 3.7 已建成的采集能力，不重复采集证据（ADR-0024）。
+> CLI 入口：`dart run tools/adi/adi.dart <command>`，详见 [docs/design/adi-design-v1.md](docs/design/adi-design-v1.md)。
+
+## 🛠 CLI 工具链（ffx-cli）
+
+Python（Click）命令工具链，文档项目全生命周期**诊断 / 验证 / 分析**：
+
+| 域 | 命令 | 用途 |
+|----|------|------|
+| project | `ffx project create / info / export / diff / status` | 文档项目生命周期管理 |
+| analyze | `ffx analyze file / adr / structure` | 文件 / ADR / 目录结构分析 |
+| adi | `ffx adi latest-error / trace / replay / validate` | Agent 诊断（ADI 的 CLI 封装） |
+| contract | `ffx contract-sync` | 能力契约同步（contracts/*.json） |
+
+> 170+ pytest 用例守护；`--json` 输出可机器消费（CI / Agent 编排）。
+> 详见 [tools/ffx-cli/](tools/ffx-cli/)。
+
 ## 📱 演示
 
 > 真机实拍（v0.1.1，Android 1080×2400）——移动端所见即所得排版：公式 / 表格 / 代码 / 图表 WYSIWYG 编辑。
@@ -141,6 +169,13 @@ cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/
 | 证据资产（截图 + 判定，可追溯） | [docs/evidence/](docs/evidence/) |
 | 视觉基线（golden） | `flutter_app/test/golden/` |
 | 运行时产物（不入库） | `.adi/` |
+
+## 🙏 致谢
+
+- **开源生态**：Flutter / Dart、Riverpod、dart_pdf、share_plus、flutter_inappwebview、flutter_math_fork、crypto、Click、pytest 等优秀开源项目
+- **工具链**：ffx-cli（`cli_anything` 命名空间包：诊断 / ADI 封装 / Markdown 分析，Click 实现，170+ pytest 用例）
+- **设计启发**：Typora（产品定位与交互范式参照）、[formulafix-redesign.design](formulafix-redesign.design/)（UI 设计稿）
+- **验证支持**：真机测试设备与 E2E 验证（E6 公式渲染 / E8 视觉语义真机证据）
 
 ## License
 
