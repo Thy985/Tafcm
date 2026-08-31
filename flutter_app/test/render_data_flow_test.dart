@@ -157,6 +157,54 @@ $$E=mc^2$$
       expect(grouped.inline.contains('E=mc^2'), true);
       expect(grouped.block.contains('E=mc^2'), true);
     });
+
+    test('R3: collectAllFormulas 覆盖 BlockquoteElement 引用块内公式', () {
+      // 回归测试（实测bugX 根因）：引用块 `> $x^2$` 的公式此前未被 preRenderAll
+      // 收集，块渲染 cachedSvg miss → PNG 兜底 → 离屏 toImage 真机卡死。
+      // 注：PR-2 解析器把 `> **bold**` / `> $formula$` 转为 InlineElement
+      // children（BlockquoteElement.children），直接 walkInline 收集。
+      const md = r'''
+> 行内公式 $x^2$。
+
+> 块级 $$E=mc^2$$
+''';
+      final elements = MarkdownParser.parse(md);
+      // 至少有一个 BlockquoteElement 解析成功（sanity）
+      expect(elements.whereType<BlockquoteElement>().isNotEmpty, true,
+          reason: 'BlockquoteElement 解析前提失败');
+      final formulas = MarkdownExporter.collectAllFormulas(elements);
+      expect(formulas.contains('x^2'), true,
+          reason: '引用块内行内公式 x^2 未被收集 → PNG 兜底 → 卡死');
+      expect(formulas.contains('E=mc^2'), true,
+          reason: '引用块内块级公式 E=mc^2 未被收集 → PNG 兜底 → 卡死');
+    });
+
+    test('R3: collectAllFormulasByDisplayMode 覆盖 BlockquoteElement 按 displayMode 分组', () {
+      // 与 R3 基础版同源：引用块内公式按 displayMode 分组收集。
+      // 修复前分组收集同样未覆盖 BlockquoteElement，块级公式 cache key miss。
+      const md = r'''
+> $x^2$ 与 $$E=mc^2$$
+''';
+      final elements = MarkdownParser.parse(md);
+      expect(elements.whereType<BlockquoteElement>().isNotEmpty, true);
+      final grouped = MarkdownExporter.collectAllFormulasByDisplayMode(elements);
+      expect(grouped.inline.contains('x^2'), true,
+          reason: '引用块内行内公式未进 inline 组');
+      expect(grouped.block.contains('E=mc^2'), true,
+          reason: '引用块内块级公式未进 block 组');
+    });
+
+    test('R3: 修复前回归 — BlockquoteElement 不被 collectAllFormulas 覆盖（断言用旧实现会失败）', () {
+      // 防御性测试：保证未来误删 R3 分支时此测试也能锁住回归。
+      // 用 1 个 BlockquoteElement 包 1 个公式 → 收集结果必须含该公式。
+      final elements = <DocumentElement>[
+        const BlockquoteElement(children: [FormulaElement(latex: 'a-b')]),
+      ];
+      final formulas = MarkdownExporter.collectAllFormulas(elements);
+      expect(formulas, contains('a-b'));
+      final grouped = MarkdownExporter.collectAllFormulasByDisplayMode(elements);
+      expect(grouped.inline, contains('a-b'));
+    });
   });
 
   group('Fix 3: 缓存策略 (含 format 维度)', () {
