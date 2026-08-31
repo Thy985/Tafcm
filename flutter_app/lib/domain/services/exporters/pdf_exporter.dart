@@ -560,7 +560,7 @@ class PdfExporter {
     bool forceTextFormula = false,
   }) async {
     if (element is HeadingElement) {
-      return _pdfHeading(element.level, element.children, isDark: isDark, cjkFont: cjkFont);
+      return _pdfHeading(element.level, element.children, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
     } else if (element is ParagraphElement) {
       return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
     } else if (element is ListElement) {
@@ -574,7 +574,7 @@ class PdfExporter {
     } else if (element is MermaidElement) {
       return await buildMermaidPdfWidget(element.code, cjkFont: cjkFont);
     } else if (element is TableElement) {
-      return await _pdfTable(element.headers, element.rows, isDark: isDark, cjkFont: cjkFont);
+      return await _pdfTable(element.headers, element.rows, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula);
     } else if (element is EmptyLineElement) {
       return pw.SizedBox(height: 6);
     } else if (element is TaskListItemElement) {
@@ -666,11 +666,11 @@ class PdfExporter {
         }
       } else if (c is BoldElement) {
         // 递归渲染 bold 内部
-        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark, cjkFont: cjkFont));
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula));
       } else if (c is ItalicElement) {
-        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont));
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula));
       } else if (c is StrikethroughElement) {
-        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont));
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula));
       } else if (c is InlineCodeElement) {
         widgets.add(pw.Text(
           c.code,
@@ -760,7 +760,7 @@ class PdfExporter {
   }
 
   static Future<pw.Widget> _pdfHeading(int level, List<InlineElement> children,
-      {bool isDark = false, pw.Font? cjkFont}) async {
+      {bool isDark = false, pw.Font? cjkFont, bool forceTextFormula = false}) async {
     final size = switch (level) {
       1 => 22.0,
       2 => 18.0,
@@ -780,6 +780,7 @@ class PdfExporter {
         bold: true,
         isDark: isDark,
         cjkFont: cjkFont,
+        forceTextFormula: forceTextFormula,
       ),
     );
   }
@@ -930,6 +931,7 @@ class PdfExporter {
     List<List<List<InlineElement>>> rows, {
     bool isDark = false,
     pw.Font? cjkFont,
+    bool forceTextFormula = false,
   }) async {
     if (headers.isEmpty) return pw.SizedBox();
 
@@ -938,7 +940,7 @@ class PdfExporter {
     for (final h in headers) {
       headerCells.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(h, fontSize: 12, bold: true, isDark: isDark, cjkFont: cjkFont),
+        child: await _pdfParagraphAsync(h, fontSize: 12, bold: true, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula),
       ));
     }
 
@@ -950,7 +952,7 @@ class PdfExporter {
         children: headerCells,
       ),
       for (int i = 0; i < rows.length; i++)
-        await _buildDataTableRow(i, rows[i], isDark: isDark, cjkFont: cjkFont),
+        await _buildDataTableRow(i, rows[i], isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula),
     ];
 
     return pw.Container(
@@ -967,14 +969,14 @@ class PdfExporter {
 
   /// 构造一个数据行（带斑马纹 + 公式渲染）。
   static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<List<InlineElement>> cells,
-      {bool isDark = false, pw.Font? cjkFont}) async {
+      {bool isDark = false, pw.Font? cjkFont, bool forceTextFormula = false}) async {
     final children = <pw.Widget>[];
     final evenBgColor = isDark ? PdfColors.grey800 : PdfColors.white;
      final oddBgColor = isDark ? PdfColors.grey700 : PdfColors.grey50;
     for (final cell in cells) {
       children.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(cell, fontSize: 11, isDark: isDark, cjkFont: cjkFont),
+        child: await _pdfParagraphAsync(cell, fontSize: 11, isDark: isDark, cjkFont: cjkFont, forceTextFormula: forceTextFormula),
       ));
     }
     return pw.TableRow(
