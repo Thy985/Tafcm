@@ -8,6 +8,8 @@
 /// 由 [FormulaRenderPlan] + 工厂构造。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
@@ -29,6 +31,15 @@ class PdfExporter {
   static bool _cjkFontLoadAttempted = false;
   static DateTime? _cjkFontLoadFailedAt;
   static const Duration _fontRetryInterval = Duration(seconds: 30);
+
+  /// B-1 修复（真机卡 28% 根因）：每个 `pw.MultiPage` 分片包含的最大块数。
+  ///
+  /// dart_pdf `Document.addPage` 立即同步执行 `page.generate → MultiPage.layout`，
+  /// 单次布局 275 块 + 118 公式 SVG 在真机主 isolate 永久阻塞（实测 4min 无
+  /// 输出，UI 冻结在'渲染公式 39/118'）。分片把单次布局量降到 ~30 块——
+  /// 真机对照：10 块文档 addPage 布局 132ms 可完成，30 块规模约 400ms 可完成。
+  /// 每片 addPage 后推进 assembling 进度（90→100%），UI 可观测、不再冻结。
+  static const int kPageSliceSize = 30;
 
   /// 清理 CJK 字体静态缓存（DEBT-016，AGENTS.md §10 静态状态污染 Phase 2）。
   ///
@@ -276,6 +287,9 @@ class PdfExporter {
     );
 
     final List<pw.Widget> body = [];
+    // B-3 诊断（临时）：累积每块类型，Phase 4 分片 addPage 前打印 manifest，
+    // 卡死时最后一条日志 = 该片构成 + CJK font 状态（定位 blocking primitive）。
+    final blockTypes = <String>[];
 
     // Phase 3: 渲染 blocks —— 每个 block 完成时回调（completed/index+1，total = elements.length）。
     onProgress?.call(ExportProgress(
@@ -299,6 +313,7 @@ class PdfExporter {
         body.add(widget);
       }
       rendered++;
+      blockTypes.add(element.runtimeType.toString());
       debugPrint('BlockLc render_done idx=${rendered - 1}');
       onProgress?.call(ExportProgress(
         stage: ExportStage.renderingBlocks,
@@ -308,34 +323,80 @@ class PdfExporter {
     }
 
     // Phase 4: 拼装 PDF 页面 → save 为字节流。
-    onProgress?.call(const ExportProgress(
+    // B-1 修复：body 按每 kPageSliceSize 块拆分为多个 pw.MultiPage 逐片 addPage。
+    // dart_pdf addPage 立即同步布局（page.generate → MultiPage.layout），单次
+    // 布局全部 275 块在真机主 isolate 永久阻塞（实测 4min 无输出）——分片把
+    // 单次布局量降到 ~30 块（真机 10 块 132ms 可完成），且每片后 onProgress
+    // 推进（assembling 90→100%），UI 可观测、不再冻结。
+    final sliceCount =
+        (body.length + kPageSliceSize - 1) ~/ kPageSliceSize;
+    debugPrint('BlockLc assemble_start (Phase 4: slice addPage ×$sliceCount → cleanupPayloads → pdf.save)');
+    onProgress?.call(ExportProgress(
       stage: ExportStage.assembling,
       completed: 0,
-      total: 1,
+      total: sliceCount,
     ));
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(40, 60, 40, 60),
-        header: (ctx) => buildPdfHeader(title ?? 'Tafcm', ctx, isDark: isDark),
-        footer: (ctx) => buildPdfFooter(ctx, isDark: isDark),
-        theme: theme,
-        build: (_) => body,
-      ),
-    );
+    for (var s = 0; s < sliceCount; s++) {
+      final start = s * kPageSliceSize;
+      final end = (start + kPageSliceSize) > body.length
+          ? body.length
+          : start + kPageSliceSize;
+      final slice = body.sublist(start, end);
+      // B-3 诊断：addPage 前打印该片 manifest（块类型构成 + CJK font 状态 +
+      // 时间戳）。若 addPage 同步布局永久阻塞，最后一条日志即卡点片构成，
+      // 配合差分 case（纯文本 / 公式 / CJK）定位 blocking primitive。
+      final sliceTypes = blockTypes.sublist(
+        start.clamp(0, blockTypes.length),
+        end.clamp(0, blockTypes.length),
+      );
+      debugPrint('BlockLc slice_$s manifest=[${sliceTypes.join(',')}] '
+          'cjkFontLoaded=${_cjkFont != null} blocks=${slice.length} '
+          'ts=${DateTime.now().millisecondsSinceEpoch}');
+      debugPrint('BlockLc slice_$s addPage (${slice.length} blocks, generate/layout start)');
+      // B-3 watchdog 可行性探测：addPage 同步布局若永久阻塞，此 Timer 是否仍触发？
+      // 触发 = 事件循环未被饿死（P0-D addPage watchdog 可行）；
+      // 3s 后无 watchdog_timer_fired = 同步布局饿死事件循环（watchdog 方案失效，
+      // 需 isolate / 逐块布局替代）。
+      final watchdog = Timer(const Duration(seconds: 3), () {
+        debugPrint('BlockLc watchdog_timer_fired slice_$s '
+            'ts=${DateTime.now().millisecondsSinceEpoch}');
+      });
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(40, 60, 40, 60),
+          header: (ctx) => buildPdfHeader(title ?? 'Tafcm', ctx, isDark: isDark),
+          footer: (ctx) => buildPdfFooter(ctx, isDark: isDark),
+          theme: theme,
+          build: (_) => slice,
+        ),
+      );
+      watchdog.cancel();
+      debugPrint('BlockLc slice_${s}_done');
+      onProgress?.call(ExportProgress(
+        stage: ExportStage.assembling,
+        completed: s + 1,
+        total: sliceCount,
+      ));
+    }
 
     // 不在导出末尾清理缓存——重复导出同一文档应能命中缓存。
     // 缓存在 editor_screen 退出 / app pause 时由调用方清理。
     // 但每次导出后清理 WebView DOM payload 元素，减少内存压力。
+    debugPrint('BlockLc cleanupPayloads_start');
     await MermaidService.cleanupPayloads();
+    debugPrint('BlockLc cleanupPayloads_done');
     try {
+      debugPrint('BlockLc pdf.save_start');
       final bytes = await pdf.save();
-      // 拼装完成，最终进度报告（completed = 1/1）。
-      onProgress?.call(const ExportProgress(
+      debugPrint('BlockLc pdf.save_done');
+      // 拼装完成，最终进度报告（completed = sliceCount/sliceCount，单调）。
+      onProgress?.call(ExportProgress(
         stage: ExportStage.assembling,
-        completed: 1,
-        total: 1,
+        completed: sliceCount,
+        total: sliceCount,
       ));
+      debugPrint('BlockLc assemble_done (return bytes)');
       // PR-C：导出结束输出 telemetry 聚合报告（logcat grep FormulaTelemetry）。
       debugPrint(FormulaSvgService.telemetrySummary());
       // PR-3：导出质量报告（进度与质量分离——logcat grep FormulaQuality）。
