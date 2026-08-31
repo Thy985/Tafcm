@@ -1,8 +1,5 @@
-/// TC-EDIT-7.5：transform / updateSource 边界测试。
-///
-/// 落地 Phase 2.7 Task Contract §4.5：
-/// - transform apply 失败 / updateSource + tryTransform 边界
-/// - BlockId 生命周期 + Phase 2.6 split 兼容性 + revert 幂等性
+/// TC-EDIT-7.5：transform / updateSource 边界测试（Phase 2.7 §4.5：
+/// apply 失败边界 + BlockId 生命周期 + split 兼容 + revert 幂等）。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -61,7 +58,6 @@ void main() {
         );
 
         expect(op.apply(editor), isFalse);
-        // editor 状态不变
         expect(editor.getBlock(id), isA<HeadingElement>());
         expect(editor.sourceOf(id), equals('# Title'));
       });
@@ -80,7 +76,6 @@ void main() {
         // 不 apply，直接 revert
         op.revert(editor);
 
-        // editor 状态不变
         expect(editor.getBlock(id), equals(originalElement));
       });
 
@@ -94,7 +89,6 @@ void main() {
           transformedType: BlockType.heading,
         );
 
-        // 第 1 轮
         expect(op.apply(editor), isTrue);
         expect(editor.getBlock(id), isA<HeadingElement>());
         op.revert(editor);

@@ -1,7 +1,4 @@
-/// Demo 4：复杂 Block 共存。
-///
-/// 验证 ADR-0009 §3：多 BlockType 共存 + BlockRenderer 抽象。
-/// 落地 Phase 2.9 Task Contract §1（4 个 Demo 之四）。
+/// Demo 4：复杂 Block 共存（ADR-0009 §3 多 BlockType + Phase 2.9 四 Demo 之四）。
 library;
 
 import 'package:flutter/material.dart';
