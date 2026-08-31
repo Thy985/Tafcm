@@ -39,6 +39,8 @@ class WordExporter {
     }
     // PR-C：导出开始前清空 telemetry，聚合报告只含本次导出样本。
     FormulaSvgService.clearTelemetry();
+    // PR-3：导出级质量计数器清零（success/timeout/error 分布）。
+    FormulaSvgService.clearQualityCounters();
 
     // Phase 1: 解析 + 收集公式 / Mermaid 集合。
     onProgress?.call(const ExportProgress(
@@ -261,6 +263,8 @@ class WordExporter {
     ));
     // PR-C：导出结束输出 telemetry 聚合报告（logcat grep FormulaTelemetry）。
     debugPrint(FormulaSvgService.telemetrySummary());
+    // PR-3：导出质量报告（进度与质量分离——logcat grep FormulaQuality）。
+    debugPrint(FormulaSvgService.qualitySummary());
     return Uint8List.fromList(encoded);
   }
 

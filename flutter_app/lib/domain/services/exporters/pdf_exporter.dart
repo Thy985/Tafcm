@@ -168,6 +168,8 @@ class PdfExporter {
     // PR-C：导出开始前清空 telemetry，聚合报告只含本次导出样本
     // （避免混入编辑器内渲染的历史样本）。
     FormulaSvgService.clearTelemetry();
+    // PR-3：导出级质量计数器清零（success/timeout/error 分布）。
+    FormulaSvgService.clearQualityCounters();
 
     // Phase 1: 解析 Markdown（completed/total = 0/1 表示准备阶段，ratio 总是 0）
     onProgress?.call(const ExportProgress(
@@ -332,6 +334,8 @@ class PdfExporter {
       ));
       // PR-C：导出结束输出 telemetry 聚合报告（logcat grep FormulaTelemetry）。
       debugPrint(FormulaSvgService.telemetrySummary());
+      // PR-3：导出质量报告（进度与质量分离——logcat grep FormulaQuality）。
+      debugPrint(FormulaSvgService.qualitySummary());
       return bytes;
     } catch (e, st) {
       // DEBUG-DIAG: 抓完整 stack trace，帮助定位 Unexpected extension byte 真因

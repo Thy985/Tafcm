@@ -55,6 +55,42 @@ class FormulaSvgService {
 
   static void clearTelemetry() => _telemetry.clear();
 
+  /// PR-3：导出级质量计数器（进度/质量分离）。
+  ///
+  /// 进度语义（preRenderAll completed）= 全部终态（success+timeout+error，
+  /// 已达成）；质量单独统计 success / timeout / error 分布，导出结束输出
+  /// 报告（logcat grep FormulaQuality）。每次导出开始 [clearQualityCounters]。
+  static int _exportSuccessCount = 0;
+  static int _exportTimeoutCount = 0;
+  static int _exportErrorCount = 0;
+
+  static void clearQualityCounters() {
+    _exportSuccessCount = 0;
+    _exportTimeoutCount = 0;
+    _exportErrorCount = 0;
+  }
+
+  static void _recordQuality(String result) {
+    switch (result) {
+      case 'success':
+        _exportSuccessCount++;
+      case 'timeout':
+        _exportTimeoutCount++;
+      case 'error':
+        _exportErrorCount++;
+    }
+  }
+
+  /// PR-3：导出质量报告（progress 与 quality 分离的验收输出）。
+  static String qualitySummary() {
+    final total = _exportSuccessCount + _exportTimeoutCount + _exportErrorCount;
+    final rate = total > 0
+        ? (_exportSuccessCount / total * 100).toStringAsFixed(1)
+        : 'n/a';
+    return 'FormulaQuality total=$total success=$_exportSuccessCount '
+        'timeout=$_exportTimeoutCount error=$_exportErrorCount successRate=$rate%';
+  }
+
   /// D3：Formula 渲染队列状态快照（logcat grep FormulaState 一行可读）。
   ///
   /// 用于状态机诊断：排队请求 / 活动请求是否异常（如页面未就绪时
@@ -213,6 +249,7 @@ class FormulaSvgService {
       _active.remove(requestId);
       _waiting.remove(pending);
       _recordTelemetry(pending, DateTime.now(), result: 'timeout');
+      _recordQuality('timeout'); // PR-3：质量计数
       // D3 埋点：超时终态可观测。
       debugPrint('FormulaLc render_timeout id=$requestId');
       throw FormulaSvgException('LaTeX SVG render timeout');
@@ -220,6 +257,7 @@ class FormulaSvgService {
       _active.remove(requestId);
       _waiting.remove(pending);
       _recordTelemetry(pending, DateTime.now(), result: 'error');
+      _recordQuality('error'); // PR-3：质量计数
       // D3 埋点：错误终态可观测。
       debugPrint('FormulaLc render_error id=$requestId $e');
       rethrow;
@@ -245,6 +283,7 @@ class FormulaSvgService {
       final key = _cacheKey(latex, displayMode);
       if (_cache.containsKey(key)) {
         completed++;
+        _recordQuality('success'); // PR-3：缓存命中 = 复用成功
         onEachCompleted?.call(completed, total);
         continue;
       }
@@ -432,6 +471,7 @@ class FormulaSvgService {
     if (p != null) {
       _recordTelemetry(p, DateTime.now(), result: 'success');
     }
+    _recordQuality('success'); // PR-3：质量计数
     // D3 埋点：渲染成功终态可观测。
     debugPrint('FormulaLc render_success id=$requestId');
     _dispatchWaiting();
