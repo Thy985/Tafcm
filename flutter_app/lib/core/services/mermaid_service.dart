@@ -49,6 +49,11 @@ class MermaidService {
   static const int _maxCacheEntries = 256;
   static const int _maxCacheBytes = 32 * 1024 * 1024; // 32 MB
 
+  /// 专项 2：页面加载等待超时。页面正常加载 1-3s，8s 是合理降级阈值——
+  /// 超过即视为 onLoadStop 不可靠（离屏 WebView），调用方快速降级而非
+  /// 无限等待（避免导出卡死）。
+  static const Duration _pageLoadWaitTimeout = Duration(seconds: 8);
+
   static final LinkedHashMap<String, String> _cache = LinkedHashMap();
   static int _totalCacheBytes = 0;
   static int _requestCounter = 0;
@@ -156,19 +161,24 @@ class MermaidService {
   }
 
   /// 异步等待页面真正加载完成。已有 completer 则复用，否则创建一个。
-  /// 等待超时上限是 _renderTimeout（30s），与单次渲染超时对齐。
+  /// 等待超时上限是 [_pageLoadWaitTimeout]（8s）。
+  ///
+  /// 返回 `true` = 页面就绪（onLoadStop 已触发）；`false` = 超时未就绪
+  /// （离屏 WebView 的 onLoadStop 不可靠，见专项 2 结论）。调用方应据此
+  /// **快速降级**（PNG/文本 fallback），而不是继续排队无限等待——
+  /// 避免导出卡死（awaitPageLoaded 30s + completer 10s 的慢速失败链）。
   ///
   /// 公开给共享 WebView 的兄弟服务（如 [FormulaSvgService]）使用。
-  static Future<void> awaitPageLoaded() async {
-    if (_pageLoaded) return;
+  static Future<bool> awaitPageLoaded() async {
+    if (_pageLoaded) return true;
     _pageLoadedCompleter ??= Completer<void>();
     await _pageLoadedCompleter!.future.timeout(
-      _renderTimeout,
+      _pageLoadWaitTimeout,
       onTimeout: () {
-        // 不抛错：让下游 renderToSvg 自身的 30s 兜底超时来报错。
-        // 抛错会和我们已有的错误分类冲突。
+        // 不抛错：返回 false 由调用方决定降级。
       },
     );
+    return _pageLoaded;
   }
 
   /// WebView 渲染进程崩溃时调用，重置状态并清除所有待处理的渲染请求。
@@ -343,7 +353,12 @@ class MermaidService {
     // 关键：等待 HTML + 子资源（tex-svg.js / mermaid.min.js）真正加载完毕。
     // 在此之前 window.renderMermaid 还不存在，evaluateJavascript 会静默
     // 失败，30s 后才超时。
-    await awaitPageLoaded();
+    final pageReady = await awaitPageLoaded();
+    if (!pageReady) {
+      // 专项 2：页面未就绪（离屏 WebView onLoadStop 不可靠）→ 快速降级，
+      // 不排队无限等待。
+      throw MermaidRenderException('Mermaid page not loaded within 8s');
+    }
     if (_controller == null || !_isReady) {
       // 等待过程中 WebView 被 reset 了
       throw MermaidRenderException('Mermaid WebView reset during page-load wait');

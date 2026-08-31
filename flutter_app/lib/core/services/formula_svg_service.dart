@@ -163,7 +163,12 @@ class FormulaSvgService {
     // 关键：等 HTML + tex-svg.js 真正加载完。否则 window.renderLatex 不存在，
     // evaluateJavascript 静默失败，30s 后才超时。
     _ensurePageLoadedCallbackRegistered();
-    await MermaidService.awaitPageLoaded();
+    final pageReady = await MermaidService.awaitPageLoaded();
+    if (!pageReady) {
+      // 专项 2：页面未就绪（离屏 WebView onLoadStop 不可靠）→ 快速降级，
+      // 不排队无限等待（PNG/文本 fallback 由 buildFormulaPlan 兜底）。
+      throw FormulaSvgException('LaTeX SVG render timeout: page not loaded within 8s');
+    }
     if (MermaidService.attachedController == null) {
       throw FormulaSvgException('WebView reset during page-load wait');
     }
