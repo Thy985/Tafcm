@@ -2,7 +2,7 @@
 
 > 正式版本历史（用户视角：发生了什么）。详细发布证据、验证记录见 [docs/releases/](docs/releases/)（工程师视角：这次发布是怎么证明的）。
 
-## [0.1.1] - 2026-08-30（补丁发布，tag v0.1.1）
+## [0.1.1] - 2026-08-31（补丁发布，tag v0.1.1）
 
 - **应用图标替换**：新 favicon 应用到 Android / Web / iOS 全平台（flutter_app/assets/icons/favicon.png 为源文件）
 
