@@ -195,7 +195,10 @@ class FormulaSvgService {
       enqueuedAt: DateTime.now(),
     );
     _waiting.add(pending);
-    _active[requestId] = pending;
+    // D4 修复（PR-2）：排队只入 _waiting，**不**入 _active——_active 只统计
+    // 真正派发的请求（见 _dispatchWaiting）。修复前排队即入 _active 导致
+    // _active.length 膨胀 ≥ _maxConcurrent（l4 时已 =4），while 条件永久不
+    // 满足 → 后续请求永不派发 → 92 个 10s 同时超时（导出卡死 3/95 根因）。
     // D3 埋点：请求入队（等待 dispatch / 渲染）。
     debugPrint('FormulaLc render_start id=$requestId len=${latex.length} '
         'mode=${displayMode ? 'block' : 'inline'} '
@@ -279,6 +282,9 @@ class FormulaSvgService {
     if (!MermaidService.isPageLoaded) return; // 等 onLoadStop
     while (_active.length < _maxConcurrent && _waiting.isNotEmpty) {
       final next = _waiting.removeAt(0);
+      // D4 修复（PR-2）：派发时才入 _active——_maxConcurrent 只算真实并发
+      // 派发数。修复前排队即入 _active，active 膨胀导致 while 永久不执行。
+      _active[next.requestId] = next;
       _evaluate(controller, next);
     }
   }

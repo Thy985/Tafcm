@@ -227,6 +227,37 @@ $$E=mc^2$$
       expect(MermaidService.cacheSize, isA<int>());
       expect(MermaidService.totalCacheBytes, isA<int>());
     });
+
+    test('PR-2 D4：preRenderAll 无 WebView 时 completed 推进到 total（不永久挂起）', () async {
+      // 回归保护（D4 修复 + permanent-pending）：host 未挂载 → renderToSvg
+      // 抛 'not mounted' → _preRenderOne catch → completed++。D4 修复前
+      // 排队即入 _active 导致 active 膨胀（_maxConcurrent 语义失效），
+      // 本测试验证：所有公式都有终态（completed 到达 total），preRenderAll
+      // 不永久挂起（export 卡死 3/95 的 P0-2 验收）。
+      final formulas = List.generate(50, (i) => 'f_$i');
+      var lastCompleted = 0;
+      await FormulaSvgService.preRenderAll(
+        formulas,
+        onEachCompleted: (completed, total) {
+          lastCompleted = completed;
+        },
+      );
+      expect(lastCompleted, formulas.length,
+          reason: '所有公式必须有终态（completed 必须推进到 total，不允许 PENDING forever）');
+    });
+
+    test('PR-2 D4：rendererStateSnapshot 返回结构化状态（waiting/active 可读）', () {
+      // D3 观测埋点：状态快照一行可读（logcat grep FormulaState）。
+      final snap = FormulaSvgService.rendererStateSnapshot();
+      expect(snap, contains('FormulaState'));
+      expect(snap, contains('waiting='));
+      expect(snap, contains('active='));
+      expect(snap, contains('pageLoaded='));
+      // MermaidService 侧快照同样可用。
+      final mermaidSnap = MermaidService.rendererStateSnapshot();
+      expect(mermaidSnap, contains('MermaidState'));
+      expect(mermaidSnap, contains('controller='));
+    });
   });
 
   group('Fix 4: WebView SVG 协议 v2 (DOM + base64 fallback)', () {
