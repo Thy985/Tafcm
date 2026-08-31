@@ -166,6 +166,9 @@ class _TafcmAppState extends ConsumerState<TafcmApp> {
             children: [
               if (child != null) child,
               const Positioned(
+                // D1 A/B 实验结论（2026-08-31）：屏外 -10000 vs 可见 100×100
+                // 挂载结果完全一致（页面均就绪、均只渲染前 3 个公式后超时），
+                // 挂载位置非根因——恢复屏外挂载（最小改动，避免可见遮挡副作用）。
                 left: -10000,
                 top: -10000,
                 child: MermaidRendererHost(),

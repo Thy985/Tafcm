@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../observability/ring_buffer.dart' show RingBuffer;
 import '../parser/formula_extractor.dart' show FormulaExtractor;
@@ -53,6 +54,16 @@ class FormulaSvgService {
   static List<FormulaRenderTelemetry> get telemetryEntries => _telemetry.toList();
 
   static void clearTelemetry() => _telemetry.clear();
+
+  /// D3：Formula 渲染队列状态快照（logcat grep FormulaState 一行可读）。
+  ///
+  /// 用于状态机诊断：排队请求 / 活动请求是否异常（如页面未就绪时
+  /// `_active` 膨胀、`waiting` 堆积），配合 [MermaidService.rendererStateSnapshot]。
+  static String rendererStateSnapshot() {
+    return 'FormulaState waiting=${_waiting.length} active=${_active.length} '
+        'pageLoaded=${MermaidService.isPageLoaded} '
+        'controller=${MermaidService.attachedController != null}';
+  }
 
   /// PR-C：telemetry 聚合报告（导出结束后调用，debugPrint 输出到 logcat）。
   ///
@@ -185,6 +196,10 @@ class FormulaSvgService {
     );
     _waiting.add(pending);
     _active[requestId] = pending;
+    // D3 埋点：请求入队（等待 dispatch / 渲染）。
+    debugPrint('FormulaLc render_start id=$requestId len=${latex.length} '
+        'mode=${displayMode ? 'block' : 'inline'} '
+        'waiting=${_waiting.length} active=${_active.length}');
     _dispatchWaiting();
 
     try {
@@ -195,11 +210,15 @@ class FormulaSvgService {
       _active.remove(requestId);
       _waiting.remove(pending);
       _recordTelemetry(pending, DateTime.now(), result: 'timeout');
+      // D3 埋点：超时终态可观测。
+      debugPrint('FormulaLc render_timeout id=$requestId');
       throw FormulaSvgException('LaTeX SVG render timeout');
     } catch (e) {
       _active.remove(requestId);
       _waiting.remove(pending);
       _recordTelemetry(pending, DateTime.now(), result: 'error');
+      // D3 埋点：错误终态可观测。
+      debugPrint('FormulaLc render_error id=$requestId $e');
       rethrow;
     }
   }
@@ -407,6 +426,8 @@ class FormulaSvgService {
     if (p != null) {
       _recordTelemetry(p, DateTime.now(), result: 'success');
     }
+    // D3 埋点：渲染成功终态可观测。
+    debugPrint('FormulaLc render_success id=$requestId');
     _dispatchWaiting();
   }
 
