@@ -331,7 +331,7 @@ jobs:
       - name: Push Audit
         if: steps.commit.outputs.HAS_COMMIT == 'true'
         run: |
-          git push origin "HEAD:${TARGET_BRANCH}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
 
       # ---------- 6. 机器可读报告 + 邮件（独立脚本；失败不连坐 Audit）----------
       - name: Generate report
