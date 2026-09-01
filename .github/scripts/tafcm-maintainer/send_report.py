@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
-"""send_report.py — 发送 Tafcm Daily Maintainer Report 邮件
+"""send_report.py — 发送 Tafcm Maintainer 状态变化摘要邮件（双邮件策略）
 
 输入：report.json（generate_report.py 产物）
 环境变量（Secrets，workflow 注入，绝不写入仓库）：
   MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD / MAIL_TO
 
-邮件内容（SCHEMA.md §6）：只报告值得维护者关注的事，**不包含完整 Audit**。
-邮件标题：Tafcm Daily Maintainer Report — YYYY-MM-DD
+邮件模式（SCHEMA.md §8，双邮件策略 POLICY.md §5.1）：
+  --mode alert  立即邮件（P0/P1 / Release Blocker / 安全 / 需要决策）
+  --mode digest 每周 Digest（状态变化摘要：新增/升级/解决/生态/需要你决策）
+  --mode auto   自动：有 P0/P1 或待决策 → alert；周一 → digest；否则跳过
+
+原则：邮件做**状态变化摘要**（"自上次汇报以来发生了什么值得你知道的变化"），
+**不是**每日 Audit 复述。让维护者 7 天不看邮箱也不错过上下文。
+无重要变化时明确跳过（EMAIL_SKIPPED，exit 0，不伪装成功）。
 
 失败语义（POLICY.md §6）：
-  - MAIL_* secrets 未配置 → 打印 EMAIL_SKIPPED（明确跳过，exit 0，不伪装成功）
-  - 配置了但发送失败 → 打印 EMAIL_DELIVERY=FAILED，exit 1
+  - MAIL_* secrets 未配置 → EMAIL_SKIPPED（exit 0）
+  - 发送失败 → EMAIL_DELIVERY=FAILED（exit 1）
     （workflow 该步骤 continue-on-error，Audit 仍是 SUCCESS，由 status 步骤区分报告）
 依赖：仅 Python 标准库（smtplib / email）。
 """
 from __future__ import annotations
 
+import argparse
+import datetime as dt
 import json
 import os
 import smtplib
@@ -27,70 +35,137 @@ from pathlib import Path
 
 SEV_EMOJI = {"P0": "🔴", "P1": "🟠", "P2": "🟡", "P3": "🟢"}
 ECOSYSTEM_EMOJI = {"KEEP": "✅", "INVESTIGATE": "🔍", "REPLACE": "⚠️", "DEPRECATE": "🚫"}
+STATUS_LABEL = {
+    "NEW": "新增", "UPDATED": "升级", "RESOLVED": "解决", "REJECTED": "已拒绝",
+    "UNCHANGED": "未变化", "DUPLICATE": "重复", "WAITING_FOR_HUMAN": "等待你",
+}
+
+ALERT_PRIORITIES = {"P0", "P1"}
 
 
-def render_body(report: dict) -> str:
-    d = report["date"]
-    findings = report.get("findings", [])
-    inv = report.get("issue_investigations", [])
-    eco = report.get("ecosystem", [])
-    actions = report.get("recommended_actions", [])
+def has_alert(report: dict) -> bool:
+    """立即邮件触发条件：P0/P1 新发现或升级、需要决策。"""
+    if report.get("pending_decisions"):
+        return True
+    for f_ in report.get("findings", []):
+        if f_.get("severity") in ALERT_PRIORITIES and f_.get("status") in ("NEW", "UPDATED", "WAITING_FOR_HUMAN"):
+            return True
+    return False
 
-    if not findings and not inv and not eco and not actions:
-        return (
-            f"# Tafcm Daily Maintainer Report — {d}\n\n"
-            "No significant findings today.\n\n"
-            f"Repository:\nCI: {report.get('ci', 'unknown')}\n"
-            f"Tests: {report.get('tests', 'unknown')}\n"
-            f"Build: {report.get('build', 'unknown')}\n"
-        )
 
-    lines = [f"# Tafcm Daily Maintainer Report — {d}", ""]
+def render_alert(report: dict) -> tuple[str, str]:
+    """立即邮件 → (subject, body)。"""
+    d = report.get("date", "unknown")
+    subject = f"[Tafcm] Maintainer Alert — {d}"
+    lines = ["⚠️ 需要立即关注", ""]
+    flagged = False
+    for f_ in report.get("findings", []):
+        if f_.get("severity") in ALERT_PRIORITIES and f_.get("status") in ("NEW", "UPDATED", "WAITING_FOR_HUMAN"):
+            flagged = True
+            lines.append(f"- [{f_.get('severity')}] {f_.get('summary', '')}")
+            lines.append(f"  根因：{f_.get('status', '')} · Confidence: {f_.get('confidence', '')}"
+                         + (f" · Issue: #{f_['issue']}" if f_.get("issue") else ""))
+            lines.append("")
+    for iu in report.get("issue_updates", []):
+        if iu.get("status") == "WAITING_FOR_HUMAN" and iu.get("root_cause") in ("Confirmed", "Likely"):
+            flagged = True
+            lines.append(f"- Issue #{iu.get('issue')} 等待决策（根因：{iu.get('root_cause')}）")
+            lines.append(f"  下一步：{iu.get('next_step', '')}")
+            lines.append("")
+    if report.get("pending_decisions"):
+        flagged = True
+        lines.append("需要你决策")
+        for p in report.get("pending_decisions", []):
+            lines.append(f"- {p}")
+    if not flagged:
+        lines = ["无 P0/P1 严重项，但仍需关注：", ""]
+        lines.append("（详见每周 Digest）")
+    return subject, "\n".join(lines)
 
-    lines.append("## Repository Health")
-    lines.append(f"CI: {report.get('ci', 'unknown')}")
-    lines.append(f"Tests: {report.get('tests', 'unknown')}")
-    lines.append(f"Build: {report.get('build', 'unknown')}")
+
+def render_digest(report: dict, window_days: int = 7) -> tuple[str, str]:
+    """每周 Digest → (subject, body)：状态变化摘要。"""
+    d = report.get("date", "unknown")
+    end = dt.date.fromisoformat(d) if d != "unknown" else dt.date.today()
+    start = end - dt.timedelta(days=window_days - 1)
+    subject = f"[Tafcm] Maintainer Digest · {start} → {end}"
+
+    lines = ["Tafcm Weekly Maintainer Digest", ""]
+    lines.append("项目状态")
+    lines.append(f"CI {report.get('ci', 'unknown')} · Tests {report.get('tests', 'unknown')}"
+                 f" · Build {report.get('build', 'unknown')}")
     lines.append("")
 
+    findings = report.get("findings", [])
     if findings:
-        lines.append("## New Findings")
+        lines.append("过去一周新增")
         for f_ in findings:
             sev = f_.get("severity", "P2")
-            emoji = SEV_EMOJI.get(sev, "⬜")
-            lines.append(f"- {emoji} [{sev}] {f_.get('title', '')} ({f_.get('id', '')})")
-            lines.append(f"  Confidence: {f_.get('confidence', '')} | Action: {f_.get('action', '')}"
-                         + (f" | Issue: #{f_['issue']}" if f_.get("issue") else ""))
+            ref = f"#{f_['issue']}" if f_.get("issue") else f_.get("id", "?")
+            lines.append(f"- {ref} [{sev}] {f_.get('summary', '')}")
+            lines.append(f"  状态：{STATUS_LABEL.get(f_.get('status', ''), f_.get('status', ''))}"
+                         f" · Confidence: {f_.get('confidence', '')}")
         lines.append("")
 
-    if inv:
-        lines.append("## Issue Investigations")
-        for i in inv:
-            lines.append(f"- Issue #{i.get('issue', '?')}: Root Cause={i.get('root_cause', '')} "
-                         f"Status={i.get('status', '')}")
+    resolved = [f_ for f_ in findings if f_.get("status") in ("RESOLVED", "REJECTED")]
+    if resolved:
+        lines.append("过去一周解决")
+        for f_ in resolved:
+            lines.append(f"- {'✅' if f_.get('status') == 'RESOLVED' else '⛔'} {f_.get('summary', '')}")
         lines.append("")
 
-    if eco:
-        lines.append("## Ecosystem Watch")
-        for e in eco:
+    if report.get("ecosystem"):
+        lines.append("生态变化")
+        for e in report.get("ecosystem", []):
             emoji = ECOSYSTEM_EMOJI.get(e.get("recommendation", ""), "ℹ️")
-            lines.append(f"- {emoji} {e.get('topic', '')} → {e.get('recommendation', '')}")
+            poc = "值得 PoC" if e.get("poc") == "yes" else "仍 KEEP/观察"
+            lines.append(f"- {emoji} {e.get('topic', '')} → {e.get('recommendation', '')}（{poc}）")
         lines.append("")
 
-    if actions:
-        lines.append("## Recommended Actions")
-        for idx, a in enumerate(actions, 1):
-            lines.append(f"{idx}. {a}")
+    if report.get("pending_decisions"):
+        lines.append("需要你决策")
+        for i, p in enumerate(report.get("pending_decisions", []), 1):
+            lines.append(f"{i}. {p}")
         lines.append("")
 
-    return "\n".join(lines)
+    if not findings and not report.get("ecosystem") and not report.get("pending_decisions"):
+        lines.append("过去一周无重要事项")
+    lines.append("")
+    lines.append("其他")
+    lines.append("无重要事项")
+    return subject, "\n".join(lines)
+
+
+def send(host: str, port: int, username: str, password: str, to_addr: str,
+         subject: str, body: str) -> None:
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = username
+    msg["To"] = to_addr
+    msg["Date"] = formatdate(localtime=True)
+    # 端口语义：465=SMTPS(SSL 直连)，587=STARTTLS 升级，其余按明文（常见 25）
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
+            smtp.login(username, password)
+            smtp.sendmail(username, [to_addr], msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=30) as smtp:
+            smtp.ehlo()
+            if port == 587:
+                smtp.starttls()
+                smtp.ehlo()
+            smtp.login(username, password)
+            smtp.sendmail(username, [to_addr], msg.as_string())
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: send_report.py <report.json>", file=sys.stderr)
-        return 2
-    path = Path(sys.argv[1])
+    ap = argparse.ArgumentParser()
+    ap.add_argument("report", help="report.json 路径")
+    ap.add_argument("--mode", choices=["auto", "alert", "digest"], default="auto",
+                    help="auto: 有 P0/P1 或待决策→alert，周一→digest，否则跳过")
+    args = ap.parse_args()
+
+    path = Path(args.report)
     if not path.is_file():
         print(f"FAIL: report.json 不存在: {path}", file=sys.stderr)
         return 1
@@ -116,32 +191,28 @@ def main() -> int:
         print(f"EMAIL_DELIVERY=FAILED: MAIL_PORT 越界: {port}", file=sys.stderr)
         return 1
 
-    date = report.get("date", "unknown")
-    subject = f"Tafcm Daily Maintainer Report — {date}"
-    body = render_body(report)
+    # 模式决策
+    mode = args.mode
+    if mode == "auto":
+        if has_alert(report):
+            mode = "alert"
+        else:
+            today = dt.date.today()
+            if today.weekday() == 0:  # 周一
+                mode = "digest"
+            else:
+                print("EMAIL_SKIPPED: 无 P0/P1 或待决策事项，且非周一（不发每日复述邮件）")
+                return 0
 
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = username
-    msg["To"] = to_addr
-    msg["Date"] = formatdate(localtime=True)
+    if mode == "alert":
+        subject, body = render_alert(report)
+    else:
+        subject, body = render_digest(report)
 
     try:
-        # 端口语义：465=SMTPS(SSL 直连)，587=STARTTLS 升级，其余按明文（常见 25）
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
-                smtp.login(username, password)
-                smtp.sendmail(username, [to_addr], msg.as_string())
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as smtp:
-                smtp.ehlo()
-                if port == 587:
-                    smtp.starttls()
-                    smtp.ehlo()
-                smtp.login(username, password)
-                smtp.sendmail(username, [to_addr], msg.as_string())
+        send(host, port, username, password, to_addr, subject, body)
         print("EMAIL_DELIVERY=OK")
-        print(f"✅ 邮件已发送: {subject} → {to_addr}")
+        print(f"✅ 邮件已发送 [{mode}]: {subject} → {to_addr}")
         return 0
     except Exception as e:  # noqa: BLE001 —— 邮件失败明确上报，不吞异常
         print("EMAIL_DELIVERY=FAILED", file=sys.stderr)
