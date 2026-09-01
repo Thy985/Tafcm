@@ -120,7 +120,6 @@ jobs:
         timeout-minutes: 90
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DATE_UTC: ${{ github.event.schedule && format('{0}', github.event.schedule) || github.event.inputs.target_branch != '' && format('{0}T00:00:00Z', '') }}
           # 命令权限（POLICY.md §2.3）——只允许维护与验证所需命令
           CLINE_COMMAND_PERMISSIONS: |
             {

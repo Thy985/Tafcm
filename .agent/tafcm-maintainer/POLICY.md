@@ -25,7 +25,7 @@
 |------|---------|
 | 读仓库 | source code / tests / Issues / PRs / Actions / discussions / docs / ADR / contracts / regression / evidence |
 | 读 git 历史 | `git log` / `git blame` / `git diff` / `git show`（只读） |
-| 读 GitHub | `gh issue list/view`、`gh pr list/view`、`gh run list/view`、`gh api` 只读端点 |
+| 读 GitHub | `gh issue list/view`、`gh pr list/view`、`gh run list/view`（显式 CLI 命令，走命令白名单） |
 | 运行验证 | `flutter analyze`、`flutter test`（单文件或全量）、`flutter pub deps`、`python` / `pytest`（tools/ffx-cli 测试） |
 | 只读分析 | ADI 诊断命令（`dart run tools/adi/adi.dart` 只读子命令）、grep / 代码搜索 |
 | 外部研究 | web 搜索 / 文档阅读（生态调研） |
@@ -72,9 +72,9 @@ gh pr list *
 gh pr view *
 gh run list *
 gh run view *
-gh api repos/Thy985/Tafcm/issues/*        # 只读查询
-gh api repos/Thy985/Tafcm/pulls/*         # 只读查询
 ```
+
+> **说明**：不使用 `gh api`——所有 GitHub 读取均通过上述显式 `gh` 子命令完成（`gh api *` 一律 deny，更安全）。
 
 默认拒绝（不在 allowlist 中，即禁止）：
 

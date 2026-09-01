@@ -106,7 +106,16 @@ def main() -> int:
         print("EMAIL_SKIPPED: MAIL_* secrets 未配置（workflow 已配置后启用）")
         return 0
 
-    port = int(port_raw) if port_raw else 587
+    # MAIL_PORT 防护：非数字或越界（1-65535）视为配置错误，明确失败而非崩溃
+    try:
+        port = int(port_raw) if port_raw else 587
+    except ValueError:
+        print(f"EMAIL_DELIVERY=FAILED: MAIL_PORT 非数字: {port_raw!r}", file=sys.stderr)
+        return 1
+    if not (1 <= port <= 65535):
+        print(f"EMAIL_DELIVERY=FAILED: MAIL_PORT 越界: {port}", file=sys.stderr)
+        return 1
+
     date = report.get("date", "unknown")
     subject = f"Tafcm Daily Maintainer Report — {date}"
     body = render_body(report)
