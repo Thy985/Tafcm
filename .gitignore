@@ -66,3 +66,8 @@ flutter_app/test/golden/failures/
 # Note: cannot be verified with check-ignore while files are tracked;
 # PR-2 (after git rm) re-verifies.
 **/ui_dump.xml
+
+# === Workflow runtime temp dir (tafcm-maintainer) ===
+# .tmp/ 由 tafcm-maintainer.yml 的 Cline / report 步骤创建（运行时产物），
+# 不入库；Guard 步骤用 git status --porcelain 检查越权变更，若不忽略会误判。
+.tmp/
