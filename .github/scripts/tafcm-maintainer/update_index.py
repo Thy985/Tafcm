@@ -24,11 +24,12 @@ MARKER = "<!-- INDEX_ROWS -->"
 def parse_audit(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
 
-    findings = len(re.findall(r"(?m)^### F-\d{4}-\d{2}-\d{2}-\d{2}$", text))
+    # 标题允许 ID 后带描述（如 "### F-2026-09-01-01（续 F1 昨日）— 标题"）
+    findings = len(re.findall(r"(?m)^### F-\d{4}-\d{2}-\d{2}-\d{2}", text))
     # Issue 字段：`Issue: 123` 或 `Issue: #123`
     issues = len(re.findall(r"(?m)^Issue:\s*#?(\d+)\s*$", text))
 
-    ecosystems = len(re.findall(r"(?m)^### E-\d{4}-\d{2}-\d{2}-\d{2}$", text))
+    ecosystems = len(re.findall(r"(?m)^### E-\d{4}-\d{2}-\d{2}-\d{2}", text))
 
     # Recommended Actions 编号项（1. 2. 3.）
     actions_section = text.split("## Recommended Actions")[-1]
