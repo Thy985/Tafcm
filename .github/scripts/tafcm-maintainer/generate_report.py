@@ -82,6 +82,20 @@ def parse_audit(path: Path) -> dict:
             "ecosystem": eco, "recommended_actions": actions}
 
 
+def pubspec_version() -> str:
+    """从 flutter_app/pubspec.yaml 提取 version 字段（如 1.0.1+1）。
+
+    仓库根相对路径（workflow 默认 working-directory=$GITHUB_WORKSPACE）；
+    文件缺失或字段缺失时回退 "N/A"。
+    """
+    try:
+        pubspec = Path("flutter_app/pubspec.yaml").read_text(encoding="utf-8")
+    except OSError:
+        return "N/A"
+    vm = re.search(r"^version:\s*(.+)$", pubspec, re.MULTILINE)
+    return vm.group(1).strip() if vm else "N/A"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("audit", help="docs/agent-audit/YYYY-MM-DD-maintainer-audit.md")
@@ -97,7 +111,7 @@ def main() -> int:
     report = {
         "date": path.stem[:10],
         "commit": git_head(),
-        "version": "N/A",   # 可从 CHANGELOG / pubspec 读取；此处保持简单
+        "version": pubspec_version(),
         "ci": "unknown",
         "tests": "unknown",
         "build": "unknown",

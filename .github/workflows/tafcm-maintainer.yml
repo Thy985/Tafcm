@@ -205,9 +205,17 @@ jobs:
             "docs/agent-audit/INDEX.md"
 
       # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
+      # 精确前缀匹配：先剥离 porcelain 状态码（"XY path"，重命名取 new），
+      # 再只放行 docs/(agent-audit|agent-investigations)/ 前缀的路径。
+      # 不用子串 grep（如 other/docs/agent-audit/backup.md 会被错误放行）。
+      # 注意：Guard 在 git add 之前执行，audit 文件仍是 ?? 未跟踪状态，
+      # 因此必须检查完整工作树（git status），不能用 git diff --cached。
       - name: Guard — 仅允许 audit / investigations 目录变更
         run: |
-          CHANGED="$(git status --porcelain | grep -v -E '^\?\?|docs/agent-audit/|docs/agent-investigations/' || true)"
+          CHANGED="$(git status --porcelain \
+            | sed -E 's/^.. //; s/.* -> //' \
+            | grep -v -E '^docs/(agent-audit|agent-investigations)/' \
+            | grep -v '^$' || true)"
           if [ -n "$CHANGED" ]; then
             echo "❌ Maintainer Agent 修改了禁止的文件："
             echo "$CHANGED"

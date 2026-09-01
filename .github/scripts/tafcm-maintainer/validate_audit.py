@@ -71,7 +71,9 @@ def main() -> int:
 
     # 2. Findings 段
     findings_block = text.split("## Issue Investigations")[0]  # Findings 至下一节
-    if "No significant findings." in findings_block or "No significant findings" in findings_block:
+    # 行级精确匹配：只有独立行 `No significant findings.` 才视为"无 Finding"声明；
+    # 避免子串匹配误判（如某 Finding 的 Evidence 内容恰好包含该文本）。
+    if re.search(r"(?m)^No significant findings\.?$", findings_block):
         # 无 Finding：允许，跳过枚举校验
         pass
     else:
