@@ -288,6 +288,8 @@ PR: <相关 PR 编号，如有>
 **关键纪律**：
 - Audit 记录**今天观察到了哪些新事实，以及这些事实现在处于什么状态**——不是"今天做了什么"
 - 每个 Finding 固定：ID / Category / Severity / Confidence / **Status（状态机）** / Summary / Evidence / Impact / Recommendation / Related Issue
+- **字段行格式**：每个字段**独立一行、顶格写 `Field: value`**（如 `Category: bug`），
+  **不要**加 `- ` 列表前缀、**不要**用 `**` 加粗包裹、**不要**用全角冒号——否则机器校验会拒绝整份 Audit
 - 第二天不得把旧 Finding 标成 NEW——对照历史 Audit 给出 UPDATED / UNCHANGED / RESOLVED 延续状态
 - 允许"没有 Finding"：明确写 `No significant findings.`（这也是有效结果）
 - 生态发现只进 Ecosystem Findings；只有"值得 PoC"才建 `[Research]` Issue

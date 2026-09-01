@@ -64,7 +64,12 @@ def section_text(text: str, header: str, next_headers: list[str]) -> str:
 
 
 def _field(block: str, name: str) -> str:
-    m = re.search(rf"^{re.escape(name)}:\s*(.+)$", block, re.MULTILINE)
+    """解析 `Field: value` 行，容忍 Markdown 变体前缀/包裹（与 validate_audit 一致）。
+
+    Cline 输出可能为 `- Category: tech-debt` / `**Category:** tech-debt`。
+    """
+    m = re.search(rf"^\s*(?:[-*+]\s+)?\*{{0,2}}{re.escape(name)}\*{{0,2}}\s*:\s*(.+)$",
+                  block, re.MULTILINE)
     return m.group(1).strip() if m else ""
 
 
@@ -78,7 +83,9 @@ def parse_audit(path: Path) -> dict:
     f_block = section_text(text, "## New Findings", next_after_findings)
     for m in re.finditer(r"(?ms)^### (F-\d{4}-\d{2}-\d{2}-\d{2})\b(.*?)(?=^### |\Z)", f_block):
         fid, block = m.group(1), m.group(2)
-        issue_m = re.search(r"(?m)^Related Issue:\s*#?(\d+)\s*$", block)
+        issue_m = re.search(
+            rf"(?m)^\s*(?:[-*+]\s+)?\*{{0,2}}Related Issue\*{{0,2}}\s*:\s*#?(\d+)\s*$",
+            block)
         findings.append({
             "id": fid,
             "severity": _field(block, "Severity"),
@@ -115,7 +122,9 @@ def parse_audit(path: Path) -> dict:
 
     # ---- Pending Decisions ----
     pend_block = section_text(text, "## Pending Decisions", [])
-    pending_decisions = [l.strip() for l in re.findall(r"(?m)^- \[ \]\s*(.+)$", pend_block)]
+    # 兼容 checkbox（- [ ] x）与编号列表（1. x）两种 Cline 实际输出
+    pending_decisions = [l.strip() for l in re.findall(
+        r"(?m)^\s*(?:- \[ \]\s*|\d+\.\s+)(.+)$", pend_block)]
 
     return {"findings": findings, "issue_updates": issue_updates,
             "ecosystem": ecosystem, "pending_decisions": pending_decisions}

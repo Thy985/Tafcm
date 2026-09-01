@@ -40,7 +40,9 @@ def section_text(text: str, header: str, next_headers: list[str]) -> str:
 
 
 def _field(block: str, name: str) -> str:
-    m = re.search(rf"^{re.escape(name)}:\s*(.+)$", block, re.MULTILINE)
+    """解析 `Field: value` 行，容忍 Markdown 变体前缀/包裹（与 validate_audit 一致）。"""
+    m = re.search(rf"^\s*(?:[-*+]\s+)?\*{{0,2}}{re.escape(name)}\*{{0,2}}\s*:\s*(.+)$",
+                  block, re.MULTILINE)
     return m.group(1).strip() if m else ""
 
 
@@ -60,15 +62,17 @@ def parse_audit(path: Path) -> dict:
             findings_status["RESOLVED"] += 1
 
     # Issues：Findings 块 Related Issue 字段（`Related Issue: #123` 或 `Related Issue: 123`）
-    issues = len(re.findall(r"(?m)^Related Issue:\s*#?(\d+)\s*$", f_block))
+    issues = len(re.findall(
+        rf"(?m)^\s*(?:[-*+]\s+)?\*{{0,2}}Related Issue\*{{0,2}}\s*:\s*#?(\d+)\s*$",
+        f_block))
 
     # Ecosystem：E-ID 块数量
     eco_block = section_text(text, "## Ecosystem Findings", ["## Pending Decisions"])
     ecosystems = len(re.findall(r"(?m)^### E-\d{4}-\d{2}-\d{2}-\d{2}", eco_block))
 
-    # Pending Decisions：checkbox 条数
+    # Pending Decisions：checkbox / 编号列表条数
     pend_block = section_text(text, "## Pending Decisions", [])
-    pending = len(re.findall(r"(?m)^- \[ \]\s*", pend_block))
+    pending = len(re.findall(r"(?m)^\s*(?:- \[ \]\s*|\d+\.\s+)", pend_block))
 
     date = path.stem[:10]
     return {"date": date,
