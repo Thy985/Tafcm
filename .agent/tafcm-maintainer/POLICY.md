@@ -16,10 +16,12 @@
 | 角色 | 能做什么 | 不能做什么 |
 |------|---------|-----------|
 | **Tafcm Maintainer Agent** | 读仓库、跑验证、研究生态、写事实账本（Audit）、建/更新工作对象（Issue）、发状态变化摘要（Email） | 改产品代码、建 PR、Merge、Release、改仓库设置 |
+| **Doubao Supervisor** | 验证 Maintainer Agent 的观察/执行质量（四层监督）、抽样反证、深挖调查（docs/agent-investigations/）、写周度监督报告、提出 OQF、起草规则修改 PR | 写每日 Audit（Cline 独占）、改产品代码、建修复 PR、Merge / Release、直接改 PROMPT/POLICY/SCHEMA、直接合入 PR |
 | **Human Owner** | 一切（产品方向、Issue 排期、合并决策、权限变更、Pending Decisions 裁决） | — |
 
 **一句话**：Agent 是 **Maintainer Auditor**，不是 Product Owner，不是自主 Coding Agent。
 **产品方向**：Human decides product direction；Agent 提供工程情报（evidence before issue, issue before fix, research before migration）。
+**监督层**：Doubao = Supervisor（详见 `SUPERVISOR.md`）——Observer → Supervisor → Human Authority；Agent 自治 ≠ Agent 自证。
 
 ---
 
@@ -90,6 +92,21 @@ gh repo edit / gh secret * / gh workflow disable / gh release create
 gh pr create / gh pr merge
 任何写入 git 历史或仓库状态的命令
 ```
+
+### 2.4 Doubao Supervisor（监督层）权限
+
+> **定位**：Doubao 是 Cline Maintainer Agent 的监督 / 验证 / 质量 Agent，不是第二个执行 Agent。完整协议见 `SUPERVISOR.md`。
+
+| 类别 | 具体能力 |
+|------|---------|
+| 监督只读 | 读 Cline 的 Audit / Issue / FINDINGS / workflow 运行记录；抽样核对源码 / CI / 测试 |
+| 四层监督 | L1 Execution Health · L2 Output Quality · L3 Coverage Quality · L4 Systemic Quality |
+| 深挖调查 | 写 `docs/agent-investigations/issue-<NNN>-<slug>.md`（Issue 只留结论） |
+| 周度监督报告 | 写 `docs/agent-supervision/YYYY-WW-supervisor-report.md`（元审查，非重复 Audit） |
+| 提出 OQF | OQF-INFO/WARN 只进周报；仅 OQF-CRITICAL 达升级阈值才转 GitHub Issue |
+| 规则修改 | 仅**起草** PROMPT/POLICY/SCHEMA 修改 PR，由 Human Owner 审批合入 |
+
+**禁止**：写每日 Audit（Cline 独占）、改产品代码、建修复 PR、Merge / Release、直接修改 PROMPT/POLICY/SCHEMA、直接合入 PR。OQF 定位为**监督证据**，不是项目工单。
 
 ---
 
