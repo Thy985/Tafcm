@@ -71,6 +71,12 @@ dependency_overrides:
   flutter_inappwebview_ios: 1.1.2
   flutter_inappwebview_macos: 1.1.2
   flutter_inappwebview_web: 1.1.2
+  # 锁定渲染相关依赖到当前解析版本，避免 pub 升级导致 golden 基线漂移
+  # （CI Golden 修复 2026-09-01：14 个测试 diff 像素一致 = 全局渲染漂移）
+  flutter_math_fork: 0.7.4
+  golden_toolkit: 0.15.0
+  flutter_svg: 2.3.0
+  vector_math: 2.2.0
 
 flutter:
   uses-material-design: true
