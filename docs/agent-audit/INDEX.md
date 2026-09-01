@@ -5,7 +5,7 @@
 > **读取**：Agent 每次执行必须先读本表 + 近期 Audit，识别重复 Finding / 未解决 Finding / 长期技术债 / 趋势性问题——**避免每天重复报告同一问题**。
 > **格式**：见 `.agent/tafcm-maintainer/SCHEMA.md` §5。
 
-| Date | Findings | Issues | Ecosystem | Open Actions |
-|------|----------|--------|-----------|--------------|
-| 2026-09-01 | 6 | 0 | 2 | 3 |
+| Date | New | Updated | Resolved | Issues | Ecosystem | Pending |
+|------|-----|---------|----------|--------|-----------|---------|
+| 2026-09-01 | 6 | 0 | 0 | 0 | 2 | 3 |
 <!-- INDEX_ROWS: 由 update_index.py 在此行上方追加 -->
