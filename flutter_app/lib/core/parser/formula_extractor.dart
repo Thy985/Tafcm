@@ -74,7 +74,8 @@ class FormulaExtractor {
     final filtered = <FormulaMatch>[];
     int lastEnd = -1;
     for (final m in results) {
-      if (m.start >= lastEnd) {
+      // E2-STABILITY 实验注入：相邻公式（start == lastEnd）时第二个公式被错误丢弃
+      if (m.start > lastEnd) {
         filtered.add(m);
         lastEnd = m.end;
       }
