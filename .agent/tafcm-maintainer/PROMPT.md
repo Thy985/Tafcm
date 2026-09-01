@@ -277,21 +277,70 @@ PR: <相关 PR 编号，如有>
 
 ## 9. Audit 生成规范（事实账本）
 
-每天生成 `docs/agent-audit/YYYY-MM-DD-maintainer-audit.md`（本地日期 UTC+8），**固定五块**（SCHEMA.md §2）：
+每天生成 `docs/agent-audit/YYYY-MM-DD-maintainer-audit.md`（本地日期 UTC+8），**固定五块**（SCHEMA.md §2）。
 
-1. **Repository Health** — Commit / Version / CI / Tests / Build
-2. **New Findings** — 今日新事实（含状态机 Status）或 `No significant findings.`
-3. **Existing Issue Updates** — 今日对既有 Issue 的延续（UPDATED / UNCHANGED / RESOLVED / WAITING_FOR_HUMAN）
-4. **Ecosystem Findings** — 生态观察（E-ID，含 PoC 决策）或 `No significant ecosystem findings.`
-5. **Pending Decisions** — 需要维护者决策的事项清单
+### 9.1 五块结构——硬性要求（机器校验强制，违反即整份拒绝）
 
-**关键纪律**：
-- Audit 记录**今天观察到了哪些新事实，以及这些事实现在处于什么状态**——不是"今天做了什么"
-- 每个 Finding 固定：ID / Category / Severity / Confidence / **Status（状态机）** / Summary / Evidence / Impact / Recommendation / Related Issue
-- **字段行格式**：每个字段**独立一行、顶格写 `Field: value`**（如 `Category: bug`），
-  **不要**加 `- ` 列表前缀、**不要**用 `**` 加粗包裹、**不要**用全角冒号——否则机器校验会拒绝整份 Audit
+五个小节标题**必须逐字精确**，一个不能少、不能改名、不能省略、不能合并：
+
+```text
+## Repository Health
+## New Findings
+## Existing Issue Updates
+## Ecosystem Findings
+## Pending Decisions
+```
+
+- 每个小节必须是**二级标题 `##`**（不是 `#`，不是 `###`），标题文本与上面**完全一致**
+- 五个小节**顺序固定**，全部出现
+- 生成完成后，**必须自检**：对照 TEMPLATE.md 逐块核对结构，然后运行
+  `python3 .github/scripts/tafcm-maintainer/validate_audit.py <你的 audit 文件>`，
+  确认输出 `✅ Audit 格式校验通过` 才算完成——**不允许提交校验失败的 Audit**
+
+### 9.2 Finding 字段——硬性要求（枚举值 + 必填字段）
+
+每个 Finding 块（`### F-YYYY-MM-DD-NN`）内，**以下字段一个都不能缺**，且格式为
+**独立一行、顶格 `Field: value`**（不要 `- ` 列表前缀、不要 `**` 加粗、不要全角冒号）：
+
+```text
+Category: bug|regression|test-gap|architecture|ecosystem|tech-debt
+Severity: P0|P1|P2|P3
+Confidence: High|Medium|Low
+Status: NEW|UNCHANGED|UPDATED|RESOLVED|REJECTED|DUPLICATE|WAITING_FOR_HUMAN
+Summary: <一句话>
+Evidence: <file:line / commit / 测试输出——必须可追溯>
+Impact: <真实影响>
+Recommendation: Create Issue|Investigate|Watch|Ignore
+Related Issue: <#编号 或 N/A>
+```
+
+**Status 字段是状态机枚举**——只允许上面 7 个值之一，**禁止**写 `open` / `closed` /
+`in progress` 等 Issue 语义词（这是 E2 实验实测失败点）。
+
+**Recommendation 值必须是纯枚举词**（Create Issue / Investigate / Watch / Ignore），
+**禁止**在值里附带括号说明或长句（如 `KEEP（记录为已知 CI 退化）`——E2 实测失败点）。
+
+### 9.3 Ecosystem 块——硬性要求
+
+`### E-YYYY-MM-DD-NN` 块内字段（同样顶格、纯枚举值）：
+
+```text
+Topic: <主题>
+Current Solution: <现状>
+Alternative: <候选方案>
+Comparison: <对比结论>
+Recommendation: KEEP|INVESTIGATE|REPLACE|DEPRECATE
+Decision: yes|no
+```
+
+### 9.4 Pending Decisions——硬性要求
+
+`- [ ] <事项>`（checkbox）或 `1. <事项>`（编号列表）均可（validator 已兼容两种）。
+
+### 9.5 状态机纪律（跨运行记忆）
+
 - 第二天不得把旧 Finding 标成 NEW——对照历史 Audit 给出 UPDATED / UNCHANGED / RESOLVED 延续状态
-- 允许"没有 Finding"：明确写 `No significant findings.`（这也是有效结果）
+- 允许"没有 Finding"：`No significant findings.`（这也是有效结果）
 - 生态发现只进 Ecosystem Findings；只有"值得 PoC"才建 `[Research]` Issue
 
 ---

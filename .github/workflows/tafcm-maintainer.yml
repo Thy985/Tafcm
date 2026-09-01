@@ -200,7 +200,88 @@ jobs:
           test -f "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             || { echo "FAIL: audit 未生成"; exit 1; }
 
-      - name: Validate Audit format
+      - name: Validate Audit format (pass 1)
+        id: validate1
+        run: |
+          AUDIT="docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md"
+          python3 .github/scripts/tafcm-maintainer/validate_audit.py "$AUDIT" \
+            > .tmp/tafcm-maintainer/validate1.log 2>&1 || true
+          if grep -q "格式校验通过" .tmp/tafcm-maintainer/validate1.log; then
+            echo "result=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 校验失败 → 把 validate 错误输出回喂给 Cline 修正一次（输出纪律兜底）
+      - name: Retry Maintainer Agent (fix audit format)
+        if: steps.validate1.outputs.result == 'fail'
+        timeout-minutes: 60
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 命令权限（POLICY.md §2.3）——与主 Cline 步骤一致
+          CLINE_COMMAND_PERMISSIONS: |
+            {
+              "allow": [
+                "git status",
+                "git log *",
+                "git diff *",
+                "git show *",
+                "git grep *",
+                "flutter analyze *",
+                "flutter test *",
+                "flutter pub deps *",
+                "python *",
+                "python3 *",
+                "pytest *",
+                "gh issue list *",
+                "gh issue view *",
+                "gh issue create *",
+                "gh issue comment *",
+                "gh pr list *",
+                "gh pr view *",
+                "gh run list *",
+                "gh run view *"
+              ],
+              "deny": [
+                "git push *",
+                "git reset *",
+                "git clean *",
+                "git checkout *",
+                "rm -rf *",
+                "rm *",
+                "sudo *",
+                "gh repo edit *",
+                "gh secret *",
+                "gh workflow *",
+                "gh release *",
+                "gh pr create *",
+                "gh pr merge *",
+                "gh pr comment *",
+                "gh api *"
+              ]
+            }
+        run: |
+          set -euo pipefail
+          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+          PROMPT="$(cat .agent/tafcm-maintainer/PROMPT.md)"
+          FIX_CTX="
+
+          ---
+          ## 修正要求（Audit 机器校验未通过——必须修正后重新生成）
+
+          上次生成的文件 docs/agent-audit/${TODAY}-maintainer-audit.md 未通过机器校验。
+          校验失败原因（validate_audit.py 输出）：
+
+          $(cat .tmp/tafcm-maintainer/validate1.log)
+
+          请**修正或重写**该文件：严格对照 PROMPT.md §9（五块结构逐字精确、
+          Status 用状态机枚举、Recommendation 用纯枚举词、必填字段一个不缺）。
+          修正完成后必须自行运行 validate_audit.py 确认输出 ✅ 才算完成。
+          "
+          cline --auto-approve true "${PROMPT}${FIX_CTX}"
+
+      # 最终守门：重试后仍失败 → workflow FAILED（不伪装成功）
+      - name: Validate Audit format (final gate)
         run: |
           python3 .github/scripts/tafcm-maintainer/validate_audit.py \
             "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md"
