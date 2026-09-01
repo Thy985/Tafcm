@@ -180,12 +180,10 @@ jobs:
           - 目标分支：${TARGET_BRANCH}
           - 请生成 Audit 文件：docs/agent-audit/${TODAY}-maintainer-audit.md
           - 本次运行前请先阅读 docs/agent-audit/INDEX.md 与近期 Audit（去重）
-          - 完成后将结果 JSON 写入 .tmp/tafcm-maintainer/cline-result.json
           "
-          cline --auto-approve true \
-            --output-format json \
-            --output-json-file .tmp/tafcm-maintainer/cline-result.json \
-            "${PROMPT}${RUN_CTX}"
+          # Cline CLI 3.x headless：仅 --auto-approve true + prompt（官方文档与
+          # cline-pr-review.yml 验证用法；--output-format 等选项不存在）
+          cline --auto-approve true "${PROMPT}${RUN_CTX}"
 
       # ---------- 3. 校验（Audit 生成失败不得伪装成成功）----------
       - name: Verify Audit produced
