@@ -69,8 +69,18 @@ def evidence_files(evidence: str) -> list[str]:
 
 
 def fingerprint(category: str, files: list[str], norm_summary: str) -> str:
-    """stable_fingerprint：category + evidence 文件路径 + 归一化 summary。"""
-    payload = "|".join([category, ",".join(files), norm_summary])
+    """stable_fingerprint。
+
+    锚点优先级（回归验证 33506769952 实测修正）：
+    - 有 evidence 文件路径时：`SHA-256(category | files)`——文件路径是强锚点，
+      不受 Summary 措辞漂移影响（同一 bug 两次运行的 Summary 可能不同，但
+      证据文件相同 → fingerprint 必须相同才能命中注册表）
+    - 无 evidence 文件路径时：`SHA-256(category | norm_summary)`——兜底。
+    """
+    if files:
+        payload = "|".join([category, ",".join(files)])
+    else:
+        payload = "|".join([category, norm_summary])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 

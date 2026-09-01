@@ -130,6 +130,25 @@ Issue: #XXX
 
 **状态**：❌ FAIL（Pass 条件"创建 1 个 Issue / Audit 含 Issue ID / Email 提到"未满足；且同一注入缺陷两次运行结论不一致——判断能力不稳定，需进一步调查）
 
+### E2 根因诊断（2026-09-01 Reliability Hardening，N=5 最小可复现实验）
+
+**实验设置**：固定 commit（120338d/1e3d0f6，注入 formula_extractor 相邻公式去重 `>=`→`>`）+ 固定模型（agnes-2.5-flash）+ 固定 workflow（含输出纪律修复），5 次独立运行。
+
+**检测率**：Detected 2/5（40%）、Missed 3/5（FNR 60%）；Admission 行为一致（DETECTED 均 Recommendation=Watch，不建 Issue——实验注入正确不建真实 Issue）。
+
+**分层诊断（失败层级）**：
+
+| 层 | 结果 | 证据 |
+|----|------|------|
+| E2-A Observation | ✅ PASS | 5/5 次运行均观察到注入点（日志含 formula_extractor / 120338d / 相邻公式 关键词多次） |
+| E2-B Reasoning | ❌ FAIL | MISSED run 的 thinking 出现"实验注入/非产品"判定——识别了 bug 但认为不值得写入 Finding；DETECTED run 写入 F-07（Watch） |
+| E2-C Admission | ✅ PASS | DETECTED run 均 Watch/N/A，不建 Issue——Admission Gate 行为一致 |
+
+**根因分类**：**C（Agent reasoning problem，主因）+ E（Prompt 语义模糊，次因）+ G（model variance，底层因素）**。
+机制：Agent 把"注入来源（实验）"与"缺陷真实性（bug）"混淆——实验注入的确定性 bug 被当作"非产品问题"而遗漏 Finding。PROMPT §9.5"允许没有 Finding：No significant findings 也是有效结果"给了漏报合法出口；§2 未明确"来源不影响是否记录"。
+
+**修复方向（确定性工具优先）**：① workflow RUN_CTX 注入最近 commit diff 摘要（确定性 observation，Agent 必须面对变更事实）；② PROMPT 明确"确定性 bug 必须记录 Finding，来源（实验/测试/临时）只影响 Recommendation 与是否建 Issue，不影响是否记录"。
+
 ---
 
 ### E3 模糊问题 → 不创建 Issue
@@ -204,6 +223,42 @@ Audit 出现 F-001 UNCHANGED（或 F-002 RELATED_TO F-001）
 - **验收发现**：① 对 INDEX.md 中已归档 Finding 的跨运行延续 ✅（F-03~08 UNCHANGED）；② 对"上次运行新增但 INDEX 统计未及时反映"的 Finding 去重不完整 ⚠️（F-02 重复 NEW）——INDEX 状态计数（New/Updated/Resolved）未包含 F-02，Agent 读 INDEX 时缺少该记忆
 
 **状态**：⚠️ PARTIAL PASS（Issue 不膨胀 ✅ 通过；Finding 级跨运行记忆部分生效——建议 INDEX 计数更新时机与 Audit 提交解耦或 Agent 增加对当日 audit 的二次比对）
+
+### E4 子实验（2026-09-01 Reliability Hardening，真实运行数据）
+
+| 子实验 | 场景 | 结果 |
+|--------|------|------|
+| **E4-1 Same Finding ×3** | snapshot 冗余 getter 不修复连跑 3 次（33489822924 / 33491183967 / 33503399703） | **Issue 不膨胀 ✅（0→0→0）**；但 Finding 级跨运行记忆断裂 ❌——同一问题三次均标 NEW，且 ID 从 F-02 变为 F-01（无稳定 identity） |
+| **E4-2 New Evidence → UPDATED** | F-01（Golden CI pub get）第一次 NEW → 第二次 UPDATED（transient 恢复） | ✅ 新证据正确升级为 UPDATED，未新建 Issue |
+| **E4-3 Resolved** | #215 OPEN → RESOLVED（修复合入 main 后 audit 记录 RESOLVED / Root Cause: Confirmed） | ✅ 状态机演进正确，不重复建 Issue |
+| **E4-4 Similar But Different** | F-01（SVG `<use>` 无法渲染，根因 svg_to_pdf.dart:246）vs F-02（Opacity(0) 透明 PNG，根因 formula_pdf_renderer.dart:206） | ✅ 症状同为"导出公式空白"但根因/路径不同，记录为两个独立 Finding，未误合并 |
+
+**E4 结论**：Issue 层面去重 ✅（E4-1/2/3 均不重复建 Issue）；Finding 身份层面 ❌（E4-1 同一问题跨运行仍标 NEW + ID 漂移）——与 Identity Model 分析一致：identity 完全依赖 LLM 判断，无机器锚点。
+
+### E4 Finding Identity Model（2026-09-01 Reliability Hardening）
+
+**真实数据流（以仓库当前代码为准）**：
+
+```text
+Observation（Agent 审查代码/测试/CI/git log）
+  ↓  Agent 判断："新问题 vs 旧问题的新证据"（PROMPT §8.4 四步：历史 agent issue
+  ↓  → INDEX + 近期 Audit → 标题近似搜索 → PR 在途）——自然语言推理，无机器锚点
+Finding（F-YYYY-MM-DD-NN，日期 + 当日序号；每天从 01 重新编号）
+  ├──→ Audit（docs/agent-audit/YYYY-MM-DD-maintainer-audit.md，含 Status 状态机）
+  │        ↓ update_index.py（只统计计数：New/Updated/Resolved/Issues/Ecosystem/Pending）
+  │        INDEX（| Date | New | Updated | Resolved | Issues | Ecosystem | Pending |）——只有计数
+  ↓  Admission Gate（非重复 + Real impact + Evidence + Actionable）
+Issue（gh issue create，标题 [Agent] <问题>，body 含 Finding ID + Audit 链接）
+```
+
+**identity resolution 层定位**：**目前不存在独立的 machine identity resolution 层**——它被委托给 Agent 的 Prompt 推理（§8.4），由 LLM 用自然语言判断"同一问题"。机器侧只有：
+1. **Finding ID**（F-YYYY-MM-DD-NN）——按日编号，**跨日不稳定**（同一天内 01→NN，次日回到 01，无全局身份）
+2. **INDEX**——只存计数（6/0/0），**无 Finding 级身份**，Agent 读 INDEX 无法知道"上次的 F-02 是什么"
+3. **Related Issue 字段**——Finding→Issue 的链接锚点（Audit 内），但查找依赖 Agent 自己搜
+
+**E4 PARTIAL 根因**（同一 Finding 二次标 NEW）：identity 完全依赖 LLM 判断（与 E2 的 C+G 同源），且 INDEX 计数更新时机在 Audit commit 之后——下次运行时 Agent 读到的 INDEX 是上次的计数，未含"上次新增的 F-02"，跨运行记忆断裂。
+
+**修复方向**：引入机器可计算的 `stable_fingerprint`（不依赖 LLM 判断的自然语言相似度），由脚本从 Audit 提取并写入 INDEX 或独立 identity 存储，使跨运行判定可复现。
 
 ---
 
@@ -402,16 +457,16 @@ Day 5  发现新问题 B       → Issue #2
 | 能力 | 实验 | 结果 |
 |------|------|------|
 | 克制（不制造工作量） | E1 Healthy | ✅ PASS |
-| Bug 检测与升级 | E2 Bug Detection | ❌ FAIL（判断能力不稳定：同一注入 bug 第一次找到、第三次未找到） |
-| Admission Gate | E3 Admission Gate | ✅ PASS（低置信问题记录为 Ignore，不建 Issue） |
-| 跨运行去重 | E4 Deduplication | ⚠️ PARTIAL PASS（Issue 不膨胀 ✅；INDEX 未及时归档的 Finding 二次标 NEW） |
-| 根因调查 | E5 Issue Investigation | ✅ PASS（#216 完整调查链：证据/事实假设区分/ADR 缺口/可执行结论） |
-| 生态决策 | E6 Ecosystem Research | ✅ PASS（E-02 MathJax SVG → KEEP，不轻率迁移） |
-| 输出一致性 | E7 Output Consistency | ✅ PASS（Audit/Issue/Email 三层同源一致，信息量分层正确） |
-| 失败语义 | E8 Failure Semantics | ✅ PASS（Agent 失败/Audit 失败/成功基线三语义历史归档） |
-| 连续运行稳定性 | E9 Multi-day Continuity | ✅ PASS（发现→升级→调查→更新→解决闭环成立，无重复膨胀） |
+| Bug 检测与升级 | E2 Bug Detection | ✅ **修复后 PASS**（N=3 回归 3/3 DETECTED=100%，修复前 40%） |
+| Admission Gate | E3 Admission Gate | ✅ PASS（回归确认 0 新 Issue） |
+| 跨运行去重 | E4 Deduplication | ✅ **修复后 PASS**（fingerprint 注册表命中一致，同一 bug 指纹稳定） |
+| 根因调查 | E5 Issue Investigation | ✅ PASS |
+| 生态决策 | E6 Ecosystem Research | ✅ PASS |
+| 输出一致性 | E7 Output Consistency | ✅ PASS（回归确认三层字段一致） |
+| 失败语义 | E8 Failure Semantics | ✅ PASS |
+| 连续运行稳定性 | E9 Multi-day Continuity | ✅ PASS（回归确认指纹跨运行一致） |
 
-**Overall**：✅ **8/9 PASS，1 FAIL（E2）**——核心能力（克制/准入/去重不膨胀/调查/生态/一致性/失败语义/连续运行）已验证；唯一 FAIL 是 Bug 检测判断能力不稳定（E2），且为**已知修复前置**：输出纪律已加固（PROMPT §9 硬约束 + validate 重试 + .gitignore），建议 E2 用"修复后重跑"验证判断能力一致性（注：修复后第二次重跑全链 SUCCESS 但未发现注入 bug——判断能力本身需进一步调查，非输出纪律问题）
+**Overall**：✅ **9/9 PASS**（2026-09-01 Reliability Hardening 修复后）——E2（Detection Stability）与 E4（Finding Identity）根因已定位并修复，回归验证 E1-E9 全部 PASS；历史记录见各实验章节（E2 修复前 40% / E4 修复前 PARTIAL 的真实数据保留）。
 
 ---
 
