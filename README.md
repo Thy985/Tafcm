@@ -182,9 +182,3 @@ cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/
 本项目基于 [MIT 协议](LICENSE) 开源。
 
 Copyright (c) 2026 [Thy985](https://github.com/Thy985)
-
----
-
-**维护人**：首席架构工程师
-**最近更新**：2026-08-31（v0.1.1 发布）
-**文档版本**：v1.2（Phase 3.12 信息架构重构 + v0.1.1 发布）
