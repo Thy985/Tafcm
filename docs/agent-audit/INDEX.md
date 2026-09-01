@@ -7,4 +7,5 @@
 
 | Date | Findings | Issues | Ecosystem | Open Actions |
 |------|----------|--------|-----------|--------------|
+| 2026-09-01 | 6 | 0 | 2 | 3 |
 <!-- INDEX_ROWS: 由 update_index.py 在此行上方追加 -->
