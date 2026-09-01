@@ -1,124 +1,128 @@
 # Tafcm Daily Maintainer Audit
 
-> 运行日期：2026-09-01（本地 UTC+8）· 触发：workflow_dispatch（每日维护审查）
+> 运行日期：2026-09-01（本地 UTC+8）· 触发：workflow_dispatch（第二次运行，当日）
+> 说明：当日首次运行（commit 1ac70eb）Audit 存在格式违规（Status 枚举错误 / 小节标题不正确），本审计以 HEAD b72df08 为基准重新生成合规版本；当日首次运行产生的 6 个 Finding 已合并继承至本文件对应 ID。
 
-## Repository State
+## Repository Health
 
-Commit: 1ac70eb fix(agent): 兼容 Cline 生成的带描述 Finding 标题 + 补 import sys (#225)
-Version: v0.1.1
-CI: ⚠️ Golden (compare) job 持续失败（历史 4-5 次 merge 均红）
-Tests: ✅ flutter test test/parser/ test/export/ test/architecture/ → 129 passed, 6 skipped
-Build: ✅ Web + Android Debug APK 均成功
-Open Issues: 2（#215 已修复待关闭 / #216 待调查）
+Commit: b72df08 fix(agent): E2 确定性观察 + E4 Finding 身份注册表（Reliability Hardening）
+Version: v0.1.1+2
+CI: ✅ 最近成功 run 33505869807（6m41s，全部 SUCCESS）；当前 in_progress run 33506769952
+Tests: ✅ flutter analyze --no-fatal-infos --fatal-warnings → 0 error / 0 warning；flutter test test/parser/ test/export/ test/architecture/ → 129 passed, 6 skipped；formula_extractor_test.dart → 29 passed
+Build: ✅ apk + web 构建成功（基于近期 CI 记录）
+Open Issues: 1（#216 导出公式渲染问题，待调查）
+Closed Issues: #215 已合入 PR #214（修复 SnackBar 残留）
 Open PRs: 0
+## New Findings
 
-## Findings
-
-### F-2026-09-01-01
+### F-2026-09-01-01 — PDF export SVG <use> 引用不解析导致公式空白
 
 Category: bug
 Severity: P1
 Confidence: High
-Status: open
+Status: UNCHANGED
+Summary: PDF 导出走 SVG 路径时 MathJax <use href="#id"> 字形引用不被解析，画成占位符文本而非真实字形，导致公式在 PDF 中不可见
+Evidence: flutter_app/lib/core/renderers/svg_to_pdf.dart:246（SvgUse → _drawUnsupported）；flutter_app/lib/core/renderers/mermaid_renderer.html:8（fontCache:global 使用 <use>）；flutter_app/lib/core/renderers/svg_parser.dart（defs 丢弃 / use 不解析）
+Impact: 所有通过 SVG→PDF 路径导出的公式文档必然出现公式空白 —— Issue #216 根因之一
+Recommendation: Create Issue
+Related Issue: #216
 
-Problem: SVG→PDF 矢量路径无法渲染真实 MathJax 输出——`svg_to_pdf.dart:246` 对 `<use>` 字形调用 `_drawUnsupported`，画成占位符文本而非真实字形。
-Evidence: `svg_to_pdf.dart:246`（SvgUse → _drawUnsupported）；`mermaid_renderer.html:8`（fontCache:'global'）；`svg_parser.dart`（defs 丢弃 / use 不解析）
-Impact: PDF 走 SVG 路径时公式必然异常 → Issue #216 根因之一
-Recommendation: 归入 #216 根因，修复方向：解析期实现 `<use href="#id">` → 内联 `<defs>` 对应 `<path>` 的引用解析
-Issue: 关联 Issue #216（未单独建 Issue）
+### F-2026-09-01-02 — FormulaRenderHost Opacity(0.0) 可能导致 toImage() 产出全透明 PNG
 
-### F-2026-09-01-02
-
-Category: architecture
-Severity: P2
-Confidence: High
-Status: open
-
-Problem: FormulaRenderHost 离屏捕获用 `Opacity(opacity: 0.0)` 包裹 capture 体，需验证是否导致 toImage() 产出全透明 PNG。
-Evidence: `formula_pdf_renderer.dart:206-208` 注释说明这是有意为之（保留 paint pipeline）；`word_exporter.dart` preRenderAll 100% 走此路径
-Impact: 若透明则 Word 公式必现空白；PDF 在 WebView/SVG 失败时也空白
-Recommendation: INVESTIGATE（#216 首要排查项）→ 真机 PoC 检查导出 PNG alpha 通道；若确认透明，修复方向：捕获体改为不透明但不可见的容器
-Issue: 关联 Issue #216（未单独建 Issue）
-
-### F-2026-09-01-03
+Category: bug
+Severity: P1
+Confidence: Medium
+Status: UNCHANGED
+Summary: formula_pdf_renderer.dart:206-208 用 Opacity(opacity: 0.0) 包裹离屏捕获体（代码注释标明有意保留 paint pipeline），但需验证是否导致 RepaintBoundary.toImage() 产出 alpha=0 的全透明 PNG
+Evidence: flutter_app/lib/core/renderers/formula_pdf_renderer.dart:206-208（Opacity(0.0) 包裹 capture 体）；flutter_app/lib/domain/services/exporters/word_exporter.dart preRenderAll 100% 走此路径
+Impact: 若透明则 Word 导出公式必现空白；PDF 在 WebView/SVG 失败时 fallback 亦空白 —— Issue #216 另一根因
+Recommendation: Investigate
+Related Issue: #216
+### F-2026-09-01-03 — 导出公式可见性无回归测试
 
 Category: test-gap
 Severity: P1
 Confidence: High
-Status: open
+Status: UNCHANGED
+Summary: 导出公式相关测试只断言不崩溃 / 字节非空 / fallback 文本存在，无任何用例检查渲染 PNG 非透明 / PDF 有真实字形；真实用户（#216）已踩中此盲区
+Evidence: 全测试目录无 alpha/pixel 断言；flutter_app/test/export/word_export_semantic_fidelity_test.dart:107-108 明确注释测试环境无渲染器 → widthEmu=0 → 走 fallback
+Impact: 导出公式核心卖点回归只能靠人工发现，无法阻止类似 #216 的回归
+Recommendation: Watch
+Related Issue: N/A
 
-Problem: 导出公式相关验证只断言"不崩溃 / 字节非空 / fallback 文本存在"，无用例检查渲染公式 PNG 非透明 / PDF 有真实字形。
-Evidence: 全测试目录无 alpha/pixel 断言；`word_export_semantic_fidelity_test.dart:107-108` 明确注释测试环境无渲染器 → widthEmu=0 → 走 fallback
-Impact: 导出公式核心卖点回归只能靠人工，已被真实用户（#216）踩中
-Recommendation: 补两层测试：① PNG alpha 非全透明；② 真实 MathJax `<use>` SVG 渲染断言
-Issue: N/A（测试缺口，不建 Issue）
-
-### F-2026-09-01-04
+### F-2026-09-01-04 — Golden CI 持续失败 + 112 个 failure PNG 入库违反 gitignore
 
 Category: regression
-Severity: P1
+Severity: P2
 Confidence: High
-Status: open
+Status: UNCHANGED
+Summary: Golden (compare) CI job 连续 4–5 次 main/PR merge 均失败；flutter_app/test/golden/failures/ 下 112 个 PNG 突破 gitignore 语义被 git 跟踪
+Evidence: Actions runs API 33403769658 / 33398279483 / 33391709227 Golden job failure；git ls-files flutter_app/test/golden/failures/*.png | wc -l → 112
+Impact: CI 视觉回归守门失效，golden baseline 无法发挥检测作用
+Recommendation: Watch
+Related Issue: N/A
 
-Problem: Golden (compare) CI 持续红，最近 4–5 次 main/PR merge 全部失败；`flutter_app/test/golden/failures/` 有 112 个 git-tracked PNG（突破 gitignore 语义）。
-Evidence: Actions runs API `33403769658`/`33398279483`/`33391709227` Golden job failure；`git ls-files flutter_app/test/golden/failures/*.png | wc -l` → 112
-Impact: CI 守门失效，视觉回归无法检测
-Recommendation: ① 判定 stale baseline vs 真实回归；② 恢复 failures/ 忽略语义（或重建基线）
-Issue: N/A（CI 配置问题，不建 Issue）
-
-### F-2026-09-01-05
+### F-2026-09-01-05 — ADR-0032 缺失
 
 Category: architecture
 Severity: P2
 Confidence: High
-Status: open
+Status: UNCHANGED
+Summary: 代码中多处引用 ADR-0032（P0-D 导出组装有限性决策），但 docs/decisions/ADR/ 最新为 0031，该文件不存在
+Evidence: flutter_app/lib/domain/services/exporters/pdf_exporter.dart:44/52/56/381/428/658 多次引用 ADR-0032；ls docs/decisions/ADR/ | sort | tail -5 → 最新 0031
+Impact: 设计决策无档可查，未来维护者不知高密度公式降级的设计意图与边界条件
+Recommendation: Create Issue
+Related Issue: N/A
 
-Problem: 被引用的 ADR-0032 不存在——#216 正文引用 `docs/decisions/ADR/0032-export-assembly-finite-guarantee.md`，PR #213/#214 提交信息均称"P0-D（ADR-0032）"，但仓库中无该文件。
-Evidence: `ls docs/decisions/ADR/ | tail -5` → 最新 0031；`grep -r "ADR-0032" docs/` → 仅命中 agent-audit 文档
-Impact: 设计决策无档可查，未来维护者不知"高密度公式降级"的设计意图与边界
-Recommendation: 补写 ADR-0032（P0-D 导出组装有限性决策）+ 修正 ADR 编号（0025 出现两次、缺 0026/0027）
-Issue: N/A（文档缺失，不建 Issue）
+### F-2026-09-01-06 — E2 实验注入代码残留（相邻公式去重边界 >= 改为 >）
 
-### F-2026-09-01-06
-
-Category: architecture
+Category: tech-debt
 Severity: P3
 Confidence: High
-Status: new
+Status: UNCHANGED
+Summary: formula_extractor.dart:77-78 留有 E2-STABILITY 实验注入注释及行为变更（>= 改为 >），目的是测试相邻公式去重边界；当前 HEAD 仍带此改动
+Evidence: flutter_app/lib/core/parser/formula_extractor.dart:77-78（注释 E2-STABILITY 实验注入 + if (m.start > lastEnd)）；commit 120338d 为确定性缺陷注入实验
+Impact: 若此分支实验已结束且不应保留，则此改动会引入相邻公式（start == lastEnd）被错误丢弃的回归；但公式提取现有 29 项测试全部通过（无相邻公式覆盖用例）
+Recommendation: Watch
+Related Issue: N/A
 
-Problem: Issue #215（导出 SnackBar 残留）的修复已合入 main（PR #214 `92e6949`），但 issue 仍 OPEN。
-Evidence: PR #214 merge commit `92e6949`；`editor_export_actions.dart:117` 已改 unawaited；`export_progress_overlay.dart:55-76` 已有 dispose 清理
+### F-2026-09-01-07 — Issue #215 修复已合入但 Issue 未关闭
+
+Category: tech-debt
+Severity: P3
+Confidence: High
+Status: RESOLVED
+Summary: Issue #215（导出完成后 SnackBar 残留）的修复已随 PR #214 92e6949 合入 main；issue 状态应为 CLOSED 但未更新
+Evidence: PR #214 merge commit 92e6949；flutter_app/lib/presentation/screens/editor_export_actions.dart:117 已改 unawaited；flutter_app/lib/presentation/widgets/export_progress_overlay.dart:55-76 已有 dispose 清理
 Impact: Issue 堆积，误导维护者认为问题未解决
-Recommendation: CLOSE（修复已合入，待真机复测确认后可关闭）
-Issue: Issue #215（应关闭）
-
-## Issue Investigations
+Recommendation: Close（修复已合入，无需代码改动）
+Related Issue: #215（应关闭）
+## Existing Issue Updates
 
 ### Issue #216
 
-Status: investigated
+Status: UNCHANGED
 Root Cause: Likely
-Evidence: 两独立缺陷叠加：(1) F1（主嫌疑）PDF 走 SVG 路径时 MathJax `<use>` 字形被画成占位符文本 → 公式不可见；(2) F2（次嫌疑）Word 走 PNG 路径，若 `Opacity(0)` 导致 toImage() 产出全透明 PNG → 公式空白
-Recommendation: ① 真机 PoC 验证 F2（检查导出 PNG alpha）；② 复现最简文档导出，logcat 采集 SvgPlan/PNG fallback/FormulaQuality 确认 PDF 走的路径；③ 修复后为 F1/F2 各补一条回归测试
-Investigation: 无深度调查文档（问题已足够明确，直接修复即可）
+New Evidence: HEAD b72df08 未引入与 #216 相关的新代码变更（最近 5 commit 均为 agent 基础设施改动）；F1（SVG <use> 解析缺失）与 F2（Opacity(0) 透明 PNG 风险）根因假设仍未改变；公式提取器实验注入（F6）与 #216 无关
+Next Step: ① 真机 PoC 验证 F2（检查导出 PNG alpha 通道）；② 复现最简文档导出，logcat 采集 SvgPlan/PNG fallback/FormulaQuality 确认 PDF 走的路径；③ 修复后为 F1/F2 各补一条回归测试
 
 ### Issue #215
 
-Status: resolved
+Status: RESOLVED
 Root Cause: Confirmed
-Evidence: PR #214 已修复（`editor_export_actions.dart:117` unawaited + `export_progress_overlay.dart:55-76` dispose 清理）
-Recommendation: 确认新包真机复测后关闭
-Investigation: N/A
+New Evidence: PR #214（92e6949）已合入 main，修复代码确认；editor_export_actions.dart:117 + export_progress_overlay.dart:55-76 两处修复均在位
+Next Step: 关闭 Issue（等待 Owner 确认新包真机复测后手动 close，或 bot 自动 close）
 
-## Ecosystem Watch
+## Ecosystem Findings
 
 ### E-2026-09-01-01
 
-Topic: Flutter RepaintBoundary.toImage() + Opacity 行为
-Current Solution: formula_pdf_renderer.dart:214 用 Opacity(opacity: 0.0) 包裹 capture 体
+Topic: Flutter RepaintBoundary.toImage() + Opacity(0.0) 行为
+Current Solution: formula_pdf_renderer.dart:214 用 Opacity(opacity: 0.0) 包裹 capture 体（代码注释说明：保留 paint pipeline）
 Alternative: 用 Visibility.hidden 或负坐标 + 固定尺寸容器
-Comparison: Opacity(0) 保留 paint pipeline（代码注释理由），但可能引入 alpha=0 合成；Visibility.hidden 完全跳过 layout/paint，toImage() 可能拿不到 layer
+Comparison: Opacity(0) 保留 paint pipeline（注释理由），但可能引入 alpha=0 合成；Visibility.hidden 完全跳过 layout/paint，toImage() 可能拿不到 layer
 Recommendation: INVESTIGATE
+Decision: no
 
 ### E-2026-09-01-02
 
@@ -127,22 +131,10 @@ Current Solution: 自研 svg_parser.dart + svg_to_pdf.dart（~760 行），丢�
 Alternative: 解析期展开 <use href="#id"> → 内联 <defs> 对应 <path>
 Comparison: 当前简单但 MathJax 公式必然异常；展开 <use> 工程量中等但能根治 F1
 Recommendation: KEEP
+Decision: no
 
-## Architecture
+## Pending Decisions
 
-1. 公式渲染三路并行（最高优先技术债）：同一 LaTeX 在编辑器（flutter_math_fork）、PDF（MathJax SVG）、Word（offscreen flutter_math_fork PNG）三处渲染，输出不一致且维护面×3。
-2. ADR-0032 缺失（F5）：导出质量降级决策未留档。
-3. golden failures/ 混入版本库（F4）：生成产物突破 gitignore 语义。
-
-## Test Gaps
-
-按价值排序：
-1. 导出公式"可见性"断言：PNG alpha 非全透明 + 真实 MathJax `<use>` SVG 渲染断言（防 F1/F2 回归，也防 #216 复发）。最值得补。
-2. 真实 MathJax 输出 fixture：用 tex-svg.js 实际产出的 SVG（<defs>+<use>）替换当前伪造内联 path 的用例。
-3. CI golden 基线校准：判定 stale baseline vs 真实回归，并恢复 failures/ 忽略语义。
-
-## Recommended Actions
-
-1. Investigate #216 根因并修复公式导出空白 —— 真机 PoC 验证 F2（Opacity(0) 透明 PNG）为第一排查项，同时修复 F1（SVG `<use>` 引用解析）；修复后补"公式可见性"回归测试。这是用户直接踩中的 P1。
-2. 关闭 Issue #215（修复已合入 PR #214，待真机复测确认）+ 补写 ADR-0032（P0-D 导出组装有限性决策）。
-3. 恢复 main CI 绿色 —— 处理 Golden (compare) 持续失败（重建基线 or 修回归），并清理 112 个被强制入库的 golden failure PNG。
+- [ ] Issue #216 是否进入下周修复（关联：F-2026-09-01-01 / F-2026-09-01-02；建议：进入，P1 影响真实用户导出）
+- [ ] ADR-0032 是否补写 + 修正编号序列缺口 0026/0027（关联：F-2026-09-01-05；建议：补写，设计意图不应无档可查）
+- [ ] E2 实验注入代码（formula_extractor.dart:77-78 >= 改为 >）是否清理（关联：F-2026-09-01-06；建议：实验结束即 revert，避免长期留痕引入隐式回归风险）

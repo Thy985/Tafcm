@@ -1,0 +1,96 @@
+{
+  "date": "2026-09-01",
+  "findings": [
+    {
+      "id": "F-2026-09-01-01",
+      "fingerprint": "f75bceb75c53feba",
+      "category": "bug",
+      "evidence_files": [
+        "svg_to_pdf.dart",
+        "mermaid_renderer.html",
+        "svg_parser.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-02",
+      "fingerprint": "f11dda107944f8e3",
+      "category": "bug",
+      "evidence_files": [
+        "formula_pdf_renderer.dart",
+        "word_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-03",
+      "fingerprint": "ba2d023f01c1cb99",
+      "category": "test-gap",
+      "evidence_files": [
+        "word_export_semantic_fidelity_test.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-04",
+      "fingerprint": "f027bf84177c8c4a",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-05",
+      "fingerprint": "b7d1e0474dd11bfb",
+      "category": "architecture",
+      "evidence_files": [
+        "pdf_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-06",
+      "fingerprint": "6da41f553e19b36d",
+      "category": "tech-debt",
+      "evidence_files": [
+        "formula_extractor.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-07",
+      "fingerprint": "bbf9a480d573c2a9",
+      "category": "tech-debt",
+      "evidence_files": [
+        "editor_export_actions.dart",
+        "export_progress_overlay.dart"
+      ],
+      "status": "RESOLVED",
+      "issue": "#215（应关闭）",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "hits": 0,
+    "new": 7
+  }
+}
