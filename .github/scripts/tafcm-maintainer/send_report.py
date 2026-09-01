@@ -121,6 +121,21 @@ def render_digest(report: dict, window_days: int = 7) -> tuple[str, str]:
             lines.append(f"- {'✅' if f_.get('status') == 'RESOLVED' else '⛔'} {f_.get('summary', '')}")
         lines.append("")
 
+    # Existing Issue Updates：旧问题获得新证据 / 状态变化（双邮件"状态变化摘要"完整性）
+    issue_updates = [u for u in report.get("issue_updates", [])
+                     if u.get("status") != "UNCHANGED"]
+    if issue_updates:
+        lines.append("既有 Issue 更新")
+        for u in issue_updates:
+            st = u.get("status", "")
+            emoji = "✅" if st == "RESOLVED" else ("⛔" if st == "REJECTED"
+                    else ("🕐" if st == "WAITING_FOR_HUMAN" else "🔄"))
+            lines.append(f"- {emoji} Issue #{u.get('issue')} [{STATUS_LABEL.get(st, st)}]"
+                         f" · 根因：{u.get('root_cause', '')}")
+            if u.get("next_step"):
+                lines.append(f"  下一步：{u.get('next_step')}")
+        lines.append("")
+
     if report.get("ecosystem"):
         lines.append("生态变化")
         for e in report.get("ecosystem", []):
@@ -135,7 +150,8 @@ def render_digest(report: dict, window_days: int = 7) -> tuple[str, str]:
             lines.append(f"{i}. {p}")
         lines.append("")
 
-    if not findings and not report.get("ecosystem") and not report.get("pending_decisions"):
+    if (not findings and not issue_updates and not report.get("ecosystem")
+            and not report.get("pending_decisions")):
         lines.append("过去一周无重要事项")
     lines.append("")
     lines.append("其他")

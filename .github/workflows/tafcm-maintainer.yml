@@ -174,7 +174,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .tmp/tafcm-maintainer
-          TODAY="$(date -u +%Y-%m-%d)"
+          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
           echo "TODAY=$TODAY" >> "$GITHUB_OUTPUT"
 
           # PROMPT.md 为行为协议；追加当日运行上下文
@@ -197,18 +197,18 @@ jobs:
       # ---------- 3. 校验（Audit 生成失败不得伪装成成功）----------
       - name: Verify Audit produced
         run: |
-          test -f "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+          test -f "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             || { echo "FAIL: audit 未生成"; exit 1; }
 
       - name: Validate Audit format
         run: |
           python3 .github/scripts/tafcm-maintainer/validate_audit.py \
-            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md"
+            "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md"
 
       - name: Update Audit INDEX
         run: |
           python3 .github/scripts/tafcm-maintainer/update_index.py \
-            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+            "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             "docs/agent-audit/INDEX.md"
 
       # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
@@ -235,7 +235,7 @@ jobs:
         id: commit
         run: |
           set -euo pipefail
-          TODAY="$(date -u +%Y-%m-%d)"
+          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/agent-audit/ docs/agent-investigations/
@@ -257,7 +257,7 @@ jobs:
         id: report
         run: |
           python3 .github/scripts/tafcm-maintainer/generate_report.py \
-            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+            "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             --out .tmp/tafcm-maintainer/report.json
 
       - name: Send email report
@@ -289,7 +289,7 @@ jobs:
       - name: Report status
         if: always()
         run: |
-          TODAY="$(date -u +%Y-%m-%d)"
+          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
           if [ "${{ steps.email.outcome }}" = "failure" ]; then
             echo "============================================"
             echo "Audit completed but email delivery failed."
