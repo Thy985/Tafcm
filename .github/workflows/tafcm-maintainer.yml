@@ -179,6 +179,7 @@ jobs:
 
           # PROMPT.md 为行为协议；追加当日运行上下文
           PROMPT="$(cat .agent/tafcm-maintainer/PROMPT.md)"
+          RECENT_DIFF="$(git log -5 --format='%h %s' && echo '---' && git diff HEAD~1..HEAD --stat 2>/dev/null | tail -15 || true)"
           RUN_CTX="
 
           ---
@@ -189,6 +190,8 @@ jobs:
           - 目标分支：${TARGET_BRANCH}
           - 请生成 Audit 文件：docs/agent-audit/${TODAY}-maintainer-audit.md
           - 本次运行前请先阅读 docs/agent-audit/INDEX.md 与近期 Audit（去重）
+          - **最近 5 个 commit 与最近变更（必须审查，不得跳过）**：
+            ${RECENT_DIFF}
           "
           # Cline CLI 3.x headless：仅 --auto-approve true + prompt（官方文档与
           # cline-pr-review.yml 验证用法；--output-format 等选项不存在）
@@ -291,6 +294,14 @@ jobs:
           python3 .github/scripts/tafcm-maintainer/update_index.py \
             "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             "docs/agent-audit/INDEX.md"
+
+      # E4 Finding Identity：计算 stable_fingerprint 并维护 FINDINGS.md 注册表
+      # （机器身份锚点，Agent 下次运行读注册表做跨运行去重，替代纯 LLM 判断）
+      - name: Update Finding Registry (fingerprint)
+        run: |
+          python3 .github/scripts/tafcm-maintainer/fingerprint.py \
+            "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
+            "docs/agent-audit/FINDINGS.md"
 
       # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
       # 精确前缀匹配：先剥离 porcelain 状态码（"XY path"，重命名取 new），
