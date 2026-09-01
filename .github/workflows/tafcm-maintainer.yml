@@ -1,0 +1,290 @@
+# ============================================================================
+# tafcm-maintainer.yml — Tafcm Maintainer Agent 每日维护审查
+#
+# 设计（.agent/tafcm-maintainer/POLICY.md §3 运行流程）：
+#   schedule(每天) + workflow_dispatch → Cline Headless 审查 → validate → INDEX 更新
+#   → Action commit+push（Cline 无 push 权限）→ report + email
+#
+# 权限（最小化，POLICY.md §2）：
+#   workflow 级: contents:write(提交 audit) + issues:write(建 Issue)
+#                + pull-requests:read + actions:read
+#   无 administration:write / secrets:write / 其他非必要写权限
+#
+# 失败语义（POLICY.md §6）：
+#   - Cline 失败 / Audit 未生成 / 格式校验失败 / 越权改动 → workflow FAILED
+#   - Audit 成功 + 邮件失败 → workflow 仍 SUCCESS，但明确报告
+#     "Audit completed but email delivery failed."（不伪装全成功）
+#
+# 复用：AGNES OpenAI 兼容端点 + AGNES_API_KEY（与 cline-pr-review.yml 一致）
+#       Flutter 3.44.6 / ubuntu-24.04（与 ci.yml 一致）
+# ============================================================================
+name: tafcm-maintainer
+
+on:
+  schedule:
+    # 每日 01:23 UTC（09:23 北京时间）——非整点，避开整点流量高峰
+    - cron: '23 1 * * *'
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Audit 提交推送的目标分支（默认 main）'
+        type: string
+        required: false
+        default: 'main'
+      run_tests:
+        description: '是否运行 flutter analyze / flutter test（默认 true）'
+        type: boolean
+        required: false
+        default: true
+
+# 避免 schedule 与手动触发并发互相覆盖；已在跑的 run 不取消（防止 Audit 中途丢失）
+concurrency:
+  group: tafcm-maintainer-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # 提交 docs/agent-audit/ 产物
+  issues: write          # 创建 Agent Issue
+  pull-requests: read    # 读 PR 上下文
+  actions: read          # 读 CI 状态
+  # 明确不给：administration / secrets / packages / deployments / id-token / security-events
+
+env:
+  FLUTTER_VERSION: '3.44.6'
+  CLINE_VERSION: '3.0.60'                     # 锁定 Cline 版本，防每日漂移
+  AGNES_BASE_URL: 'https://apihub.agnes-ai.com/v1'
+  AGNES_MODEL: 'agnes-2.5-flash'
+  AUDIT_DIR: 'docs/agent-audit'
+  INVESTIGATIONS_DIR: 'docs/agent-investigations'
+  TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
+
+jobs:
+  maintainer-audit:
+    name: Maintainer Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
+    steps:
+      # ---------- 0. 上下文 ----------
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml', 'flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # ---------- 1. Cline Runtime ----------
+      - name: Install Cline CLI (pinned)
+        run: npm install -g cline@${{ env.CLINE_VERSION }}
+
+      # AGNES 网关：OpenAI-compatible（/v1/chat/completions），与 cline-pr-review.yml 同款
+      - name: Configure Cline Authentication (AGNES)
+        run: |
+          cline auth -p openai \
+            -k "${{ secrets.AGNES_API_KEY }}" \
+            -m "${{ env.AGNES_MODEL }}" \
+            -b "${{ env.AGNES_BASE_URL }}"
+
+      # ---------- 1.5 确保 Issue 标签存在（source:agent / type:* / priority:*）----------
+      - name: Ensure issue labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 .github/scripts/tafcm-maintainer/ensure_labels.py
+
+      # ---------- 2. 运行 Maintainer Agent（Headless，只读 + 写 Audit + 建 Issue）----------
+      - name: Run Maintainer Agent (Cline Headless)
+        id: cline
+        timeout-minutes: 90
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATE_UTC: ${{ github.event.schedule && format('{0}', github.event.schedule) || github.event.inputs.target_branch != '' && format('{0}T00:00:00Z', '') }}
+          # 命令权限（POLICY.md §2.3）——只允许维护与验证所需命令
+          CLINE_COMMAND_PERMISSIONS: |
+            {
+              "allow": [
+                "git status",
+                "git log *",
+                "git diff *",
+                "git show *",
+                "git grep *",
+                "flutter analyze *",
+                "flutter test *",
+                "flutter pub deps *",
+                "python *",
+                "python3 *",
+                "pytest *",
+                "gh issue list *",
+                "gh issue view *",
+                "gh issue create *",
+                "gh issue comment *",
+                "gh pr list *",
+                "gh pr view *",
+                "gh run list *",
+                "gh run view *"
+              ],
+              "deny": [
+                "git push *",
+                "git reset *",
+                "git clean *",
+                "git checkout *",
+                "rm -rf *",
+                "rm *",
+                "sudo *",
+                "gh repo edit *",
+                "gh secret *",
+                "gh workflow *",
+                "gh release *",
+                "gh pr create *",
+                "gh pr merge *",
+                "gh pr comment *",
+                "gh api *"
+              ]
+            }
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/tafcm-maintainer
+          TODAY="$(date -u +%Y-%m-%d)"
+          echo "TODAY=$TODAY" >> "$GITHUB_OUTPUT"
+
+          # PROMPT.md 为行为协议；追加当日运行上下文
+          PROMPT="$(cat .agent/tafcm-maintainer/PROMPT.md)"
+          RUN_CTX="
+
+          ---
+          ## 本次运行上下文（Run Context）
+          - 运行日期（UTC）：${TODAY}
+          - HEAD commit：$(git rev-parse HEAD)
+          - 仓库：Thy985/Tafcm
+          - 目标分支：${TARGET_BRANCH}
+          - 请生成 Audit 文件：docs/agent-audit/${TODAY}-maintainer-audit.md
+          - 本次运行前请先阅读 docs/agent-audit/INDEX.md 与近期 Audit（去重）
+          - 完成后将结果 JSON 写入 .tmp/tafcm-maintainer/cline-result.json
+          "
+          cline --auto-approve true \
+            --output-format json \
+            --output-json-file .tmp/tafcm-maintainer/cline-result.json \
+            "${PROMPT}${RUN_CTX}"
+
+      # ---------- 3. 校验（Audit 生成失败不得伪装成成功）----------
+      - name: Verify Audit produced
+        run: |
+          test -f "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+            || { echo "FAIL: audit 未生成"; exit 1; }
+
+      - name: Validate Audit format
+        run: |
+          python3 .github/scripts/tafcm-maintainer/validate_audit.py \
+            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md"
+
+      - name: Update Audit INDEX
+        run: |
+          python3 .github/scripts/tafcm-maintainer/update_index.py \
+            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+            "docs/agent-audit/INDEX.md"
+
+      # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
+      - name: Guard — 仅允许 audit / investigations 目录变更
+        run: |
+          CHANGED="$(git status --porcelain | grep -v -E '^\?\?|docs/agent-audit/|docs/agent-investigations/' || true)"
+          if [ -n "$CHANGED" ]; then
+            echo "❌ Maintainer Agent 修改了禁止的文件："
+            echo "$CHANGED"
+            exit 1
+          fi
+          echo "✅ 变更范围合法（仅 docs/agent-audit/ 与 docs/agent-investigations/）"
+
+      # ---------- 5. Action commit + push（Cline 无 git push 权限）----------
+      - name: Commit Audit
+        run: |
+          set -euo pipefail
+          TODAY="$(date -u +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/agent-audit/ docs/agent-investigations/
+          if git diff --cached --quiet; then
+            echo "无新变更（Audit 内容与上次一致），跳过提交"
+            echo "HAS_COMMIT=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore(agent): daily maintainer audit ${TODAY}"
+            echo "HAS_COMMIT=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push Audit
+        if: steps.commit.outputs.HAS_COMMIT == 'true'
+        run: |
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      # ---------- 6. 机器可读报告 + 邮件（独立脚本；失败不连坐 Audit）----------
+      - name: Generate report
+        id: report
+        run: |
+          python3 .github/scripts/tafcm-maintainer/generate_report.py \
+            "docs/agent-audit/$(date -u +%Y-%m-%d)-maintainer-audit.md" \
+            --out .tmp/tafcm-maintainer/report.json
+
+      - name: Send email report
+        id: email
+        if: always()
+        continue-on-error: true   # 邮件失败不导致 Audit 丢失；由 status 步骤明确报告
+        env:
+          MAIL_HOST: ${{ secrets.MAIL_HOST }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: |
+          python3 .github/scripts/tafcm-maintainer/send_report.py \
+            .tmp/tafcm-maintainer/report.json
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tafcm-maintainer-${{ github.run_id }}
+          path: |
+            .tmp/tafcm-maintainer/cline-result.json
+            .tmp/tafcm-maintainer/report.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # ---------- 7. 状态汇总（明确区分 Audit / Email 成败）----------
+      - name: Report status
+        if: always()
+        run: |
+          TODAY="$(date -u +%Y-%m-%d)"
+          if [ "${{ steps.email.outcome }}" = "failure" ]; then
+            echo "============================================"
+            echo "Audit completed but email delivery failed."
+            echo "Audit = SUCCESS | Email = FAILED"
+            echo "Audit 文件：docs/agent-audit/${TODAY}-maintainer-audit.md（已提交）"
+            echo "============================================"
+            exit 0   # Audit 成功，不因邮件失败使 workflow 变红
+          else
+            echo "============================================"
+            echo "Audit completed and email delivered."
+            echo "Audit = SUCCESS | Email = SUCCESS"
+            echo "============================================"
+          fi
