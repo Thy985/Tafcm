@@ -19,6 +19,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 DATE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-maintainer-audit\.md$")
@@ -39,7 +40,8 @@ def parse_audit(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
 
     findings = []
-    for m in re.finditer(r"(?ms)^### (F-\d{4}-\d{2}-\d{2}-\d{2})$(.*?)(?=^### |\Z)", text):
+    # 标题允许 ID 后带描述（如 "### F-2026-09-01-01（续 F1 昨日）— 标题"）
+    for m in re.finditer(r"(?ms)^### (F-\d{4}-\d{2}-\d{2}-\d{2})\b(.*?)(?=^### |\Z)", text):
         fid, block = m.group(1), m.group(2)
         def field(name: str) -> str:
             fm = re.search(rf"^{re.escape(name)}:\s*(.+)$", block, re.MULTILINE)
@@ -56,7 +58,7 @@ def parse_audit(path: Path) -> dict:
 
     inv = []
     inv_block = text.split("## Ecosystem Watch")[0].split("## Issue Investigations")[-1]
-    for m in re.finditer(r"(?ms)^### Issue #(\d+)$(.*?)(?=^### |\Z)", inv_block):
+    for m in re.finditer(r"(?ms)^### Issue #(\d+)\b(.*?)(?=^### |\Z)", inv_block):
         num, block = m.group(1), m.group(2)
         def f2(name: str) -> str:
             fm = re.search(rf"^{re.escape(name)}:\s*(.+)$", block, re.MULTILINE)

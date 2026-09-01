@@ -77,8 +77,9 @@ def main() -> int:
         # 无 Finding：允许，跳过枚举校验
         pass
     else:
-        # 按 "### F-YYYY-MM-DD-NN" 切块
-        blocks = re.split(r"(?m)^### F-\d{4}-\d{2}-\d{2}-\d{2}$", findings_block)
+        # 按 "### F-YYYY-MM-DD-NN" 切块（标题允许 ID 后带描述，如
+        # "### F-2026-09-01-01（续 F1 昨日）— 标题"）
+        blocks = re.split(r"(?m)^### F-\d{4}-\d{2}-\d{2}-\d{2}", findings_block)
         if len(blocks) < 2:
             errors.append("Findings 段既无 'No significant findings.' 也无 F-ID 块")
         for i, block in enumerate(blocks[1:], start=1):
