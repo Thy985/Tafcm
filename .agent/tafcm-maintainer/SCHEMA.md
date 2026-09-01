@@ -329,7 +329,7 @@ Subject: [Tafcm] Maintainer Alert — YYYY-MM-DD
 - 安全问题
 - CI 长时间失败（≥ N 天）
 
-### 8.2 每周 Digest（正常事项汇总，每周一封）
+### 8.2 每周 Digest（正常事项汇总，每周五 18:00 北京时间发送）
 
 ```
 Subject: [Tafcm] Maintainer Digest · YYYY-MM-DD → YYYY-MM-DD

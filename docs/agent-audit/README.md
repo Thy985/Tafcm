@@ -39,7 +39,7 @@
 - **INDEX.md**：Audit 历史索引表，由 `update_index.py` 自动追加（状态计数：New/Updated/Resolved/Issues/Ecosystem/Pending；Agent 去重记忆的持久层）。
 - **TEMPLATE.md**：格式模板示例（供 Agent 与人类核对格式）。
 - **机器校验**：`validate_audit.py` 强制校验每日 Audit（五块结构 + 枚举），失败 → workflow 失败，不伪装成功。
-- **双邮件**：`send_report.py` —— P0/P1 立即邮件（Maintainer Alert）当天发；正常事项每周一 Weekly Digest（状态变化摘要，非每日复述）。
+- **双邮件**：`send_report.py` —— P0/P1 立即邮件（Maintainer Alert）当天发；正常事项每周五 18:00（北京时间）Weekly Digest（状态变化摘要，非每日复述）。
 - **行为协议 / 权限 / 格式**：见 `.agent/tafcm-maintainer/`（PROMPT / POLICY / SCHEMA）。
 - **深度调查**：复杂 Issue 完整分析见 `../agent-investigations/`（GitHub Issue 只放结论）。
 

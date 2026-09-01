@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """send_report.py — 发送 Tafcm Maintainer 状态变化摘要邮件（双邮件策略）
 
-输入：report.json（generate_report.py 产物）
+输入：report.json（generate_report.py 产物）或 --audit-dir（digest 聚合模式）
 环境变量（Secrets，workflow 注入，绝不写入仓库）：
   MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD / MAIL_TO
 
 邮件模式（SCHEMA.md §8，双邮件策略 POLICY.md §5.1）：
   --mode alert  立即邮件（P0/P1 / Release Blocker / 安全 / 需要决策）
   --mode digest 每周 Digest（状态变化摘要：新增/升级/解决/生态/需要你决策）
-  --mode auto   自动：有 P0/P1 或待决策 → alert；周一 → digest；否则跳过
+  --mode auto   自动：有 P0/P1 或待决策 → alert；否则跳过
+                （digest 由 workflow 周五 10:00 UTC 独立 job 以 --mode digest 显式触发）
+
+digest 聚合模式：
+  --audit-dir <dir>  从最近 --days 天（默认 7）audit 文件合成 digest（不依赖当日 report.json）
+  --days <N>         聚合窗口天数（默认 7）
 
 原则：邮件做**状态变化摘要**（"自上次汇报以来发生了什么值得你知道的变化"），
 **不是**每日 Audit 复述。让维护者 7 天不看邮箱也不错过上下文。
@@ -18,7 +23,7 @@
   - MAIL_* secrets 未配置 → EMAIL_SKIPPED（exit 0）
   - 发送失败 → EMAIL_DELIVERY=FAILED（exit 1）
     （workflow 该步骤 continue-on-error，Audit 仍是 SUCCESS，由 status 步骤区分报告）
-依赖：仅 Python 标准库（smtplib / email）。
+依赖：仅 Python 标准库（smtplib / email）+ 同目录 generate_report 解析函数。
 """
 from __future__ import annotations
 
@@ -32,6 +37,8 @@ from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from pathlib import Path
+
+import generate_report as gr  # 复用 parse_audit / git_head / pubspec_version
 
 SEV_EMOJI = {"P0": "🔴", "P1": "🟠", "P2": "🟡", "P3": "🟢"}
 ECOSYSTEM_EMOJI = {"KEEP": "✅", "INVESTIGATE": "🔍", "REPLACE": "⚠️", "DEPRECATE": "🚫"}
@@ -158,18 +165,52 @@ def send(host: str, port: int, username: str, password: str, to_addr: str,
             smtp.sendmail(username, [to_addr], msg.as_string())
 
 
+def load_from_audits(audit_dir: str, days: int = 7) -> dict:
+    """从最近 N 天 audit 文件聚合 report 数据（digest 模式，不依赖当日 report.json）。
+
+    按日期倒序取最近 `days` 个 `YYYY-MM-DD-maintainer-audit.md` 文件，
+    用 generate_report.parse_audit 解析后合并 findings / issue_updates /
+    ecosystem / pending_decisions；仓库信息取最新文件。
+    """
+    files = sorted(Path(audit_dir).glob("*-maintainer-audit.md"), reverse=True)[:days]
+    if not files:
+        print(f"FAIL: {audit_dir} 下无 audit 文件", file=sys.stderr)
+        raise SystemExit(1)
+    merged: dict = {"findings": [], "issue_updates": [], "ecosystem": [],
+                    "pending_decisions": []}
+    for f in files:
+        data = gr.parse_audit(f)
+        for key in ("findings", "issue_updates", "ecosystem", "pending_decisions"):
+            merged[key].extend(data.get(key, []))
+    latest = files[0]
+    merged["date"] = latest.stem[:10]
+    merged["commit"] = gr.git_head()
+    merged["version"] = gr.pubspec_version()
+    merged["ci"] = merged["tests"] = merged["build"] = "unknown"
+    return merged
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("report", help="report.json 路径")
+    ap.add_argument("report", nargs="?", help="report.json 路径（digest 聚合模式可省略）")
     ap.add_argument("--mode", choices=["auto", "alert", "digest"], default="auto",
-                    help="auto: 有 P0/P1 或待决策→alert，周一→digest，否则跳过")
+                    help="auto: 有 P0/P1 或待决策→alert，否则跳过；digest 由周五 job 显式触发")
+    ap.add_argument("--audit-dir", help="digest 聚合模式：从该目录最近 N 天 audit 合成")
+    ap.add_argument("--days", type=int, default=7, help="digest 聚合窗口天数（默认 7）")
     args = ap.parse_args()
 
-    path = Path(args.report)
-    if not path.is_file():
-        print(f"FAIL: report.json 不存在: {path}", file=sys.stderr)
-        return 1
-    report = json.loads(path.read_text(encoding="utf-8"))
+    # 输入来源：--audit-dir（digest 聚合）优先；否则 report.json
+    if args.audit_dir:
+        report = load_from_audits(args.audit_dir, args.days)
+    else:
+        if not args.report:
+            print("FAIL: 缺少 report.json 或 --audit-dir", file=sys.stderr)
+            return 2
+        path = Path(args.report)
+        if not path.is_file():
+            print(f"FAIL: report.json 不存在: {path}", file=sys.stderr)
+            return 1
+        report = json.loads(path.read_text(encoding="utf-8"))
 
     host = os.environ.get("MAIL_HOST", "").strip()
     port_raw = os.environ.get("MAIL_PORT", "").strip()
@@ -191,23 +232,19 @@ def main() -> int:
         print(f"EMAIL_DELIVERY=FAILED: MAIL_PORT 越界: {port}", file=sys.stderr)
         return 1
 
-    # 模式决策
+    # 模式决策：auto 只发 alert；digest 由 workflow 周五 job 显式 --mode digest 触发
     mode = args.mode
     if mode == "auto":
         if has_alert(report):
             mode = "alert"
         else:
-            today = dt.date.today()
-            if today.weekday() == 0:  # 周一
-                mode = "digest"
-            else:
-                print("EMAIL_SKIPPED: 无 P0/P1 或待决策事项，且非周一（不发每日复述邮件）")
-                return 0
+            print("EMAIL_SKIPPED: 无 P0/P1 或待决策事项（不发每日复述邮件；digest 见周五周报）")
+            return 0
 
     if mode == "alert":
         subject, body = render_alert(report)
     else:
-        subject, body = render_digest(report)
+        subject, body = render_digest(report, window_days=args.days)
 
     try:
         send(host, port, username, password, to_addr, subject, body)

@@ -131,7 +131,7 @@ GitHub Actions（schedule: 每天 + workflow_dispatch）
    ▼
 8. 生成机器可读报告（report.json）+ 双邮件（send_report.py）
    │    ├── 立即邮件（P0/P1 / Release Blocker / 安全 / CI 长时间失败）——当天发
-   │    ├── Weekly Digest（正常事项汇总）——每周一发
+   │    ├── Weekly Digest（正常事项汇总）——每周五 18:00（北京时间）发
    │    └── 邮件失败 → Audit 仍为 SUCCESS，Email 标记 FAILED（不伪装全成功）
    │
    ▼
@@ -174,7 +174,7 @@ GitHub Actions（schedule: 每天 + workflow_dispatch）
 | 邮件 | 触发 | 内容 |
 |------|------|------|
 | **立即邮件**（Maintainer Alert） | 当日存在 P0/P1 / Release Blocker / 安全问题 / CI 长时间失败 | 严重项清单：问题一句话 + 根因级别 + Issue 链接 |
-| **Weekly Digest** | 每周一（汇总过去 7 天） | 状态变化摘要：新增 / 升级 / 解决 / 生态变化 / **需要你决策** |
+| **Weekly Digest** | 每周五 18:00（北京时间，cron `0 10 * * 5` UTC，汇总过去 7 天） | 状态变化摘要：新增 / 升级 / 解决 / 生态变化 / **需要你决策** |
 
 **原则**：邮件做**状态变化摘要**（"自上次汇报以来发生了什么值得你知道的变化"），**不是**每日 Audit 复述。让维护者 7 天不看邮箱也不错过上下文。**Audit 记全、Issue 管住、Email 提醒决策**——三者不重复写"今天发现了 XXX"。
 
@@ -236,7 +236,7 @@ GitHub Actions（schedule: 每天 + workflow_dispatch）
 - [ ] 相同 Finding 第二次运行不重复创建（去重生效，旧 Finding 标 UPDATED/UNCHANGED 而非 NEW）
 - [ ] 旧问题新证据能追加到既有 Issue（持续调查协议生效，不新建同主题 Issue）
 - [ ] 生态发现只进 Audit（E-ID），仅值得 PoC 才建 `[Research]` Issue
-- [ ] 邮件：P0/P1 立即邮件 + 周一 Weekly Digest 成功发送（状态变化摘要，非每日复述）
+- [ ] 邮件：P0/P1 立即邮件 + 周五 18:00 Weekly Digest 成功发送（状态变化摘要，非每日复述）
 - [ ] 人为制造 Agent / email failure：workflow 状态正确、Audit 不丢失、email 失败与 audit 成功可区分
 - [ ] 权限验证：Agent 不能改源码 / merge / release / 改 workflow / 改 secrets
 
