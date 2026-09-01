@@ -127,19 +127,27 @@ def main() -> int:
     msg["Date"] = formatdate(localtime=True)
 
     try:
-        with smtplib.SMTP(host, port, timeout=30) as smtp:
-            smtp.ehlo()
-            if port == 587:
-                smtp.starttls()
+        # 端口语义：465=SMTPS(SSL 直连)，587=STARTTLS 升级，其余按明文（常见 25）
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
+                smtp.login(username, password)
+                smtp.sendmail(username, [to_addr], msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=30) as smtp:
                 smtp.ehlo()
-            smtp.login(username, password)
-            smtp.sendmail(username, [to_addr], msg.as_string())
+                if port == 587:
+                    smtp.starttls()
+                    smtp.ehlo()
+                smtp.login(username, password)
+                smtp.sendmail(username, [to_addr], msg.as_string())
         print("EMAIL_DELIVERY=OK")
         print(f"✅ 邮件已发送: {subject} → {to_addr}")
         return 0
     except Exception as e:  # noqa: BLE001 —— 邮件失败明确上报，不吞异常
         print("EMAIL_DELIVERY=FAILED", file=sys.stderr)
         print(f"❌ 邮件发送失败: {type(e).__name__}: {e}", file=sys.stderr)
+        print("提示：若 SMTP 服务器要求 SSL 直连请用 MAIL_PORT=465；", file=sys.stderr)
+        print("      若要求 STARTTLS 请用 MAIL_PORT=587。", file=sys.stderr)
         return 1
 
 

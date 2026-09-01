@@ -223,6 +223,7 @@ jobs:
 
       # ---------- 5. Action commit + push（Cline 无 git push 权限）----------
       - name: Commit Audit
+        id: commit
         run: |
           set -euo pipefail
           TODAY="$(date -u +%Y-%m-%d)"
