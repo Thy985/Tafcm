@@ -1,0 +1,96 @@
+{
+  "date": "2026-09-01",
+  "findings": [
+    {
+      "id": "F-2026-09-01-01",
+      "fingerprint": "5172cb3b3d73cc07",
+      "category": "bug",
+      "evidence_files": [
+        "formula_extractor.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A（实验注入，不建 Issue）",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-01"
+    },
+    {
+      "id": "F-2026-09-01-02",
+      "fingerprint": "2f97f4f95055bb1b",
+      "category": "bug",
+      "evidence_files": [
+        "svg_to_pdf.dart",
+        "mermaid_renderer.html",
+        "svg_parser.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-02"
+    },
+    {
+      "id": "F-2026-09-01-03",
+      "fingerprint": "f2b6c6b7008959b4",
+      "category": "architecture",
+      "evidence_files": [
+        "formula_pdf_renderer.dart",
+        "word_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-03"
+    },
+    {
+      "id": "F-2026-09-01-04",
+      "fingerprint": "77d8078f85365146",
+      "category": "test-gap",
+      "evidence_files": [
+        "word_export_semantic_fidelity_test.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A（测试缺口，随 #216 修复一并补）",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-04"
+    },
+    {
+      "id": "F-2026-09-01-05",
+      "fingerprint": "9a386aafbaf01534",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "N/A（CI 配置问题，不建 Issue）",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-05"
+    },
+    {
+      "id": "F-2026-09-01-06",
+      "fingerprint": "5332015cd260a182",
+      "category": "architecture",
+      "evidence_files": [
+        "pdf_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A（文档缺失，建议随 #216 修复一并处理）",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-06"
+    },
+    {
+      "id": "F-2026-09-01-07",
+      "fingerprint": "823f770dff1cc059",
+      "category": "tech-debt",
+      "evidence_files": [
+        "editor_export_actions.dart",
+        "export_progress_overlay.dart"
+      ],
+      "status": "RESOLVED",
+      "issue": "#215（已关闭）",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-01-07"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "hits": 7,
+    "new": 0
+  }
+}
