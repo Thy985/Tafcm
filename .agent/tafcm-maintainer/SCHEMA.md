@@ -270,6 +270,40 @@ Root Cause: Confirmed|Likely|Hypothesis|Unknown
 
 ---
 
+## 6.1 Finding 身份注册表（docs/agent-audit/FINDINGS.md，机器维护）
+
+> **定位**：Finding 的**稳定机器身份**（E4 Finding Identity 修复）。解决"同一 Finding 跨运行被标回 NEW / ID 漂移"——identity 不再依赖 Agent 自然语言判断。
+> **维护**：`.github/scripts/tafcm-maintainer/fingerprint.py` 每次运行后自动更新（不手工维护）。
+> **Agent 用法**：判定"新问题 vs 旧问题"时**先查本表**——category + evidence 文件路径 + 归一化 summary 命中 = 旧 Finding 的延续（标 UNCHANGED/UPDATED，关联既有 Issue），**禁止重新标 NEW / 新建 Issue**。
+
+```markdown
+# Tafcm Agent Finding Registry（机器维护，Agent 读取去重）
+
+| fingerprint | latest_id | category | evidence | status | issue | first_seen | last_seen |
+|-------------|-----------|----------|----------|--------|-------|------------|-----------|
+| ab6e10314f... | F-2026-09-01-01 | tech-debt | history_manager.dart | NEW | N/A | 2026-09-01 | 2026-09-01 |
+```
+
+**stable_fingerprint 定义**：`SHA-256(category | evidence_file_paths | normalized_summary)` 前 16 位。
+- **category**：受控枚举（bug/regression/...），稳定
+- **evidence 文件路径**：从 Evidence 字段提取的**文件名**（.dart/.py/.yml 等，去行号、去目录）——文件比行号稳定（代码移动行号会变）、比完整路径稳定（目录重构会变）
+- **normalized_summary**：Summary 小写 + 去标点/空白 + 截断 48 字符——缓解 LLM 措辞漂移
+- **设计取舍**：不用自然语言标题（LLM 每次描述不同）、不用行号（代码移动后漂移）、不用完整路径（目录重构后漂移）。证据文件路径是强锚点，归一化 summary 是辅助。
+
+**列说明**：
+
+| 列 | 含义 |
+|----|------|
+| fingerprint | 稳定身份（SHA-256 前 16 位） |
+| latest_id | 该身份最近一次出现的 Finding ID |
+| category | 最近一次 Category |
+| evidence | 最近一次 Evidence 提取的文件名（逗号分隔） |
+| status | 最近一次 Status（NEW/UNCHANGED/UPDATED/...） |
+| issue | 最近一次 Related Issue 编号（N/A 未关联） |
+| first_seen / last_seen | 首次 / 最近出现日期（跨运行记忆的时间范围） |
+
+---
+
 ## 7. 机器可读报告（report.json，邮件输入）
 
 由 `generate_report.py` 从当日 Audit + git 状态生成，**不入库**（仅作邮件中间产物）：
