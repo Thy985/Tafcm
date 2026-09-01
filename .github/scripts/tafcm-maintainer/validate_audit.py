@@ -44,10 +44,21 @@ ECO_ID_RE = re.compile(r"^E-\d{4}-\d{2}-\d{2}-\d{2}$")
 ISSUE_ID_RE = re.compile(r"^Issue #\d+$")
 
 
+def _field_re(field: str) -> str:
+    """构造字段行正则：容忍 Markdown 常见变体前缀/包裹。
+
+    实测 Cline 输出会在字段行前加 `- ` 列表前缀或 `**` 加粗包裹
+    （2026-09-01 v2 首次运行失败根因）。保持枚举值校验强度不变，
+    仅放宽行首匹配：
+      `- Category: tech-debt` / `**Category:** tech-debt` / `Category: tech-debt` 均接受。
+    """
+    return rf"^\s*(?:[-*+]\s+)?\*{{0,2}}{re.escape(field)}\*{{0,2}}\s*:\s*(.+)$"
+
+
 def check_field(block: str, field: str, valid: set[str], errors: list[str],
                 label: str = "Finding") -> None:
     """检查 block 中的 `Field: value` 行，value 必须 ∈ valid。"""
-    m = re.search(rf"^{re.escape(field)}:\s*(.+)$", block, re.MULTILINE)
+    m = re.search(_field_re(field), block, re.MULTILINE)
     if not m:
         errors.append(f"{label} 缺 {field} 字段")
         return
@@ -59,7 +70,7 @@ def check_field(block: str, field: str, valid: set[str], errors: list[str],
 def check_required_fields(block: str, fields: list[str], errors: list[str],
                           label: str) -> None:
     for f in fields:
-        if not re.search(rf"^{re.escape(f)}:", block, re.MULTILINE):
+        if not re.search(_field_re(f), block, re.MULTILINE):
             errors.append(f"{label} 缺 {f} 字段")
 
 
@@ -154,11 +165,12 @@ def main() -> int:
                                           "Comparison"],
                                   errors, f"Ecosystem #{i}")
 
-    # 5. Pending Decisions 段（checkbox 列表或 None）
+    # 5. Pending Decisions 段（checkbox 或编号列表，或 None）
     pend_block = section_text(text, "## Pending Decisions", [])
     if pend_block and not re.search(r"(?m)^None\.?$", pend_block):
-        if not re.search(r"(?m)^- \[ \]", pend_block):
-            errors.append("Pending Decisions 段应为 '- [ ] <事项>' checkbox 列表或 'None.'")
+        if not (re.search(r"(?m)^- \[ \]", pend_block)
+                or re.search(r"(?m)^\s*(?:[-*+]\s+)?\d+\.\s+", pend_block)):
+            errors.append("Pending Decisions 段应为 '- [ ] <事项>' checkbox / '1. <事项>' 编号列表或 'None.'")
 
     if errors:
         print("=== Audit 校验失败 ===", file=sys.stderr)
