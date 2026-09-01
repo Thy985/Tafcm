@@ -128,6 +128,11 @@
 | [testing.md](guides/testing.md) | 测试指南（怎么跑 / 怎么写） |
 | [debugging.md](guides/debugging.md) | 调试指南（ADI 工作流 + 排查手册） |
 
+### 2.10 agent-audit / agent-investigations（Maintainer Agent 产物，2026-09-01 新增）
+
+见 [agent-audit/](agent-audit/)（每日维护审计，INDEX.md + YYYY-MM-DD.md，CI 自动生成）与 [agent-investigations/](agent-investigations/)（复杂 Issue 深度调查归档）。
+规范见 `.agent/tafcm-maintainer/`（PROMPT / POLICY / SCHEMA）。
+
 ## 3. RUN 报告（35 篇，按类型归档）
 
 ### 3.1 Phase 3.11 Capability Hardening Loop（16 篇）—— [runs/phase3.11/](archive/runs/phase3.11/)
