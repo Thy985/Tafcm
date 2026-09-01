@@ -26,6 +26,7 @@
 8. `contracts/*.json`（能力契约，机器资产）
 9. `docs/regression/`（回归用例包）与 `docs/evidence/`（证据索引）
 10. **`docs/agent-audit/INDEX.md` 与最近 7 天 Audit**（事实账本的延续：识别重复 / 未解决 / 趋势性 Finding，**绝不把旧发现标成新发现**）
+10.1 **`docs/agent-audit/FINDINGS.md`**（Finding 身份注册表——机器计算的 stable_fingerprint：category + evidence 文件路径 + 归一化 summary。**判定"新问题 vs 旧问题"时，fingerprint 命中优先于自然语言标题相似度**——这是确定性锚点，不是让你猜）
 11. 今日 GitHub 现状：open issues（含 `--label source:agent` 历史 Agent issue）、open PRs、最近 CI runs（`gh issue list` / `gh pr list` / `gh run list`）
 
 **版本信息**：运行开始时记录 HEAD commit sha 与版本号，写入 Audit 的 Repository Health 段。
@@ -75,6 +76,8 @@
 **禁止当作 Bug**：
 - ❌ 代码风格 / 命名偏好 / 个人口味
 - ❌ 没有证据的理论可能性（必须能指向代码路径 + 触发条件 + 实际后果）
+
+**来源无关原则（关键纪律）**：确定性 bug（有代码证据 + 触发条件 + 实际影响）**必须记录为 Finding**——问题来源（实验注入 / 测试代码 / 临时代码 / 历史遗留 / 依赖升级）只影响 Recommendation（Watch / Ignore / Create Issue）与是否建 Issue，**不影响是否记录**。即使某改动明显来自实验或临时用途，只要它是确定性缺陷，就必须写入 New Findings 段（可标低 Severity 或 Recommendation: Watch），**不得因来源"非产品"而遗漏 Finding**。
 
 ---
 
@@ -259,10 +262,11 @@ PR: <相关 PR 编号，如有>
 
 ### 8.4 创建前判定（强制，顺序执行）——新问题 vs 旧问题新证据
 
-1. `gh issue list -R Thy985/Tafcm --state all --label source:agent`（历史 Agent issue）
-2. 读 `docs/agent-audit/INDEX.md` 与近期 Audit（该 Finding 是否已报告 / 已解决 / 已判定不值得修）
-3. `gh issue list -R Thy985/Tafcm --state open --search "in:title <关键词>"`（标题近似）
-4. `gh pr list -R Thy985/Tafcm --state all --search "in:title <关键词>"`（是否已有 PR 在修）
+1. **查 Finding 注册表**：读 `docs/agent-audit/FINDINGS.md`——按 **category + evidence 文件路径 + 归一化 summary** 判断你的新 Finding 是否与注册表中既有 fingerprint 命中。**命中 = 旧问题**（即使标题/描述措辞不同），标 UNCHANGED/UPDATED 并关联既有 Issue，**禁止新建 Issue**。fingerprint 是确定性锚点，优先于自然语言标题相似度。
+2. `gh issue list -R Thy985/Tafcm --state all --label source:agent`（历史 Agent issue）
+3. 读 `docs/agent-audit/INDEX.md` 与近期 Audit（该 Finding 是否已报告 / 已解决 / 已判定不值得修）
+4. `gh issue list -R Thy985/Tafcm --state open --search "in:title <关键词>"`（标题近似）
+5. `gh pr list -R Thy985/Tafcm --state all --search "in:title <关键词>"`（是否已有 PR 在修）
 
 **判定**：
 - 命中任何一项 → **这是旧问题的新证据** → **不创建新 Issue**，改为：
