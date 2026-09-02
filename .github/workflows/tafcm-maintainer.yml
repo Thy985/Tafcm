@@ -22,8 +22,8 @@ name: tafcm-maintainer
 
 on:
   schedule:
-    # 每日 01:23 UTC（09:23 北京时间）——非整点，避开整点流量高峰；主审查 + 立即邮件
-    - cron: '23 1 * * *'
+    # 每日 17:23 UTC（北京时间次日 01:23）——非整点，避开整点流量高峰；主审查 + 立即邮件
+    - cron: '23 17 * * *'
     # 周五 10:00 UTC（18:00 北京时间）——Weekly Digest 邮件（独立 job，不跑审查）
     - cron: '0 10 * * 5'
   workflow_dispatch:
@@ -68,7 +68,7 @@ env:
 jobs:
   maintainer-audit:
     name: Maintainer Audit
-    # 每日 01:23 或手动触发时跑主审查；周五 digest run 与 force_digest 手动触发跳过
+    # 每日北京时间 01:23（UTC 17:23）或手动触发时跑主审查；周五 digest run 与 force_digest 手动触发跳过
     if: github.event.schedule != '0 10 * * 5' && github.event.inputs.force_digest != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
