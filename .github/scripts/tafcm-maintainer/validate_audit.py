@@ -37,6 +37,11 @@ VALID_ISSUE_UPDATE_STATUS = {"UNCHANGED", "UPDATED", "RESOLVED", "REJECTED", "WA
 VALID_RC = {"Confirmed", "Likely", "Hypothesis", "Unknown"}
 VALID_ECO_REC = {"KEEP", "INVESTIGATE", "REPLACE", "DEPRECATE"}
 VALID_ECO_POC = {"yes", "no"}
+VALID_FRONTIER_STATUS = {"in-progress", "needs-device-validation", "confirmed", "rejected"}
+VALID_ACTIVATION = {"changed-code", "new-issue", "test-failure", "new-evidence", "risk-driven"}
+VALID_VERIFICATION = {"in-progress", "needs-device-validation", "confirmed", "rejected"}
+VALID_FRONTIER_LIFECYCLE = {"active", "deepening", "blocked", "cooling", "retired", "candidate"}
+FRONTIER_PATH = Path(".agent/tafcm-maintainer/FRONTIER.md")
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-maintainer-audit\.md$")
 FINDING_ID_RE = re.compile(r"^F-\d{4}-\d{2}-\d{2}-\d{2}$")
@@ -85,6 +90,43 @@ def section_text(text: str, header: str, next_headers: list[str]) -> str:
         if idx != -1:
             return seg[:idx]
     return seg
+
+
+def validate_frontier(errors: list[str]) -> None:
+    """SUP-04：校验 FRONTIER.md（若存在）。向后兼容：文件不存在则跳过（不破坏旧流程）。"""
+    if not FRONTIER_PATH.is_file():
+        return
+    text = FRONTIER_PATH.read_text(encoding="utf-8")
+    # 每个 Entry 必须含必填字段 + 枚举合法。区块：### FR-NNN 到下一个 ### 或文件尾。
+    blocks = re.split(r"(?m)^### FR-\d{3}", text)
+    for i, block in enumerate(blocks[1:], start=1):
+        if not block.strip():
+            errors.append(f"Frontier Entry #{i} 为空")
+            continue
+        check_field(block, "activation_reason", VALID_ACTIVATION, errors, f"Frontier #{i}")
+        check_field(block, "verification_status", VALID_VERIFICATION, errors, f"Frontier #{i}")
+        check_required_fields(block,
+                              ["id", "area", "depth", "open_question", "next_action",
+                               "blocking_reason", "last_verified_at", "activation_reason",
+                               "verification_status"],
+                              errors, f"Frontier #{i}")
+        # id 格式必须 FR-NNN（递增，永不复用），仅存在不够
+        id_m = re.search(_field_re("id"), block, re.MULTILINE)
+        if id_m and not re.match(r"^FR-\d{3}$", id_m.group(1).strip()):
+            errors.append(f"Frontier #{i}: id 格式非法（需 FR-NNN），实际: {id_m.group(1).strip()!r}")
+        # 闭合必须有产出物：confirmed / rejected 的 Entry 不得缺失证据落点。
+        # 只认字段行（`related_issue:` / `evidence:`），避免 activation_reason 值里的
+        # "new-evidence" 单词被误判为产出物。
+        m = re.search(_field_re("verification_status"), block, re.MULTILINE)
+        if m and m.group(1).strip() in ("confirmed", "rejected"):
+            has_output = (re.search(r"(?i)^\s*(?:[-*+]\s+)?related[_ ]issue\s*:", block, re.MULTILINE)
+                          or re.search(r"(?i)^\s*(?:[-*+]\s+)?evidence\s*:", block, re.MULTILINE))
+            if not has_output:
+                errors.append(f"Frontier #{i}: {m.group(1).strip()} 闭合必须有产出物（related_issue: #NNN 或 evidence: <落点>）")
+        # needs-device-validation 必须有 handoff（executor + reason）——POLICY §2.3.2
+        if m and m.group(1).strip() == "needs-device-validation":
+            if not re.search(_field_re("handoff"), block, re.MULTILINE):
+                errors.append(f"Frontier #{i}: needs-device-validation 必须有 handoff 字段（executor + reason）")
 
 
 def main() -> int:
@@ -172,6 +214,8 @@ def main() -> int:
                 or re.search(r"(?m)^\s*(?:[-*+]\s+)?\d+\.\s+", pend_block)):
             errors.append("Pending Decisions 段应为 '- [ ] <事项>' checkbox / '1. <事项>' 编号列表或 'None.'")
 
+    # 6. SUP-04：FRONTIER.md（未闭合审查任务队列）格式校验（若存在）
+    validate_frontier(errors)
     if errors:
         print("=== Audit 校验失败 ===", file=sys.stderr)
         for e in errors:

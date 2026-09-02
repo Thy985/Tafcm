@@ -54,6 +54,13 @@
 | dependencies | `flutter_app/pubspec.yaml` / lock 依赖健康度、`tools/ffx-cli/pyproject.toml` 依赖 |
 | release history | 最近发布质量信号 |
 
+**审查优先级（SUP-04 Audit Frontier）**：
+1. `.agent/tafcm-maintainer/FRONTIER.md` 中未闭合的高优先 Entry → 继续 depth N→N+1（Evidence-driven）
+2. 新增代码 / 新 Issue / 新 PR / 测试失败（Change-driven）
+3. 长期未审的高风险区域（Risk-driven）
+其余对象（Issue 状态 / CI 状态 / 文档格式 / README / Roadmap / CHANGELOG）为**辅助观察项**：每天低频快照，只报变化，不展开。
+**禁止"每日全盘重扫"**——审查预算优先给 Frontier 深挖；没有新增输入时，深度仍必须超过昨天（"这一次永远比上一次更深"）。
+
 ---
 
 ## 2. Bug Detection（Bug 检测）
@@ -78,6 +85,11 @@
 - ❌ 没有证据的理论可能性（必须能指向代码路径 + 触发条件 + 实际后果）
 
 **来源无关原则（关键纪律）**：确定性 bug（有代码证据 + 触发条件 + 实际影响）**必须记录为 Finding**——问题来源（实验注入 / 测试代码 / 临时代码 / 历史遗留 / 依赖升级）只影响 Recommendation（Watch / Ignore / Create Issue）与是否建 Issue，**不影响是否记录**。即使某改动明显来自实验或临时用途，只要它是确定性缺陷，就必须写入 New Findings 段（可标低 Severity 或 Recommendation: Watch），**不得因来源"非产品"而遗漏 Finding**。
+
+**深度锚点（硬性要求，防"广度扫过、深度为零"）**：
+- 每天必须选 **1-2 个高价值模块**（优先：导出链路 / 公式渲染 / 编辑器事务与撤销 / WebView 生命周期 / autosave 一致性）做**执行路径级深读**：从入口函数沿调用链追到叶子（状态转换 / 异常路径 / 资源释放 / 边界条件），并在 Audit 中列出"当日深读文件 + 追踪的执行路径"。
+- **`No significant findings.` 不是默认结论**——只有完成深度锚点追查、且无新证据时才可写；Audit 必须附当日深度锚点文件列表，否则视为未完成审查。
+- 广度扫描（§1）只用于产生"信号"；信号必须经深度追查（能指向 文件:行 + 触发条件 + 实际影响）后才能落为 Finding 或被否定。**禁止把"没看"当成"没问题"。**
 
 ---
 
@@ -364,16 +376,19 @@ docs/agent-investigations/issue-XXX-<slug>.md
 
 ---
 
-## 11. 每日执行流程（Agent 视角）
+## 11. 每日执行流程（Agent 视角，SUP-04 Frontier 驱动）
 
-1. **装载上下文**：§0 顺序读取（含 INDEX + 近 7 天 Audit + 历史 Agent issue）
-2. **采集事实**：git log（最近 30 天）/ gh issue list / gh pr list / gh run list / flutter analyze 输出 / 相关测试
-3. **判定延续状态**：对近 7 天 Audit 中的每个 Finding / Issue 打状态（NEW / UNCHANGED / UPDATED / RESOLVED / REJECTED / DUPLICATE / WAITING_FOR_HUMAN）
-4. **审查**：按 §1-§6 六个维度执行（可并行；跑测试/静态分析是允许的只读验证）
-5. **产出 Audit**：写入 `docs/agent-audit/YYYY-MM-DD-maintainer-audit.md`（五块，遵守 SCHEMA.md §2）
-6. **升级 Issue**：仅通过 Admission Gate 且判定为"新问题"的 Finding 按 §8 创建；旧问题更新既有 Issue
-7. **深度调查**：需要深挖的 Issue 写 `docs/agent-investigations/`（可选）
-8. **结束**：不修改任何产品代码，不创建 PR，不 merge，不 release
+1. **装载上下文**：§0 顺序读取（含 INDEX + 近 7 天 Audit + 历史 Agent issue + `FRONTIER.md`）
+2. **选择 Frontier**：读取 `FRONTIER.md` → 选最高优先级未闭合 Entry（active/deepening 优先）→ 从当前 depth N 继续
+3. **采集事实**：Change-driven 触发点（git log 近 30 天 / 新 issue / 新 pr / 最近失败 run / 依赖变化）；Risk-driven 候选（长期未审的高风险区域）
+4. **判定延续状态**：近 7 天 Audit 的 Finding / Issue 打状态（NEW / UNCHANGED / UPDATED / RESOLVED / REJECTED / DUPLICATE / WAITING_FOR_HUMAN）
+5. **深审**：对选中 Frontier Entry 做执行路径级深读（调用链 / 状态流 / 边界条件 / 异常路径）；验证疑点用定向测试 `flutter test <target>` / 诊断脚本（Level 1-2 验证能力，白名单已允许）
+6. **证据边界**：无法在沙箱验证（真机 / WebView / 渲染 / 设备行为）→ 写正式状态 `verification_status: needs-device-validation` + `handoff`，**不得臆断代替验证**
+7. **产出 Audit**：五块 + **Frontier 推进记录**（Entry id: depth N→N+1 / 新证据 / 新阻塞 / 闭合项）
+8. **更新 Frontier**：按结果更新 `FRONTIER.md`（推进 / 闭合 / 阻塞 / 冷却 / 重激活）
+9. **升级 Issue**：仅通过 Admission Gate 且判定为"新问题"的 Finding 按 §8 创建；旧问题更新既有 Issue
+10. **深度调查**：需要深挖的 Issue 写 `docs/agent-investigations/`（可选）
+11. **结束**：不修改任何产品代码，不创建 PR，不 merge，不 release
 
 ---
 
