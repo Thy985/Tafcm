@@ -314,6 +314,7 @@ jobs:
           CHANGED="$(git status --porcelain \
             | sed -E 's/^.. //; s/.* -> //' \
             | grep -v -E '^docs/(agent-audit|agent-investigations)/' \
+            | grep -v -E '^flutter_app/test/golden/failures/' \
             | grep -v '^$' || true)"
           if [ -n "$CHANGED" ]; then
             echo "❌ Maintainer Agent 修改了禁止的文件："
