@@ -1,0 +1,102 @@
+{
+  "date": "2026-09-02",
+  "findings": [
+    {
+      "id": "F-2026-09-02-01",
+      "fingerprint": "2287adae59a02905",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UPDATED",
+      "issue": "#233",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-02-02",
+      "fingerprint": "e853e8f6a7cddfba",
+      "category": "tech-debt",
+      "evidence_files": [
+        "report.json",
+        "generate_report.py"
+      ],
+      "status": "NEW",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-01",
+      "fingerprint": "3c473b74863e3a3f",
+      "category": "bug",
+      "evidence_files": [
+        "svg_to_pdf.dart",
+        "mermaid_renderer.html",
+        "issue-216-formula-export-blank.md"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-02",
+      "fingerprint": "f5469b957182e6c2",
+      "category": "bug",
+      "evidence_files": [
+        "formula_pdf_renderer.dart",
+        "word_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-03",
+      "fingerprint": "14138cdee2a377b7",
+      "category": "test-gap",
+      "evidence_files": [
+        "word_export_semantic_fidelity_test.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#234",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-04",
+      "fingerprint": "3bac87ff07c79bd3",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UPDATED",
+      "issue": "#233",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-05",
+      "fingerprint": "da5fbded93636dd2",
+      "category": "architecture",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-06",
+      "fingerprint": "39c85d0b899f396b",
+      "category": "architecture",
+      "evidence_files": [],
+      "status": "RESOLVED",
+      "issue": "#215（已关闭）",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "hits": 0,
+    "new": 8
+  }
+}
