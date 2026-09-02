@@ -20,12 +20,18 @@
 | `verification_status` | ✅ | `in-progress / needs-device-validation / confirmed / rejected` |
 | `handoff` | ⭕ | 越界时：`executor: supervisor|human` + `reason` |
 
+> **生命周期（区块归属）vs `verification_status`（字段值）**——两个不同维度，勿混淆：
+> - **生命周期**是 Entry 在队列中的**阶段**（candidate → active → deepening → blocked → verified → cooling → retired），由 Entry 所在区块 / 状态迁移决定。
+> - **`verification_status`** 是**证据链验证结论**，枚举：`in-progress / needs-device-validation / confirmed / rejected`。
+> - 对应关系：`blocked` 阶段 → `verification_status: needs-device-validation`（有 handoff）；`verified` 阶段 → `verification_status: confirmed`（确认）或 `rejected`（排除）。**Entry 字段里不用 `verified` 作为 verification_status 值**。
+> - **闭合产出物**：`verification_status: confirmed/rejected` 时必须附 `related_issue: #NNN`（Issue 链接）或 `evidence: <落点>`（文件路径 / 测试结果 / 提交 sha）字段——不允许「追到 target 但什么都没留下」。
+
 ## 活跃队列（active / deepening / blocked）
 
-Cline 每日在此登记/推进 Entry。每条 Entry 以 `### FR-NNN` 三级标题开头，字段如下（示例）：
+Cline 每日在此登记/推进 Entry。每条 Entry 以 `### FR-NNN` 三级标题开头，字段如下（**示例**——示例不得以 `### FR-NNN` 标题书写，以免被校验误判为真实 Entry）：
 
 ```
-### FR-001
+FR-001（示例，非真实 Entry）
 - area: Formula PDF export
 - depth: current: 2 / target: 4
 - open_question: "Opacity(0) 捕获是否导致 toImage 全透明？"

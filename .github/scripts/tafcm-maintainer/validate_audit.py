@@ -106,15 +106,27 @@ def validate_frontier(errors: list[str]) -> None:
         check_field(block, "activation_reason", VALID_ACTIVATION, errors, f"Frontier #{i}")
         check_field(block, "verification_status", VALID_VERIFICATION, errors, f"Frontier #{i}")
         check_required_fields(block,
-                              ["area", "depth", "open_question", "next_action",
+                              ["id", "area", "depth", "open_question", "next_action",
                                "blocking_reason", "last_verified_at", "activation_reason",
                                "verification_status"],
                               errors, f"Frontier #{i}")
-        # 闭合必须有产出物：confirmed / rejected 的 Entry 不得缺失证据落点
+        # id 格式必须 FR-NNN（递增，永不复用），仅存在不够
+        id_m = re.search(_field_re("id"), block, re.MULTILINE)
+        if id_m and not re.match(r"^FR-\d{3}$", id_m.group(1).strip()):
+            errors.append(f"Frontier #{i}: id 格式非法（需 FR-NNN），实际: {id_m.group(1).strip()!r}")
+        # 闭合必须有产出物：confirmed / rejected 的 Entry 不得缺失证据落点。
+        # 只认字段行（`related_issue:` / `evidence:`），避免 activation_reason 值里的
+        # "new-evidence" 单词被误判为产出物。
         m = re.search(_field_re("verification_status"), block, re.MULTILINE)
         if m and m.group(1).strip() in ("confirmed", "rejected"):
-            if not (re.search(r"(?i)(related issue|issue #\d+|evidence)", block)):
-                errors.append(f"Frontier #{i}: {m.group(1).strip()} 闭合必须有产出物（Related Issue 或 Evidence 落点）")
+            has_output = (re.search(r"(?i)^\s*(?:[-*+]\s+)?related[_ ]issue\s*:", block, re.MULTILINE)
+                          or re.search(r"(?i)^\s*(?:[-*+]\s+)?evidence\s*:", block, re.MULTILINE))
+            if not has_output:
+                errors.append(f"Frontier #{i}: {m.group(1).strip()} 闭合必须有产出物（related_issue: #NNN 或 evidence: <落点>）")
+        # needs-device-validation 必须有 handoff（executor + reason）——POLICY §2.3.2
+        if m and m.group(1).strip() == "needs-device-validation":
+            if not re.search(_field_re("handoff"), block, re.MULTILINE):
+                errors.append(f"Frontier #{i}: needs-device-validation 必须有 handoff 字段（executor + reason）")
 
 
 def main() -> int:
