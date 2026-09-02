@@ -93,6 +93,33 @@ gh pr create / gh pr merge
 任何写入 git 历史或仓库状态的命令
 ```
 
+### 2.3.1 能力边界与分工（Cline 无运行能力 → 审查职责边界）
+
+Cline 的命令白名单**不含运行产品的能力**（无 `flutter run`、无真机/模拟器、无动态执行）——因此审查职责按能力切分：
+
+- **Cline 能可靠判定的**：文档 / CI / Issue / PR / 依赖 / 架构漂移的**现状**，以及**静态代码**可确证的 bug（文件:行 + 执行路径 + 实际影响）。
+- **Cline 不能可靠判定的**（需运行 / 真机 / 体验）：产品体验、真机渲染（WebView / SVG / 公式 PNG）、性能、交互卡顿、设备差异。此类问题 Cline **不得**宣称"已审查 / 无问题"——应在 Audit 中标 `needs-device-validation`，交由 Doubao Supervisor 深度追查或人工真机验证。
+- **审查深度纪律**：每日必须完成 1-2 个高价值模块的执行路径级深读（PROMPT §2 深度锚点）；`No significant findings` 必须附深度锚点文件列表，否则视为未完成审查。
+
+### 2.3.2 Audit Frontier（增量审查模型，SUP-04）
+
+Cline 不再"每日全盘重扫"，而是持续建立并推进**审查前沿（Audit Frontier）**——每次审查不是从零开始，而是把上一轮未闭合的证据链向前推进。**审查优先级：Frontier 未闭合项 > 新增代码/Issue 触发 > 其余风险扫描**。
+
+**增量三触发器**（防止"增量 = 只看 git diff"，代码长期未改的区域也必须逐轮深入）：
+- **Change-driven**：代码 / 依赖 / PR / 测试失败变化 → 重审变化路径
+- **Risk-driven**：高风险但长期未修改的区域 → 逐轮深入（代码三个月没动也要审）
+- **Evidence-driven**：上轮未闭合证据链 → 本轮优先续追
+
+**Frontier Entry 生命周期**（candidate → active → deepening → blocked → verified → cooling → retired）：
+- **cooling**：连续 3 轮无代码变化 / 无新证据 / 无新异常 → 移入冷却区，释放审查预算
+- **reactivation**：新代码命中 / 新 Issue / 测试失败 / 新 Evidence → cooling → active
+- **retired**：归档（保留 `retired_at` + `retire_reason`），未来可重激活——归档不是删除，是项目技术记忆
+
+**Frontier 纪律**：
+- Entry 写入 `.agent/tafcm-maintainer/FRONTIER.md`（字段规范见该文件头注释），每日 Audit 必须包含"Frontier 推进"记录（Entry id: depth N→N+1 / 新证据 / 新阻塞）
+- **depth target 由 Cline 提议，周度 Supervisor Pass（SUP-01）校准**——不允许 Cline 自定 target 提前"闭合"；闭合必须有产出物（Issue 链接或 confirmed/rejected 证据落点）
+- 越过 Cline 能力边界（真机 / WebView 渲染 / 设备行为）→ 写正式机器状态 `verification_status: needs-device-validation` + `handoff`（executor + reason），按 SUP-03 交 Supervisor / 人工，**不得臆断代替验证**
+
 ### 2.4 Doubao Supervisor（监督层）权限
 
 > **定位**：Doubao 是 Cline Maintainer Agent 的监督 / 验证 / 质量 Agent，不是第二个执行 Agent。完整协议见 `SUPERVISOR.md`。
