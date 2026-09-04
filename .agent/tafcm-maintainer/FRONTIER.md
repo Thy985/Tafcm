@@ -28,23 +28,34 @@
 
 ## 活跃队列（active / deepening / blocked）
 
-Cline 每日在此登记/推进 Entry。每条 Entry 以 `### FR-NNN` 三级标题开头，字段如下（**示例**——示例不得以 `### FR-NNN` 标题书写，以免被校验误判为真实 Entry）：
-
-```
-FR-001（示例，非真实 Entry）
-- area: Formula PDF export
-- depth: current: 2 / target: 4
-- open_question: "Opacity(0) 捕获是否导致 toImage 全透明？"
-- next_action: type: static-trace / target: lib/core/export/formula_pdf_renderer.dart
+### FR-001 — C-01 Android 模拟器集成测试管道
+- id: FR-001
+- area: CI/android-emulator-integration
+- depth: current: 1 / target: 3
+- open_question: "smoke 链路通后，如何扩展至 editor/export/formula 全链路 device-level 集成测试？"
+- next_action: type: targeted-test / target: flutter_app/integration_test/phase35_home_smoke_test.dart（已通）→ 扩展至 editor_screen + export_path
 - blocking_reason: null
-- last_verified_at: 2026-09-03
-- activation_reason: risk-driven
-- verification_status: in-progress
-```
+- last_verified_at: 2026-09-05
+- activation_reason: test-failure
+- verification_status: confirmed
+- evidence: CI #840（databaseId=33879645265）Android Device Integration job success；smoke_test.dart + phase35_home_smoke_test.dart 各 🎉 1 test passed
+- handoff: null
 
 ## 冷却区（cooling — 连续 3 轮无代码变化 / 无新证据 / 无新异常）
 
 <!-- 冷却不是关闭：一旦新代码命中 / 新 Issue / 测试失败 / 新 Evidence → 回 active -->
+
+### FR-002 — tools/adi analyze 错误备案
+- id: FR-002
+- area: tools/adi/test/import_zip_test.dart
+- depth: current: 1 / target: 1（记录级，无需深挖）
+- open_question: "是否需要在 CI 中增加 dart test 于 tools/adi？"
+- next_action: type: decision / target: .github/workflows/ci.yml（低优先级，宽限期至 2026-09-16 Node.js 20 退役）
+- blocking_reason: null
+- last_verified_at: 2026-09-05
+- activation_reason: new-evidence
+- verification_status: in-progress
+- handoff: null
 
 ## 归档区（retired — 保留 retired_at + retire_reason，未来可重激活）
 
