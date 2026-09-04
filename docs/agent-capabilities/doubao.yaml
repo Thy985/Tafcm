@@ -24,9 +24,12 @@ capabilities:
     browser_dom_reading:
       status: proven
       evidence: "EXP D-01: element extraction (tabs/buttons/links/merge info) at 1920x1080"
-    browser_login_state:
+    github_api_auth_pat:
+      status: proven
+      evidence: "PAT (Authorization: Bearer) covers ALL GitHub ops: 13 issues (#238-250), 4 PRs (#241/#251/#252/#253), runs/jobs/logs queries"
+    browser_gui_session:
       status: partial
-      evidence: "EXP D-01: GitHub shows 'Sign in' → anonymous public read only; authenticated ops need user login"
+      evidence: "EXP D-01: browser shows 'Sign in' — PAT is a REST token, not injected into browser cookies; browser GUI is anonymous public read only. Does NOT block GitHub ops (REST covers them). For GUI-interactive auth (e.g. web-app login), user must sign in in browser"
     ocr_accuracy:
       status: partial
       evidence: "EXP D-01: first load OCR misread 'Thy985' as 'Tiny985'; corrected after full render — visual perception needs render settle"
