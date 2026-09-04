@@ -353,16 +353,21 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         # C-01 review 修复（Human）：默认 6min 超时在 AVD 冷启动+首次 build 时易触顶，
         # 显式放宽到 20min，避免基础设施慢被误报为实验失败。
-        timeout-minutes: 20
+        # C-01 三次执行（2026-09-04）：GitHub 免费 runner 无 KVM，软件模拟极慢——
+        # boot ~9min + gradle 133s + install 191s 已吃掉 20min，测试未跑完即超时。
+        # 第四轮：timeout 40min + 先只跑 smoke（最小编译/无 UI 依赖），验证运行层链路。
+        timeout-minutes: 40
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_5
           disable-animations: true
           script: |
-            flutter test integration_test/smoke_test.dart \
-              integration_test/phase35_home_smoke_test.dart \
-              -d emulator-5554
+            # flutter test 禁止单次调用混跑多个 integration 文件
+            # （Integration tests and unit tests cannot be run in a single invocation）
+            # → 每个文件单独一次调用
+            # 第四轮：先只跑 smoke（纯链路，无 UI 渲染依赖），通过后再扩展 home_smoke
+            flutter test integration_test/smoke_test.dart -d emulator-5554
 
   build-web:
     name: Build Web
