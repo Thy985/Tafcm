@@ -359,6 +359,9 @@ jobs:
           arch: x86_64
           profile: pixel_5
           disable-animations: true
+          # C-01 二次失败根因：android-emulator-runner 的 script 在仓库根目录执行
+          # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
+          working-directory: flutter_app
           script: |
             # flutter test 禁止单次调用混跑多个 integration 文件
             # （Integration tests and unit tests cannot be run in a single invocation）
