@@ -10,10 +10,13 @@
 - **steps**: 1) 探查发现 device 级测试被 CI 遗漏（test job 只扫 test/）→ 2) 起草 workflow（reactivecircus/android-emulator-runner@v2, api 34, pixel_5）→ 3) 最小版跑 smoke + home_smoke → 4) PR #254 待 Human 合入后触发
 - **expected**: CI 模拟器上 smoke + home_smoke 通过（架构决策验证）
 - **actual**: 草案已提交（PR #254）；**执行待 Human 合入后触发**——current status: awaiting-trigger
-- **status**: partial（起草+PR done；执行 pending Human merge）
-- **boundary**: type: policy — CI workflow 修改需 Human 合入（SUP-03）；合入后 Cline/CI 即可自主承担
-- **failure_mode**: 待触发后观察（Gradle/AVD 下载耗时、device 测试环境级失败风险）
-- **evidence**: PR #254 + ci.yml android-device job
-- **evidence_strength**: production_runtime（合入触发后为真 CI 证据）
-- **reproducibility**: 待验证
-- **notes**: 若 C-01 通过 → emulator_runtime/device-UI 层可由 Cline(CI) 稳定承担；Doubao 则聚焦 APK 静态审计（B-01 proven）+ Web 代理视觉（需 setup）
+- **status**: failed_under_conditions（首次执行）→ 修复 PR #255；第二次执行待验证
+- **boundary**: type: tooling — `flutter test` 禁止单次调用混跑多个 integration 文件；模拟器链路本身 proven
+- **failure_mode**: 首次执行 run #33873320763 step 8 失败：`Integration tests and unit tests cannot be run in a single invocation`（script 语法）
+- **evidence**: run #33873320763 + 日志（emulator Boot completed 427234ms / adb 正常）+ PR #254（合入）+ PR #255（script 修复）
+- **evidence_strength**: production_runtime（真实 CI 模拟器执行）
+- **reproducibility**: 修复后待复验
+- **notes**:
+  - 模拟器在 GitHub Actions 可行：boot 427s（印证 timeout:20 必要性）、adb/flutter 正常
+  - 失败是调用方式（多文件混跑），非环境/产品问题 → 修复明确（每文件单独调用）
+  - 若第二次通过 → emulator_runtime/device-UI 层可由 Cline(CI) 稳定承担；Doubao 聚焦 APK 静态审计（B-01 proven）+ Web 代理视觉
