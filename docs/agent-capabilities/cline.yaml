@@ -1,0 +1,106 @@
+# Cline / GitHub Actions Agent — Capability Registry
+# 维护：Doubao Supervisor · 首版 2026-09-04 · 基于真实 run/audit/PR 证据
+# 规则：仅 proven/failed_under_conditions/blocked_by_*/unknown，禁止膨胀
+
+agent:
+  name: cline
+  environment: github_actions_runner   # headless CLI (cline@3.0.60, model agnes-2.5-flash)
+
+capabilities:
+  # ---- Perception（观察）----
+  perception:
+    repository_code:
+      status: proven
+      evidence: "daily audits cite HEAD/commit (2026-09-03-maintainer-audit.md); git grep/log allowed by whitelist"
+      constraints: "read-only; no local clone write"
+    github_issues:
+      status: proven
+      evidence: "audits track #216/#233/#234 statuses; FINDINGS.md linkage"
+    pull_requests:
+      status: proven
+      evidence: "cline-pr-review workflow gathers PR diff via gh; multiple successful reviews (run 33696387279 etc.)"
+    actions_ci_status:
+      status: proven
+      evidence: "audits cite CI run ids & pass/fail (9-03 audit: run 33618846693 all green)"
+    artifacts_evidence_dirs:
+      status: proven
+      evidence: "reads docs/agent-audit, docs/agent-investigations, contracts/"
+    releases_discussions_metadata:
+      status: unknown
+      evidence: "no task required this yet"
+
+  # ---- Action（行动）----
+  action:
+    create_update_issue:
+      status: proven
+      evidence: "policy allows gh issue create/comment; issue history includes agent-created issues"
+    post_pr_review:
+      status: proven
+      evidence: "cline-pr-review successful runs post reviews; 9-02 review independently found validate_frontier id gap"
+    commit_to_repo:
+      status: conditional
+      evidence: "workflow runs `git commit` on Cline-generated docs; Cline itself cannot push"
+      constraints: "scope limited to docs/agent-audit|investigations|golden/failures via Guard"
+    run_tests:
+      status: proven
+      evidence: "workflow whitelist includes `flutter test *` (tafcm-maintainer.yml L142/234)"
+      constraints: "headless only; no real device"
+    modify_product_code:
+      status: blocked_by_policy
+      evidence: "POLICY.md + Guard deny; Guard intercepted report.json (9-02) and FRONTIER.md (9-04)"
+    push_branch:
+      status: blocked_by_policy
+      evidence: "deny list includes git push (POLICY.md)"
+    merge_pr:
+      status: blocked_by_policy
+      evidence: "merge is Human authority"
+
+  # ---- Execution Depth ----
+  execution_depth:
+    max_successful_level: 4   # conditional workflow (daily audit chain)
+    evidence: "daily audit: observe→select→analyze→write→validate→index→guard→commit, all machine-gated"
+    depth_quality: "breadth-scoped, shallow per area; deep only in diff-focused PR review"
+    failure_point: "depth of investigation beyond static reading"
+    recovery_behavior: "workflow-level retry (step 12 Retry Maintainer Agent) for format; Guard failure is terminal (no self-recovery)"
+
+  # ---- Autonomy ----
+  autonomy:
+    status: conditional
+    evidence: "runs autonomously on schedule without step-by-step human guidance (daily audit 01:23 CST)"
+    constraints: "within fixed pipeline + whitelist; cannot re-plan beyond prompt scope"
+
+  # ---- Persistence ----
+  persistence:
+    status: proven
+    evidence: "INDEX.md (dedup memory), FINDINGS.md (fingerprint registry), FRONTIER.md (audit frontier) persist across runs"
+    constraints: "state lives in repo, not in runner; 9-04 audit lost when Guard blocked commit"
+
+  # ---- Verification ----
+  verification:
+    self_check:
+      status: partial
+      evidence: "validates own audit via validate_audit.py (CI-side); PR review catches real issues (id validation gap)"
+    verification_vs_execution:
+      status: conditional
+      evidence: "can verify format/schema but not runtime rendering; 9-04 cline-pr-review failed on AGNES rate limit (rate_limit_check_failed) without recovery"
+
+  # ---- Failure Recovery ----
+  failure_recovery:
+    format_error:
+      status: proven
+      evidence: "step 12 Retry Maintainer Agent fixes audit format on validate failure"
+    external_api_error:
+      status: failed_under_conditions
+      evidence: "9-04 PR review rate_limit_check_failed → exit 1, no retry in workflow"
+    guard_block:
+      status: failed_under_conditions
+      evidence: "9-02 (report.json) & 9-04 (FRONTIER.md) Guard blocks → run fails, audit lost; no self-recovery"
+
+  # ---- 已证伪 / 边界 ----
+  boundaries:
+    - type: policy
+      claim: "can autonomously maintain repository"
+      reality: "blocked_by_policy for push/merge/product-code; only docs-scope via Guard"
+    - type: capability
+      claim: "can do runtime verification"
+      reality: "no device env; runtime/visual verification delegated (needs-device-validation handoff)"

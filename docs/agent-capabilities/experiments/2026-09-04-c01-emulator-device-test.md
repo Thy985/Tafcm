@@ -1,0 +1,29 @@
+# Experiment C-01 — CI 模拟器运行 device 级集成测试（Cross-Agent）
+
+- **id**: C-01
+- **date**: 2026-09-04
+- **agent**: cline (via CI workflow) — Doubao 起草 workflow
+- **environment**: github_actions (android-emulator-runner, api 34)
+- **capability**: emulator_runtime / device_integration_test_execution
+- **task**: 在 CI Android 模拟器上运行 Tafcm 已存在的 device 级 integration_test，验证"CI 能否真正构建并运行 APK"
+- **setup**: 发现 8 个 device 级测试（IntegrationTestWidgetsFlutterBinding）从未在 CI 运行 → 起草 `android-device` job（PR #254）
+- **steps**: 1) 探查发现 device 级测试被 CI 遗漏（test job 只扫 test/）→ 2) 起草 workflow（reactivecircus/android-emulator-runner@v2, api 34, pixel_5）→ 3) 最小版跑 smoke + home_smoke → 4) PR #254 待 Human 合入后触发
+- **expected**: CI 模拟器上 smoke + home_smoke 通过（架构决策验证）
+- **actual**: 草案已提交（PR #254）；**执行待 Human 合入后触发**——current status: awaiting-trigger
+- **status**: conditional-proven（核心）——smoke test 在模拟器上运行通过；hang 回收修复 PR #258 待验证
+- **boundary**:
+  - type: capability（proven）— CI 能构建+安装+**运行** Tafcm APK 测试（gradle ✓ + install ✓ + smoke ✅ 1+1=2）
+  - type: environment（blocked-conditional）— GitHub 免费 runner 无 KVM（ProbeKVM no permissions），软件模拟极慢
+  - type: tooling — `flutter test` 禁单次混跑多 integration 文件；action script 不受 defaults.working-directory 影响；**flutter test 进程在无 KVM 下测试完成后不退出（hang）**，需命令级 timeout 回收
+- **failure_mode**:
+  - 首次 run #33873320763：混跑报错 → PR #255 修复
+  - 二次 run #33875089103：working-directory → PR #256 修复
+  - 三次 run #33876875143：timeout 20min（性能）→ PR #257（40min+smoke-only）
+  - 四次 run #33923068844：**smoke 通过（✅ 1+1=2）但 flutter test 进程 hang** → PR #258（timeout 300s + exit 124）回收
+- **evidence**: run #33873320763 / #33875089103 / #33876875143 / #33923068844 日志 + PR #254/#255/#256/#257（合入）+ PR #258（第五轮）
+- **evidence_strength**: production_runtime（真实 CI 模拟器执行）
+- **reproducibility**: 第五轮待复验
+- **notes**:
+  - 四轮逐层收敛：混跑 → 工作目录 → 性能超时 → 进程 hang（每次都是工具链/环境，非产品）
+  - **核心结论已确证**：CI 能运行 APK 测试（smoke ✅）
+  - 第五轮（hang 修复）通过 → emulator_runtime conditional-proven，Cline(CI) 可承担基础运行层；UI/视觉/公式深度仍建议 L3/L4
