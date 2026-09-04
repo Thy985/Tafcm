@@ -360,9 +360,11 @@ jobs:
           profile: pixel_5
           disable-animations: true
           script: |
-            flutter test integration_test/smoke_test.dart \
-              integration_test/phase35_home_smoke_test.dart \
-              -d emulator-5554
+            # flutter test 禁止单次调用混跑多个 integration 文件
+            # （Integration tests and unit tests cannot be run in a single invocation）
+            # → 每个文件单独一次调用
+            flutter test integration_test/smoke_test.dart -d emulator-5554
+            flutter test integration_test/phase35_home_smoke_test.dart -d emulator-5554
 
   build-web:
     name: Build Web
