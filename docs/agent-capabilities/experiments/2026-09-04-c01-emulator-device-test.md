@@ -10,13 +10,15 @@
 - **steps**: 1) 探查发现 device 级测试被 CI 遗漏（test job 只扫 test/）→ 2) 起草 workflow（reactivecircus/android-emulator-runner@v2, api 34, pixel_5）→ 3) 最小版跑 smoke + home_smoke → 4) PR #254 待 Human 合入后触发
 - **expected**: CI 模拟器上 smoke + home_smoke 通过（架构决策验证）
 - **actual**: 草案已提交（PR #254）；**执行待 Human 合入后触发**——current status: awaiting-trigger
-- **status**: failed_under_conditions（首次执行）→ 修复 PR #255；第二次执行待验证
-- **boundary**: type: tooling — `flutter test` 禁止单次调用混跑多个 integration 文件；模拟器链路本身 proven
-- **failure_mode**: 首次执行 run #33873320763 step 8 失败：`Integration tests and unit tests cannot be run in a single invocation`（script 语法）
-- **evidence**: run #33873320763 + 日志（emulator Boot completed 427234ms / adb 正常）+ PR #254（合入）+ PR #255（script 修复）
+- **status**: failed_under_conditions（二次执行）→ 修复 PR #256；第三次执行待验证
+- **boundary**: type: tooling — ① `flutter test` 禁止单次混跑多 integration 文件；② android-emulator-runner script 不受 job defaults.working-directory 影响（需显式 working-directory input）
+- **failure_mode**:
+  - 首次 run #33873320763：`Integration tests and unit tests cannot be run in a single invocation`（script 多文件混跑）→ PR #255 修复
+  - 二次 run #33875089103：`Error: No pubspec.yaml file found`（script 在仓库根执行，找不到 flutter_app/pubspec.yaml）→ PR #256 修复
+- **evidence**: run #33873320763 + #33875089103 日志（两次模拟器 boot 均成功，adb 正常）+ PR #254/#255（合入）+ PR #256（working-directory 修复）
 - **evidence_strength**: production_runtime（真实 CI 模拟器执行）
 - **reproducibility**: 修复后待复验
 - **notes**:
-  - 模拟器在 GitHub Actions 可行：boot 427s（印证 timeout:20 必要性）、adb/flutter 正常
-  - 失败是调用方式（多文件混跑），非环境/产品问题 → 修复明确（每文件单独调用）
-  - 若第二次通过 → emulator_runtime/device-UI 层可由 Cline(CI) 稳定承担；Doubao 聚焦 APK 静态审计（B-01 proven）+ Web 代理视觉
+  - 模拟器在 GitHub Actions 持续 proven：两次 boot 成功（427s / ~330s），印证 timeout:20 必要性
+  - 两次失败均为 workflow 配置问题（非环境/产品），每轮修复推进到下一层：混跑 → 工作目录
+  - 若第三次通过 → emulator_runtime/device-UI 层可由 Cline(CI) 稳定承担；Doubao 聚焦 APK 静态审计（B-01 proven）+ Web 代理视觉
