@@ -366,15 +366,21 @@ jobs:
           # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
           working-directory: flutter_app
           script: |
-            # C-01 第四轮证据（run #33923068844）：smoke test 在模拟器上运行通过
-            # （✅ smoke test: 1+1=2），但 flutter test 进程在无 KVM 软件模拟下
-            # 测试完成后不退出（hang 到 job timeout）。属工具链问题，非测试失败。
-            # 第五轮：命令级 timeout 300s 强制回收；exit 124=测试完成但进程 hang 视为通过。
+            # C-01 第五轮修订（Human review）：300s 过短——第四轮证据 build 257s+install
+            # 143s 已近 400s，timeout 在 build 阶段就触发（run #33926466032），测试未跑。
+            # 且 exit 124 盲判"通过"会静默吞掉"超时未完成"。修订：
+            #   1) timeout 300 → 900s（对齐 build+install+test 真实耗时，上层 40min 兜底）
+            #   2) 通过判定必须由日志确认测试完成（✅ smoke test: 1+1=2），124 但无日志=失败
             set +e
-            timeout 300 flutter test integration_test/smoke_test.dart -d emulator-5554
-            EXIT=$?
+            timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 2>&1 | tee flutter_test.log
+            EXIT=${PIPESTATUS[0]}
             echo "flutter test exit code: $EXIT"
             if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then exit $EXIT; fi
+            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then
+              echo "TIMEOUT_BEFORE_TEST_COMPLETION - treated as FAILURE"
+              exit 124
+            fi
+            echo "FLUTTER_TEST_PASSED (exit=$EXIT, completion confirmed)" 
 
   build-web:
     name: Build Web
