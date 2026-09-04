@@ -1,0 +1,35 @@
+{
+  "date": "2026-09-05",
+  "findings": [
+    {
+      "id": "F-2026-09-05-01",
+      "fingerprint": "b04ac16ee32912cf",
+      "category": "architecture",
+      "evidence_files": [
+        "smoke_test.dart",
+        "phase35_home_smoke_test.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-05-02",
+      "fingerprint": "758564f6e3c1ffb0",
+      "category": "tech-debt",
+      "evidence_files": [
+        "import_zip_test.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "hits": 0,
+    "new": 2
+  }
+}
