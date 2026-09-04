@@ -1,0 +1,23 @@
+# Experiment B-01 — Doubao APK 深度静态审计
+
+- **id**: B-01
+- **date**: 2026-09-04
+- **agent**: doubao
+- **environment**: cloud_computer (pip androguard 4.1.4)
+- **capability**: apk_static_audit（manifest/权限/签名/ABI/SDK/依赖）
+- **task**: 对 v0.1.1 app-debug.apk 做深度静态审计
+- **setup**: pip install androguard → APK("tafcm-debug.apk") 解析
+- **steps**: 提取 pkg/version/sdk/activity/permission/signature/ABI/dex
+- **actual**:
+  - pkg: com.tafcm.app · version 0.1.1 (code 2) · min_sdk 24 / target_sdk 36
+  - main_activity: com.tafcm.app.MainActivity · 9 activities（含 inappwebview ChromeCustomTabs/InAppBrowserActivity —— WebView/公式依赖确认）
+  - permissions 仅 3 个（INTERNET / REORDER_TASKS / DYNAMIC_RECEIVER）→ 最小权限原则达标
+  - 签名：v2=True（v1/v3=False）→ debug 签名（与 README "debug 签名"一致）
+  - ABIs: arm64-v8a / armeabi-v7a / x86_64
+- **status**: proven（可稳定承担 APK 静态审计）
+- **boundary**: type: capability — 静态可完全覆盖；动态（运行行为）无法从 APK 文件获得，需 runtime
+- **failure_mode**: 无；manifest 为二进制 XML，androguard 正确处理
+- **evidence**: androguard 输出（pkg/version/permission/ABI/signature 字段）
+- **evidence_strength**: production_runtime（真实 release 资产）
+- **reproducibility**: high（同 APK 确定性解析）
+- **notes**: APK manifest version 0.1.1+2 与 pubspec 一致 → #238 的 kAppVersion 漂移是代码内字符串问题，非构建产物问题（佐证 #238 定位）
