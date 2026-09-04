@@ -1,0 +1,111 @@
+# Doubao / Cloud Computer Agent — Capability Registry
+# 维护：Doubao Supervisor · 首版 2026-09-04 · 基于真实执行证据（本会话 + GitHub REST + 浏览器 D-01）
+# 规则：仅 proven/failed_under_conditions/blocked_by_*/unknown，禁止膨胀
+
+agent:
+  name: doubao
+  environment: cloud_computer_workspace   # local VM + GitHub REST + GUI browser tools + skills
+
+capabilities:
+  # ---- Perception（观察）----
+  perception:
+    github_rest_api:
+      status: proven
+      evidence: "REST reads/writes: issues #238-250 created, PR #241/#251/#252, workflow runs/logs/jobs queried"
+    local_git:
+      status: proven
+      evidence: "fetch/checkout/branch/commit/push via PAT (PR #241/#251/#252 full lifecycle)"
+    local_filesystem_terminal:
+      status: proven
+      evidence: "repo probing, file edits, python/curl execution in this session"
+    browser_navigation_rendering:
+      status: proven
+      evidence: "EXP D-01 (2026-09-04): open_url_in_browser navigated github.com/Thy985/Tafcm/pull/251, post-load screenshot rendered PR state (Merged, tabs, metadata) — evidence_strength: visual"
+    browser_dom_reading:
+      status: proven
+      evidence: "EXP D-01: element extraction (tabs/buttons/links/merge info) at 1920x1080"
+    browser_login_state:
+      status: partial
+      evidence: "EXP D-01: GitHub shows 'Sign in' → anonymous public read only; authenticated ops need user login"
+    ocr_accuracy:
+      status: partial
+      evidence: "EXP D-01: first load OCR misread 'Thy985' as 'Tiny985'; corrected after full render — visual perception needs render settle"
+
+  # ---- Action（行动）----
+  action:
+    create_issue:
+      status: proven
+      evidence: "#238-244 (code/PM), #245-250 (performance via OrganizeAgent) — 13 issues"
+    create_pr:
+      status: proven
+      evidence: "PR #241 (SUP-04), #251 (Guard fix), #252 (weekly report) — full branch+commit+push+PR"
+    deep_code_review:
+      status: proven
+      evidence: "performance audit 7 dims → 6 issues; Guard root-cause → fix PR #251"
+    product_pm_review:
+      status: proven
+      evidence: "PM review → #242/243/244 (search stub, positioning, sync gap)"
+    orchestrator_subagent_delegation:
+      status: proven
+      evidence: "OrganizeAgent performance review (o_0000PoAp7aA) delivered 6 issues + report"
+    cron_management:
+      status: proven
+      evidence: "created/updated Tafcm weekly supervisor pass cron (doubao-cron-scheduler skill)"
+    browser_interactive_ops_click_type:
+      status: unknown
+      evidence: "navigation+read proven (D-01); click/type/scroll not yet exercised this session"
+    real_device_control:
+      status: unknown
+      evidence: "no physical device access in this environment"
+
+  # ---- Execution Depth ----
+  execution_depth:
+    max_successful_level: 6   # long-running multi-step with failure→recovery
+    evidence: "performance review: plan→7-dimension probe→evidence→6 issues; Guard investigation: root-cause→fix→verify→PR→post-merge confirm"
+    failure_point: "real-device / GUI-interactive verification"
+    recovery_behavior: "detects failure (e.g. REST 403, log fetch 401) → switches channel (PAT REST, curl -L, local sim) → completes"
+
+  # ---- Autonomy ----
+  autonomy:
+    status: proven
+    evidence: "self-planned multi-phase audits without step-by-step guidance; supervisor pass executed end-to-end"
+    constraints: "high-risk actions (merge, release, policy change) require Human approval (SUP-03)"
+
+  # ---- Persistence ----
+  persistence:
+    status: proven
+    evidence: "session context + local repo + docs/agent-supervision, docs/agent-capabilities persist; cron resumes weekly"
+    constraints: "no cross-session memory without files; context window resets"
+
+  # ---- Verification ----
+  verification:
+    self_check:
+      status: proven
+      evidence: "post-fix Guard simulation (local), artifact re-read, dedup checks before issue creation"
+    verification_vs_execution:
+      status: proven
+      evidence: "detected Cline's 9-04 failure root cause independently (Guard whitelist gap) and verified via simulation"
+
+  # ---- Failure Recovery ----
+  failure_recovery:
+    api_auth_error:
+      status: proven
+      evidence: "issue_write MCP 10/10 failed → switched to PAT REST (issues #238+ created); logs 401 → local workflow analysis"
+    guard_sim_discrepancy:
+      status: proven
+      evidence: "first sim failed due to escaping; diagnosed, re-ran correct escaping, verified pass"
+    orchestration:
+      status: proven
+      evidence: "subagent summary → own verification of artifacts before delivery"
+
+  # ---- 已证伪 / 边界 ----
+  boundaries:
+    - type: tooling
+      claim: "can use chrome-devtools/playwright MCP"
+      reality: "tool_search returned no live chrome-devtools/playwright tools this session; fell back to GUI browser tools (proven)"
+    - type: environment
+      claim: "can do real-device verification"
+      reality: "unknown/needs-device-validation; Cline marks this for human/runtime handoff"
+    - type: permission
+      claim: "can merge/release"
+      reality: "blocked_by_policy; Human authority"
