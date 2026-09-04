@@ -314,6 +314,7 @@ jobs:
           CHANGED="$(git status --porcelain \
             | sed -E 's/^.. //; s/.* -> //' \
             | grep -v -E '^docs/(agent-audit|agent-investigations)/' \
+            | grep -v -E '^\.agent/tafcm-maintainer/FRONTIER\.md' \
             | grep -v -E '^flutter_app/test/golden/failures/' \
             | grep -v '^$' || true)"
           if [ -n "$CHANGED" ]; then
@@ -331,7 +332,7 @@ jobs:
           TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/agent-audit/ docs/agent-investigations/
+          git add docs/agent-audit/ docs/agent-investigations/ .agent/tafcm-maintainer/FRONTIER.md
           if git diff --cached --quiet; then
             echo "无新变更（Audit 内容与上次一致），跳过提交"
             echo "HAS_COMMIT=false" >> "$GITHUB_OUTPUT"
