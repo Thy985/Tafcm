@@ -296,6 +296,71 @@ jobs:
           name: android-apk-debug
           path: flutter_app/build/app/outputs/flutter-apk/
 
+  # C-01 实验（2026-09-04，Doubao Supervisor 起草，Human 合入后触发）：
+  # 在 Android 模拟器执行 Tafcm 已存在的 device 级 integration_test
+  # （IntegrationTestWidgetsFlutterBinding，Tier 4 真机冒烟设计）。
+  # 目标：验证"CI 能真正构建并运行 APK"这一架构决策，补齐 emulator_runtime 空白。
+  # 最小版：纯链路 smoke + 真实 App 首页冒烟；formula/export/physical-render 后续扩展。
+  android-device:
+    name: Android Device Integration (emulator)
+    runs-on: ubuntu-24.04
+    needs: test
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml', 'flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter_app/android/**/*.gradle*', 'flutter_app/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ env.FLUTTER_VERSION }}-
+            ${{ runner.os }}-gradle-
+
+      - name: Download dependencies
+        run: flutter pub get
+
+      - name: Run device integration tests (emulator)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          script: |
+            flutter test integration_test/smoke_test.dart \
+              integration_test/phase35_home_smoke_test.dart \
+              -d emulator-5554
+
   build-web:
     name: Build Web
     runs-on: ubuntu-24.04
