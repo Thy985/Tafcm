@@ -10,15 +10,19 @@
 - **steps**: 1) 探查发现 device 级测试被 CI 遗漏（test job 只扫 test/）→ 2) 起草 workflow（reactivecircus/android-emulator-runner@v2, api 34, pixel_5）→ 3) 最小版跑 smoke + home_smoke → 4) PR #254 待 Human 合入后触发
 - **expected**: CI 模拟器上 smoke + home_smoke 通过（架构决策验证）
 - **actual**: 草案已提交（PR #254）；**执行待 Human 合入后触发**——current status: awaiting-trigger
-- **status**: failed_under_conditions（二次执行）→ 修复 PR #256；第三次执行待验证
-- **boundary**: type: tooling — ① `flutter test` 禁止单次混跑多 integration 文件；② android-emulator-runner script 不受 job defaults.working-directory 影响（需显式 working-directory input）
+- **status**: partial——build+install proven；测试运行层 failed_under_conditions（无 KVM 性能瓶颈）→ 第四轮探测中（PR #257）
+- **boundary**:
+  - type: capability（proven）— CI 能构建并安装 Tafcm APK 到模拟器（gradle assembleDebug ✓ + install ✓）
+  - type: environment（blocked-conditional）— GitHub 免费 runner 无 KVM（ProbeKVM no permissions），软件模拟极慢
+  - type: tooling — `flutter test` 禁单次混跑多 integration 文件；action script 不受 defaults.working-directory 影响（需显式 input）
 - **failure_mode**:
-  - 首次 run #33873320763：`Integration tests and unit tests cannot be run in a single invocation`（script 多文件混跑）→ PR #255 修复
-  - 二次 run #33875089103：`Error: No pubspec.yaml file found`（script 在仓库根执行，找不到 flutter_app/pubspec.yaml）→ PR #256 修复
-- **evidence**: run #33873320763 + #33875089103 日志（两次模拟器 boot 均成功，adb 正常）+ PR #254/#255（合入）+ PR #256（working-directory 修复）
+  - 首次 run #33873320763：`Integration tests and unit tests cannot be run in a single invocation` → PR #255 修复
+  - 二次 run #33875089103：`Error: No pubspec.yaml file found`（working-directory）→ PR #256 修复
+  - 三次 run #33876875143：**timeout 20min**——boot✅(9min)+gradle 133s✅+install 191s✅ 吃掉 17min，测试未跑完（软件模拟无 KVM）→ PR #257（40min + smoke-only）探测
+- **evidence**: run #33873320763 / #33875089103 / #33876875143 日志 + PR #254/#255/#256（合入）+ PR #257（第四轮）
 - **evidence_strength**: production_runtime（真实 CI 模拟器执行）
-- **reproducibility**: 修复后待复验
+- **reproducibility**: 待第四轮复验
 - **notes**:
-  - 模拟器在 GitHub Actions 持续 proven：两次 boot 成功（427s / ~330s），印证 timeout:20 必要性
-  - 两次失败均为 workflow 配置问题（非环境/产品），每轮修复推进到下一层：混跑 → 工作目录
-  - 若第三次通过 → emulator_runtime/device-UI 层可由 Cline(CI) 稳定承担；Doubao 聚焦 APK 静态审计（B-01 proven）+ Web 代理视觉
+  - 模拟器链路持续 proven（三次 boot 成功），build/install 层已闭环
+  - 三次失败逐层收敛：混跑 → 工作目录 → 性能超时（非产品/测试问题）
+  - 决策门：第四轮若仍超时 → 判定 emulator_runtime 在免费 runner blocked_by_environment，转 L3（Web 代理）/ L4（真机）
