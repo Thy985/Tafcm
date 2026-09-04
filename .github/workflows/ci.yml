@@ -351,6 +351,9 @@ jobs:
 
       - name: Run device integration tests (emulator)
         uses: reactivecircus/android-emulator-runner@v2
+        # C-01 review 修复（Human）：默认 6min 超时在 AVD 冷启动+首次 build 时易触顶，
+        # 显式放宽到 20min，避免基础设施慢被误报为实验失败。
+        timeout-minutes: 20
         with:
           api-level: 34
           arch: x86_64
