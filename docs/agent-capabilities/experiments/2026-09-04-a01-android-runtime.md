@@ -1,0 +1,24 @@
+# Experiment A-01 — Doubao 环境 Android runtime 可达性
+
+- **id**: A-01
+- **date**: 2026-09-04
+- **agent**: doubao
+- **environment**: cloud_computer (local VM, no Android SDK preinstalled)
+- **capability**: android_runtime (emulator / device execution)
+- **task**: 判断 Doubao Cloud Computer 能否获得真实 Android runtime 以运行 Tafcm APK
+- **setup**: 检查 KVM/CPU 虚拟化/容器权限/磁盘内存 + 下载 release APK 验证可获取性
+- **steps**: 1) ls /dev/kvm（不存在）；2) grep vmx|svm /proc/cpuinfo（0 标志）；3) id（普通用户容器）；4) 下载 v0.1.1 app-debug.apk（231MB 成功）；5) unzip 静态分析（classes.dex/libflutter.so/flutter_assets 结构可读；AndroidManifest.xml 为二进制需 aapt）
+- **expected**: 评估模拟器可行性
+- **actual**: 
+  - APK 下载: proven（231MB, zip 可识别, GitHub release asset）
+  - APK 静态分析: proven-partial（结构可读；manifest 需 aapt，本环境无 aapt）
+  - Android 模拟器: **不可行** —— 无 /dev/kvm + CPU 无虚拟化标志 + 容器内
+  - 本地 flutter/dart: 无 → Flutter Web 代理验证当前不可行（需 setup）
+  - GitHub Pages: 无 Web 部署
+- **status**: failed_under_conditions (emulator) / proven (apk download & static partial)
+- **boundary**: type: environment — 无 KVM/虚拟化，标准 Android 模拟器无法在 Cloud Computer 运行；非 permission（PAT 可下载 APK），非 capability（静态分析可用）
+- **failure_mode**: 无 KVM → emulator 不可用；无 aapt → manifest 无法解码（可装 apktool/aapt 补）
+- **evidence**: /dev/kvm 缺失、cpuinfo 无 vmx/svm、tafcm-debug.apk 231MB、unzip 输出
+- **evidence_strength**: production_runtime (env probe) + visual (file listing)
+- **reproducibility**: high
+- **notes**: 模拟器不可行 → APK runtime 验证只能走 (a) CI android-emulator-runner（GitHub-hosted，支持软件渲染）或 (b) 真机 adb。Doubao 可承担 APK 静态审计（manifest/权限/签名/资源/体积/依赖库）与 Flutter Web 代理 UI 验证（需先 setup flutter + build web）。
