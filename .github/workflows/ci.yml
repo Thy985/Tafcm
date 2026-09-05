@@ -365,12 +365,16 @@ jobs:
           # C-01 二次失败根因：android-emulator-runner 的 script 在仓库根目录执行
           # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
           working-directory: flutter_app
-          script: |
-            # flutter test 禁止单次调用混跑多个 integration 文件
-            # （Integration tests and unit tests cannot be run in a single invocation）
-            # → 每个文件单独一次调用
-            # 第四轮：先只跑 smoke（纯链路，无 UI 渲染依赖），通过后再扩展 home_smoke
-            flutter test integration_test/smoke_test.dart -d emulator-5554
+          # 注意：android-emulator-runner 的 script 参数按行拆分，每行独立 sh -c 执行
+          # （parseScript: split by newline, trim, 过滤 # 行）→ 不支持跨行 if/fi 结构。
+          # 因此整段逻辑必须压成单行（分号分隔，if/fi 同行闭合）。
+          # 语义：timeout 900s 跑 smoke；非 0/124=失败；124 但日志无 ✅=超时未完成=失败；
+          #       124 且日志有 ✅=测试完成仅进程 hang=通过；正常退出=通过。
+          script: >-
+            set +e; timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1; EXIT=$?;
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "FLUTTER_TEST_FAILED exit=$EXIT"; tail -30 flutter_test.log; exit $EXIT; fi;
+            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; exit 124; fi;
+            echo "FLUTTER_TEST_PASSED exit=$EXIT" 
 
   build-web:
     name: Build Web
