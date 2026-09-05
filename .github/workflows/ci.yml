@@ -365,24 +365,15 @@ jobs:
           # C-01 二次失败根因：android-emulator-runner 的 script 在仓库根目录执行
           # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
           working-directory: flutter_app
-          script: |
-            # C-01 第五轮修订（Human review）：300s 过短——第四轮证据 build 257s+install
-            # 143s 已近 400s，timeout 在 build 阶段就触发（run #33926466032），测试未跑。
-            # 且 exit 124 盲判"通过"会静默吞掉"超时未完成"。修订：
-            #   1) timeout 300 → 900s（对齐 build+install+test 真实耗时，上层 40min 兜底）
-            #   2) 通过判定必须由日志确认测试完成（✅ smoke test: 1+1=2），124 但无日志=失败
-            set +e
-            timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1
-            EXIT=$?
-            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then
-              echo "FLUTTER_TEST_FAILED exit=$EXIT"
-              tail -30 flutter_test.log
-              exit $EXIT
-            fi
-            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then
-              echo "TIMEOUT_BEFORE_TEST_COMPLETION - treated as FAILURE"
-              exit 124
-            fi
+          # 注意：android-emulator-runner 的 script 参数按行拆分，每行独立 sh -c 执行
+          # （parseScript: split by newline, trim, 过滤 # 行）→ 不支持跨行 if/fi 结构。
+          # 因此整段逻辑必须压成单行（分号分隔，if/fi 同行闭合）。
+          # 语义：timeout 900s 跑 smoke；非 0/124=失败；124 但日志无 ✅=超时未完成=失败；
+          #       124 且日志有 ✅=测试完成仅进程 hang=通过；正常退出=通过。
+          script: >-
+            set +e; timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1; EXIT=$?;
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "FLUTTER_TEST_FAILED exit=$EXIT"; tail -30 flutter_test.log; exit $EXIT; fi;
+            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; exit 124; fi;
             echo "FLUTTER_TEST_PASSED exit=$EXIT" 
 
   build-web:
