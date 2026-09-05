@@ -372,15 +372,18 @@ jobs:
             #   1) timeout 300 → 900s（对齐 build+install+test 真实耗时，上层 40min 兜底）
             #   2) 通过判定必须由日志确认测试完成（✅ smoke test: 1+1=2），124 但无日志=失败
             set +e
-            timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 2>&1 | tee flutter_test.log
-            EXIT=${PIPESTATUS[0]}
-            echo "flutter test exit code: $EXIT"
-            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then exit $EXIT; fi
+            timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1
+            EXIT=$?
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then
+              echo "FLUTTER_TEST_FAILED exit=$EXIT"
+              tail -30 flutter_test.log
+              exit $EXIT
+            fi
             if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then
               echo "TIMEOUT_BEFORE_TEST_COMPLETION - treated as FAILURE"
               exit 124
             fi
-            echo "FLUTTER_TEST_PASSED (exit=$EXIT, completion confirmed)" 
+            echo "FLUTTER_TEST_PASSED exit=$EXIT" 
 
   build-web:
     name: Build Web
