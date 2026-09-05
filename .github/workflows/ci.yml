@@ -365,16 +365,22 @@ jobs:
           # C-01 二次失败根因：android-emulator-runner 的 script 在仓库根目录执行
           # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
           working-directory: flutter_app
-          # 注意：android-emulator-runner 的 script 参数按行拆分，每行独立 sh -c 执行
-          # （parseScript: split by newline, trim, 过滤 # 行）→ 不支持跨行 if/fi 结构。
-          # 因此整段逻辑必须压成单行（分号分隔，if/fi 同行闭合）。
-          # 语义：timeout 900s 跑 smoke；非 0/124=失败；124 但日志无 ✅=超时未完成=失败；
-          #       124 且日志有 ✅=测试完成仅进程 hang=通过；正常退出=通过。
+          # C-01 第九轮方案（Human 批准）：flutter drive + x86_64-only APK。
+          # 第八轮根因：flutter test 构建全 ABI（arm64-v8a+armeabi-v7a+x86_64）≈231MB APK，
+          #   流式安装到无 KVM 软件模拟器偶发 `Broken pipe (32)`（run #33936930491）。
+          # 修复：先 build 仅 x86_64 APK（~80MB）再 flutter drive --use-application-binary 复用。
+          # 注意：android-emulator-runner 的 script 按行拆分、每行独立 sh -c（parseScript），
+          #   不支持跨行 if/fi → 整段压成单行（分号分隔，if/fi 同行闭合）。
+          # 语义：build 失败=失败；drive 非 0/124=失败；124 且日志无完成标记=超时未完成=失败；
+          #       124 且日志有完成标记=测试完成仅进程 hang=通过；正常退出=通过。
           script: >-
-            set +e; timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1; EXIT=$?;
-            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "FLUTTER_TEST_FAILED exit=$EXIT"; tail -30 flutter_test.log; exit $EXIT; fi;
-            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; exit 124; fi;
-            echo "FLUTTER_TEST_PASSED exit=$EXIT" 
+            set +e;
+            timeout 1200 flutter build apk --debug --target-platform android-x64 --no-pub > build.log 2>&1; BEXIT=$?;
+            [ $BEXIT -ne 0 ] && { echo "BUILD_FAILED exit=$BEXIT"; tail -30 build.log; exit $BEXIT; };
+            timeout 1200 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -30 flutter_test.log; exit $EXIT; fi;
+            if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; exit 124; fi;
+            echo "DRIVE_PASSED exit=$EXIT" 
 
   build-web:
     name: Build Web
