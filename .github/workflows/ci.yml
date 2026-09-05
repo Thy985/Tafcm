@@ -366,11 +366,24 @@ jobs:
           # （不受 job defaults.working-directory 影响），找不到 flutter_app/pubspec.yaml
           working-directory: flutter_app
           script: |
-            # flutter test 禁止单次调用混跑多个 integration 文件
-            # （Integration tests and unit tests cannot be run in a single invocation）
-            # → 每个文件单独一次调用
-            # 第四轮：先只跑 smoke（纯链路，无 UI 渲染依赖），通过后再扩展 home_smoke
-            flutter test integration_test/smoke_test.dart -d emulator-5554
+            # C-01 第五轮修订（Human review）：300s 过短——第四轮证据 build 257s+install
+            # 143s 已近 400s，timeout 在 build 阶段就触发（run #33926466032），测试未跑。
+            # 且 exit 124 盲判"通过"会静默吞掉"超时未完成"。修订：
+            #   1) timeout 300 → 900s（对齐 build+install+test 真实耗时，上层 40min 兜底）
+            #   2) 通过判定必须由日志确认测试完成（✅ smoke test: 1+1=2），124 但无日志=失败
+            set +e
+            timeout 900 flutter test integration_test/smoke_test.dart -d emulator-5554 > flutter_test.log 2>&1
+            EXIT=$?
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then
+              echo "FLUTTER_TEST_FAILED exit=$EXIT"
+              tail -30 flutter_test.log
+              exit $EXIT
+            fi
+            if [ $EXIT -eq 124 ] && ! grep -q "smoke test: 1+1=2" flutter_test.log; then
+              echo "TIMEOUT_BEFORE_TEST_COMPLETION - treated as FAILURE"
+              exit 124
+            fi
+            echo "FLUTTER_TEST_PASSED exit=$EXIT" 
 
   build-web:
     name: Build Web
