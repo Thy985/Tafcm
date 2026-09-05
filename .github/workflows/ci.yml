@@ -373,13 +373,16 @@ jobs:
           #   不支持跨行 if/fi → 整段压成单行（分号分隔，if/fi 同行闭合）。
           # 语义：build 失败=失败；drive 非 0/124=失败；124 且日志无完成标记=超时未完成=失败；
           #       124 且日志有完成标记=测试完成仅进程 hang=通过；正常退出=通过。
+          # C-01 第九轮（诊断版）：drive 20min 超时无完成标记（run #33950879887），
+          #   但 124 分支未 dump 日志 → 看不到 drive 卡在哪。本版在超时时 dump 两日志定位。
+          # 注意：android-emulator-runner script 按行拆分、每行独立 sh -c（parseScript）→ 压单行。
           script: >-
             set +e;
             timeout 1200 flutter build apk --debug --target-platform android-x64 --no-pub > build.log 2>&1; BEXIT=$?;
             [ $BEXIT -ne 0 ] && { echo "BUILD_FAILED exit=$BEXIT"; tail -30 build.log; exit $BEXIT; };
-            timeout 1200 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
-            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -30 flutter_test.log; exit $EXIT; fi;
-            if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; exit 124; fi;
+            timeout 900 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -40 flutter_test.log; exit $EXIT; fi;
+            if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; echo "===== flutter_test.log tail 50 ====="; tail -50 flutter_test.log; echo "===== build.log tail 20 ====="; tail -20 build.log; exit 124; fi;
             echo "DRIVE_PASSED exit=$EXIT" 
 
   build-web:
