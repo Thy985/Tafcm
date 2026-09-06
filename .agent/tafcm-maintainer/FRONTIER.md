@@ -31,15 +31,15 @@
 ### FR-001 — C-01 Android 模拟器集成测试管道
 - id: FR-001
 - area: CI/android-emulator-integration
-- depth: current: 1 / target: 3
+- depth: current: 1 / target: 3（blocked）
 - open_question: "smoke 链路通后，如何扩展至 editor/export/formula 全链路 device-level 集成测试？"
-- next_action: type: targeted-test / target: flutter_app/integration_test/phase35_home_smoke_test.dart（已通）→ 扩展至 editor_screen + export_path
-- blocking_reason: null
-- last_verified_at: 2026-09-05
-- activation_reason: test-failure
-- verification_status: confirmed
-- evidence: CI #840（databaseId=33879645265）Android Device Integration job success；smoke_test.dart + phase35_home_smoke_test.dart 各 🎉 1 test passed
-- handoff: null
+- next_action: type: targeted-test / target: flutter_app/integration_test/phase35_home_smoke_test.dart（已通）→ 扩展至 editor_screen + export_path（blocked by #263）
+- blocking_reason: adb device offline（CI #33953543937, #33950879887）；emulator 启动后 44 秒内离线，根因在 CI runner 基础设施层
+- last_verified_at: 2026-09-07
+- activation_reason: new-evidence
+- verification_status: needs-device-validation
+- evidence: CI #840（第 3 轮曾通过）；CI #33953543937/#33950879887（第 9-10 轮 adb offline）；Issue #263 跟踪中
+- handoff: executor: human / reason: adb device offline 根因在 GitHub Actions ubuntu-24.04 runner 基础设施层，需人工决策是否切换 runner 类型或添加 adb logcat dump
 
 ## 冷却区（cooling — 连续 3 轮无代码变化 / 无新证据 / 无新异常）
 

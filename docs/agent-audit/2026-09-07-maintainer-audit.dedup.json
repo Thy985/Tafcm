@@ -1,0 +1,32 @@
+{
+  "date": "2026-09-07",
+  "findings": [
+    {
+      "id": "F-2026-09-07-01",
+      "fingerprint": "e0d98ab667623d47",
+      "category": "tech-debt",
+      "evidence_files": [],
+      "status": "NEW",
+      "issue": "#263",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-07-01"
+    },
+    {
+      "id": "F-2026-09-07-02",
+      "fingerprint": "f5da01a687870462",
+      "category": "architecture",
+      "evidence_files": [
+        "0032-audit-frontier-incremental.md"
+      ],
+      "status": "RESOLVED",
+      "issue": "N/A",
+      "hit_previous": true,
+      "previous_id": "F-2026-09-07-02"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "hits": 2,
+    "new": 0
+  }
+}

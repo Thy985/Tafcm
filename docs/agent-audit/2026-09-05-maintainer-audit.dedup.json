@@ -11,8 +11,8 @@
       ],
       "status": "NEW",
       "issue": "N/A",
-      "hit_previous": false,
-      "previous_id": null
+      "hit_previous": true,
+      "previous_id": "F-2026-09-05-01"
     },
     {
       "id": "F-2026-09-05-02",
@@ -23,13 +23,13 @@
       ],
       "status": "NEW",
       "issue": "N/A",
-      "hit_previous": false,
-      "previous_id": null
+      "hit_previous": true,
+      "previous_id": "F-2026-09-05-02"
     }
   ],
   "summary": {
     "total": 2,
-    "hits": 0,
-    "new": 2
+    "hits": 2,
+    "new": 0
   }
 }
