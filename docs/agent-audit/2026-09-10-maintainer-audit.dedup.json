@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-10",
+  "findings": [
+    {
+      "id": "F-2026-09-10-01",
+      "fingerprint": "2e24971817b33b6b",
+      "category": "test-gap",
+      "evidence_files": [
+        "provider_uniqueness_test.dart",
+        "editor_providers.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A（本次新建，与 F-2026-09-10-02 关联但独立）",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-10-02",
+      "fingerprint": "7ba0dc9447af98ce",
+      "category": "architecture",
+      "evidence_files": [
+        "providers.dart",
+        "document_provider.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A（本次新建）",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "hits": 0,
+    "new": 2
+  }
+}
