@@ -130,4 +130,6 @@
 | e853e8f6a7cddfba | F-2026-09-02-02 | tech-debt | report.json,generate_report.py | WATCH | N/A | 2026-09-02 | 2026-09-02 |
 | f5469b957182e6c2 | F-2026-09-01-02 | bug | formula_pdf_renderer.dart,word_exporter.dart | UNCHANGED | #216 | 2026-09-02 | 2026-09-02 |
 | f5da01a687870462 | F-2026-09-07-02 | architecture | 0032-audit-frontier-incremental.md | RESOLVED | N/A | 2026-09-07 | 2026-09-07 |
+| a1b2c3d4e5f60001 | F-2026-09-10-01 | test-gap | provider_uniqueness_test.dart | NEW | #265 | 2026-09-10 | 2026-09-10 |
+| b2c3d4e5f6000102 | F-2026-09-10-02 | architecture | providers.dart,editor_providers.dart,document_provider.dart,editor_provider.dart | NEW | #266 | 2026-09-10 | 2026-09-10 |
 <!-- REGISTRY_ROWS -->
