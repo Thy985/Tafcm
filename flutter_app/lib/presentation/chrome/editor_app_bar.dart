@@ -114,6 +114,11 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         tooltip: '返回',
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
+        ),
         onPressed: () => _onBack(context),
       ),
       actions: [
@@ -121,24 +126,44 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.folder_open),
           tooltip: '文件树',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: onOpenFileTree,
         ),
         // Phase 3.4.1：目录（大纲）抽屉开关
         IconButton(
           icon: const Icon(Icons.list_alt),
           tooltip: '目录',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: onOpenToc,
         ),
         // Phase 3.3 §3.3.5：Undo 按钮（基于 coordinator.canUndo 启用/禁用）
         IconButton(
           icon: const Icon(Icons.undo),
           tooltip: '撤销',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: coordinator.canUndo ? () => coordinator.undo() : null,
         ),
         // Phase 3.3 §3.3.5：Redo 按钮（基于 coordinator.canRedo 启用/禁用）
         IconButton(
           icon: const Icon(Icons.redo),
           tooltip: '重做',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
         ),
         // Phase 3.4.3 / ADR-0015：3 值主题切换（明亮 → 夜间 → 护眼 → 明亮）。
@@ -147,12 +172,22 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: Icon(_themeIcon(themeMode)),
           tooltip: _themeTooltip(themeMode),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: onCycleTheme,
         ),
         // Phase 3.3 §3.3.3：焦点模式切换（全屏进入 / 退出）
         IconButton(
           icon: Icon(focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
           tooltip: focusMode ? '退出焦点模式' : '焦点模式',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           onPressed: onToggleFocus,
         ),
         // Phase 3.4 Slice 7 / §3.7：导出 PopupMenu（PDF / Word / TXT）。
