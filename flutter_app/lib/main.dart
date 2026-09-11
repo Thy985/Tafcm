@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/observability/observability_service.dart';
@@ -88,6 +89,9 @@ void main() {
   // 原main() 中的 await 调用移入 zone 内，确保其异常也被捕获。
   runZonedGuarded<Future<void>>(
     () async {
+      // Firebase 初始化（google-services.json 已配置）
+      await Firebase.initializeApp();
+
       // P0 修复（2026-08-04）：注册外部文件 MethodChannel 并查询冷启动 URI。
       // 必须 await：内部会反向调用 getInitialUri 取回 MainActivity 缓存的
       // pendingUri，填充到 ExternalFileService.instance.initialUri 供
