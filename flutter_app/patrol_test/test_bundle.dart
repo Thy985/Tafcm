@@ -9,7 +9,7 @@ import 'package:patrol/src/platform/contracts/contracts.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import '../patrol/e2e/ext_006_physical_keyboard_test.dart' as patrol__e2e__ext_006_physical_keyboard_test;
+import '../integration_test/e2e/extended/e2e_ext_004_unsaved_mutation_isolation_test.dart' as integration_test__e2e__extended__e2e_ext_004_unsaved_mutation_isolation_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -72,7 +72,7 @@ Future<void> main() async {
   });
 
 // START: GENERATED TEST GROUPS
-  group('patrol.e2e.ext_006_physical_keyboard_test', patrol__e2e__ext_006_physical_keyboard_test.main);
+  group('integration_test.e2e.extended.e2e_ext_004_unsaved_mutation_isolation_test', integration_test__e2e__extended__e2e_ext_004_unsaved_mutation_isolation_test.main);
 // END: GENERATED TEST GROUPS
 
   final dartTestGroup = await testExplorationCompleter.future;
