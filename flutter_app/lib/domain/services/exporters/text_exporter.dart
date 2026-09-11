@@ -155,6 +155,11 @@ class TextExporter {
         buf.write(c.text);
       } else if (c is FormulaElement) {
         buf.write(' [${c.latex}] ');
+      } else if (c is BoldElement) {
+        // U9 修复（Wave 2）：原实现缺 BoldElement 分支，加粗内容在 TXT
+        // 导出中整体丢失（斜体/删除线均保留内容，加粗不应例外）。
+        // TXT 为纯文本格式：丢弃 ** 标记、保留内容（与斜体同一退化策略）。
+        buf.write(_inlineToText(c.children));
       } else if (c is ItalicElement) {
         buf.write(_inlineToText(c.children));
       } else if (c is StrikethroughElement) {
