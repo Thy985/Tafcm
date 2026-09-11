@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-12",
+  "findings": [
+    {
+      "id": "F-2026-09-12-01",
+      "fingerprint": "eac1684429ee8dda",
+      "category": "bug",
+      "evidence_files": [
+        "text_exporter.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A（测试注释说\"已上报\"但未在当前 open issues 中找到匹配项，建议 Human Owner 确认后创建）",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "hits": 0,
+    "new": 1
+  }
+}

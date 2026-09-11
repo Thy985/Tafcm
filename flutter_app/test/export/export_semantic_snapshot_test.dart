@@ -53,9 +53,20 @@ List<String> semanticSignature(List<DocumentElement> elements) {
         final italics = children.whereType<ItalicElement>().length;
         final codes = children.whereType<InlineCodeElement>().length;
         final links = children.whereType<LinkElement>().length;
-        final textLen = children
-            .whereType<TextElement>()
-            .fold<int>(0, (sum, t) => sum + t.text.length);
+        // 递归收集文本长度（含 Bold/Italic 嵌套内容）——TXT round-trip
+        // 会丢样式标记但保留内容，嵌套内容必须计入 t 才能双侧对称。
+        int nestedLen(Iterable<dynamic> kids) => kids.fold<int>(0, (sum, c) {
+              if (c is TextElement) return sum + c.text.length;
+              if (c is BoldElement) return sum + nestedLen(c.children);
+              if (c is ItalicElement) return sum + nestedLen(c.children);
+              return sum;
+            });
+        final textLen = children.fold<int>(0, (sum, c) {
+          if (c is TextElement) return sum + c.text.length;
+          if (c is BoldElement) return sum + nestedLen(c.children);
+          if (c is ItalicElement) return sum + nestedLen(c.children);
+          return sum;
+        });
         sig.add('para:b$bolds/i$italics/c$codes/l$links/t$textLen');
       case EmptyLineElement():
         break; // 分隔符不进签名
@@ -149,14 +160,14 @@ void main() {
       expect(afterSig.contains('quote'), isTrue);
       expect(afterSig.contains('hr'), isTrue);
 
-      // 段落行内载荷：行内代码 / 链接计数必须保真。
+      // 段落行内载荷：加粗 / 行内代码 / 链接计数必须保真。
       // 签名格式 `para:b1/i0/c0/l0/t57`：计数在第一个 ':' 后、按 '/' 分段。
       //
       // 已知 TXT 退化白名单（不参与恒等断言，属设计行为）：
       // - 斜体/删除线：标记丢弃、内容保留（`_inlineToText` 直写 children）
-      // - 加粗：**当前 TXT 导出丢失全部内容**（`_inlineToText` 无 BoldElement
-      //   分支）——这是 U9 抓到的真实缺陷，已上报，待独立修复 PR 后把
-      //   bold 计数移入恒等断言。
+      // - 加粗：同上（Wave 2 已修复"内容整体丢失"缺陷——内容经嵌套
+      //   收集计入 t 段参与恒等断言；b 样式计数经 round-trip 必然归零，
+      //   属 TXT 纯文本格式的设计性退化，不参与断言）。
       final origPara = origSig.where((s) => s.startsWith('para:')).toList();
       final afterPara = afterSig.where((s) => s.startsWith('para:')).toList();
       int spanCount(List<String> sigs, String marker) => sigs.fold<int>(0, (n, s) {
