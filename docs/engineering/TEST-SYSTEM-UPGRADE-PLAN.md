@@ -345,6 +345,23 @@ tafcm verify [--level unit|integration|e2e|all] [--json]
 
 合计 16-22 人日。U1/U2 与本文档 §11.5 执行顺序的第二梯队并行；U5 绑定 #245 修复 PR；U9 与 U4 同 PR 优先落地。
 
+### 执行状态（2026-09-12 更新）
+
+| 项 | 状态 | 交付物 |
+|----|------|--------|
+| U1 | ✅ 已落地（Wave 3，PR #272） | spec 套件 + ratchet 基线 358/652（54.9%），见 COMMONMARK-CONFORMANCE-BASELINE.md |
+| U2 | ✅ 已落地（Wave 1，PR #271） | ime_matrix_test.dart（3 locale × 守门/commit/cancel/续行） |
+| U3 | ✅ 已落地（Wave 1） | test/security/ + documentPathFor 守门 |
+| U4 | ✅ 已落地（Wave 1，随 U9） | export 语义恒等断言（invariant_checker 全量接入待后续） |
+| U7 | ✅ 已落地（Wave 1） | VERIFICATION-POLICY.md 发布门清单 |
+| U9 | ✅ 已落地（Wave 1+2） | export_semantic_snapshot_test.dart + TXT 加粗丢失修复 |
+| U10 | ✅ 试点落地（Wave 2） | pixel_region_sampling_test.dart（3 用例） |
+| **U5** | ✅ **已落地（本次）** | perf_ratchet_test.dart（4 指标 ratchet）+ ci.yml perf job + perf_baseline.json；**注意：实际未等 #245 修复先行——ratchet 以当前实测为基线（list 1732ms / parser 38.12ms 等），#245 修复后下调基线固化收益** |
+| U6 | ⏳ 待做 | 与 §4.2 编码显式化同 PR |
+| U8 | ⏳ 待做 | Layered Debug Snapshot |
+
+U5 实测基线（本机 debug JIT，slack ×2-3）：parser 1000 行 38.12ms ｜ 单块 toElement 0.071ms ｜ 整篇 1000 块 220ms ｜ listDocuments 1000 文件 1731.72ms。CI perf job 跑 `--tags perf`（TC-PERF 绝对阈值 + ratchet 双重断言）。
+
 ### 3.9 反向启示（不学什么）
 
 - **不学 Markor 的"无 UI 测试"**：我们 golden + widget 测试已是质量资产，作者本人也在 issue #2584 中承认 UI 测试价值，只是维护成本权衡——我们应做的是把易碎断言收敛到 tokens/golden 层，而非删除；

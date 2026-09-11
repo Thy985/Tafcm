@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "measuredAt": "2026-09-12",
+  "machine": "local dev (Windows, debug JIT) — CI/Release AOT 另测",
+  "note": "slack 为跨机器抖动余量；低于基线×slack 即回归失败（ratchet 只许人工下调）",
+  "metrics": {
+    "parser_parse_1000_lines": { "baselineMs": 38.12, "slack": 2.5 },
+    "block_toelement_typical": { "baselineMs": 0.071, "slack": 3.0 },
+    "block_toelement_worst": { "baselineMs": 16.77, "slack": 2.0 },
+    "fulldoc_parse_1000_blocks": { "baselineMs": 220.0, "slack": 2.5 },
+    "list_documents_1000_files": { "baselineMs": 1731.72, "slack": 2.5 }
+  }
+}
