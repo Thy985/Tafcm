@@ -203,6 +203,49 @@ jobs:
           name: golden-diffs
           path: flutter_app/test/golden/failures/
 
+  # 性能 ratchet 门禁 job（U5，TEST-SYSTEM-UPGRADE-PLAN §3.5）。
+  #
+  # 主 Test job 用 `--exclude-tags perf` 排除了性能测试（此前 perf 无 job
+  # 接管 = 裸奔，issue #245 的按键 O(n²) 渐进退化因此长期未被发现）。
+  # 本 job 补上防线：`--tags perf` 跑 TC-PERF-1/2/3 绝对阈值 + U5 ratchet
+  # 基线（perf_baseline.json × slack）双重断言，"悄悄变慢"即红。
+  #
+  # 基线数值只能人工确认后下调（收敛固化），禁止上调；有意改动导致
+  # 回归时先修性能，确需放宽走 PR 评审改 perf_baseline.json。
+  perf:
+    name: Perf (ratchet gate)
+    runs-on: ubuntu-24.04
+    needs: analyze
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml', 'flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Download dependencies
+        run: flutter pub get
+
+      - name: Run performance tests (absolute thresholds + ratchet baseline)
+        run: flutter test --tags perf --reporter expanded
+
   # 手动触发的基线更新 job（workflow_dispatch + update_goldens=true 时运行）。
   # 产出 golden-baselines artifact，下载后拷入 test/golden/golden/ 提交即可：
   #   gh run download <run-id> --name golden-baselines --dir /tmp/gb
