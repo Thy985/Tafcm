@@ -45,9 +45,20 @@ class FileRepository implements DocumentRepository {
   }
 
   /// 由文档 id（= .md 文件名 stem）推导规范化路径。
+  ///
+  /// 安全边界（U3，TEST-SYSTEM-UPGRADE-PLAN §3.3）：id 来自外部输入
+  /// （文件树点击 / 预览查询 / front matter），含路径分隔符或 `..` 时可逃逸
+  /// documents 根目录。此处拒绝而非静默清洗，避免 id 变体绕过。
   @override
-  Future<String> documentPathFor(String id) async =>
-      '${await _docsDirPath()}${Platform.pathSeparator}$id.md';
+  Future<String> documentPathFor(String id) async {
+    if (id.isEmpty ||
+        id.contains('/') ||
+        id.contains('\\') ||
+        id.contains('..')) {
+      throw ArgumentError('Invalid document id: $id');
+    }
+    return '${await _docsDirPath()}${Platform.pathSeparator}$id.md';
+  }
 
   ({Document doc, String path}) _parseEntry(
     String path,
