@@ -357,8 +357,8 @@ tafcm verify [--level unit|integration|e2e|all] [--json]
 | U9 | ✅ 已落地（Wave 1+2） | export_semantic_snapshot_test.dart + TXT 加粗丢失修复 |
 | U10 | ✅ 试点落地（Wave 2） | pixel_region_sampling_test.dart（3 用例） |
 | **U5** | ✅ **已落地（本次）** | perf_ratchet_test.dart（4 指标 ratchet）+ ci.yml perf job + perf_baseline.json；**注意：实际未等 #245 修复先行——ratchet 以当前实测为基线（list 1732ms / parser 38.12ms 等），#245 修复后下调基线固化收益** |
-| U6 | ⏳ 待做 | 与 §4.2 编码显式化同 PR |
-| U8 | ⏳ 待做 | Layered Debug Snapshot |
+| U6 | ✅ 已落地（PR #275） | 真实编码样本 fixtures（test/fixtures/encodings/ 6 样本）+ file_service_encoding_fixtures_test.dart（7 用例）；**登记缺口：decodeBytesAuto 容错 UTF-8 永不抛错 → GBK/UTF-16 专属分支不可达，GBK 文件产出 U+FFFD 乱码，待 §4.2 显式编码入口修复** |
+| U8 | ✅ 已落地（PR #275） | render_debug_snapshot.dart（三层 snapshot + contentHash + firstMismatch）+ evidence/layered_snapshot_test.dart（5 用例，AST↔editor-model↔render 三层 hash 恒等）；**登记缺口：嵌套列表 fromElement/toElement round-trip 丢 nested（A4 守门，修复后翻转断言）** |
 
 U5 实测基线（本机 debug JIT，slack ×2-3）：parser 1000 行 38.12ms ｜ 单块 toElement 0.071ms ｜ 整篇 1000 块 220ms ｜ listDocuments 1000 文件 1731.72ms。CI perf job 跑 `--tags perf`（TC-PERF 绝对阈值 + ratchet 双重断言）。
 
