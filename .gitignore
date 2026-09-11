@@ -71,3 +71,23 @@ flutter_app/test/golden/failures/
 # .tmp/ 由 tafcm-maintainer.yml 的 Cline / report 步骤创建（运行时产物），
 # 不入库；Guard 步骤用 git status --porcelain 检查越权变更，若不忽略会误判。
 .tmp/
+
+# === Firebase 凭据与运行产物（AGENTS.md §6.2.4 禁含密钥文件入库） ===
+# google-services.json 含 Firebase 客户端凭据（project_number / mobilesdk_app_id /
+# api_key），任何环境均不得入库。.firebaserc / firebase.json 为 Firebase CLI
+# 项目绑定与托管配置，属本地开发环境态。firebase-debug.log 为 CLI 一次性运行日志。
+**/google-services.json
+.firebaserc
+firebase.json
+**/firebase-debug.log
+
+# === 本地诊断/IDE 一次性产物 ===
+# 真机/模拟器导出死循环诊断 dump（.diag-*）、IDE 本地配置（.vscode）为开发者
+# 各自机器的一次性/环境态文件，不入库。
+/.diag-*/
+/.vscode/
+
+# === 本地代理环境脚本 ===
+# tools/upload002.sh 内含硬编码本地代理地址（HTTPS_PROXY=127.0.0.1:7897），
+# 属开发者机器环境态，不入库。
+tools/upload002.sh
