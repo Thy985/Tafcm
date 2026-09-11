@@ -1,0 +1,112 @@
+{
+  "date": "2026-09-01",
+  "findings": [
+    {
+      "id": "F-2026-09-01-01",
+      "fingerprint": "ab6e10314f8bf106",
+      "category": "tech-debt",
+      "evidence_files": [
+        "history_manager.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-02",
+      "fingerprint": "b64ecfc2ee9259e0",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UPDATED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-03",
+      "fingerprint": "3c37d53a312349a3",
+      "category": "bug",
+      "evidence_files": [
+        "svg_to_pdf.dart",
+        "mermaid_renderer.html"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-04",
+      "fingerprint": "f2b6c6b7008959b4",
+      "category": "architecture",
+      "evidence_files": [
+        "formula_pdf_renderer.dart",
+        "word_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-05",
+      "fingerprint": "77d8078f85365146",
+      "category": "test-gap",
+      "evidence_files": [
+        "word_export_semantic_fidelity_test.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A（可并入 #216 修复 PR）",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-06",
+      "fingerprint": "6f1c9d985064e70e",
+      "category": "regression",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-07",
+      "fingerprint": "e31f8b48f295f130",
+      "category": "architecture",
+      "evidence_files": [
+        "pdf_exporter.dart"
+      ],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-08",
+      "fingerprint": "486250b149d3f90c",
+      "category": "tech-debt",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "N/A",
+      "hit_previous": false,
+      "previous_id": null
+    },
+    {
+      "id": "F-2026-09-01-09",
+      "fingerprint": "cad9b9fa1ded8805",
+      "category": "tech-debt",
+      "evidence_files": [],
+      "status": "UNCHANGED",
+      "issue": "#216",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "hits": 0,
+    "new": 9
+  }
+}
