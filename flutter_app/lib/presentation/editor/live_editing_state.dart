@@ -23,32 +23,89 @@ class LiveEditingState {
   /// 每个 Block 的实时编辑文本（live 优先，缺失时 fallback 到已提交 source）。
   final Map<BlockId, String> _liveSources = {};
 
+  /// 增量 wordCount 缓存（#245 性能修复，2026-09-12）。
+  ///
+  /// 原实现每次按键对全文档做 O(n²) 序列化求和（allIds O(n) 分配 +
+  /// getBlock 线性扫描 O(n) + fromElement 整块序列化），千行文档输入
+  /// 主 isolate 达百毫秒级。现维护每块已计入长度 [blockLengths] 与
+  /// 累计值 [_total]：稳态按键只做差量更新 O(1)；块集合变化
+  /// （structureVersion 变）时全量重算一次——仍无 O(n²) 查找
+  /// （迭代 _liveSources 与 _editor.allSources，均不按 id 扫描）。
+  final Map<BlockId, int> _blockLengths = {};
+  int _total = 0;
+  int _cachedStructureVersion = -1;
+
   LiveEditingState(this._editor);
 
   /// 推入某 block 的实时编辑文本（由 `BaseBlockState._onTextChanged` 高频调用）。
-  void update(BlockId id, String source) => _liveSources[id] = source;
+  void update(BlockId id, String source) {
+    _liveSources[id] = source;
+    // 差量更新：仅当该块长度变化时调整累计值（O(1)）。
+    final old = _blockLengths[id];
+    if (old != null && old != source.length) {
+      _total += source.length - old;
+      _blockLengths[id] = source.length;
+    }
+  }
 
   /// 读取某 block 的实时文本（live 优先，fallback 到已提交 source）。
   String sourceOf(BlockId id) => _liveSources[id] ?? _editor.sourceOf(id);
 
   /// 清空所有实时漂移（undo / redo / 保存后调用）。
-  void clear() => _liveSources.clear();
+  ///
+  /// 长度基线一并失效：undo 可能已改变块集合（structureVersion 已变，
+  /// wordCount 会在下次读取时全量重建）；即使集合未变，把基线对齐到
+  /// committed 才能保证清空后计数无残留漂移。
+  void clear() {
+    _liveSources.clear();
+    _blockLengths.clear();
+    _total = 0;
+    // 强制下次读取重建基线：若集合未变，version 相等会让 getter 误判
+    // 缓存有效而返回已清零的 _total（回归测试 #245 clear 用例实证）。
+    _cachedStructureVersion = -1;
+  }
 
   /// commit 成功后把 [ids] 指定的 block 对齐到 committed，
   /// 避免 false dirty / wordCount 漂移（不触碰其他 block 的 live）。
   void reconcile(Iterable<BlockId> ids) {
     for (final id in ids) {
-      _liveSources[id] = _editor.sourceOf(id);
+      final source = _editor.sourceOf(id);
+      final old = _blockLengths[id];
+      if (old != null) {
+        if (old != source.length) {
+          _total += source.length - old;
+        }
+      } else {
+        // 该块不在基线里（基线从未建立 / clear 后）：累计值不可信，
+        // 强制下次读取全量重建（live-first，必含对齐后的 committed）。
+        // 实证：editor_coordinator_test undo 用例——基线未建时跳过差量
+        // 会让 _total 停在旧值。
+        _cachedStructureVersion = -1;
+      }
+      _liveSources[id] = source;
+      _blockLengths[id] = source.length;
     }
   }
 
   /// 实时字数：对所有 block 累加实时文本长度（live 优先）。
+  ///
+  /// #245 增量实现：稳态（块集合未变）直接返回累计值 O(1)；
+  /// 块集合变化（structureVersion 变）时全量重算一次 O(n)（n = 块数，
+  /// allSources 已按序给出全部 committed source，无按 id 扫描），并
+  /// 重建 [blockLengths] 基线。live 漂移经 [update] 差量计入。
   int get wordCount {
-    var sum = 0;
-    for (final id in _editor.allIds) {
-      sum += sourceOf(id).length;
+    if (_cachedStructureVersion != _editor.structureVersion) {
+      _total = 0;
+      _blockLengths.clear();
+      for (final id in _editor.allIds) {
+        // live-first（原实现语义）：live 漂移的块按实时长度计入。
+        final len = sourceOf(id).length;
+        _blockLengths[id] = len;
+        _total += len;
+      }
+      _cachedStructureVersion = _editor.structureVersion;
     }
-    return sum;
+    return _total;
   }
 
   /// 实时 dirty：已提交脏标记 **或** 任意 live source 与 committed 不一致。

@@ -41,12 +41,7 @@ class EditorCoordinator extends ChangeNotifier
   /// ADR-0021：可观测服务（可选，LIGHT 模式下默认开启）。
   final ObservabilityService? observability;
 
-  /// 只读查看模式（#240 P1-B 修复，2026-09-12）。
-  ///
-  /// 外部 URI（ACTION_VIEW 便携查看器场景）打开的文档无持久化路径
-  /// （content:// 不可写回），允许编辑但保存静默失败 = 内容静默丢失。
-  /// 置 true 后 [handle] 对所有编辑命令 no-op，编辑可用性与保存能力
-  /// 保持一致。仅影响编辑命令；渲染 / 选中 / 滚动不受限。
+  /// 只读查看模式（#240）：外部 URI 无持久化路径，编辑命令统一 no-op 防丢内容。
   bool isReadOnly = false;
 
   EditorCoordinator({
@@ -68,9 +63,7 @@ class EditorCoordinator extends ChangeNotifier
   }
 
   bool handle(EditorCommand command) {
-    // 只读查看模式（#240）：所有编辑命令 no-op。放在最前，保证
-    // 不触碰 editor/history/live 状态，UI 层无需各自判断。
-    if (isReadOnly) return false;
+    if (isReadOnly) return false; // #240：查看模式，编辑命令统一 no-op
     final (oldSource, oldIds) = switch (command) {
       InsertTextCommand c => (editor.sourceOf(c.blockId), null),
       InsertTemplateCommand c when c.mode == TemplateInsertMode.insert =>
@@ -82,9 +75,6 @@ class EditorCoordinator extends ChangeNotifier
       MergeWithPreviousCommand c => (null, editor.allIds.toSet()),
       _ => (null, null),
     };
-
-    // === Observability: 记录交互事件（Phase 3.7.3） ===
-    // R-C3 修复：移到 handle 之后，仅成功时记录（避免守卫拒绝后仍入 RingBuffer）
 
     final ok = handler.handle(command);
     if (ok) {

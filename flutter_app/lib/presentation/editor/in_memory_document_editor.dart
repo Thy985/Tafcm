@@ -39,6 +39,16 @@ class InMemoryDocumentEditor implements DocumentEditor {
   /// - undo / redo 不直接修改此标记（由 EditorCoordinator 根据 history 状态推导）
   bool _isDirty = false;
 
+  /// 结构版本号（#245 性能修复，2026-09-12）。
+  ///
+  /// 任何改变块集合的操作（insert / remove / replace / migration /
+  /// update 不变——只换内容不换集合）自增。供缓存层（如
+  /// LiveEditingState 的增量 wordCount）做 O(1) 失效检测：版本不变
+  /// 则块集合未变，缓存仍有效。
+  ///
+  /// 只增不减，溢出在实际文档生命周期内不可达。
+  int structureVersion = 0;
+
   InMemoryDocumentEditor({String title = '未命名'}) : _title = title;
 
   /// 文档标题。
@@ -91,6 +101,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     }
     final id = preserveId ?? BlockId.generate();
     _blocks.insert(index, _Entry(id, element));
+    structureVersion++;
     _isDirty = true;
     return id;
   }
@@ -99,6 +110,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
   DocumentElement removeBlock(BlockId id) {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
+        structureVersion++;
         _isDirty = true;
         return _blocks.removeAt(i).element;
       }
@@ -122,6 +134,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
         // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+        structureVersion++;
         _blocks[i] = _Entry(id, element);
         _isDirty = true;
         return old;
@@ -158,6 +171,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
         final newId = BlockId.generate();
+        structureVersion++;
         _blocks[i] = _Entry(newId, element);
         _isDirty = true;
         // 通知调用方迁移信息（若提供了回调）

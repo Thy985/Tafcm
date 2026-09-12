@@ -125,6 +125,11 @@ class CommandSelectionSync {
         );
         // 仅对齐存活的上一块；被合并块已移除，reconcile 不应再读其 source。
         return (state: next, newFocus: prevId, affectedIds: {prevId});
+      case UpdateBlockSourceCommand c:
+        // #245 回归修复：source 替换改变了块内容，必须进 affectedIds——
+        // 否则 coordinator 不 reconcile 该块，增量 wordCount 停在基线
+        // （editor_coordinator_test undo 用例实证：Expected 11 / Actual 5）。
+        return (state: state, newFocus: null, affectedIds: {c.blockId});
       default:
         return (state: state, newFocus: null, affectedIds: const {});
     }
