@@ -75,7 +75,6 @@ class HomeScreen extends ConsumerWidget {
             slivers: [
               SliverToBoxAdapter(
                 child: _Header(
-                  onSearch: () => _onSearch(context),
                   onNew: () => _newDoc(ref, context),
                   onThemeCycle: () => ref.read(themeModeProvider.notifier).cycle(),
                 ),
@@ -166,19 +165,14 @@ class HomeScreen extends ConsumerWidget {
     if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 
-  static void _onSearch(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('搜索即将上线'), duration: Duration(seconds: 1)),
-    );
-  }
+  // #242：首页搜索按钮已移除——搜索功能未实现，入口以可用姿态暴露
+  // 属"发布即承诺"缺陷（F-2026-09-03-04）。实现全文搜索前不恢复入口。
 }
-/// 头部：serif 品牌字标 + 搜索 / 新建 圆形按钮。
+/// 头部：serif 品牌字标 + 新建 / 主题 圆形按钮（#242：搜索入口未实现，已移除）。
 class _Header extends StatelessWidget {
-  final VoidCallback onSearch;
   final VoidCallback onNew;
   final VoidCallback onThemeCycle;
   const _Header({
-    required this.onSearch,
     required this.onNew,
     required this.onThemeCycle,
   });
@@ -201,13 +195,6 @@ class _Header extends StatelessWidget {
               )),
           Row(
             children: [
-              GhostButton(
-                icon: Icons.search,
-                onTap: onSearch,
-                tooltip: '搜索',
-                semanticLabel: '搜索',
-              ),
-              const SizedBox(width: 4),
               GhostButton(
                 icon: Icons.brightness_6,
                 onTap: onThemeCycle,
