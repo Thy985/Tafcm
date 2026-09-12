@@ -203,42 +203,42 @@ class _OffscreenCaptureState extends State<_OffscreenCapture> {
     // width/height 时 Container 退化成 0×0，导致 RepaintBoundary 没有有效
     // 渲染层（toImage 在某些 Android 真机上会因此挂死）。
     //
-    // 用 Opacity(0) 替代 `left: -10000`：保留完整 paint pipeline，
-    // 又避免超大负坐标在部分 Android OEM 上导致 layout 计算异常。
+    // F-02 修复定稿（#216，2026-09-12）：**不用 Opacity**。
     //
-    // F-02 修复（#216，2026-09-12）：RepaintBoundary 必须在 Opacity(0)
-    // **内侧**。boundary 在外侧时，toImage() 捕获的 layer 树含
-    // OpacityLayer(alpha=0) → PNG 全透明 → PDF/Word 里公式"空白"
-    // （维护者审计 F-02 根因）。boundary 放内侧后捕获层不含
-    // OpacityLayer，像素不透明；视觉不可见由外层 Opacity(0) 保证，
-    // 布局占位不变。
-    return Opacity(
-      opacity: 0.0,
-      child: RepaintBoundary(
-        key: _key,
-        child: SizedBox(
-          width: _offscreenCanvasWidth,
-          height: _offscreenCanvasHeight,
-          child: Container(
-            color: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            padding: const EdgeInsets.all(4),
-            alignment: Alignment.centerLeft,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Math.tex(
+    // 演进史：原实现 `boundary → Opacity(0) → 内容`，toImage 捕获层含
+    // OpacityLayer(alpha=0) → PNG 全透明（F-02 根因）。曾改为
+    // `Opacity(0) → boundary → 内容`，但 SDK 实证
+    // （proxy_box.dart RenderOpacity.paint）：`_alpha == 0` 时**直接
+    // return，子树完全不 paint**——内侧 boundary 永远无 layer，真机
+    // toImage 抛 debugNeedsPaint/异常（像素守门测试抓住此问题）。
+    //
+    // 最终方案：不可见性由宿主的 Positioned(left:-10000) 离屏定位保证
+    //（见 FormulaRenderHost.build），此处直接返回 boundary，内容正常
+    // paint → toImage 可用且像素不透明。
+    return RepaintBoundary(
+      key: _key,
+      child: SizedBox(
+        width: _offscreenCanvasWidth,
+        height: _offscreenCanvasHeight,
+        child: Container(
+          color: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          padding: const EdgeInsets.all(4),
+          alignment: Alignment.centerLeft,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Math.tex(
+              widget.latex,
+              mathStyle: widget.displayMode ? MathStyle.display : MathStyle.text,
+              textStyle: TextStyle(
+                fontSize: widget.fontSize,
+                color: widget.isDark ? Colors.white : Colors.black,
+              ),
+              onErrorFallback: (err) => Text(
                 widget.latex,
-                mathStyle: widget.displayMode ? MathStyle.display : MathStyle.text,
-                textStyle: TextStyle(
-                  fontSize: widget.fontSize,
-                  color: widget.isDark ? Colors.white : Colors.black,
-                ),
-                onErrorFallback: (err) => Text(
-                  widget.latex,
-                  style: TextStyle(
-                    fontSize: widget.fontSize * 0.6,
-                    color: widget.isDark ? Colors.grey : Colors.red,
-                    fontFamily: 'monospace',
-                  ),
+                style: TextStyle(
+                  fontSize: widget.fontSize * 0.6,
+                  color: widget.isDark ? Colors.grey : Colors.red,
+                  fontFamily: 'monospace',
                 ),
               ),
             ),
