@@ -22,7 +22,9 @@ void main() {
       const knownOffenders = <String>[
         'lib/presentation/editor/editor_page.dart:139',
         'lib/presentation/screens/file_manager_screen.dart:125',
-        'lib/presentation/screens/home_screen.dart:282',
+        // #242 删除搜索按钮（-11 行）后，home_screen 存量预览直读行号
+        // 由 282 前移至 269（违规行为未变，仅行号维护）。
+        'lib/presentation/screens/home_screen.dart:269',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');
