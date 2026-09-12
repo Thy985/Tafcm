@@ -347,6 +347,10 @@ jobs:
   #   android 原生层 / integration_test / test_driver / 依赖清单 / 本 workflow。
   # lib/** 不在列表：dart 逻辑回归由 Test/Golden/Perf job 守门，APK 可编译性
   #   由 Build Android Debug APK 守门；设备冒烟聚焦原生/构建/驱动层。
+  # C 方案（2026-09-12 二轮复盘，run 34666861799）：android-device 彻底移出
+  #   PR 门禁，仅 workflow_dispatch 手动触发——1500s 内连 runApp 都未完成
+  #   （冷启动方差是数量级的，加超时只拉长彩票窗口不解决方差）。设备冒烟的
+  #   价值是"定期/合并前抽检确认 APK 真机能跑"，不是每个 PR 当场证明。
   changes:
     name: Detect device-test paths
     runs-on: ubuntu-24.04
@@ -373,12 +377,15 @@ jobs:
   # （IntegrationTestWidgetsFlutterBinding，Tier 4 真机冒烟设计）。
   # 目标：验证"CI 能真正构建并运行 APK"这一架构决策，补齐 emulator_runtime 空白。
   # 最小版：纯链路 smoke + 真实 App 首页冒烟；formula/export/physical-render 后续扩展。
+  #
+  # 触发方式（C 方案）：Actions 页 → CI → Run workflow（手动），仅在
+  # 设备相关路径有变更时才有意义（changes job 仍然把关）。
   android-device:
     name: Android Device Integration (emulator)
     runs-on: ubuntu-24.04
     needs: [test, changes]
-    # A 方案：路径不相关时跳过（skip 不红），设备链路成本只由相关 PR 承担。
-    if: needs.changes.outputs.device == 'true'
+    # C 方案：移出 PR 门禁（手动触发）+ 路径过滤双重条件。
+    if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.device == 'true'
     defaults:
       run:
         working-directory: flutter_app
