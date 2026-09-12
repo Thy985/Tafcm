@@ -131,7 +131,11 @@ void main() {
       final meta = await repo.getMetadata(p);
       expect(meta.title, 'Searchable');
       final results = await repo.searchDocuments('unique_token_xyz');
-      expect(results.any((m) => m.path == p), isTrue);
+      // P0-1 端口扩展后返回 List<Document>（无 path 字段）——经
+      // documentPathFor(id) 推导路径比对（语义同旧 DocMetadata.path）。
+      final paths = await Future.wait(
+          results.map((d) => repo.documentPathFor(d.id)).toList());
+      expect(paths.contains(p), isTrue);
     });
 
     test('原子写不残留 .tmp', () async {

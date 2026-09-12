@@ -6,7 +6,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
 import '../document_repository.dart';
-import 'file_service.dart' show decodeBytesAuto;
+import 'file_service.dart' show TextEncoding, decodeBytesAuto;
+import 'atomic_write.dart';
+export 'atomic_write.dart' show atomicWrite, atomicWriteBytes, kAtomicWriteMaxAttempts, kAtomicWriteRetryBackoff;
 import 'front_matter_parser.dart';
 
 /// 文档元数据（不含正文），用于列表 / 元数据查询 / 搜索 / 监听。
@@ -83,6 +85,28 @@ class FileRepository implements DocumentRepository {
     return (doc: doc, path: path);
   }
 
+  /// P0-2（§4.2）：探测 [f] 的 front matter `encoding:` 声明；无可识别
+  /// 声明返回 null（走自动链）。声明行必为 ASCII，任意解码器下均可安全
+  /// 提取（只看前 256 字节）。
+  Future<TextEncoding?> _declaredEncodingOf(File f) async {
+    final bytes = await f.readAsBytes();
+    if (bytes.isEmpty) return null;
+    final head = latin1.decode(bytes.sublist(0, bytes.length.clamp(0, 256)));
+    final match = RegExp(r'^encoding:\s*(\S+)\s*$', multiLine: true)
+        .firstMatch(head);
+    return match == null ? null : TextEncoding.tryParse(match.group(1));
+  }
+
+  /// P0-2（§4.2）读端：文件声明 `encoding: <name>` 且可识别时用声明编码
+  /// 解码（绕过自动链）；否则走 [decodeBytesAuto]。
+  Future<String> _readDecoded(File f) async {
+    final bytes = await f.readAsBytes();
+    if (bytes.isEmpty) return '';
+    final declared = await _declaredEncodingOf(f);
+    if (declared != null) return declared.decode(bytes);
+    return decodeBytesAuto(bytes);
+  }
+
   Future<List<({Document doc, String path})>> _readAll() async {
     final docsDir = Directory(await _docsDirPath());
     if (!await docsDir.exists()) return [];
@@ -93,7 +117,7 @@ class FileRepository implements DocumentRepository {
         .toList();
     final entries = <({Document doc, String path})>[];
     for (final f in files) {
-      final raw = decodeBytesAuto(await f.readAsBytes());
+      final raw = await _readDecoded(f);
       final stat = await f.stat();
       entries.add(_parseEntry(f.path, raw, stat.modified));
     }
@@ -118,7 +142,7 @@ class FileRepository implements DocumentRepository {
   @override
   Future<Document> readDocument(String path) async {
     final file = File(path);
-    final raw = decodeBytesAuto(await file.readAsBytes());
+    final raw = await _readDecoded(file);
     final stat = await file.stat();
     return _parseEntry(path, raw, stat.modified).doc;
   }
@@ -151,8 +175,10 @@ class FileRepository implements DocumentRepository {
     final file = File(path);
     String id;
     DateTime createdAt;
+    TextEncoding? declared;
     if (await file.exists()) {
-      final raw = decodeBytesAuto(await file.readAsBytes());
+      declared = await _declaredEncodingOf(file);
+      final raw = await _readDecoded(file);
       final meta = FrontMatterParser.parse(raw).meta;
       id = (meta?['id']?.isNotEmpty == true) ? meta!['id']! : _stem(path);
       createdAt = _parseDate(meta?['createdAt']) ?? DateTime.now();
@@ -167,8 +193,12 @@ class FileRepository implements DocumentRepository {
       updatedAt: updatedAt,
       title: title,
       content: content,
+      // P0-2 §4.2：声明保留（GBK 原件反复编辑不漂移为 UTF-8）；新文件
+      // 无声明不注入（默认 UTF-8，ADR-0003 目标态不变）。
+      encoding: declared?.name,
     );
-    await atomicWrite(File(path), md);
+    // 写端按声明编码写回字节；无声明走 UTF-8（等价旧 atomicWrite 行为）。
+    await atomicWriteBytes(file, (declared ?? TextEncoding.utf8).encode(md));
   }
 
   @override
@@ -181,7 +211,7 @@ class FileRepository implements DocumentRepository {
   @override
   Future<void> renameDocument(String path, String newTitle) async {
     final file = File(path);
-    final raw = decodeBytesAuto(await file.readAsBytes());
+    final raw = await _readDecoded(file);
     final body = FrontMatterParser.parse(raw).body;
     final newBody = _replaceFirstH1(body, newTitle);
     await writeDocument(path, title: newTitle, content: newBody);
@@ -262,15 +292,20 @@ class FileRepository implements DocumentRepository {
         : text;
   }
 
-  Future<List<DocMetadata>> searchDocuments(String query) async {
+  /// 全文搜索（P0-1 接线）：标题 + 正文，大小写不敏感，updatedAt 降序。
+  ///
+  /// 返回 [Document] 全量（搜索屏需要 content 做命中片段高亮）；
+  /// 空查询返回空列表（搜索语义：无输入即无结果）。
+  @override
+  Future<List<Document>> searchDocuments(String query) async {
     final q = query.toLowerCase();
+    if (q.isEmpty) return const [];
     final entries = await _readAll();
-    if (q.isEmpty) return entries.map(_toMeta).toList();
     return entries
         .where((e) =>
             e.doc.title.toLowerCase().contains(q) ||
             e.doc.content.toLowerCase().contains(q))
-        .map(_toMeta)
+        .map((e) => e.doc)
         .toList();
   }
 
@@ -317,64 +352,3 @@ class FileRepository implements DocumentRepository {
   }
 }
 
-/// [atomicWrite] 遇可恢复的文件系统错误时的最大尝试次数（含首次）。
-const int kAtomicWriteMaxAttempts = 3;
-
-/// [atomicWrite] 重试的基础退避间隔，第 n 次重试等待 n × 该值。
-const Duration kAtomicWriteRetryBackoff = Duration(milliseconds: 20);
-
-/// 原子写：先写 `<path>.tmp`，落盘后（删除旧目标）rename 到最终路径。
-///
-/// 避免进程崩溃 / 写入中断时留下半截 `.md`。Windows 上 `rename`
-/// 不能直接覆盖已存在文件，故先删除旧目标再 rename。
-///
-/// **抗外部干扰**：`.tmp` 落盘到 rename 之间存在一个时间窗，期间可能被
-/// 外部进程（磁盘清理工具、杀毒软件实时扫描、同步客户端）删除或占用，
-/// 导致 rename 抛 [FileSystemException]（Windows 上典型为
-/// `errno = 2 / 32`）。这类故障是瞬时的，整段"写 tmp → 删旧 → rename"
-/// 会最多重试 [kAtomicWriteMaxAttempts] 次、按 [kAtomicWriteRetryBackoff]
-/// 线性退避。非文件系统异常（如编码错误）不重试，立即上抛。
-///
-/// 重试语义安全：每次尝试都重新写入完整的 [content]，
-/// 不存在写入一半再续写的情况；失败路径始终清理残留 `.tmp`。
-///
-/// ⚠️ 权衡（delete-then-rename）：每次尝试会先删除已存在的旧目标再 rename，
-/// 若 rename 持续失败并耗尽重试上限，旧内容将丢失（新内容也未落盘）。属设计固有
-/// 权衡，非本处回归；该行为已由 `atomic_write_test` 固化，便于后续若改为
-/// "写临时件、失败时保留旧件"时及时察觉。
-Future<void> atomicWrite(File file, String content) async {
-  final dir = file.parent;
-  await dir.create(recursive: true);
-  final tmp = File('${file.path}.tmp');
-
-  for (var attempt = 1; attempt <= kAtomicWriteMaxAttempts; attempt++) {
-    try {
-      await tmp.writeAsString(content, flush: true);
-      if (await file.exists()) {
-        await file.delete();
-      }
-      await tmp.rename(file.path);
-      return;
-    } on FileSystemException catch (e, s) {
-      await _deleteQuietly(tmp);
-      if (attempt == kAtomicWriteMaxAttempts) {
-        // 重试耗尽：保留原始栈上抛，便于定位外部干扰源（清理器/杀毒锁定等）。
-        Error.throwWithStackTrace(e, s);
-      }
-      await Future<void>.delayed(kAtomicWriteRetryBackoff * attempt);
-    } catch (_) {
-      // 非文件系统错误不具备"重试可恢复"性质，直接上抛。
-      await _deleteQuietly(tmp);
-      rethrow;
-    }
-  }
-}
-
-/// 尽力删除 [file]，忽略删除过程中的任何错误（清理路径不得掩盖原始异常）。
-Future<void> _deleteQuietly(File file) async {
-  try {
-    if (await file.exists()) await file.delete();
-  } catch (_) {
-    // 残留 .tmp 由下次写入覆盖，或由 recovery 流程清理。
-  }
-}

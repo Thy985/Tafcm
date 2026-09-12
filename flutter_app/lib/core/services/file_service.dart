@@ -40,6 +40,108 @@ String decodeBytesAuto(List<int> bytes) {
   return latin1.decode(bytes);
 }
 
+/// P0-2 编码手动指定（EXTERNAL-PROJECTS-EMPOWERMENT-PLAN §4.2）：
+/// 用户可选的文本编码白名单。Big5 依赖运行时 `Encoding.getByName`
+ /// 是否可用（dart:convert 不内置），不可用时解码降级 Latin-1。
+///
+/// 枚举内裸名 `utf8`/`latin1` 会被同名枚举值遮蔽（解析为
+/// TextEncoding.utf8.decode → 递归自身），编解码一律走顶层常量。
+const Utf8Codec _kUtf8 = Utf8Codec();
+
+/// latin1 兜底：SDK `Latin1Codec` 的 allowInvalid 只作用于 decoder
+/// （encoder 永远拒绝非 Latin-1 字符，见 sky_engine convert/latin1.dart
+/// ：34 "Encoders will not accept invalid characters"）——编码兜底需手动
+/// 映射：>0xFF 码点替换为 `?`，保证降级路径写中文不抛异常。
+List<int> _encodeLatin1Fallback(String text) => text
+    .codeUnits
+    .map((c) => c > 0xFF ? 0x3F : c)
+    .toList();
+
+/// latin1 解码用顶层常量——枚举体内裸名 `latin1` 会被同名枚举值遮蔽
+/// （`TextEncoding.latin1.decode` = 递归自身，栈溢出）。
+const Latin1Codec _kLatin1Decode = Latin1Codec(allowInvalid: true);
+
+enum TextEncoding {
+  utf8('UTF-8'),
+  gb18030('GB18030'),
+  big5('Big5'),
+  latin1('Latin-1');
+
+  final String label;
+  const TextEncoding(this.label);
+
+  /// 解码 [bytes]；Big5 运行时不可用时降级 Latin-1（永不抛格式异常：
+  /// latin1 是 1:1 字节映射兜底）。
+  String decode(List<int> bytes) {
+    switch (this) {
+      case TextEncoding.utf8:
+        // BOM 剥离 + 容错，与 decodeBytesAuto 的 utf8 分支同语义。
+        if (bytes.length >= 3 &&
+            bytes[0] == 0xEF &&
+            bytes[1] == 0xBB &&
+            bytes[2] == 0xBF) {
+          return _kUtf8.decode(bytes.sublist(3), allowMalformed: true);
+        }
+        return _kUtf8.decode(bytes, allowMalformed: true);
+      case TextEncoding.gb18030:
+        final enc =
+            Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
+        if (enc != null) return enc.decode(bytes);
+        return latin1.decode(bytes);
+      case TextEncoding.big5:
+        final enc = Encoding.getByName('big5');
+        if (enc != null) return enc.decode(bytes);
+        return _kLatin1Decode.decode(bytes);
+      case TextEncoding.latin1:
+        return _kLatin1Decode.decode(bytes);
+    }
+  }
+
+  /// 编码 [text] 为字节（写回路径）；Big5 不可用时降级 Latin-1。
+  List<int> encode(String text) {
+    switch (this) {
+      case TextEncoding.utf8:
+        return _kUtf8.encode(text);
+      case TextEncoding.gb18030:
+        final enc =
+            Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
+        if (enc != null) return enc.encode(text);
+        return _encodeLatin1Fallback(text);
+      case TextEncoding.big5:
+        final enc = Encoding.getByName('big5');
+        if (enc != null) return enc.encode(text);
+        return _encodeLatin1Fallback(text);
+      case TextEncoding.latin1:
+        return _encodeLatin1Fallback(text);
+    }
+  }
+
+  /// 从 front matter 声明值（如 `gb18030`）解析；未知值返回 null（走自动链）。
+  static TextEncoding? tryParse(String? value) {
+    switch (value?.toLowerCase().trim()) {
+      case 'utf-8':
+      case 'utf8':
+        return TextEncoding.utf8;
+      case 'gb18030':
+      case 'gbk':
+      case 'gb2312':
+        return TextEncoding.gb18030;
+      case 'big5':
+        return TextEncoding.big5;
+      case 'latin-1':
+      case 'latin1':
+      case 'iso-8859-1':
+        return TextEncoding.latin1;
+      default:
+        return null;
+    }
+  }
+}
+
+/// 检测解码结果是否含 U+FFFD（容错解码痕迹 = 自动判定可能出错，
+/// 规划 §4.2 方案 1：UI 据此提示"编码异常"并让用户手动指定重解码）。
+bool containsReplacementChar(String text) => text.contains('\uFFFD');
+
 class FileService {
   /// 从系统文件选择器导入文件并解码为字符串。
   ///
@@ -74,10 +176,12 @@ class FileService {
     return decodeBytesAuto(bytes);
   }
 
-  static Future<String> loadFromPath(String path) async {
+  /// [encoding]（P0-2 §4.2 方案 2）：非 null 时绕过自动链，用指定编码解码。
+  static Future<String> loadFromPath(String path, {TextEncoding? encoding}) async {
     try {
       final file = File(path);
       final bytes = await file.readAsBytes();
+      if (encoding != null) return encoding.decode(bytes);
       return decodeBytesAuto(bytes);
     } catch (e) {
       throw FileLoadException('Failed to load file: $path');

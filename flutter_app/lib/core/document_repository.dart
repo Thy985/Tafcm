@@ -40,4 +40,10 @@ abstract class DocumentRepository {
   ///
   /// 返回首非空行 ≤ 40 字符；文件不存在返回空字符串 `''`（不抛异常）。
   Future<String> getDocumentPreview(String id);
+
+  /// 全文搜索：标题 + 正文（大小写不敏感），按 updatedAt 降序。
+  ///
+  /// P0-1 搜索接线（EXTERNAL-PROJECTS-EMPOWERMENT-PLAN §4.1）。
+  /// 空查询返回空列表；命中片段高亮由 UI 层完成。
+  Future<List<Document>> searchDocuments(String query);
 }
