@@ -220,6 +220,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         history: EditorHistory(maxHistorySize: 200),
         observability: ref.read(observabilityProvider),
       );
+      // #240 P1-B（2026-09-12）：外部 URI（content://）无持久化路径，
+      // 自动保存 inert——若放任编辑，用户误以为已保存、退出即静默丢失。
+      // 进入只读查看模式：编辑命令统一 no-op（isReadOnly），UI 显式提示。
+      _coordinator.isReadOnly = true;
       _coordinatorReady = true;
       _startAutosave();
     } catch (e, st) {
