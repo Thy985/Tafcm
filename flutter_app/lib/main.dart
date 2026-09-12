@@ -23,6 +23,20 @@ import 'providers/editor_providers.dart';
 /// `await PackageInfo.fromPlatform()`。
 const String kAppVersion = '0.1.0+1';
 
+/// 是否挂载 Mermaid WebView 渲染宿主（默认开启，产品行为不变）。
+///
+/// B 方案（2026-09-12，CI 稳定性）：设备级 integration smoke 传入
+/// `--dart-define=DISABLE_MERMAID_HOST=true` 关闭挂载——GitHub runner 的
+/// swiftshader 软渲染下，Mermaid WebView renderer 会进入"crash(code 5)
+/// → reset → re-attach → 再 crash"循环，把 smoke 拖到 900s 超时（flake
+/// 率 ~50%，见 android-device job 注释）。smoke 只验证构建/安装/启动链路，
+/// 不依赖 WebView，关掉挂载即消除该负载。
+///
+/// 用 `bool.fromEnvironment`：编译期常量，关闭时宿主 widget 树完全不存在
+/// （非运行时 if 分支），无任何运行时代价。
+const bool kMermaidHostEnabled =
+    !bool.fromEnvironment('DISABLE_MERMAID_HOST');
+
 /// 全局可观测服务实例。
 ///
 /// P0 修复（2026-08-04）：在 [main] 启动前创建，用于安装全局错误钩子
@@ -165,14 +179,18 @@ class _TafcmAppState extends ConsumerState<TafcmApp> {
           child: Stack(
             children: [
               if (child != null) child,
-              const Positioned(
-                // D1 A/B 实验结论（2026-08-31）：屏外 -10000 vs 可见 100×100
-                // 挂载结果完全一致（页面均就绪、均只渲染前 3 个公式后超时），
-                // 挂载位置非根因——恢复屏外挂载（最小改动，避免可见遮挡副作用）。
-                left: -10000,
-                top: -10000,
-                child: MermaidRendererHost(),
-              ),
+              // B 方案（CI 稳定性）：设备 smoke 传 DISABLE_MERMAID_HOST=true
+              // 时不挂载宿主，消除 swiftshader 下 WebView 崩溃循环（见
+              // kMermaidHostEnabled 注释）。编译期常量 → 关闭时此分支整体消除。
+              if (kMermaidHostEnabled)
+                const Positioned(
+                  // D1 A/B 实验结论（2026-08-31）：屏外 -10000 vs 可见 100×100
+                  // 挂载结果完全一致（页面均就绪、均只渲染前 3 个公式后超时），
+                  // 挂载位置非根因——恢复屏外挂载（最小改动，避免可见遮挡副作用）。
+                  left: -10000,
+                  top: -10000,
+                  child: MermaidRendererHost(),
+                ),
             ],
           ),
         );
