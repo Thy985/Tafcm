@@ -47,6 +47,8 @@
 
 ### K-002 · 五维定位作为命名与叙事框架（Typeset·Agent·CLI·Formula·Markdown）
 
+> 2026-09-12 更新：定位已收敛——用户侧聚焦 T/F/M 三维（ADR-0033），A·Agent-native / C·CLI-native 降级为工程差异化；命名框架 TAFCM 字母来源仍沿用本条五维。
+
 **Category**: PRODUCT
 **Abstraction**: L2
 **Value**: B

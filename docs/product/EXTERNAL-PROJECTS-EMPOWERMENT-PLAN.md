@@ -57,7 +57,7 @@ Tafcm 的差异化定位（公式/图表学术写作 + WYSIWYG）不需要照抄
 
 | 能力 | 现状 | 证据 |
 |------|------|------|
-| 文档级搜索（标题/内容） | ⚠️ **后端已实现、前端未接线** | `file_repository.dart:254` `searchDocuments(query)` 存在；但 `home_screen.dart:169-173` `_onSearch` 只弹 "搜索即将上线" SnackBar |
+| 文档级搜索（标题/内容） | ⚠️ **后端已实现、前端入口已移除（#242），功能待新立项** | `file_repository.dart:254` `searchDocuments(query)` 存在；原 `home_screen.dart` `_onSearch` 空壳入口（"搜索即将上线" SnackBar 占位）已随 #242 移除——未实现功能不以可用姿态暴露，实现搜索（P0-1 接线）后恢复入口 |
 | 编辑器内查找/替换 | ❌ 无（正则搜索替换是 Jota 强项） | — |
 | Undo/Redo | ✅ Transaction 级 op-delta 模型，栈深 50 | `core/utils/history_manager.dart` + `core/editing/editor_history.dart` |
 | **持久版本历史/快照** | ❌ 无。undo 栈是会话内存态，退出即失 | — |

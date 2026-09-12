@@ -48,7 +48,8 @@
 | [0028](ADR/0028-cli-adi-validation-before-schema.md) | CLI adi validate before schema | Accepted | ✅ VALID | schema 收敛 |
 | [0029](ADR/0029-list-element-nested-ast.md) | ListElement 嵌套 AST | Accepted | ✅ VALID | 解决 BUG-5（2026-08-30 追认） |
 | [0030](ADR/0030-ffx-verification-orchestrator.md) | FFX Verification Orchestrator | Accepted | ✅ VALID | Phase 3.10 根决策 |
-| [0031](ADR/0031-rebrand-tafcm.md) | 品牌改名（FormulaFix → Tafcm） | Accepted | ✅ VALID | 取代 ADR-0001 §1；L0+L1+L2 已落地（2026-08-29） |
+| [0031](ADR/0031-rebrand-tafcm.md) | 品牌改名（FormulaFix → Tafcm） | Superseded by 0033（部分：命名有效，定位叙述以 0033 为准） | ✅ VALID | 取代 ADR-0001 §1；L0+L1+L2 已落地（2026-08-29） |
+| [0033](ADR/0033-product-positioning-convergence.md) | 产品定位收敛（T/F/M 用户侧，A/C 降级工程差异化） | Proposed | ✅ VALID | #243 Human Owner 决策（2026-09-12）；README 五维→三维；合并即 Accepted |
 
 ---
 

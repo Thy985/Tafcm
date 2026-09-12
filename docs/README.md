@@ -10,7 +10,7 @@
 
 | 目的 | 入口 |
 |------|------|
-| 产品是什么 | [product/PRODUCT.md](product/PRODUCT.md)（五维定位 / 核心能力 / 设计理念） |
+| 产品是什么 | [product/PRODUCT.md](product/PRODUCT.md)（三维定位 T/F/M（ADR-0033）/ 核心能力 / 设计理念） |
 | 工程地图（唯一入口） | **[ENGINEERING.md](ENGINEERING.md)**（Principles → Architecture → Guides → Decisions） |
 | 当前系统长什么样 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)（模块 + 数据流 + 边界） |
 | 功能做到什么程度 | [product/CAPABILITY-STATUS.md](product/CAPABILITY-STATUS.md)（能力完成度） |

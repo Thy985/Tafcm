@@ -1,6 +1,6 @@
 # ADR-0031: 品牌改名 —— FormulaFix → Tafcm
 
-- **状态**：Accepted
+- **状态**：Superseded by ADR-0033（部分替代——**命名决策仍有效**；产品定位叙述以 ADR-0033 为准：用户侧聚焦 T/F/M，A/C 降级为工程差异化）
 - **生效日期**：2026-08-29
 - **决策者**：Human Owner（applicationId 决策）+ 首席架构工程师（评估）
 - **Supersedes**：ADR-0001 §1（项目命名条款；§2 目录结构条款保留）

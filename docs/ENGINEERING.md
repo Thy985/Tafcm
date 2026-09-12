@@ -44,7 +44,7 @@
 
 ## 6. Product & Design（当前产品定义）
 
-- [PRODUCT.md](product/PRODUCT.md) —— 产品设计总纲（五维定位）
+- [PRODUCT.md](product/PRODUCT.md) —— 产品设计总纲（三维定位 T/F/M，ADR-0033）
 - [UX-GUIDE.md](product/UX-GUIDE.md) —— UI 规范（Typora 化）
 - [TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md) —— 产品缺口分析
 - [CAPABILITY-STATUS.md](product/CAPABILITY-STATUS.md) —— 能力状态
