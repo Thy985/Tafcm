@@ -340,6 +340,35 @@ jobs:
           path: flutter_app/build/app/outputs/flutter-apk/
 
   # C-01 实验（2026-09-04，Doubao Supervisor 起草，Human 合入后触发）：
+  # A 方案（2026-09-12）：设备级测试路径过滤。
+  # 背景：android-device 每次 ~26min 且模拟器 smoke 在 swiftshader 软渲染下
+  # flake 率 ~50%（Mermaid WebView 崩溃循环），对纯测试/文档类 PR 是纯税。
+  # 策略：仅当可能影响"APK 构建 + 设备运行链路"的文件变更时才跑——
+  #   android 原生层 / integration_test / test_driver / 依赖清单 / 本 workflow。
+  # lib/** 不在列表：dart 逻辑回归由 Test/Golden/Perf job 守门，APK 可编译性
+  #   由 Build Android Debug APK 守门；设备冒烟聚焦原生/构建/驱动层。
+  changes:
+    name: Detect device-test paths
+    runs-on: ubuntu-24.04
+    outputs:
+      device: ${{ steps.filter.outputs.device }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            device:
+              - 'flutter_app/android/**'
+              - 'flutter_app/integration_test/**'
+              - 'flutter_app/test_driver/**'
+              - 'flutter_app/pubspec.yaml'
+              - 'flutter_app/pubspec.lock'
+              - '.github/workflows/ci.yml'
+
   # 在 Android 模拟器执行 Tafcm 已存在的 device 级 integration_test
   # （IntegrationTestWidgetsFlutterBinding，Tier 4 真机冒烟设计）。
   # 目标：验证"CI 能真正构建并运行 APK"这一架构决策，补齐 emulator_runtime 空白。
@@ -347,7 +376,9 @@ jobs:
   android-device:
     name: Android Device Integration (emulator)
     runs-on: ubuntu-24.04
-    needs: test
+    needs: [test, changes]
+    # A 方案：路径不相关时跳过（skip 不红），设备链路成本只由相关 PR 承担。
+    if: needs.changes.outputs.device == 'true'
     defaults:
       run:
         working-directory: flutter_app
@@ -421,7 +452,7 @@ jobs:
           # 注意：android-emulator-runner script 按行拆分、每行独立 sh -c（parseScript）→ 压单行。
           script: >-
             set +e;
-            timeout 1200 flutter build apk --debug --target-platform android-x64 --no-pub > build.log 2>&1; BEXIT=$?;
+            timeout 1200 flutter build apk --debug --target-platform android-x64 --dart-define=DISABLE_MERMAID_HOST=true --no-pub > build.log 2>&1; BEXIT=$?;
             [ $BEXIT -ne 0 ] && { echo "BUILD_FAILED exit=$BEXIT"; tail -30 build.log; exit $BEXIT; };
             timeout 900 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
             if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -40 flutter_test.log; exit $EXIT; fi;
