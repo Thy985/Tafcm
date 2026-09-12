@@ -430,7 +430,11 @@ jobs:
         # C-01 三次执行（2026-09-04）：GitHub 免费 runner 无 KVM，软件模拟极慢——
         # boot ~9min + gradle 133s + install 191s 已吃掉 20min，测试未跑完即超时。
         # 第四轮：timeout 40min + 先只跑 smoke（最小编译/无 UI 依赖），验证运行层链路。
-        timeout-minutes: 40
+        # 2026-09-12：40 → 50。run 34664987150 复盘——B 方案（禁 Mermaid WebView）
+        # 生效后崩溃循环消失，但暴露第二 flake 源：软渲染上 app 冷启动 → Flutter
+        # Driver extension 就绪本身需 5-15min 且抖动大（同 commit 一跑 success 一跑
+        # 900s 超时），900s 竞速窗口不稳健 → drive 超时放宽到 1500s，job 相应放宽。
+        timeout-minutes: 50
         with:
           api-level: 34
           arch: x86_64
@@ -454,7 +458,7 @@ jobs:
             set +e;
             timeout 1200 flutter build apk --debug --target-platform android-x64 --dart-define=DISABLE_MERMAID_HOST=true --no-pub > build.log 2>&1; BEXIT=$?;
             [ $BEXIT -ne 0 ] && { echo "BUILD_FAILED exit=$BEXIT"; tail -30 build.log; exit $BEXIT; };
-            timeout 900 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
+            timeout 1500 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
             if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -40 flutter_test.log; exit $EXIT; fi;
             if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; echo "===== flutter_test.log tail 50 ====="; tail -50 flutter_test.log; echo "===== build.log tail 20 ====="; tail -20 build.log; exit 124; fi;
             echo "DRIVE_PASSED exit=$EXIT" 
