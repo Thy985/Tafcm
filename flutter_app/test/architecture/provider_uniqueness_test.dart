@@ -16,18 +16,22 @@ void main() {
         reason: '实际命中：\n${hits.join("\n")}\n'
             'ADR-0002 / AGENTS.md §3.2 禁止重复定义',
       );
-    }, skip: 'Known issue: providers/providers.dart 与 editor_providers.dart 重复定义');
+    });
 
     test('darkModeProvider 仅定义一次', () {
-      final hits = _grepLib(RegExp(r'darkModeProvider\s*=\s*StateNotifierProvider'));
-      expect(hits, hasLength(1));
-    }, skip: 'Known issue: 同上，两文件均定义 DarkModeNotifier');
+      // 2026-08-25 治理轮（PR #167-#172）收敛后定义为 Provider<bool>
+      // （editor_providers.dart）——正则不限定 Provider 形态，防实现
+      // 类型变更（StateNotifierProvider → Provider）造成守门空转。
+      final hits = _grepLib(RegExp(r'darkModeProvider\s*=\s*(StateNotifierProvider|Provider)'));
+      expect(hits, hasLength(1),
+          reason: '命中：\n${hits.join("\n")}');
+    });
 
     test('documentsProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'documentsProvider\s*='));
       expect(hits, hasLength(1),
           reason: '命中：\n${hits.join("\n")}');
-    }, skip: 'Known issue: providers/providers.dart 与 domain/providers/document_provider.dart 重复定义');
+    }, skip: 'Known issue（#266）: providers/providers.dart 与 domain/providers/document_provider.dart 重复定义');
 
     test('fileRepositoryProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'fileRepositoryProvider\s*='));
@@ -37,18 +41,19 @@ void main() {
 
     test('previewModeProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'previewModeProvider\s*='));
-      expect(hits, hasLength(1));
-    }, skip: 'Known issue: 两文件重复定义');
+      expect(hits, hasLength(1),
+          reason: '命中：\n${hits.join("\n")}');
+    });
 
     test('isExportingProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'isExportingProvider\s*='));
       expect(hits, hasLength(1));
-    }, skip: 'Known issue: 两文件重复定义');
+    }, skip: 'Known issue（#266）: 三处重复定义（editor_providers/domain/providers/providers）');
 
     test('editorContentProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'editorContentProvider\s*='));
       expect(hits, hasLength(1));
-    }, skip: 'Known issue: 两文件重复定义');
+    }, skip: 'Known issue（#266）: 两处重复定义（editor_providers/providers）');
   });
 }
 
