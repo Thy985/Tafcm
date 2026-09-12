@@ -20,6 +20,7 @@ import 'dart:convert';
 import 'package:xml/xml.dart';
 
 import 'svg_ast.dart';
+import 'svg_defs_resolver.dart';
 
 /// 解析入口。失败时返回包含 `SvgUnsupported` 占位的空 root，**绝不抛错**。
 SvgRoot parseSvgString(String input) {
@@ -59,6 +60,26 @@ SvgRoot parseSvgString(String input) {
   final svgElement = _findSvgElement(doc.rootElement);
   if (svgElement == null) {
     return _emptyRoot('no <svg> root found');
+  }
+
+  // 3.5) MathJax defs/use 快速路径（#216 F-01）：MathJax glyph 机制
+  // `<defs><path id=.../></defs>` + `<use xlink:href>`——原解析器对
+  // `<use>` 直接产出 SvgUse（绘制端 _drawUnsupported → 公式空白）。
+  // resolver 内联后返回纯绘制树；返回 null（无 defs/use 或子集外）
+  // 时零开销走原路径。
+  // 扫描源与 resolver 输入同源（评审修复 PR #277）：用 outerXml 而非
+  // 原始 input——原字符串（含 mjx-container 包装/注释）与剥离后的
+  // outerXml 可能不一致，避免无效 resolver 调用。
+  final svgOuter = svgElement.outerXml;
+  if (svgOuter.contains('<defs') || svgOuter.contains('<use')) {
+    try {
+      final resolution = resolveSvgDefs(svgOuter);
+      if (resolution != null) {
+        return resolution.root;
+      }
+    } on XmlException {
+      // resolver 内部解析失败 → 落回原路径（绝不抛错契约）。
+    }
   }
 
   return _parseSvgElement(svgElement);

@@ -163,6 +163,16 @@ class SvgPdfWidget extends pw.Widget {
         _paintNode(canvas, child, textFont, fallbackFont, context);
       }
       canvas.restoreContext();
+    } else if (node is SvgScale) {
+      // MathJax 根部 `scale(1,-1)`：glyph 的 y 向下为正，需翻转才正立
+      // （#216 F-01 配套）。缺少此分支时变换被静默忽略 → 字形上下镜像。
+      // 注意：PDF y 轴向上，SVG scale 是用户坐标系变换，直接按矩阵
+      // 语义应用（与既有 layout 的 box 缩放同为坐标系级变换）。
+      canvas.saveContext();
+      canvas.setTransform(Matrix4.identity()
+        ..scaleByDouble(node.scaleX, node.scaleY, 1, 1));
+      _paintNode(canvas, node.child, textFont, fallbackFont, context);
+      canvas.restoreContext();
     } else if (node is SvgRect) {
       _drawRect(canvas, node);
     } else if (node is SvgLine) {

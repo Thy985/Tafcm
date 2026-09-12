@@ -79,6 +79,28 @@ class SvgGroup extends SvgNode {
   double get intrinsicHeight => 0;
 }
 
+/// 缩放变换节点，对应 `<g transform="scale(sx,sy)">`。
+///
+/// MathJax 输出根部必带 `scale(1,-1)`（glyph 的 y 向下为正，需翻转才
+/// 正立）——缺少此节点时该变换被忽略，字形上下镜像（#216 F-01 配套）。
+class SvgScale extends SvgNode {
+  final double scaleX;
+  final double scaleY;
+  final SvgNode child;
+
+  const SvgScale({
+    required this.scaleX,
+    required this.scaleY,
+    required this.child,
+  });
+
+  @override
+  double get intrinsicWidth => 0;
+
+  @override
+  double get intrinsicHeight => 0;
+}
+
 /// `<rect>` 矩形。
 class SvgRect extends SvgNode {
   final double x;

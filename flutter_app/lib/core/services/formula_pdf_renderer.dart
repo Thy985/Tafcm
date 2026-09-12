@@ -204,15 +204,21 @@ class _OffscreenCaptureState extends State<_OffscreenCapture> {
     // 渲染层（toImage 在某些 Android 真机上会因此挂死）。
     //
     // 用 Opacity(0) 替代 `left: -10000`：保留完整 paint pipeline，
-    // RepaintBoundary.toImage() 能正常拿到 layer；又避免超大负坐标
-    // 在部分 Android OEM 上导致 layout 计算异常。
-    return RepaintBoundary(
-      key: _key,
-      child: SizedBox(
-        width: _offscreenCanvasWidth,
-        height: _offscreenCanvasHeight,
-        child: Opacity(
-          opacity: 0.0,
+    // 又避免超大负坐标在部分 Android OEM 上导致 layout 计算异常。
+    //
+    // F-02 修复（#216，2026-09-12）：RepaintBoundary 必须在 Opacity(0)
+    // **内侧**。boundary 在外侧时，toImage() 捕获的 layer 树含
+    // OpacityLayer(alpha=0) → PNG 全透明 → PDF/Word 里公式"空白"
+    // （维护者审计 F-02 根因）。boundary 放内侧后捕获层不含
+    // OpacityLayer，像素不透明；视觉不可见由外层 Opacity(0) 保证，
+    // 布局占位不变。
+    return Opacity(
+      opacity: 0.0,
+      child: RepaintBoundary(
+        key: _key,
+        child: SizedBox(
+          width: _offscreenCanvasWidth,
+          height: _offscreenCanvasHeight,
           child: Container(
             color: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
             padding: const EdgeInsets.all(4),
