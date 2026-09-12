@@ -70,6 +70,18 @@ class LiveEditingState {
   void reconcile(Iterable<BlockId> ids) {
     for (final id in ids) {
       final source = _editor.sourceOf(id);
+      final old = _blockLengths[id];
+      if (old != null) {
+        if (old != source.length) {
+          _total += source.length - old;
+        }
+      } else {
+        // 该块不在基线里（基线从未建立 / clear 后）：累计值不可信，
+        // 强制下次读取全量重建（live-first，必含对齐后的 committed）。
+        // 实证：editor_coordinator_test undo 用例——基线未建时跳过差量
+        // 会让 _total 停在旧值。
+        _cachedStructureVersion = -1;
+      }
       _liveSources[id] = source;
       _blockLengths[id] = source.length;
     }
@@ -85,13 +97,11 @@ class LiveEditingState {
     if (_cachedStructureVersion != _editor.structureVersion) {
       _total = 0;
       _blockLengths.clear();
-      final sources = _editor.allSources;
-      var i = 0;
       for (final id in _editor.allIds) {
-        final committedLen = sources[i].length;
-        _blockLengths[id] = committedLen;
-        _total += committedLen;
-        i++;
+        // live-first（原实现语义）：live 漂移的块按实时长度计入。
+        final len = sourceOf(id).length;
+        _blockLengths[id] = len;
+        _total += len;
       }
       _cachedStructureVersion = _editor.structureVersion;
     }
