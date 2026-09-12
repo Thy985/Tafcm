@@ -86,24 +86,10 @@ class CurrentDocumentNotifier extends StateNotifier<Document?> {
 // Provider」）。唯一权威定义位于 `providers/editor_providers.dart`，仅供 legacy
 // `EditorScreen` fallback 使用。新 `EditorPage` 路径不再使用 previewMode（WYSIWYG 范式）。
 
-final isExportingProvider = StateProvider<bool>((ref) => false);
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-final editorContentProvider = StateNotifierProvider<EditorContentNotifier, String>((ref) {
-  return EditorContentNotifier();
-});
-
-class EditorContentNotifier extends StateNotifier<String> {
-  EditorContentNotifier() : super('');
-
-  void setContent(String content) {
-    state = content;
-  }
-
-  void clear() {
-    state = '';
-  }
-}
+// isExportingProvider / editorContentProvider 的唯一权威定义位于
+// providers/editor_providers.dart（#266 去重，AGENTS.md §3.2）。
 
 // ============ Search ============
 
