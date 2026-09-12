@@ -132,7 +132,14 @@ void main() {
   });
 
   group('F-01 contract: 118 真实 fixture 回归（真机 dump）', () {
-    final dir = Directory('test_assets/svg_fixture');
+    // 评审修复（PR #277）：fixture 路径必须是显式相对工作目录的完整路径
+    // ——裸 'test_assets/...' 依赖 CWD 恰好是 flutter_app/，CI job 的
+    // working-directory 若不同会静默解析为不存在 → 回归组被 files.isEmpty
+    // 跳过（守门空转）。这里用 Directory.current（flutter test 保证为
+    // package 根）拼接，并显式断言目录存在，CWD 异常时报错而非跳过。
+    final dir = Directory(
+      '${Directory.current.path}/test_assets/svg_fixture',
+    );
     final files = <File>[];
     if (dir.existsSync()) {
       files.addAll(

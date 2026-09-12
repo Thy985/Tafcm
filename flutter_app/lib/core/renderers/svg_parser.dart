@@ -67,9 +67,13 @@ SvgRoot parseSvgString(String input) {
   // `<use>` 直接产出 SvgUse（绘制端 _drawUnsupported → 公式空白）。
   // resolver 内联后返回纯绘制树；返回 null（无 defs/use 或子集外）
   // 时零开销走原路径。
-  if (input.contains('<defs') || input.contains('<use')) {
+  // 扫描源与 resolver 输入同源（评审修复 PR #277）：用 outerXml 而非
+  // 原始 input——原字符串（含 mjx-container 包装/注释）与剥离后的
+  // outerXml 可能不一致，避免无效 resolver 调用。
+  final svgOuter = svgElement.outerXml;
+  if (svgOuter.contains('<defs') || svgOuter.contains('<use')) {
     try {
-      final resolution = resolveSvgDefs(svgElement.outerXml);
+      final resolution = resolveSvgDefs(svgOuter);
       if (resolution != null) {
         return resolution.root;
       }
