@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
 import '../document_repository.dart';
-import 'file_service.dart' show decodeBytesAuto;
+import 'file_service.dart' show TextEncoding, decodeBytesAuto;
 import 'front_matter_parser.dart';
 
 /// 文档元数据（不含正文），用于列表 / 元数据查询 / 搜索 / 监听。
@@ -83,6 +83,28 @@ class FileRepository implements DocumentRepository {
     return (doc: doc, path: path);
   }
 
+  /// P0-2（§4.2）：探测 [f] 的 front matter `encoding:` 声明；无可识别
+  /// 声明返回 null（走自动链）。声明行必为 ASCII，任意解码器下均可安全
+  /// 提取（只看前 256 字节）。
+  Future<TextEncoding?> _declaredEncodingOf(File f) async {
+    final bytes = await f.readAsBytes();
+    if (bytes.isEmpty) return null;
+    final head = latin1.decode(bytes.sublist(0, bytes.length.clamp(0, 256)));
+    final match = RegExp(r'^encoding:\s*(\S+)\s*$', multiLine: true)
+        .firstMatch(head);
+    return match == null ? null : TextEncoding.tryParse(match.group(1));
+  }
+
+  /// P0-2（§4.2）读端：文件声明 `encoding: <name>` 且可识别时用声明编码
+  /// 解码（绕过自动链）；否则走 [decodeBytesAuto]。
+  Future<String> _readDecoded(File f) async {
+    final bytes = await f.readAsBytes();
+    if (bytes.isEmpty) return '';
+    final declared = await _declaredEncodingOf(f);
+    if (declared != null) return declared.decode(bytes);
+    return decodeBytesAuto(bytes);
+  }
+
   Future<List<({Document doc, String path})>> _readAll() async {
     final docsDir = Directory(await _docsDirPath());
     if (!await docsDir.exists()) return [];
@@ -93,7 +115,7 @@ class FileRepository implements DocumentRepository {
         .toList();
     final entries = <({Document doc, String path})>[];
     for (final f in files) {
-      final raw = decodeBytesAuto(await f.readAsBytes());
+      final raw = await _readDecoded(f);
       final stat = await f.stat();
       entries.add(_parseEntry(f.path, raw, stat.modified));
     }
@@ -118,7 +140,7 @@ class FileRepository implements DocumentRepository {
   @override
   Future<Document> readDocument(String path) async {
     final file = File(path);
-    final raw = decodeBytesAuto(await file.readAsBytes());
+    final raw = await _readDecoded(file);
     final stat = await file.stat();
     return _parseEntry(path, raw, stat.modified).doc;
   }
@@ -151,8 +173,10 @@ class FileRepository implements DocumentRepository {
     final file = File(path);
     String id;
     DateTime createdAt;
+    TextEncoding? declared;
     if (await file.exists()) {
-      final raw = decodeBytesAuto(await file.readAsBytes());
+      declared = await _declaredEncodingOf(file);
+      final raw = await _readDecoded(file);
       final meta = FrontMatterParser.parse(raw).meta;
       id = (meta?['id']?.isNotEmpty == true) ? meta!['id']! : _stem(path);
       createdAt = _parseDate(meta?['createdAt']) ?? DateTime.now();
@@ -167,8 +191,12 @@ class FileRepository implements DocumentRepository {
       updatedAt: updatedAt,
       title: title,
       content: content,
+      // P0-2 §4.2：声明保留（GBK 原件反复编辑不漂移为 UTF-8）；新文件
+      // 无声明不注入（默认 UTF-8，ADR-0003 目标态不变）。
+      encoding: declared?.name,
     );
-    await atomicWrite(File(path), md);
+    // 写端按声明编码写回字节；无声明走 UTF-8（等价旧 atomicWrite 行为）。
+    await atomicWriteBytes(file, (declared ?? TextEncoding.utf8).encode(md));
   }
 
   @override
@@ -181,7 +209,7 @@ class FileRepository implements DocumentRepository {
   @override
   Future<void> renameDocument(String path, String newTitle) async {
     final file = File(path);
-    final raw = decodeBytesAuto(await file.readAsBytes());
+    final raw = await _readDecoded(file);
     final body = FrontMatterParser.parse(raw).body;
     final newBody = _replaceFirstH1(body, newTitle);
     await writeDocument(path, title: newTitle, content: newBody);
@@ -347,14 +375,19 @@ const Duration kAtomicWriteRetryBackoff = Duration(milliseconds: 20);
 /// 若 rename 持续失败并耗尽重试上限，旧内容将丢失（新内容也未落盘）。属设计固有
 /// 权衡，非本处回归；该行为已由 `atomic_write_test` 固化，便于后续若改为
 /// "写临时件、失败时保留旧件"时及时察觉。
-Future<void> atomicWrite(File file, String content) async {
+Future<void> atomicWrite(File file, String content) async =>
+    atomicWriteBytes(file, utf8.encode(content));
+
+/// 字节版原子写（P0-2 §4.2 写端：按 front matter 声明编码写回时，
+/// 编码产物是字节而非 String，utf8 固定版无法复用）。
+Future<void> atomicWriteBytes(File file, List<int> bytes) async {
   final dir = file.parent;
   await dir.create(recursive: true);
   final tmp = File('${file.path}.tmp');
 
   for (var attempt = 1; attempt <= kAtomicWriteMaxAttempts; attempt++) {
     try {
-      await tmp.writeAsString(content, flush: true);
+      await tmp.writeAsBytes(bytes, flush: true);
       if (await file.exists()) {
         await file.delete();
       }
