@@ -114,10 +114,15 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
     if (!MermaidService.isReady) {
       return _buildWebViewNotReadyPlaceholder();
     }
-    // WebView 就绪：用 MermaidElementWidget 异步渲染 SVG
+    // WebView 就绪：用 MermaidElementWidget 异步渲染 SVG。
+    // #239：主题从 MaterialApp 的 brightness 派生（InheritedWidget 依赖，
+    // 主题切换自动重建本块 → didUpdateWidget 检测 theme 变化 → 重渲染），
+    // 与预览路径 preview_content.dart 的联动语义一致。
     return MermaidElementWidget(
       code: widget.element.code,
-      theme: MermaidTheme.light, // Phase 3.2 固定 light,主题切换留 Phase 3.9+
+      theme: Theme.of(context).brightness == Brightness.dark
+          ? MermaidTheme.dark
+          : MermaidTheme.light,
     );
   }
 
