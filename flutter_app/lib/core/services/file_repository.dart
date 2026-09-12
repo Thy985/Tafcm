@@ -262,15 +262,20 @@ class FileRepository implements DocumentRepository {
         : text;
   }
 
-  Future<List<DocMetadata>> searchDocuments(String query) async {
+  /// 全文搜索（P0-1 接线）：标题 + 正文，大小写不敏感，updatedAt 降序。
+  ///
+  /// 返回 [Document] 全量（搜索屏需要 content 做命中片段高亮）；
+  /// 空查询返回空列表（搜索语义：无输入即无结果）。
+  @override
+  Future<List<Document>> searchDocuments(String query) async {
     final q = query.toLowerCase();
+    if (q.isEmpty) return const [];
     final entries = await _readAll();
-    if (q.isEmpty) return entries.map(_toMeta).toList();
     return entries
         .where((e) =>
             e.doc.title.toLowerCase().contains(q) ||
             e.doc.content.toLowerCase().contains(q))
-        .map(_toMeta)
+        .map((e) => e.doc)
         .toList();
   }
 
