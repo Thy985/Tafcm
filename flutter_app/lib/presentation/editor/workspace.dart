@@ -104,6 +104,22 @@ class EditorViewport extends StatelessWidget {
     }
     return Column(
       children: [
+        // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化
+        // 路径，编辑已禁用——显式告知"不可保存"，消除静默丢内容的误解。
+        if (coordinator.isReadOnly)
+          Material(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  '查看模式 · 外部文件不可保存，编辑已禁用',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+          ),
         Expanded(
           child: ReorderableListView.builder(
             scrollController: controller,
