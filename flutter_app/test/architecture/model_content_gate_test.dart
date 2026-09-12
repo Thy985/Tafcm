@@ -23,8 +23,9 @@ void main() {
         'lib/presentation/editor/editor_page.dart:139',
         'lib/presentation/screens/file_manager_screen.dart:125',
         // 行号维护史：#242 删搜索按钮（-11 行）282→269；P0-1 恢复搜索按钮
-        // （+10 行）269→279。违规行为未变，仅位置维护。
-        'lib/presentation/screens/home_screen.dart:279',
+        // （+10 行）269→279；merge origin/main（#283 入口删除冲突消解）→272。
+        // 违规行为未变，仅位置维护。
+        'lib/presentation/screens/home_screen.dart:272',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');

@@ -199,13 +199,6 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               GhostButton(
-                icon: Icons.search,
-                onTap: onSearch,
-                tooltip: '搜索',
-                semanticLabel: '搜索',
-              ),
-              const SizedBox(width: 4),
-              GhostButton(
                 icon: Icons.brightness_6,
                 onTap: onThemeCycle,
                 tooltip: '切换主题',

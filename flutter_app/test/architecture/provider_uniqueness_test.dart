@@ -31,7 +31,7 @@ void main() {
       final hits = _grepLib(RegExp(r'documentsProvider\s*='));
       expect(hits, hasLength(1),
           reason: '命中：\n${hits.join("\n")}');
-    }, skip: 'Known issue（#266）: providers/providers.dart 与 domain/providers/document_provider.dart 重复定义');
+    });
 
     test('fileRepositoryProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'fileRepositoryProvider\s*='));
@@ -47,13 +47,15 @@ void main() {
 
     test('isExportingProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'isExportingProvider\s*='));
-      expect(hits, hasLength(1));
-    }, skip: 'Known issue（#266）: 三处重复定义（editor_providers/domain/providers/providers）');
+      expect(hits, hasLength(1),
+          reason: '命中：\n${hits.join("\n")}');
+    });
 
     test('editorContentProvider 仅定义一次', () {
       final hits = _grepLib(RegExp(r'editorContentProvider\s*='));
-      expect(hits, hasLength(1));
-    }, skip: 'Known issue（#266）: 两处重复定义（editor_providers/providers）');
+      expect(hits, hasLength(1),
+          reason: '命中：\n${hits.join("\n")}');
+    });
   });
 }
 
