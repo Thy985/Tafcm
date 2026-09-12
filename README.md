@@ -12,15 +12,15 @@
 
 ## 这是什么
 
-Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产品**，五维定位：
+Tafcm 不是"带预览的 Markdown 编辑器"，而是 **移动端 Typora 类产品**，三维定位（ADR-0033）：
 
 - **T · Typeset**：排版优先——用户看到的是 Document 而不是 Block，所见即所得，无"编辑/预览"模式切换
-- **A · Agent-native**：Agent 可诊断、可驱动的文档工具（ADI 诊断接口 + issue triage）
 - **F · Formula-aware**：原生支持 LaTeX 公式（SVG 矢量渲染）、Mermaid 图表、代码高亮
-- **C · CLI-native**：CLI 优先的文档处理（ffx-cli 诊断 / 验证 / 分析工具链）
 - **M · Markdown-first**：.md 单一真相源，任意来源文件即开即看，无需导入到 Vault
 
 其他特性：**手机优先**（触屏 + 单手握持重新设计）、**离线可用**（100% 本地渲染，无云端依赖）、**多平台**（Android / Windows / Web）。
+
+> 工程侧差异化（不对最终用户承诺）：**A · Agent-native**（ADI 诊断接口 + issue triage，Agent 可诊断、可驱动的文档工具）、**C · CLI-native**（ffx-cli 诊断 / 验证 / 分析工具链）。详见 [ADR-0024](docs/decisions/ADR/0024-agent-diagnostic-interface.md) 与 [ADR-0033](docs/decisions/ADR/0033-product-positioning-convergence.md)。
 
 ## 核心能力
 
