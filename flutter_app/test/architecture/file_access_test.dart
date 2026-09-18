@@ -59,8 +59,12 @@ void main() {
       //     FileRepository（文档 IO）平行，Phase 3.4 Slice 4 登记)
       //   - core/observability/export_pipeline.dart (Phase 3.7.3 诊断导出管道：
       //     生成 zip 到应用文档目录，非用户文档；file I/O 是导出功能的核心职责)
+      //   - core/services/atomic_write.dart (P0-2 自 file_repository 拆出
+      //     的原子写 I/O 块，TC-ARCH-7 行数控制；语义仍是 Repository 唯一
+      //     入口的一部分，file_repository.dart 经 export 转发)
       final allowedRoots = [
         'lib/core/services/file_repository.dart',
+        'lib/core/services/atomic_write.dart',
         'lib/core/services/file_service.dart',
         'lib/core/services/storage_migration.dart',
         'lib/core/services/document_service.dart',

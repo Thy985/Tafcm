@@ -35,18 +35,24 @@ class FrontMatterParser {
   ///
   /// [title] 非空且正文本身没有前导 `# H1` 时，注入首个 `# H1`
   /// （避免与正文已有标题重复）。
+  ///
+  /// [encoding]（P0-2 §4.2）：非 null 时写入 `encoding: <name>` 声明，
+  /// 读端据此选择解码器、写端据此编码写回（最小侵入的兼容方案，
+  /// 默认仍 UTF-8 不写声明——ADR-0003 目标态不变）。
   static String build({
     required String id,
     required DateTime createdAt,
     required DateTime updatedAt,
     required String title,
     required String content,
+    String? encoding,
   }) {
     final sb = StringBuffer();
     sb.writeln('---');
     sb.writeln('id: $id');
     sb.writeln('createdAt: ${createdAt.toIso8601String()}');
     sb.writeln('updatedAt: ${updatedAt.toIso8601String()}');
+    if (encoding != null) sb.writeln('encoding: $encoding');
     sb.writeln('---');
     final trimmed = content.replaceFirst(RegExp(r'^\s+'), '');
     final hasLeadingH1 = trimmed.startsWith('# ');

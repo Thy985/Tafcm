@@ -142,7 +142,11 @@ void main() {
       final p = await repo.createDocument('可搜索文档', '包含独特关键词 tafcm_unique_token_2026');
 
       final results = await repo.searchDocuments('tafcm_unique_token_2026');
-      expect(results.any((m) => m.path == p), isTrue,
+      // P0-1 端口扩展后返回 List<Document>（无 path 字段）——经
+      // documentPathFor(id) 推导路径比对（语义同旧 DocMetadata.path）。
+      final paths = await Future.wait(
+          results.map((d) => repo.documentPathFor(d.id)).toList());
+      expect(paths.contains(p), isTrue,
           reason: 'searchDocuments 应能定位含关键词的文档');
 
       // 清理

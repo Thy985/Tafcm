@@ -5,6 +5,7 @@ import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
 import '../../presentation/screens/home_screen.dart';
+import '../../presentation/screens/search_screen.dart';
 import '../../presentation/widgets/home_shell.dart';
 import '../../presentation/editor/editor_page.dart';
 import '../../core/constants/app_constants.dart';
@@ -54,6 +55,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/documents',
       builder: (context, state) => const DocumentListScreen(),
+    ),
+    // P0-1 搜索接线（EXTERNAL-PROJECTS-EMPOWERMENT-PLAN §4.1）：
+    // 全局搜索屏，首页搜索按钮 push 进入（#242 呼应：功能落地后恢复入口）。
+    GoRoute(
+      path: '/search',
+      builder: (context, state) => const SearchScreen(),
     ),
     // Phase 3.1-A PR #2：默认入口指向新 EditorPage（production 路径）。
     // Phase 3.4.2：支持 ?path=<encoded> 打开真实 .md 文件（文件树 / 重启恢复传入）。
