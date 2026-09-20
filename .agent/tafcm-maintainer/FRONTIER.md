@@ -34,12 +34,12 @@
 - depth: current: 1 / target: 3（blocked）
 - open_question: "smoke 链路通后，如何扩展至 editor/export/formula 全链路 device-level 集成测试？"
 - next_action: type: targeted-test / target: flutter_app/integration_test/phase35_home_smoke_test.dart（已通）→ 扩展至 editor_screen + export_path（blocked by #263）
-- blocking_reason: adb device offline（CI #33953543937, #33950879887）；emulator 启动后 44 秒内离线，根因在 CI runner 基础设施层
-- last_verified_at: 2026-09-15
+- blocking_reason: Issue #263 OPEN（Owner 已于 2026-09-12 判定 PR #276 解决、android-device 不再阻塞 PR；但 Issue 未执行关闭操作）。FR-001 阻塞状态随 Issue #263 保持 open。
+- last_verified_at: 2026-09-21
 - activation_reason: new-evidence
 - verification_status: needs-device-validation
-- evidence: CI #840（第 3 轮曾通过）；CI #33953543937/#33950879887（第 9-10 轮 adb offline）；Issue #263 跟踪中
-- handoff: executor: human / reason: adb device offline 根因在 GitHub Actions ubuntu-24.04 runner 基础设施层，需人工决策是否切换 runner 类型或添加 adb logcat dump
+- evidence: CI #840（第 3 轮曾通过）；CI #33953543937/#33950879887（第 9-10 轮 adb offline）；Issue #263 跟踪中；Owner 判定解决（9/12，PR #276 合入）但 Issue 未关闭
+- handoff: executor: human / reason: Issue #263 需执行关闭操作以正式解除本 entry 阻塞
 
 ## 冷却区（cooling — 连续 3 轮无代码变化 / 无新证据 / 无新异常）
 
@@ -52,7 +52,7 @@
 - open_question: "是否需要在 CI 中增加 dart test 于 tools/adi？"
 - next_action: type: decision / target: .github/workflows/ci.yml（低优先级，宽限期至 2026-09-16 Node.js 20 退役）
 - blocking_reason: null
-- last_verified_at: 2026-09-15
+- last_verified_at: 2026-09-21
 - activation_reason: new-evidence
 - verification_status: in-progress
 - handoff: null
