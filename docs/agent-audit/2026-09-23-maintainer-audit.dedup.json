@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-23",
+  "findings": [
+    {
+      "id": "F-2026-09-23-01",
+      "fingerprint": "dc1ce158a57c4cea",
+      "category": "test-gap",
+      "evidence_files": [
+        "home_screen_behavior_test.dart"
+      ],
+      "status": "NEW",
+      "issue": "N/A（P3 测试基础设施问题，不值得单独建 Issue；建议 Owner 在 Phase 4 统一评估测试环境稳定性）",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "hits": 0,
+    "new": 1
+  }
+}
