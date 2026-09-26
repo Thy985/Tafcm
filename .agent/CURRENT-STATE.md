@@ -4,7 +4,7 @@
 回答：**现在项目处于什么状态？当前在做什么？下一步做什么？**
 不读任何 RUN/AUDIT 即可获得正确状态；追溯历史沿引用回原始证据。
 
-**最近更新**: 2026-08-29（Phase 3.12 迁移提交 66ab54d 待 PR 合入；死链收尾轮）
+**最近更新**: 2026-09-26（同步 #287：Phase 3 系列全部收尾、处于阶段间空档期、Phase 4 未启动）
 
 ---
 
@@ -12,10 +12,10 @@
 
 | 项 | 值 |
 |----|-----|
-| 阶段 | **Phase 3.12：信息架构重构**（进行中） |
-| 前序 | Phase 0-3.11 全部完成；PHASE_3_11_EXIT 已判定关闭（2026-08-22） |
-| 本阶段目标 | 文档四层重构（人类入口 / 工程真相 / 历史档案 / 机器资产）+ DOCUMENT CONSOLIDATION PASS |
-| 下一步 | 死链收尾轮（已完成）→ `66ab54d` 建 PR 合入 main → 空档期立项决策（产品缺口 / DEBT-006） |
+| 阶段 | **阶段间空档期（Phase 3 系列全部收尾，Phase 4 未启动）** |
+| 前序 | Phase 0-3.11 全部完成并合入 main（Phase 3.11 已由 Owner 判定关闭 2026-08-22） |
+| 本阶段定位 | 无进行中的大阶段；产品侧已知缺口待 Owner 立项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑 / 3.4.10 选区格式化菜单）见 [TYPORA-GAP-ANALYSIS](../docs/product/TYPORA-GAP-ANALYSIS.md) §3-4 |
+| 下一步 | 由 Human Owner 决定空档期立项；架构决策一律先落 ADR，不启动新大阶段功能 |
 
 ## 2. 工程五维状态（2026-08-22 冻结）
 
@@ -29,9 +29,11 @@
 
 ## 3. 当前活动任务
 
-- Phase 3.12 迁移提交 `66ab54d` 已在 `feat/phase3.12-info-architecture` 分支，待建 PR 合入 main（PR #166-#173 已全部合入）
-- 迁移死链收尾：AGENTS.md / ROADMAP / ARCHITECTURE / ADR 互链 / engineering / releases / loading-rules 已修复（docs/ADR/ → docs/decisions/ADR/），archive / contracts 历史档案按冻结原则保留
-- 待 Owner 决策：DEBT-006（IME Coalescing）是否单独立项；空档期产品缺口立项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑）
+- **空档期无进行中的大阶段功能**（AGENTS.md §0 空档期禁区：不启动新大阶段功能、不跨阶段实现；架构决策一律先落 ADR）
+- 活跃的维护性工作（Ingoing，非新阶段立项）：
+  - P0 批次：#238（kAppVersion 版本漂移）、#287（本文档）、#288（audit 单日缺失）修复
+  - 已开放 Agent Issues：#289（FINDINGS.md 去重脚本 bug）/ #234 / #246-#250 等，待 Owner 决策优先级
+- 待 Owner 决策：DEBT-006（IME Coalescing）是否单独立项；空档期产品缺口立项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑 / 3.4.10 选区格式化菜单）
 
 ## 4. 快速入口
 
