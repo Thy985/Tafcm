@@ -30,6 +30,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import 'svg_ast.dart';
+import 'svg_pdf_palette.dart';
 
 /// 入口：把 SVG 字符串直接转成 `pw.Widget`。
 ///
@@ -47,10 +48,20 @@ class SvgPdfWidget extends pw.Widget {
     this.fallbackFont,
     this.unsupportedColor,
     this.fontSize,
+    this.debugCountPathOps = false,
   });
 
   /// 已解析的 AST。
   final SvgRoot root;
+
+  /// 是否统计本次 paint 真实绘制的矢量/墨迹操作数。
+  ///
+  /// Issue #234：PDF 导出"公式可见"的最小硬证据 = 内容流真的画了矢量
+  /// 操作（rect/line/circle/path），而非空流或纯 unsupported 占位。
+  /// pdf 包产物是 Flate 压缩流，直接 grep op 码不可靠；改为在绘制层
+  /// 计数器暴露真实绘制次数（只读诊断，不改输出）。默认关闭（防副作用）。
+  final bool debugCountPathOps;
+  int debugPathOpsDrawn = 0;
 
   /// 文本节点使用的字体（pw.Font 高层 API）。为 null 时 paint 时用
   /// `pw.Font.helvetica()`。
@@ -112,6 +123,7 @@ class SvgPdfWidget extends pw.Widget {
   @override
   void paint(pw.Context context) {
     super.paint(context);
+    if (debugCountPathOps) debugPathOpsDrawn = 0;
     final canvas = context.canvas;
     // pw.Font.helvetica()/courier() 工厂无参；不为调用方增加 document 依赖。
     final textFontWrapper = textFont ?? pw.Font.helvetica();
@@ -196,9 +208,10 @@ class SvgPdfWidget extends pw.Widget {
 
   void _drawRect(PdfGraphics canvas, SvgRect r) {
     if (r.width <= 0 || r.height <= 0) return;
-    final fill = _parseColor(r.fill);
-    final stroke = _parseColor(r.stroke);
+    final fill = parseSvgColor(r.fill, textColor);
+    final stroke = parseSvgColor(r.stroke, textColor);
     if (fill == null && stroke == null) return;
+    if (debugCountPathOps) debugPathOpsDrawn++;
     canvas.saveContext();
     if (fill != null) canvas.setFillColor(fill);
     if (stroke != null) canvas.setStrokeColor(stroke);
@@ -209,7 +222,8 @@ class SvgPdfWidget extends pw.Widget {
   }
 
   void _drawLine(PdfGraphics canvas, SvgLine l) {
-    final stroke = _parseColor(l.stroke) ?? textColor ?? PdfColors.black;
+    final stroke = parseSvgColor(l.stroke, textColor) ?? textColor ?? PdfColors.black;
+    if (debugCountPathOps) debugPathOpsDrawn++;
     canvas.saveContext();
     canvas.setStrokeColor(stroke);
     canvas.setLineWidth(l.strokeWidth);
@@ -221,9 +235,10 @@ class SvgPdfWidget extends pw.Widget {
 
   void _drawCircle(PdfGraphics canvas, SvgCircle c) {
     if (c.r <= 0) return;
-    final fill = _parseColor(c.fill);
-    final stroke = _parseColor(c.stroke);
+    final fill = parseSvgColor(c.fill, textColor);
+    final stroke = parseSvgColor(c.stroke, textColor);
     if (fill == null && stroke == null) return;
+    if (debugCountPathOps) debugPathOpsDrawn++;
     canvas.saveContext();
     if (fill != null) canvas.setFillColor(fill);
     if (stroke != null) canvas.setStrokeColor(stroke);
@@ -235,9 +250,10 @@ class SvgPdfWidget extends pw.Widget {
 
   void _drawEllipse(PdfGraphics canvas, SvgEllipse e) {
     if (e.rx <= 0 || e.ry <= 0) return;
-    final fill = _parseColor(e.fill);
-    final stroke = _parseColor(e.stroke);
+    final fill = parseSvgColor(e.fill, textColor);
+    final stroke = parseSvgColor(e.stroke, textColor);
     if (fill == null && stroke == null) return;
+    if (debugCountPathOps) debugPathOpsDrawn++;
     canvas.saveContext();
     if (fill != null) canvas.setFillColor(fill);
     if (stroke != null) canvas.setStrokeColor(stroke);
@@ -249,9 +265,16 @@ class SvgPdfWidget extends pw.Widget {
 
   void _drawPath(PdfGraphics canvas, SvgPath p, PdfFont fallbackFont) {
     if (p.d.isEmpty) return;
-    final fill = _parseColor(p.fill);
-    final stroke = _parseColor(p.stroke);
-    if (fill == null && stroke == null) return;
+    var fill = parseSvgColor(p.fill, textColor);
+    final stroke = parseSvgColor(p.stroke, textColor);
+    if (fill == null && stroke == null) {
+      // MathJax 字形 path 常无显式 fill/stroke（<defs> 内 path 只带 d，
+      // 祖先 <g fill="currentColor"> 承载着色）。原实现在此路径直接
+      // return → 真实 MathJax 字形被静默丢弃 → 导出公式"空白"（#216 同类、
+      // #234 要守的门）。默认到文本色/黑，确保字形真实着墨。
+      fill = textColor ?? PdfColors.black;
+    }
+    if (debugCountPathOps) debugPathOpsDrawn++;
     canvas.saveContext();
     if (fill != null) canvas.setFillColor(fill);
     if (stroke != null) canvas.setStrokeColor(stroke);
@@ -289,9 +312,9 @@ class SvgPdfWidget extends pw.Widget {
     }
     if (t.text.isEmpty) return;
 
-    final font = _lookupFont(t.fontFamily, textFont, fallbackFont);
+    final font = resolveSvgFont(t.fontFamily, textFont, fallbackFont);
     final size = fontSize ?? (t.fontSize > 0 ? t.fontSize : 12.0);
-    final color = _parseColor(t.fill) ?? textColor;
+    final color = parseSvgColor(t.fill, textColor) ?? textColor;
 
     canvas.saveContext();
     if (color != null) {
@@ -310,9 +333,9 @@ class SvgPdfWidget extends pw.Widget {
   void _drawTspan(PdfGraphics canvas, SvgText parent, SvgTspan s,
       PdfFont textFont, PdfFont fallbackFont) {
     if (s.text.isEmpty) return;
-    final font = _lookupFont(s.fontFamily, textFont, fallbackFont);
+    final font = resolveSvgFont(s.fontFamily, textFont, fallbackFont);
     final size = fontSize ?? s.fontSize ?? parent.fontSize;
-    final color = _parseColor(s.fill) ?? _parseColor(parent.fill) ?? textColor;
+    final color = parseSvgColor(s.fill, textColor) ?? parseSvgColor(parent.fill, textColor) ?? textColor;
     final x = s.x ?? parent.x;
     final y = s.y ?? parent.y;
 
@@ -343,57 +366,5 @@ class SvgPdfWidget extends pw.Widget {
       // swallow — 绝不让 unsupported 占位阻塞导出
     }
     canvas.restoreContext();
-  }
-
-  // === 颜色 / 字体辅助 =======================================
-
-  /// 解析 SVG 颜色字符串。MathJax 输出常用 `#rrggbb` / `#rgb` / `none` /
-  /// `currentColor`。`none` / 空返回 null（不绘制）。
-  PdfColor? _parseColor(String? raw) {
-    if (raw == null) return null;
-    final s = raw.trim();
-    if (s.isEmpty || s == 'none' || s == 'transparent') return null;
-    if (s == 'currentColor') return textColor;
-    if (s.startsWith('#')) {
-      try {
-        if (s.length == 7) {
-          return PdfColor.fromInt(int.parse(s.substring(1), radix: 16) |
-              0xFF000000);
-        }
-        if (s.length == 4) {
-          final r = s[1];
-          final g = s[2];
-          final b = s[3];
-          return PdfColor.fromInt(
-            int.parse('$r$r$g$g$b$b', radix: 16) | 0xFF000000,
-          );
-        }
-        if (s.length == 9) {
-          return PdfColor.fromInt(int.parse(s.substring(1), radix: 16));
-        }
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  /// 简单 font-family 查找 —— MathJax SVG 通常不输出 font-family。
-  PdfFont _lookupFont(String? family, PdfFont textFont, PdfFont fallbackFont) {
-    if (family == null) return textFont;
-    final lower = family.toLowerCase();
-    if (lower.contains('mono') || lower.contains('courier')) {
-      return fallbackFont;
-    }
-    if (lower.contains('serif') || lower.contains('times')) {
-      return fallbackFont;
-    }
-    if (lower.contains('italic') || lower.contains('oblique')) {
-      return fallbackFont;
-    }
-    if (lower.contains('bold')) {
-      return fallbackFont;
-    }
-    return textFont;
   }
 }
