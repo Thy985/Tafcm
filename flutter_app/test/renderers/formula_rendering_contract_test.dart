@@ -66,16 +66,30 @@ List<T> _collectNodes<T extends SvgNode>(SvgNode node) {
   return out;
 }
 
-/// 渲染 SVG → PDF bytes（真实导出路径）。
-Future<List<int>> _renderToPdf(SvgRoot root) async {
+/// 渲染 SVG → PDF bytes（真实导出路径），并返回 SvgPdfWidget 便于读取
+/// debugPathOpsDrawn（Issue #234：公式"可见"的矢量操作硬证据）。
+///
+/// 计数器只在 [debugCountPathOps] 开启时累计；返回的 [SvgPdfWidget] 与
+/// MultiPage 实际 paint 的是同一对象，save() 后其 debugPathOpsDrawn
+/// 即本次真实绘制的矢量操作数。
+Future<(List<int>, SvgPdfWidget)> _renderToPdf(
+  SvgRoot root, {
+  bool debugCountPathOps = false,
+}) async {
   final pdf = pw.Document();
+  final widget = SvgPdfWidget(
+    root: root,
+    fontSize: 13,
+    debugCountPathOps: debugCountPathOps,
+  );
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      build: (_) => [SvgPdfWidget(root: root, fontSize: 13)],
+      build: (_) => [widget],
     ),
   );
-  return pdf.save();
+  final bytes = await pdf.save();
+  return (bytes, widget);
 }
 
 void main() {
@@ -116,18 +130,30 @@ void main() {
     });
   });
 
-  group('F-01 contract: 矢量性（PDF 内容流含路径操作符）', () {
-    test('内联 glyph 经真实导出路径产出含矢量操作符的 PDF', () async {
+  group('F-01 contract: 矢量性（真实绘制操作数 > 0 = 公式可见）', () {
+    test('真实 MathJax 内联 glyph 经导出路径必须绘制 >=1 个矢量操作（#234）',
+        () async {
       final root = parseSvgString(_mathjaxStyleSvg);
-      final bytes = await _renderToPdf(root);
+      final (bytes, widget) = await _renderToPdf(root, debugCountPathOps: true);
       expect(bytes, isNotEmpty);
 
-      // PDF 内容流解压后含路径操作符（m/l/c 之一）= 矢量字形真实存在。
-      // 用 pw.Document 产物直接 grep 不可靠（Flate 压缩），改用
-      // "bytes 非空 + 无 SvgUse 残留"双条件；矢量操作符级断言由
-      // 下一个测试在未压缩流上完成。
-      expect(bytes.length, greaterThan(500),
-          reason: '含字形 path 的 PDF 不应过小（空白 PDF < 500B 量级）');
+      // Issue #234 核心诉求：公式"可见"的最小硬证据 = 绘制层真的发了矢量
+      // 操作（drawRect/drawLine/drawCircle/drawEllipse/drawPath）。
+      // pdf 包产物是 Flate 压缩流，直接 grep op 码不可靠（历史 bytes>0.
+      // "bytes>500" 过弱）——这里用绘制层计数器（为可读性仅 debug）。
+      expect(widget.debugPathOpsDrawn, greaterThan(0),
+          reason: '内联后的 glyph path 必须真实绘制（>0 个矢量操作），'
+              '否则导出的公式是空白/占位，直接违背 #234');
+    });
+
+    test('空 svg（无绘制元素）→ debugPathOpsDrawn == 0（守门非恒真）', () async {
+      // 空根（viewBox 为 0×0，无任何 rect/path/text）→ 不绘制任何矢量。
+      const emptySvg =
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"></svg>';
+      final root = parseSvgString(emptySvg);
+      final (_, widget) = await _renderToPdf(root, debugCountPathOps: true);
+      expect(widget.debugPathOpsDrawn, 0,
+          reason: '空 SVG 必须 0 个矢量操作——证明计数器真在区分"有墨/无墨"');
     });
   });
 
@@ -164,7 +190,7 @@ void main() {
         final uses = _collectNodes<SvgUse>(root);
         if (uses.isNotEmpty) withUse++;
         // 真实导出路径冒烟：不抛错即算通过（卡死由既有 30s timeout 套件守门）。
-        final bytes = await _renderToPdf(root);
+        final (bytes, _) = await _renderToPdf(root);
         expect(bytes, isNotEmpty, reason: '${f.uri.pathSegments.last} 产物非空');
       }
       // fontCache 改 local 后，新 dump 的 fixture 应全部内联。既有 118 个

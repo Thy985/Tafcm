@@ -313,4 +313,54 @@ void main() {
       expect(decoded, contains('\uFFFD')); // 替换字符
     });
   });
+
+  group('#234：公式 PNG 可见性（Word 端嵌入，非 fallback 文本）', () {
+    // Issue #234 第 3 层：导出 Word 时"公式可见" = 文档里嵌的是 PNG
+    // 图片（w:drawing + a:blip），而不是走 fallback 的 LaTeX 文本。
+    // 现有 fallback 测试（formulaRels=null）已覆盖失败分支；本组覆盖其
+    // 反例——渲染成功（widthEmu>0）时必须产出 <a:blip>，且不残留 fallback。
+    final success = <String, FormulaImageInfo?>{
+      'x^2 + bx + c = 0': const FormulaImageInfo(
+        relId: 'rIdImage1',
+        widthEmu: 1200000,
+        heightEmu: 360000,
+      ),
+    };
+
+    test('公式 PNG 成功 → 文档嵌 w:drawing + a:blip，而非 Cambria fallback', () {
+      final elements = <DocumentElement>[
+        const ParagraphElement(children: <InlineElement>[
+          TextElement('根 '),
+          FormulaElement(latex: 'x^2 + bx + c = 0'),
+          TextElement(' 的解'),
+        ]),
+      ];
+      final mermaidRels = <String, MermaidImageInfo>{};
+
+      final xml = WordOoxmlBuilder.buildDocumentXml(
+        elements,
+        null,
+        success,
+        mermaidRels,
+      );
+
+      // 可见公式必须以图片引用嵌入（图片式的真实 PNG），而非 fallback 文本。
+      expect(xml, contains('w:drawing'), reason: '#234：成功公式该是图片绘制');
+      expect(xml, contains('a:blip'), reason: '#234：blip 应实际引用公式 PNG');
+      expect(xml, contains('rIdImage1'), reason: '公式图片 relId 应被引用');
+      // 反证：不允许走到 fallback（Cambria Math / LaTeX 文本）分支。
+      expect(xml, isNot(contains('Cambria Math')),
+          reason: '公式渲染成功时不能又落 fallback 文本（违背 #234 可见性）');
+    });
+
+    test('公式 PNG 成功 → image rels 写 Relationship（media 存在一致性）', () {
+      final mermaidRels = <String, MermaidImageInfo>{};
+      final rels = WordOoxmlBuilder.buildImageRelsXml(success, mermaidRels);
+      expect(rels, contains('rIdImage1'));
+      expect(rels, contains('formula_1.png'),
+          reason: '成功公式的图像 rel 应指向实际 media PNG 文件');
+      expect(RegExp(r'rIdImage').allMatches(rels).length, 1,
+          reason: '一个成功公式对应一个 image rel');
+    });
+  });
 }
