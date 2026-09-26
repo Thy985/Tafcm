@@ -34,6 +34,16 @@ from pathlib import Path
 
 DATE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-maintainer-audit\.md$")
 REGISTRY_MARKER = "<!-- REGISTRY_ROWS -->"
+# 默认注册表固定"头"（新建/头丢失时回退）。与既有已生成文件头保持一致，
+# 避免新建文件产生与新 schema 抽取结果不一致的头。
+DEFAULT_REGISTRY_SCHEMA = (
+    "# Tafcm Agent Finding Registry（机器维护，Agent 读取去重）\n\n"
+    "> 每行 = 一个稳定 Finding 身份（fingerprint）。Agent 运行前先读本表：\n"
+    "> fingerprint 命中 = 旧 Finding 的延续（标 UNCHANGED/UPDATED 并关联既有 Issue），\n"
+    "> 不得重新标 NEW / 不得新建 Issue。由 fingerprint.py 自动维护。\n\n"
+    "| fingerprint | latest_id | category | evidence | status | issue | first_seen | last_seen |\n"
+    "|-------------|-----------|----------|----------|--------|-------|------------|-----------|\n"
+)
 # 归一化时保留的中文/字母数字（去标点与空白）
 _KEEP = re.compile(r"[^\w\u4e00-\u9fff]+")
 # Evidence 中的文件路径锚点：取 文件名（去行号后缀）
@@ -137,6 +147,35 @@ def row_line(row: dict) -> str:
             f"| {row['first_seen']} | {row['last_seen']} |")
 
 
+def _registry_schema(text: str) -> str:
+    """抽取注册表固定"头"（标题/说明/表头/分隔线），丢弃全部历史数据行。
+
+    分隔线行（`|---|...|`）之后即数据区；返回分隔行结尾（含换行）之前的
+    全部内容作为 schema。若无匹配行（文件缺失/损坏）返回空串，调用方回退标准头。
+    """
+    m = re.search(r"(?m)^\s*\|[ \t:\-|]+\|\s*$", text)  # 表格分隔行
+    if m:
+        return text[: m.end()] + "\n"
+    return ""
+
+
+def collapse_and_write(reg_path: Path, merged: dict[str, dict]) -> None:
+    """幂等重建注册表：固定"头"（schema）+ 去重唯一行 + 标记行。
+
+    Issue #289：旧实现只替换标记行、保留标记上方全部历史行，导致注册表
+    只增不减无限膨胀。这里**整体重建数据区**，无论既有文件含多少重复行，
+    都按 fingerprint 去重后写回唯一行，使运行幂等、历史重复一次清空。
+    """
+    lines = sorted(merged.values(), key=lambda r: r["fingerprint"])
+    table_rows = "".join(f"{row_line(r)}\n" for r in lines)
+
+    reg_text = reg_path.read_text(encoding="utf-8") if reg_path.is_file() else ""
+    schema = _registry_schema(reg_text) if reg_text else ""
+    if not schema:
+        schema = DEFAULT_REGISTRY_SCHEMA
+    reg_path.write_text(f"{schema}{table_rows}{REGISTRY_MARKER}\n", encoding="utf-8")
+
+
 def main() -> int:
     if len(sys.argv) not in (2, 3):
         print("usage: fingerprint.py <audit.md> [registry.md]", file=sys.stderr)
@@ -198,25 +237,17 @@ def main() -> int:
               f"cat={f['category']} files={','.join(f['evidence_files']) or '-'}{prev}")
 
     # 写注册表（保留未出现的旧行 + 本次行，按 fingerprint 排序稳定）
+    #
+    # ⚠️ Issue #289 修复：**整体重建数据区**，而非「只替换标记行」。
+    # 旧实现 `re.sub/str.replace` 只把新表插入到 `<!-- REGISTRY_ROWS -->`
+    # 处、保留标记上方全部历史行 → 每次运行把 280+ 历史行原样保留并再
+    # 追加一份完整新表，注册表只增不减无限膨胀（W39：257 重复/最多 29 次）。
+    # 现在：抽取固定"头"（标题/说明/表头/分隔线 = schema）后，用去重后
+    # 的唯一行重建整个数据区，使运行幂等、历史重复一次清空。
     merged: dict[str, dict] = {r["fingerprint"]: r for r in registry}
     for r in new_rows:
         merged[r["fingerprint"]] = r
-    lines = sorted(merged.values(), key=lambda r: r["fingerprint"])
-    reg_text = (reg_path.read_text(encoding="utf-8")
-                if reg_path.is_file() else
-                "# Tafcm Agent Finding Registry（机器维护，Agent 读取去重）\n\n"
-                "> 每行 = 一个稳定 Finding 身份（fingerprint）。Agent 运行前先读本表：\n"
-                "> fingerprint 命中 = 旧 Finding 的延续（标 UNCHANGED/UPDATED 并关联既有 Issue），\n"
-                "> 不得重新标 NEW / 不得新建 Issue。由 fingerprint.py 自动维护。\n\n"
-                "| fingerprint | latest_id | category | evidence | status | issue | first_seen | last_seen |\n"
-                "|-------------|-----------|----------|----------|--------|-------|------------|-----------|\n"
-                f"{REGISTRY_MARKER}\n")
-    table_rows = "".join(f"{row_line(r)}\n" for r in lines)
-    updated = re.sub(rf"(?m)^{REGISTRY_MARKER}\n?",
-                     f"{table_rows}{REGISTRY_MARKER}\n", reg_text, count=1)
-    if updated == reg_text and REGISTRY_MARKER in reg_text:
-        updated = reg_text.replace(REGISTRY_MARKER, f"{table_rows}{REGISTRY_MARKER}", 1)
-    reg_path.write_text(updated, encoding="utf-8")
+    collapse_and_write(reg_path, merged)
 
     # dedup 报告（workflow 上传 / 供校验）
     report["summary"] = {
@@ -234,3 +265,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
