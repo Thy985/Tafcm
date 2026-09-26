@@ -526,3 +526,19 @@ jobs:
 
       - name: Run architecture invariants check
         run: python3 .github/scripts/issue-triage/architecture_test.py
+
+  # FINDINGS.md 注册表去重守门（Issue #289）
+  # 拦截方式：fingerprint.py 的注册表写入若再次退化为「追加不幂等」→ CI 失败。
+  # 不依赖 Flutter runtime，python3 stdlib + tempfile 即可。
+  finding-registry-dedupe:
+    name: Finding Registry Dedupe Test (Issue #289)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify fingerprint.py present
+        run: 'test -f .github/scripts/tafcm-maintainer/fingerprint.py || { echo "FAIL: fingerprint.py missing"; exit 1; }'
+
+      - name: Run registry dedup invariants check
+        run: python3 .github/scripts/tafcm-maintainer/fingerprint_dedupe_test.py
