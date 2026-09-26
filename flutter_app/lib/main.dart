@@ -21,7 +21,9 @@ import 'providers/editor_providers.dart';
 /// 不引入 package_info_plus 依赖（避免包体积增长），版本号变更时
 /// 同步更新此处即可。Phase 3+ 接入动态版本读取时替换为
 /// `await PackageInfo.fromPlatform()`。
-const String kAppVersion = '0.1.0+1';
+/// ⚠️ 双真相源（pubspec.yaml ↔ 本常量）；Issue #238：每逢发布必须同步，
+/// 建议后续自动从 pubspec 生成 / 加 CI 断言防漂移。
+const String kAppVersion = '0.1.1+2';
 
 /// 是否挂载 Mermaid WebView 渲染宿主（默认开启，产品行为不变）。
 ///
