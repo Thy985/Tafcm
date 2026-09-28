@@ -6,6 +6,7 @@
 
 | fingerprint | latest_id | category | evidence | status | issue | first_seen | last_seen |
 |-------------|-----------|----------|----------|--------|-------|------------|-----------|
+| 0b94dbc95efa1ce7 | F-2026-09-29-01 | tech-debt |  | NEW | #297 | 2026-09-29 | 2026-09-29 |
 | 14138cdee2a377b7 | F-2026-09-01-03 | test-gap | word_export_semantic_fidelity_test.dart | UNCHANGED | #234 | 2026-09-02 | 2026-09-02 |
 | 15ed951109b50b6c | F-2026-09-16-01 | architecture | CURRENT-STATE.md,AGENTS.md,ROADMAP.md | NEW | #287 | 2026-09-16 | 2026-09-16 |
 | 2287adae59a02905 | F-2026-09-02-01 | regression |  | RESOLVED | #233 | 2026-09-02 | 2026-09-03 |
