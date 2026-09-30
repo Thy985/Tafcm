@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-01",
+  "findings": [
+    {
+      "id": "F-2026-10-01-01",
+      "fingerprint": "1e7c5a4169db033a",
+      "category": "tech-debt",
+      "evidence_files": [
+        "editor_export_actions.dart",
+        "editor_page.dart"
+      ],
+      "status": "NEW",
+      "issue": "#249",
+      "hit_previous": false,
+      "previous_id": null
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "hits": 0,
+    "new": 1
+  }
+}

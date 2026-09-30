@@ -9,6 +9,7 @@
 | 0b94dbc95efa1ce7 | F-2026-09-29-01 | tech-debt |  | NEW | #297 | 2026-09-29 | 2026-09-29 |
 | 14138cdee2a377b7 | F-2026-09-01-03 | test-gap | word_export_semantic_fidelity_test.dart | UNCHANGED | #234 | 2026-09-02 | 2026-09-02 |
 | 15ed951109b50b6c | F-2026-09-16-01 | architecture | CURRENT-STATE.md,AGENTS.md,ROADMAP.md | NEW | #287 | 2026-09-16 | 2026-09-16 |
+| 1e7c5a4169db033a | F-2026-10-01-01 | tech-debt | editor_export_actions.dart,editor_page.dart | NEW | #249 | 2026-10-01 | 2026-10-01 |
 | 2287adae59a02905 | F-2026-09-02-01 | regression |  | RESOLVED | #233 | 2026-09-02 | 2026-09-03 |
 | 2e24971817b33b6b | F-2026-09-10-01 | test-gap | provider_uniqueness_test.dart,editor_providers.dart | NEW | N/A（本次新建，与 F-2026-09-10-02 关联但独立） | 2026-09-10 | 2026-09-10 |
 | 39c85d0b899f396b | F-2026-09-01-06 | architecture |  | RESOLVED | #215（已关闭） | 2026-09-02 | 2026-09-02 |
@@ -20,6 +21,7 @@
 | 9459e75dd97ee21d | F-2026-09-12-01 | bug | text_exporter.dart,export_semantic_snapshot_test.dart | NEW | #273 | 2026-09-12 | 2026-09-12 |
 | 957ee075b107678e | F-2026-09-16-01 | architecture | CURRENT-STATE.md | NEW | N/A（本次新建） | 2026-09-16 | 2026-09-16 |
 | a1b2c3d4e5f60001 | F-2026-09-10-01 | test-gap | provider_uniqueness_test.dart | NEW | #265 | 2026-09-10 | 2026-09-10 |
+| a939a91f20261001 | F-2026-10-01-01 | tech-debt | editor_export_actions.dart | NEW | N/A（P3 技术债，#249 修复不完整；建议补全或明确标记接受当前行为） | 2026-10-01 | 2026-10-01 |
 | a9f3c7d1e5b82044 | F-2026-09-05-01 | ci-infra | CI #840 android-emulator success, PR #254/#255/#256 | NEW | N/A | 2026-09-05 | 2026-09-05 |
 | b04ac16ee32912cf | F-2026-09-05-01 | architecture | smoke_test.dart,phase35_home_smoke_test.dart | NEW | N/A | 2026-09-05 | 2026-09-05 |
 | b2c3d4e5f6000102 | F-2026-09-10-02 | architecture | providers.dart,editor_providers.dart,document_provider.dart,editor_provider.dart | NEW | #266 | 2026-09-10 | 2026-09-10 |
