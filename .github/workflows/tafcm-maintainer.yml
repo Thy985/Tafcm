@@ -109,6 +109,11 @@ jobs:
       - name: Install Cline CLI (pinned)
         run: npm install -g cline@${{ env.CLINE_VERSION }}
 
+      - name: Diagnose Cline CLI
+        run: |
+          which cline
+          cline --version
+
       # AGNES 网关：OpenAI-compatible（/v1/chat/completions），与 cline-pr-review.yml 同款
       - name: Configure Cline Authentication (AGNES)
         run: |
