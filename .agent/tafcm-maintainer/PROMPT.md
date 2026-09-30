@@ -400,3 +400,18 @@ docs/agent-investigations/issue-XXX-<slug>.md
 - 不确定时标注 Unknown，不猜测
 - **成功标准不是"今天改了多少代码"，而是"今天是否发现了一个真正值得维护者知道的问题，或者确认了某个问题其实不值得修改"**
 - **三问自检**：Audit 记全了证据？Issue 管住了该处理的？Email 提醒了该决策的？如果三者都在重复"今天发现了 XXX"，说明架构错了
+
+---
+
+## 13. Agent tool constraints (Cline 3.x)
+
+This section applies to Cline runs in `tafcm-maintainer.yml` so the
+maintainer agent stays compatible with the pinned Cline CLI version.
+
+- Do NOT use a `write_file` tool unless it is listed in the current tool
+  inventory. The pinned Cline 3.0.60 runtime does not provide `write_file`;
+  use the standard editor tool for file writes and edits.
+- When appending content to the end of a file, do NOT pass an `insert_line`
+  argument to `editor.insert_line`. Appending means no insertion line.
+- Always inspect the available tool list before editing files, and pick the
+  existing editor tool if `write_file` is absent.

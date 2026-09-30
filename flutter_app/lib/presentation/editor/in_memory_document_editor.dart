@@ -49,6 +49,12 @@ class InMemoryDocumentEditor implements DocumentEditor {
   /// 只增不减，溢出在实际文档生命周期内不可达。
   int structureVersion = 0;
 
+  /// 最近一次全量序列化后的 Markdown 内容（#249 优化）。
+  ///
+  /// 任何会改变块集或块内容的操作都必须失效该缓存，否则自动保存
+  /// 会重复全量序列化。
+  String? _serializedContent;
+
   InMemoryDocumentEditor({String title = '未命名'}) : _title = title;
 
   /// 文档标题。
@@ -101,6 +107,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     }
     final id = preserveId ?? BlockId.generate();
     _blocks.insert(index, _Entry(id, element));
+    _serializedContent = null;
     structureVersion++;
     _isDirty = true;
     return id;
@@ -112,6 +119,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
       if (_blocks[i].id == id) {
         structureVersion++;
         _isDirty = true;
+        _serializedContent = null;
         return _blocks.removeAt(i).element;
       }
     }
@@ -137,6 +145,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
         structureVersion++;
         _blocks[i] = _Entry(id, element);
         _isDirty = true;
+        _serializedContent = null;
         return old;
       }
     }
@@ -174,6 +183,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
         structureVersion++;
         _blocks[i] = _Entry(newId, element);
         _isDirty = true;
+        _serializedContent = null;
         // 通知调用方迁移信息（若提供了回调）
         onMigrated?.call(id, newId);
         return old;
@@ -188,6 +198,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
       if (_blocks[i].id == id) {
         _blocks[i] = _Entry(id, newContent);
         _isDirty = true;
+        _serializedContent = null;
         return;
       }
     }
@@ -228,6 +239,18 @@ class InMemoryDocumentEditor implements DocumentEditor {
   /// 返回所有块的 source 列表（不可变）。
   List<String> get allSources =>
       _blocks.map((e) => fromElement(e.element)).toList(growable: false);
+
+  /// 返回文档的最新 Markdown 快照。
+  ///
+  /// 结果会被缓存到 [_serializedContent]，在块集合或块内容变化前
+  /// 重复读取不会再次全量序列化（#249 优化）。
+  String get serializedContent {
+    final cached = _serializedContent;
+    if (cached != null) return cached;
+    return _serializedContent = _blocks
+        .map((e) => fromElement(e.element))
+        .join('\n');
+  }
 }
 
 class _Entry {

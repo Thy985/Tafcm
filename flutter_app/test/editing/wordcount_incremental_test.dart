@@ -67,6 +67,39 @@ void main() {
     });
   });
 
+  group('#249 serializedContent 缓存失效', () {
+    test('无变化时复用同一实例，任意 mutating 操作后重新序列化', () {
+      final editor = InMemoryDocumentEditor();
+      final id = editor.insertBlock(0, _para('a'));
+
+      final first = editor.serializedContent;
+      expect(editor.serializedContent, same(first));
+
+      editor.updateBlockContent(id, _para('ab'));
+      final afterUpdate = editor.serializedContent;
+      expect(afterUpdate, isNot(same(first)));
+      expect(afterUpdate, 'ab');
+
+      final cachedAfterUpdate = editor.serializedContent;
+      expect(editor.serializedContent, same(cachedAfterUpdate));
+
+      editor.replaceBlock(id, _para('abc'));
+      final afterReplace = editor.serializedContent;
+      expect(afterReplace, isNot(same(cachedAfterUpdate)));
+      expect(afterReplace, 'abc');
+
+      editor.replaceBlockWithMigration(id, _para('abcd'));
+      final afterMigration = editor.serializedContent;
+      expect(afterMigration, isNot(same(afterReplace)));
+      expect(afterMigration, 'abcd');
+
+      editor.removeBlock(editor.allIds.first);
+      final afterRemove = editor.serializedContent;
+      expect(afterRemove, isNot(same(afterMigration)));
+      expect(afterRemove, '');
+    });
+  });
+
   group('#245 wordCount 增量正确性', () {
     test('稳态按键（update 差量）与真值一致', () {
       final editor = InMemoryDocumentEditor();

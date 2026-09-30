@@ -293,7 +293,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       return false;
     }
     // 触发时刻快照：在 save 回调**起始同步**读取（避免写盘进行中的实时 live 回退）。
-    final snapshot = _coordinator.editor.allSources.join('\n');
+    final snapshot = _coordinator.editor.serializedContent;
     await ref.read(fileRepositoryProvider).writeDocument(
           path,
           title: _coordinator.title,
@@ -301,7 +301,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         );
     // 写盘后：若 source 在此期间无新改动，标记已保存；否则保留 dirty，
     // 由 AutosaveService 重新调度下一次保存（ADR-0013 并发保护：禁止误清进行中的编辑）。
-    if (_coordinator.editor.allSources.join('\n') == snapshot) {
+    if (identical(_coordinator.editor.serializedContent, snapshot)) {
       _coordinator.markSaved();
     }
     return true;

@@ -15,6 +15,8 @@
 ///     ConsumerWidget 集中消费，chrome/editor_app_bar 保持 Riverpod-free。
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/services/export_service.dart';
@@ -146,16 +148,21 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
   ///
   /// [errorClassifier]（可选）：自定义异常 → [ExportFailure] 映射；默认走
   /// `export_service.classifyError`。测试可注入 stub。
+  ///
+  /// [timeout]（可选）：全局兜底超时，默认 120s。若 [body] 在限时内未完成，
+  /// 由 [Future.timeout] 抛出 [TimeoutException]，随后经 [errorClassifier]
+  /// 归类为 timeout，保证状态机不会停留在 [ExportInProgressState]。
   Future<T> runWithGuard<T>(
     ExportFormat format,
     Future<T> Function() body, {
     void Function(Object error, StackTrace stack)? onError,
     ExportFailure Function(Object error)? errorClassifier,
+    Duration timeout = const Duration(seconds: 120),
   }) async {
     start(format);
     final classify = errorClassifier ?? _defaultClassifyError;
     try {
-      final result = await body();
+      final result = await body().timeout(timeout);
       complete(format);
       return result;
     } catch (e, st) {

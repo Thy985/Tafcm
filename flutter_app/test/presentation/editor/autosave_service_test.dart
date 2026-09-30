@@ -253,8 +253,8 @@ void main() {
       final service = AutosaveService(
         source: c,
         save: () async {
-          final snap = c.editor.allSources.join('\n');
-          if (c.editor.allSources.join('\n') == snap) c.markSaved();
+          final snap = c.editor.serializedContent;
+          if (identical(c.editor.serializedContent, snap)) c.markSaved();
           saved.add(true);
           return true;
         },

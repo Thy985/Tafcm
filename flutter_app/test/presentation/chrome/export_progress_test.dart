@@ -9,6 +9,7 @@
 /// 拆分（TC-ARCH-7）。
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -323,6 +324,33 @@ void main() {
 
       final state = container.read(exportProgressProvider);
       expect(state, isA<ExportIdleState>()); // finally 已 reset
+    });
+
+    test('timeout：body 永不完成时由全局兜底超时终止，终态 = Idle', () async {
+      final transitions = <ExportState>[];
+      container.listen<ExportState>(exportProgressProvider, (_, next) {
+        transitions.add(next);
+      }, fireImmediately: true);
+
+      await expectLater(
+        notifier.runWithGuard<void>(
+          ExportFormat.pdf,
+          () => Completer<void>().future,
+          errorClassifier: (_) => ExportFailure.timeout,
+          timeout: const Duration(milliseconds: 50),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      // 序列：Idle → InProgress → Failed(timeout) → Idle
+      expect(transitions.length, 4);
+      expect(transitions[0], isA<ExportIdleState>());
+      expect(transitions[1], isA<ExportInProgressState>());
+      expect(transitions[2], isA<ExportFailedState>());
+      expect((transitions[2] as ExportFailedState).failure,
+          ExportFailure.timeout);
+      expect(transitions[3], isA<ExportIdleState>());
+      expect(container.read(exportProgressProvider), isA<ExportIdleState>());
     });
   });
 
