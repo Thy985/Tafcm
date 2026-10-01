@@ -21,7 +21,6 @@ import '../states/coordinator_state.dart';
 import 'command_selection_sync.dart';
 import 'coordinator_change_notifier.dart';
 import 'coordinator_observability.dart';
-import 'editor_coordinator_notifiers.dart';
 import 'dirty_state_source.dart';
 import 'editor_intent.dart';
 import 'editor_intent_dispatcher.dart';

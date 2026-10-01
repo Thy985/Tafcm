@@ -13,7 +13,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/editing/block_types.dart';
 import 'block_state_notifiers.dart';
-import 'coordinator_change_notifier.dart';
 import 'editor_coordinator.dart';
 
 /// #246：字段级 notifier 的转发 getter。

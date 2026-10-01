@@ -21,7 +21,6 @@ library;
 import 'package:flutter/foundation.dart';
 
 import '../../core/editing/block_types.dart';
-import '../../core/editing/editor_history.dart';
 import '../../data/models/document.dart';
 import 'block_state_notifiers.dart';
 import 'in_memory_document_editor.dart';
