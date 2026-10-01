@@ -376,7 +376,9 @@ class _LocalizedAppBar extends StatelessWidget
   ) builder;
 
   const _LocalizedAppBar({
-    super.key,
+    // 无 key：调用点固定传 `null`（Scaffold.appBar 由 position 定位，
+    // 不需要 widget 级 key）。带 `super.key` 会被 analyzer 判为
+    // unused_element_parameter（CI 用 --fatal-warnings）。
     required this.titleListenable,
     required this.dirtyListenable,
     required this.undoRedoListenable,

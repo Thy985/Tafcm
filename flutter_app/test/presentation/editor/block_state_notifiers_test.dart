@@ -14,7 +14,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tafcm/core/editing/block_types.dart';
 import 'package:tafcm/data/models/document.dart';
 import 'package:tafcm/presentation/editor/block_state_notifiers.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';

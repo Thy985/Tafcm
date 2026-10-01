@@ -129,7 +129,7 @@ void main() {
       final b = editor.addParagraph('b');
       final c = editor.addParagraph('c');
       coordinator.setFocus(a);
-      final na = coordinator.blockNotifiers.notifierOf(a);
+      // 只需断言「无关块不变」——新聚焦块与旧聚焦块的 bump 由其他用例覆盖。
       final nb = coordinator.blockNotifiers.notifierOf(b);
       final nc = coordinator.blockNotifiers.notifierOf(c);
       final baseB = nb.value;

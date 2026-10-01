@@ -196,7 +196,7 @@ void main() {
     expect(find.byType(Text), findsNothing);
 
     // 直接 insertBlock：块集合变化 → structureNotifier 递增 → 视口重建
-    final a = editor.addParagraph('new block');
+    editor.addParagraph('new block');
     coordinator.notifyListeners();
     await tester.pump();
 
