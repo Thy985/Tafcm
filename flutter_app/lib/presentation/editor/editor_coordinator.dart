@@ -72,6 +72,7 @@ class EditorCoordinator extends ChangeNotifier
   telemetry = CoordinatorObservability(observability);
   }
 
+  @override
   bool handle(EditorCommand command) {
     if (isReadOnly) return false; // #240：查看模式，编辑命令统一 no-op
     final (oldSource, oldIds) = switch (command) {
@@ -101,8 +102,11 @@ class EditorCoordinator extends ChangeNotifier
     return ok;
   }
 
+  @override
   int get blockCount => editor.blockCount;
+  @override
   List<BlockId> get allIds => editor.allIds;
+  @override
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
   /// ADR-0019：输入意图派发器（flush→resolve→handle）。
