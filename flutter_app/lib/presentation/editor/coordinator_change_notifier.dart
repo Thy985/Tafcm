@@ -86,7 +86,11 @@ class CoordinatorChangeNotifier {
   /// 构造并绑定底层编辑器（读取初始状态）。
   CoordinatorChangeNotifier(this._editor)
       : titleNotifier = ValueNotifier<String>(_editor.title),
-        dirtyNotifier = ValueNotifier<bool>(false),
+        // 初始值必须读 _editor.isDirty，不能写死 false：
+        // 调用方（EditorPage / 测试）常先 insertBlock 灌文档再建协调器，
+        // 此时 _isDirty 已为 true。写死 false 会让 AppBar 首帧少画 dirty
+        // 指示点「•」——golden 实测 8×9px 图标消失（editor_shell_full_page_*）。
+        dirtyNotifier = ValueNotifier<bool>(_editor.isDirty),
         undoRedoNotifier = ValueNotifier<bool>(false),
         focusNotifier = ValueNotifier<BlockId?>(null),
         toolbarNotifier = ValueNotifier<int>(0),

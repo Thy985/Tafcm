@@ -226,6 +226,20 @@ void main() {
   });
 
   group('#246 chrome 层 notifier 一致性', () {
+    test('dirtyNotifier 初值 = editor.isDirty（灌过文档的编辑器为 true）', () {
+      // 回归：初值曾硬编码 false，导致 AppBar 首帧少画 dirty 指示点，
+      // golden editor_shell_full_page_* 报 8×9px 图标消失。
+      buildCoordinator(['a', 'b']);
+      expect(coordinator.dirtyNotifier.value, isTrue,
+          reason: '先 insertBlock 灌文档再建协调器时 _isDirty 已为 true');
+      expect(coordinator.dirtyNotifier.value, equals(coordinator.isDirty));
+    });
+
+    test('dirtyNotifier 初值 = false（空文档）', () {
+      buildCoordinator([]);
+      expect(coordinator.dirtyNotifier.value, isFalse);
+    });
+
     test('titleNotifier 初值与 coordinator.title 一致', () {
       expect(coordinator.titleNotifier.value, equals(coordinator.title));
     });
