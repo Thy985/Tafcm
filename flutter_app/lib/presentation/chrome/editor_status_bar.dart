@@ -59,43 +59,52 @@ class _EditorStatusBarState extends State<EditorStatusBar> {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         // P1 微修复（真机 CORE-005 阻塞）：真机字体比测试环境宽，状态栏 Row 在
-        // 360dp 屏宽下溢出 12px。用_overflow 横向滚动兜底，宽屏
+        // 360dp 屏宽下溢出 12px。用 SingleChildScrollView 横向滚动兜底，宽屏
         // 仍正常显示，窄屏可滑动而非报 RenderFlex overflow。Spacer 在无 max
         // width 约束下不工作，改为固定 SizedBox 间距。
-        child: OverflowBar(
+        //
+        // #246：保留原 SingleChildScrollView + Row 结构（OverflowBar 会重排
+        // 子项间距，与原视觉基线不符），仅把两个纯文本项换成块级订阅。
+        child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          children: [
-            // #246：块数订阅 blockCountNotifier，仅块数变化时重建
-            ValueListenableBuilder<int>(
-              builder: (context, blockCount, _) =>
-                  _buildItem('块数: $blockCount'),
-              valueListenable: widget.coordinator.blockCountNotifier,
-            ),
-            const SizedBox(width: 16),
-            // Phase 3.3 §3.3.4：字数统计
-            // #246：字数订阅 wordCountNotifier，仅字数变化时重建
-            ValueListenableBuilder<int>(
-              builder: (context, wordCount, _) =>
-                  _buildItem('字数: $wordCount'),
-              valueListenable: widget.coordinator.wordCountNotifier,
-            ),
-            const SizedBox(width: 16),
-            // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
-            // #246：订阅 undoRedoNotifier，仅 Undo/Redo 可用性变化时重建
-            ValueListenableBuilder<bool>(
-              builder: (context, canUndoRedo, _) => Row(
-                children: [
-                  _buildItem(widget.coordinator.canUndo ? '可撤销' : '—'),
-                  const SizedBox(width: 8),
-                  _buildItem(widget.coordinator.canRedo ? '可重做' : '—'),
-                ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // #246：块数订阅 blockCountNotifier，仅块数变化时重建
+              ValueListenableBuilder<int>(
+                builder: (context, blockCount, _) =>
+                    _buildItem('块数: $blockCount'),
+                valueListenable: widget.coordinator.blockCountNotifier,
               ),
-              valueListenable: widget.coordinator.undoRedoNotifier,
-            ),
-            const SizedBox(width: 16),
-            // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
-            _buildZoomControls(),
-          ],
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.4：字数统计
+              // #246：字数订阅 wordCountNotifier，仅字数变化时重建
+              ValueListenableBuilder<int>(
+                builder: (context, wordCount, _) =>
+                    _buildItem('字数: $wordCount'),
+                valueListenable: widget.coordinator.wordCountNotifier,
+              ),
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
+              // #246：订阅 undoRedoNotifier，仅 Undo/Redo 可用性变化时重建
+              ValueListenableBuilder<bool>(
+                builder: (context, canUndoRedo, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildItem(
+                        widget.coordinator.canUndo ? '可撤销' : '—'),
+                    const SizedBox(width: 8),
+                    _buildItem(
+                        widget.coordinator.canRedo ? '可重做' : '—'),
+                  ],
+                ),
+                valueListenable: widget.coordinator.undoRedoNotifier,
+              ),
+              const SizedBox(width: 16),
+              // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
+              _buildZoomControls(),
+            ],
+          ),
         ),
       ),
     );

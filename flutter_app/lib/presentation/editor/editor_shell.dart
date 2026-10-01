@@ -223,30 +223,27 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       // 焦点模式：隐藏 AppBar（§3.3.3）
       // #246：AppBar 订阅 titleNotifier / dirtyNotifier / undoRedoNotifier，
       // 仅相关字段变化时重建（此前每次按键都重建整个 Scaffold）。
+      //
+      // [Scaffold.appBar] 要求 PreferredSizeWidget，而 ValueListenableBuilder
+      // 不是 —— 故用 [_LocalizedAppBar] 包一层转发 preferredSize。
       appBar: _focusMode
           ? null
-          : ValueListenableBuilder<String>(
-              valueListenable: coordinator.titleNotifier,
-              builder: (context, title, _) =>
-                  ValueListenableBuilder<bool>(
-                valueListenable: coordinator.dirtyNotifier,
-                builder: (context, isDirty, _) =>
-                    ValueListenableBuilder<bool>(
-                  valueListenable: coordinator.undoRedoNotifier,
-                  builder: (context, canUndoRedo, _) => EditorAppBar(
-                    coordinator: coordinator,
-                    title: title,
-                    isModified: isDirty,
-                    focusMode: _focusMode,
-                    onToggleFocus: _toggleFocus,
-                    onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
-                    onOpenFileTree: _toggleFileTree,
-                    themeMode: widget.themeMode,
-                    onCycleTheme: widget.onCycleTheme,
-                    onExportTo: widget.onExportTo,
-                    onExportDiagnostics: widget.onExportDiagnostics,
-                  ),
-                ),
+          : _LocalizedAppBar(
+              titleListenable: coordinator.titleNotifier,
+              dirtyListenable: coordinator.dirtyNotifier,
+              undoRedoListenable: coordinator.undoRedoNotifier,
+              builder: (context, title, isDirty, canUndoRedo) => EditorAppBar(
+                coordinator: coordinator,
+                title: title,
+                isModified: isDirty,
+                focusMode: _focusMode,
+                onToggleFocus: _toggleFocus,
+                onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
+                onOpenFileTree: _toggleFileTree,
+                themeMode: widget.themeMode,
+                onCycleTheme: widget.onCycleTheme,
+                onExportTo: widget.onExportTo,
+                onExportDiagnostics: widget.onExportDiagnostics,
               ),
             ),
       body: _focusMode
@@ -345,6 +342,63 @@ class _EditorShellState extends ConsumerState<EditorShell> {
             pickImage: widget.pickImage,
           ),
       ],
+    );
+  }
+}
+
+/// #246：把三个字段级 notifier 的订阅包成 [PreferredSizeWidget]。
+///
+/// [Scaffold.appBar] 的类型是 `PreferredSizeWidget?`，而
+/// [ValueListenableBuilder] 不是 PreferredSizeWidget —— 直接内联三个
+/// `ValueListenableBuilder` 会编译失败（CI 实测：
+/// `argument_type_not_assignable`）。
+///
+/// 本类做两件事：
+/// 1. 提供 `PreferredSizeWidget` 契约（转发 [child] 的 preferredSize）
+/// 2. 集中订阅 title / dirty / undoRedo 三个 notifier，把三个值一起交给
+///    [builder]，避免调用点出现三层嵌套的 `ValueListenableBuilder`
+///
+/// 语义与内联版完全一致：任一 notifier 变化才重建 [child]（即 AppBar），
+/// 其余层（视口 / chrome）不参与。
+class _LocalizedAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  final ValueListenable<String> titleListenable;
+  final ValueListenable<bool> dirtyListenable;
+  final ValueListenable<bool> undoRedoListenable;
+
+  /// 构造 AppBar 子节点。三个参数为对应 notifier 的当前值快照。
+  final Widget Function(
+    BuildContext context,
+    String title,
+    bool isDirty,
+    bool canUndoRedo,
+  ) builder;
+
+  const _LocalizedAppBar({
+    super.key,
+    required this.titleListenable,
+    required this.dirtyListenable,
+    required this.undoRedoListenable,
+    required this.builder,
+  });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: titleListenable,
+      builder: (context, title, _) =>
+          ValueListenableBuilder<bool>(
+        valueListenable: dirtyListenable,
+        builder: (context, isDirty, _) =>
+            ValueListenableBuilder<bool>(
+          valueListenable: undoRedoListenable,
+          builder: (context, canUndoRedo, _) =>
+              builder(context, title, isDirty, canUndoRedo),
+        ),
+      ),
     );
   }
 }

@@ -169,4 +169,74 @@ class TocPanel extends StatelessWidget {
         ],
       ),
     );
-  }}
+  }
+
+  /// 把 [MarkdownParser.parseInline] 输出的 inline 元素树渲染为 [InlineSpan]。
+  ///
+  /// 复用现有 inline parser（不手写正则），保持与正文渲染一致的语义。
+  List<InlineSpan> _inlineSpans(List<InlineElement> children, Color linkColor) {
+    final spans = <InlineSpan>[];
+    for (final child in children) {
+      spans.addAll(_renderInline(child, linkColor));
+    }
+    return spans;
+  }
+
+  List<InlineSpan> _renderInline(InlineElement child, Color linkColor) {
+    if (child is TextElement) {
+      return [TextSpan(text: child.text)];
+    } else if (child is BoldElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ];
+    } else if (child is ItalicElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
+          style: const TextStyle(fontStyle: FontStyle.italic),
+        ),
+      ];
+    } else if (child is StrikethroughElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
+          style: const TextStyle(decoration: TextDecoration.lineThrough),
+        ),
+      ];
+    } else if (child is InlineCodeElement) {
+      return [
+        TextSpan(
+          text: child.code,
+          style: const TextStyle(fontFamily: 'monospace'),
+        ),
+      ];
+    } else if (child is LinkElement) {
+      return [
+        TextSpan(
+          text: child.text,
+          style: TextStyle(
+            color: linkColor,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+      ];
+    } else if (child is FormulaElement) {
+      // 目录内公式同样经统一 [FormulaRenderer] 真实渲染（行内、无卡片）。
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: FormulaRenderer(
+            element: FormulaElement(latex: child.latex, displayMode: false),
+            displayMode: false,
+          ),
+        ),
+      ];
+    } else if (child is ImageElement) {
+      return [TextSpan(text: child.alt.isNotEmpty ? child.alt : '[图片]')];
+    }
+    return [];
+  }
+}
