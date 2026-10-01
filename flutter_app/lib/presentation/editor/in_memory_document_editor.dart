@@ -25,7 +25,8 @@ import 'package:tafcm/data/models/document.dart';
 /// 维护 `List<_Entry>` 保存每个 [BlockId] 对应的 [DocumentElement]。
 /// 提供 [addParagraph] / [sourceOf] / [allIds] / [allElements] 等辅助方法。
 class InMemoryDocumentEditor implements DocumentEditor {
-  final List<_Entry> _blocks = [];
+  final Map<BlockId, _Entry> _blocks = {};
+  final List<BlockId> _ids = [];
 
   /// 文档标题（Phase 3.3：从种子文档元数据或首个 HeadingElement 提取）。
   ///
@@ -82,31 +83,22 @@ class InMemoryDocumentEditor implements DocumentEditor {
       );
 
   @override
-  int get blockCount => _blocks.length;
+  int get blockCount => _ids.length;
 
   @override
-  DocumentElement? getBlock(BlockId id) {
-    for (final entry in _blocks) {
-      if (entry.id == id) return entry.element;
-    }
-    return null;
-  }
+  DocumentElement? getBlock(BlockId id) => _blocks[id]?.element;
 
   @override
-  int indexOf(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) return i;
-    }
-    return -1;
-  }
+  int indexOf(BlockId id) => _ids.indexOf(id);
 
   @override
   BlockId insertBlock(int index, DocumentElement element, {BlockId? preserveId}) {
-    if (index < 0 || index > _blocks.length) {
+    if (index < 0 || index > _ids.length) {
       throw RangeError('index out of range: $index');
     }
     final id = preserveId ?? BlockId.generate();
-    _blocks.insert(index, _Entry(id, element));
+    _ids.insert(index, id);
+    _blocks[id] = _Entry(id, element);
     _serializedContent = null;
     structureVersion++;
     _isDirty = true;
@@ -115,15 +107,15 @@ class InMemoryDocumentEditor implements DocumentEditor {
 
   @override
   DocumentElement removeBlock(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        structureVersion++;
-        _isDirty = true;
-        _serializedContent = null;
-        return _blocks.removeAt(i).element;
-      }
+    final entry = _blocks.remove(id);
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _ids.remove(id);
+    structureVersion++;
+    _isDirty = true;
+    _serializedContent = null;
+    return entry.element;
   }
 
   /// **Phase 3.1-A PR #2（R5）行为变更**：此方法默认**保持 [BlockId] 不变**
@@ -138,18 +130,16 @@ class InMemoryDocumentEditor implements DocumentEditor {
   /// [replaceBlockKeepId] 是本方法的显式版本（行为相同，语义更清晰）。
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
-        structureVersion++;
-        _blocks[i] = _Entry(id, element);
-        _isDirty = true;
-        _serializedContent = null;
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+    structureVersion++;
+    _blocks[id] = _Entry(id, element);
+    _isDirty = true;
+    _serializedContent = null;
+    return entry.element;
   }
 
   /// 显式保持 [BlockId] 不变的替换（[replaceBlock] 的显式版本）。
@@ -176,56 +166,54 @@ class InMemoryDocumentEditor implements DocumentEditor {
     DocumentElement element, {
     void Function(BlockId oldId, BlockId newId)? onMigrated,
   }) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        final newId = BlockId.generate();
-        structureVersion++;
-        _blocks[i] = _Entry(newId, element);
-        _isDirty = true;
-        _serializedContent = null;
-        // 通知调用方迁移信息（若提供了回调）
-        onMigrated?.call(id, newId);
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    final old = entry.element;
+    final newId = BlockId.generate();
+    structureVersion++;
+    _ids[_ids.indexOf(id)] = newId;
+    _blocks.remove(id);
+    _blocks[newId] = _Entry(newId, element);
+    _isDirty = true;
+    _serializedContent = null;
+    // 通知调用方迁移信息（若提供了回调）
+    onMigrated?.call(id, newId);
+    return old;
   }
 
   @override
   void updateBlockContent(BlockId id, DocumentElement newContent) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        _blocks[i] = _Entry(id, newContent);
-        _isDirty = true;
-        _serializedContent = null;
-        return;
-      }
+    if (!_blocks.containsKey(id)) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _blocks[id] = _Entry(id, newContent);
+    _isDirty = true;
+    _serializedContent = null;
   }
 
   // ============ 辅助方法（Prototype 时期已存在，Phase 3.0 保留） ============
 
   /// 用 source 构造 [ParagraphElement] 并追加到末尾，返回 [BlockId]。
   BlockId addParagraph(String source) {
-    return insertBlock(_blocks.length, ParagraphElement(children: [
+    return insertBlock(_ids.length, ParagraphElement(children: [
       TextElement(source),
     ]));
   }
 
   /// 用任意 source + type 构造 [DocumentElement] 并追加到末尾，返回 [BlockId]。
   BlockId addBlock(String source, BlockType type) {
-    return insertBlock(_blocks.length, toElement(source, type));
+    return insertBlock(_ids.length, toElement(source, type));
   }
 
   /// 返回所有 [BlockId]（按顺序，不可变列表）。
   @override
-  List<BlockId> get allIds => _blocks.map((e) => e.id).toList(growable: false);
+  List<BlockId> get allIds => List.unmodifiable(_ids);
 
   /// 返回所有 [DocumentElement]（按顺序）。
   List<DocumentElement> get allElements =>
-      _blocks.map((e) => e.element).toList(growable: false);
+      [for (final id in _ids) _blocks[id]!.element];
 
   /// 获取指定 [BlockId] 对应块的 Markdown source。
   String sourceOf(BlockId id) {
@@ -238,7 +226,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
 
   /// 返回所有块的 source 列表（不可变）。
   List<String> get allSources =>
-      _blocks.map((e) => fromElement(e.element)).toList(growable: false);
+      [for (final id in _ids) fromElement(_blocks[id]!.element)];
 
   /// 返回文档的最新 Markdown 快照。
   ///
@@ -247,8 +235,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
   String get serializedContent {
     final cached = _serializedContent;
     if (cached != null) return cached;
-    return _serializedContent = _blocks
-        .map((e) => fromElement(e.element))
+    return _serializedContent = [for (final id in _ids) fromElement(_blocks[id]!.element)]
         .join('\n');
   }
 }
