@@ -131,6 +131,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     }
     _ids.remove(id);
     structureVersion++;
+    // #246：块集合变化 → 视口必须重建。
     blockSetVersion++;
     _isDirty = true;
     _serializedContent = null;
