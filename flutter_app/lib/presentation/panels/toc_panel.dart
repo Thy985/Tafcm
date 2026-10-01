@@ -104,9 +104,12 @@ class TocPanel extends StatelessWidget {
     // 注：普通文本颜色由父级 TextSpan(style: baseStyle) 继承，无需单独传参。
     final linkColor = Theme.of(context).colorScheme.primary;
     final baseStyle = Theme.of(context).textTheme.bodyMedium;
-    return ListenableBuilder(
-      listenable: coordinator,
-      builder: (context, _) {
+    // #246：TOC 内容只依赖块集合与标题文本，故订阅 structureNotifier
+    // （块增删 / 重排 / 标题变更）而非整个 coordinator —— 输入 / 光标同步
+    // 不应触发 TOC 重建。
+    return ValueListenableBuilder<int>(
+      valueListenable: coordinator.structureNotifier,
+      builder: (context, structureVersion, _) {
         final items = _collect();
         return Drawer(
           child: Column(

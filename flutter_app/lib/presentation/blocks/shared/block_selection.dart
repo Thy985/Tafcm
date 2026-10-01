@@ -94,58 +94,68 @@ class _BlockSelectionChromeState extends State<BlockSelectionChrome> {
           _longPressTimer?.cancel();
         },
         behavior: HitTestBehavior.translucent,
-        child: ListenableBuilder(
-          listenable: widget.coordinator,
-          builder: (context, _) {
-            final selected = widget.coordinator.focusedId == widget.blockId;
+        // #246：只订阅本块的块级 notifier + 聚焦 id（用于选中描边跨块联动）。
+        // 原为 ListenableBuilder(listenable: coordinator)——整棵视口每块都
+        // 订阅全局 coordinator，任一块的任意状态变化都会让所有块重建。
+        // 现拆为：
+        // - 块级 notifier：文本 / 模式 / 长按态等本块状态
+        // - focusNotifier：聚焦块变化时，新旧两块重建（其余块跳过）
+        child: ValueListenableBuilder<int>(
+          valueListenable: widget.coordinator.blockNotifiers.notifierOf(widget.blockId),
+          builder: (context, blockVersion, _) =>
+              ValueListenableBuilder<BlockId?>(
+            valueListenable: widget.coordinator.focusNotifier,
+            builder: (context, focusedId, _) {
+              final selected = focusedId == widget.blockId;
 
-            final showToolbar = _shouldShowToolbar();
-            final tokens = EditorTokens.of(context);
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 24,
-                  child: BlockDragHandle(
-                    index: widget.index,
-                    visible: selected || showToolbar,
+              final showToolbar = _shouldShowToolbar();
+              final tokens = EditorTokens.of(context);
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    child: BlockDragHandle(
+                      index: widget.index,
+                      visible: selected || showToolbar,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(EditorTokens.blockRadius),
-                          border: Border.all(
-                            color: selected
-                                ? tokens.borderFocused
-                                : Colors.transparent,
-                            width: selected ? 1.5 : 1,
+                  Expanded(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius:
+                                BorderRadius.circular(EditorTokens.blockRadius),
+                            border: Border.all(
+                              color: selected
+                                  ? tokens.borderFocused
+                                  : Colors.transparent,
+                              width: selected ? 1.5 : 1,
+                            ),
                           ),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: const EdgeInsets.all(4),
+                          child: widget.child,
                         ),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.all(4),
-                        child: widget.child,
-                      ),
-                      if (showToolbar)
-                        Positioned(
-                          top: -10,
-                          right: 4,
-                          child: BlockToolbar(
-                            coordinator: widget.coordinator,
-                            blockId: widget.blockId,
-                            index: widget.index,
+                        if (showToolbar)
+                          Positioned(
+                            top: -10,
+                            right: 4,
+                            child: BlockToolbar(
+                              coordinator: widget.coordinator,
+                              blockId: widget.blockId,
+                              index: widget.index,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

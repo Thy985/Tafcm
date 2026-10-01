@@ -210,26 +210,43 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       // 宽屏不挂 endDrawer（内联侧栏已在 body 的 Row 内处理）。
       endDrawer: isWide ? null : Drawer(child: _buildFileTree()),
       // Phase 3.4.1：目录（大纲）抽屉
-      drawer: TocPanel(
-        coordinator: coordinator,
-        onJump: _jumpToBlock,
+      // #246：TOC 依赖块集合与标题文本，订阅 structureNotifier 而非整个
+      // coordinator —— 输入文本变化不该重建 TOC（抽屉关闭时更是白重建）。
+      drawer: ValueListenableBuilder<int>(
+        valueListenable: coordinator.structureNotifier,
+        builder: (context, _, __) => TocPanel(
+          coordinator: coordinator,
+          onJump: _jumpToBlock,
+        ),
       ),
       drawerEnableOpenDragGesture: false,
       // 焦点模式：隐藏 AppBar（§3.3.3）
+      // #246：AppBar 订阅 titleNotifier / dirtyNotifier / undoRedoNotifier，
+      // 仅相关字段变化时重建（此前每次按键都重建整个 Scaffold）。
       appBar: _focusMode
           ? null
-          :             EditorAppBar(
-              coordinator: coordinator,
-              title: coordinator.title,
-              isModified: coordinator.isDirty,
-              focusMode: _focusMode,
-              onToggleFocus: _toggleFocus,
-              onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
-              onOpenFileTree: _toggleFileTree,
-              themeMode: widget.themeMode,
-              onCycleTheme: widget.onCycleTheme,
-              onExportTo: widget.onExportTo,
-              onExportDiagnostics: widget.onExportDiagnostics,
+          : ValueListenableBuilder<String>(
+              builder: (context, title, _) =>
+                  ValueListenableBuilder<bool>(
+                builder: (context, isDirty, _) =>
+                    ValueListenableBuilder<bool>(
+                  builder: (context, canUndoRedo, _) => EditorAppBar(
+                    coordinator: coordinator,
+                    title: title,
+                    isModified: isDirty,
+                    focusMode: _focusMode,
+                    onToggleFocus: _toggleFocus,
+                    onOpenToc: () => _scaffoldKey.currentState?.openDrawer(),
+                    onOpenFileTree: _toggleFileTree,
+                    themeMode: widget.themeMode,
+                    onCycleTheme: widget.onCycleTheme,
+                    onExportTo: widget.onExportTo,
+                    onExportDiagnostics: widget.onExportDiagnostics,
+                  ),
+                ),
+                valueListenable: coordinator.dirtyNotifier,
+              ),
+              valueListenable: coordinator.titleNotifier,
             ),
       body: _focusMode
           // P1-2 修复：焦点模式 appBar:null，body 顶到屏幕顶端被状态栏遮挡。
@@ -242,6 +259,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
             )
           : _buildBodyContent(coordinator, isWide),
       // 焦点模式：隐藏 StatusBar（§3.3.3）
+      // #246：StatusBar 内部自行订阅 blockCount / wordCount / undoRedo notifier。
       bottomNavigationBar: _focusMode
           ? null
           : EditorStatusBar(
@@ -291,8 +309,8 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                   onScaleUpdate: (details) {
                     if (details.scale != 1.0) {
                       setState(() {
-                        _zoomScale =
-                            (_scaleStart * details.scale).clamp(_kMinScale, _kMaxScale);
+                        _zoomScale = (_scaleStart * details.scale)
+                            .clamp(_kMinScale, _kMaxScale);
                       });
                     }
                   },
@@ -303,6 +321,8 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                         MediaQuery.textScalerOf(context).scale(1.0) * _zoomScale,
                       ),
                     ),
+                    // #246：Workspace / EditorViewport 内部订阅 structureNotifier +
+                    // 块级 notifier，无需外层 AnimatedBuilder。
                     child: Workspace(
                       coordinator: coordinator,
                       scrollController: _scrollController,
@@ -316,6 +336,8 @@ class _EditorShellState extends ConsumerState<EditorShell> {
           ),
         ),
         // 焦点模式：隐藏 MarkdownToolbar（§3.3.3）
+        // #246：MarkdownToolbar 订阅 coordinator.toolbarNotifier（聚焦块 / 选区 /
+        // 块类型变化的聚合信号），不再挂在全局 AnimatedBuilder 上。
         if (!_focusMode)
           MarkdownToolbar(
             coordinator: coordinator,

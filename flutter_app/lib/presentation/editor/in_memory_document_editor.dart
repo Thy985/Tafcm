@@ -42,13 +42,30 @@ class InMemoryDocumentEditor implements DocumentEditor {
 
   /// 结构版本号（#245 性能修复，2026-09-12）。
   ///
-  /// 任何改变块集合的操作（insert / remove / replace / migration /
-  /// update 不变——只换内容不换集合）自增。供缓存层（如
-  /// LiveEditingState 的增量 wordCount）做 O(1) 失效检测：版本不变
-  /// 则块集合未变，缓存仍有效。
+  /// 任何改变**块集合或块顺序**的操作（insert / remove / migration）
+  /// 自增。供缓存层（如 LiveEditingState 的增量 wordCount）做 O(1) 失效检测：
+  /// 版本不变则块集合未变，缓存仍有效。
+  ///
+  /// **注意 [updateBlockContent] 不再自增本版本号**——它只换内容不换集合，
+  /// 递增会让「每次按键」都被误判为结构变化（#246 视口局部化刷新会失效）。
+  /// 内容变更由块级 notifier（`BlockStateNotifierRegistry`）单独通知。
   ///
   /// 只增不减，溢出在实际文档生命周期内不可达。
   int structureVersion = 0;
+
+  /// 块集合顺序版本号（#246 局部化刷新，2026-10-01）。
+  ///
+  /// 与 [structureVersion] 的区别：本版本**只在块集合本身或其顺序变化时**
+  /// 自增（`insertBlock` / `removeBlock` / `replaceBlockWithMigration`），
+  /// `updateBlockContent` / `replaceBlock`（同 id 换内容）**不**触发。
+  ///
+  /// `EditorViewport` 只订阅本版本号来决定是否重建 `ReorderableListView`，
+  /// 因此每次按键（走 `UpdateBlockSourceCommand` → `updateBlockContent`）
+  /// 不会导致视口整体重建 —— 这正是 #246 要修的性能问题。
+  ///
+  /// 保留 [structureVersion] 原语义给 LiveEditingState 的 wordCount 缓存用
+  /// （两者同增同减的场景下等价，拆开是为了让 #246 的视口订阅更精确）。
+  int blockSetVersion = 0;
 
   /// 最近一次全量序列化后的 Markdown 内容（#249 优化）。
   ///
@@ -101,6 +118,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     _blocks[id] = _Entry(id, element);
     _serializedContent = null;
     structureVersion++;
+    blockSetVersion++;
     _isDirty = true;
     return id;
   }
@@ -113,6 +131,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     }
     _ids.remove(id);
     structureVersion++;
+    blockSetVersion++;
     _isDirty = true;
     _serializedContent = null;
     return entry.element;
@@ -135,6 +154,9 @@ class InMemoryDocumentEditor implements DocumentEditor {
       throw StateError('BlockId not found: $id');
     }
     // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+    // #246：同 id 换内容 —— 不动 blockSetVersion（视口无需重建，
+    // 由块级 notifier 单独通知即可）。structureVersion 仍递增，
+    // 供 LiveEditingState 的 wordCount 缓存失效。
     structureVersion++;
     _blocks[id] = _Entry(id, element);
     _isDirty = true;
@@ -173,6 +195,8 @@ class InMemoryDocumentEditor implements DocumentEditor {
     final old = entry.element;
     final newId = BlockId.generate();
     structureVersion++;
+    // #246：分配新 BlockId = 块身份变化，块集合必须重建。
+    blockSetVersion++;
     _ids[_ids.indexOf(id)] = newId;
     _blocks.remove(id);
     _blocks[newId] = _Entry(newId, element);

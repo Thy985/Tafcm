@@ -1,6 +1,10 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
 /// 落地 ADR-0009 §3.5 + Phase 3.0 §2.4（避免 God Object）+ ADR-0012（Live State）
 /// + ADR-0013（实现 DirtyStateSource，委托 DirtyStateTracker）。只协调不持有业务状态。
+/// 
+/// #246 局部化刷新：拆分 notifyListeners 为 3 个 ValueNotifier，
+/// 让 chrome 层（AppBar / StatusBar）只订阅自己关心的字段，
+/// 避免每次按键触发整棵 EditorShell 重建。
 library;
 
 import 'dart:async';
@@ -18,6 +22,7 @@ import '../commands/command_handler.dart';
 import '../commands/editor_command.dart';
 import '../states/block_view_state.dart';
 import '../states/coordinator_state.dart';
+import 'block_state_notifiers.dart';
 import 'command_selection_sync.dart';
 import 'dirty_state_source.dart';
 import 'editor_intent.dart';
@@ -32,6 +37,47 @@ class EditorCoordinator extends ChangeNotifier
   final EditorHistory history;
   late final CommandHandler handler;
   CoordinatorState _state;
+
+  /// #246：块数变化通知（仅 StatusBar 订阅）。
+  final ValueNotifier<int> blockCountNotifier;
+  /// #246：字数变化通知（仅 StatusBar 订阅）。
+  final ValueNotifier<int> wordCountNotifier;
+  /// #246：标题变化通知（仅 AppBar 订阅，避免整树重建）。
+  final ValueNotifier<String> titleNotifier;
+  /// #246：Dirty 变化通知（仅 AppBar 订阅）。
+  final ValueNotifier<bool> dirtyNotifier;
+  /// #246：Undo/Redo 可用性变化通知（仅 AppBar + StatusBar 订阅）。
+  final ValueNotifier<bool> undoRedoNotifier;
+  /// #246：聚焦块变化通知（仅 BlockSelectionChrome 订阅，用于选中描边）。
+  ///
+  /// 跨块联动只需让「旧聚焦块 + 新聚焦块」两个 chrome 重建——
+  /// `setFocus` / `clearFocus` 会 bump 对应块的块级 notifier，
+  /// 这里的 [focusNotifier] 只是额外的短路信号，避免 N 个块全部比对。
+  final ValueNotifier<BlockId?> focusNotifier;
+  /// #246：Toolbar 相关状态聚合通知（MarkdownToolbar 订阅）。
+  ///
+  /// Toolbar 的按钮启用态取决于四类输入的组合：
+  /// - `focusedId`（有聚焦块才能格式化）
+  /// - `focusedBlockType`（CodeBlock 时整体禁用）
+  /// - `lastFocusedId`（失焦后模板菜单仍可用，ADR-0012）
+  /// - `focusedSelection`（InsertText vs WrapSelection 路径）
+  ///
+  /// 这四者都不属于「块内容」也不属于「chrome 标量」，故用独立的
+  /// 合成版本号通知，避免 Toolbar 订阅 4 个 notifier 或退回全局监听。
+  final ValueNotifier<int> toolbarNotifier;
+  /// #246：文档结构变化通知（块增删 / 顺序变更 / BlockId 迁移）。
+  ///
+  /// 值恒等于 [editor.blockSetVersion]（单调递增）。`EditorViewport` 只订阅
+  /// 它——结构没变就不重建 `ReorderableListView`，是 #246 的核心优化点。
+  ///
+  /// **刻意不用 [editor.structureVersion]**：后者会被 `replaceBlock`
+  /// （每次按键 commit 都走）递增，若据此重建视口则 #246 的优化完全失效。
+  final ValueNotifier<int> structureNotifier;
+  /// #246：块级状态通知注册表（每块一个 notifier）。
+  ///
+  /// `EditorViewport.itemBuilder` 为每块包 `ValueListenableBuilder<int>`，
+  /// 使「块内文本 / 焦点 / 选区变化」只重建该块，而非整棵视口。
+  final BlockStateNotifierRegistry blockNotifiers;
 
   /// ADR-0012：Live Editing State（实时文本 / 字数 / 脏标记），抽出独立类避免膨胀。
   late final LiveEditingState _live;
@@ -48,7 +94,16 @@ class EditorCoordinator extends ChangeNotifier
     required this.editor,
     required this.history,
     this.observability,
-  }) : _state = const CoordinatorState.empty() {
+  }) : _state = const CoordinatorState.empty(),
+        titleNotifier = ValueNotifier<String>(editor.title),
+        dirtyNotifier = ValueNotifier<bool>(false),
+        undoRedoNotifier = ValueNotifier<bool>(false),
+        focusNotifier = ValueNotifier<BlockId?>(null),
+        toolbarNotifier = ValueNotifier<int>(0),
+        blockCountNotifier = ValueNotifier<int>(editor.blockCount),
+        wordCountNotifier = ValueNotifier<int>(_initialWordCount(editor)),
+        structureNotifier = ValueNotifier<int>(editor.blockSetVersion),
+        blockNotifiers = BlockStateNotifierRegistry(editor) {
     handler = CommandHandler(
       editor: editor,
       history: history,
@@ -60,6 +115,8 @@ class EditorCoordinator extends ChangeNotifier
     _state = CoordinatorState.initial({
       for (final id in editor.allIds) id: BlockViewState(id: id),
     });
+    undoRedoNotifier.value = history.canUndo || history.canRedo;
+    blockNotifiers.sync();
   }
 
   bool handle(EditorCommand command) {
@@ -84,6 +141,14 @@ class EditorCoordinator extends ChangeNotifier
       _state = result.state;
       if (result.newFocus != null) _lastFocusedId = result.newFocus;
       _live.reconcile(result.affectedIds); // 受影响块对齐到 committed
+      // #246：仅 bump 受影响块的版本号，让视口只重建这些块。
+      // 结构变化已由 notifyListeners 的 structureNotifier 分发。
+      blockNotifiers.bumpAll(result.affectedIds);
+      // #246：命令可能转移焦点（SplitBlock / MergeWithPrevious 等）。
+      if (_state.focusedId != focusNotifier.value) {
+        focusNotifier.value = _state.focusedId;
+      }
+      toolbarNotifier.value++;
       notifyListeners();
     }
     return ok;
@@ -106,10 +171,21 @@ class EditorCoordinator extends ChangeNotifier
   void markSaved() {
     editor.markSaved();
     _live.clear(); // ADR-0012：保存即已提交，清除 live 漂移，dirty 归 false。
+    // #246：同步推送局部化通知
+    titleNotifier.value = editor.title;
+    dirtyNotifier.value = isDirty;
+    undoRedoNotifier.value = canUndo || canRedo;
+    blockCountNotifier.value = editor.blockCount;
+    wordCountNotifier.value = _live.wordCount;
     notifyListeners();
   }
   void updateLiveSource(BlockId id, String source) {
     _live.update(id, source);
+    // #246：live source 变化只需通知 dirtyNotifier（wordCount 由 LiveEditingState 内部差量维护）
+    dirtyNotifier.value = isDirty;
+    wordCountNotifier.value = _live.wordCount;
+    // #246：bump 该块 —— 该块的 wordCount / dirty 展示确实变了。
+    blockNotifiers.bump(id);
     notifyListeners();
   }
   String liveSourceOf(BlockId id) => _live.sourceOf(id);
@@ -128,6 +204,10 @@ class EditorCoordinator extends ChangeNotifier
   BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
   void updateViewState(BlockId id, BlockViewState state) {
     _state = _state.updateViewState(id, state);
+    // #246：块内状态变化只 bump 该块版本号，不触发结构重建。
+    blockNotifiers.bump(id);
+    // #246：selection 影响 Toolbar 的 InsertText vs WrapSelection 路径。
+    toolbarNotifier.value++;
     notifyListeners();
   }
   BlockId? get focusedId => _state.focusedId;
@@ -139,12 +219,20 @@ class EditorCoordinator extends ChangeNotifier
     _recordInteraction(obs.UserTap(target: 'Block($id)', timestamp: DateTime.now()));
     if (_state.focusedId == id) return;
     final wasMissing = !_state.viewStates.containsKey(id);
+    final prevFocused = _state.focusedId;
     _state = _state.focusOn(id);
     if (wasMissing) {
       observability?.recordRender(
           obs.FocusOnViewStateCreatedEvent(blockId: id.value, timestamp: DateTime.now()));
     }
     _lastFocusedId = id;
+    // #246：焦点切换只 bump 新旧两个块的版本号（旧块切回 rendered、
+    // 新块切到 editing），其余块不重建。
+    if (prevFocused != null) blockNotifiers.bump(prevFocused);
+    blockNotifiers.bump(id);
+    focusNotifier.value = id;
+    // #246：聚焦块变化会改 Toolbar 的 enabled / templateEnabled 与 BlockType。
+    toolbarNotifier.value++;
     notifyListeners();
   }
   /// 清除指定块的焦点（切回渲染态）。
@@ -152,6 +240,12 @@ class EditorCoordinator extends ChangeNotifier
     final next = _state.clearFocusOf(id);
     if (identical(next, _state)) return;
     _state = next;
+    // #246：仅 bump 该块。
+    blockNotifiers.bump(id);
+    if (_state.focusedId != focusNotifier.value) {
+      focusNotifier.value = _state.focusedId;
+    }
+    toolbarNotifier.value++;
     notifyListeners();
   }
   bool get canUndo => history.canUndo;
@@ -169,6 +263,14 @@ class EditorCoordinator extends ChangeNotifier
       op.revert(editor);
     }
     _syncViewStates();
+    // #246：undo 可能改变块集合与多块内容 —— bump 全部存活块，
+    // 结构变化由 notifyListeners 的 structureNotifier 分发。
+    blockNotifiers.sync();
+    blockNotifiers.bumpAllLive();
+    if (_state.focusedId != focusNotifier.value) {
+      focusNotifier.value = _state.focusedId;
+    }
+    toolbarNotifier.value++;
     notifyListeners();
     return tx;
   }
@@ -184,6 +286,13 @@ class EditorCoordinator extends ChangeNotifier
       op.apply(editor);
     }
     _syncViewStates();
+    // #246：同 undo —— redo 也可能改变块集合与多块内容。
+    blockNotifiers.sync();
+    blockNotifiers.bumpAllLive();
+    if (_state.focusedId != focusNotifier.value) {
+      focusNotifier.value = _state.focusedId;
+    }
+    toolbarNotifier.value++;
     notifyListeners();
     return tx;
   }
@@ -247,14 +356,51 @@ class EditorCoordinator extends ChangeNotifier
   @override
   void notifyListeners() {
     _dirty.sync();
+    // #246：同步推送局部化通知，让 chrome 层不必等待整树重建
+    titleNotifier.value = editor.title;
+    dirtyNotifier.value = isDirty;
+    undoRedoNotifier.value = canUndo || canRedo;
+    blockCountNotifier.value = editor.blockCount;
+    wordCountNotifier.value = _live.wordCount;
+    // #246：块集合版本同步 —— 仅块集合/顺序真的变了才递增，EditorViewport
+    // 据此决定是否重建 ReorderableListView。同步块集合（新块补建 / 孤儿清理）。
+    final sv = editor.blockSetVersion;
+    if (sv != structureNotifier.value) {
+      structureNotifier.value = sv;
+      blockNotifiers.sync();
+    }
     super.notifyListeners();
   }
   @override
   void dispose() {
     _dirty.dispose();
+    // #246：释放块级 notifier 注册表 + 各字段级 notifier（ADR-0013 同规）。
+    blockNotifiers.dispose();
+    structureNotifier.dispose();
+    titleNotifier.dispose();
+    dirtyNotifier.dispose();
+    undoRedoNotifier.dispose();
+    focusNotifier.dispose();
+    toolbarNotifier.dispose();
+    blockCountNotifier.dispose();
+    wordCountNotifier.dispose();
     super.dispose();
   }
 
   @override
   String toString() => 'EditorCoordinator(blocks=$blockCount, focused=${_state.focusedId})';
+}
+
+/// 初始字数（#246：[wordCountNotifier] 构造初值）。
+///
+/// 不能硬编码 0 —— 打开已有内容的文档时，StatusBar 首帧会先显示"字数: 0"，
+/// 直到下一次 `notifyListeners()` 才纠正。[LiveEditingState] 在协调器构造
+/// 之后才创建，故此处直接按 committed source 累加一次作为初值
+/// （O(n) 只在构造时发生一次，稳态按键走 [LiveEditingState] 的差量路径）。
+int _initialWordCount(InMemoryDocumentEditor editor) {
+  var total = 0;
+  for (final source in editor.allSources) {
+    total += source.length;
+  }
+  return total;
 }

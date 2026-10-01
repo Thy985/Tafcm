@@ -1,7 +1,7 @@
 /// EditorStatusBar：编辑器底部状态栏（chrome 组件）。
-///
 /// 落地 Phase 3.0 Task Contract §3.1（v1.1 新增 chrome/ 目录）+ §3.2 布局图。
 /// **Phase 3.3 PR #1**：接入字数统计（§3.3.4）+ 移除 Undo/Redo 文字（已由 AppBar 按钮接管）。
+/// **#246**：改用 ValueListenableBuilder 局部化刷新，仅块数/字数/Undo-Redo 变化时重建。
 ///
 /// **职责**：
 /// - 显示当前块数
@@ -23,7 +23,7 @@ import '../editor/editor_coordinator.dart';
 import '../themes/editor_tokens.dart';
 
 /// 编辑器底部状态栏（chrome 组件）。
-class EditorStatusBar extends StatelessWidget {
+class EditorStatusBar extends StatefulWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
@@ -45,6 +45,11 @@ class EditorStatusBar extends StatelessWidget {
   });
 
   @override
+  State<EditorStatusBar> createState() => _EditorStatusBarState();
+}
+
+class _EditorStatusBarState extends State<EditorStatusBar> {
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
@@ -54,28 +59,43 @@ class EditorStatusBar extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         // P1 微修复（真机 CORE-005 阻塞）：真机字体比测试环境宽，状态栏 Row 在
-        // 360dp 屏宽下溢出 12px。用 SingleChildScrollView 横向滚动兜底，宽屏
+        // 360dp 屏宽下溢出 12px。用_overflow 横向滚动兜底，宽屏
         // 仍正常显示，窄屏可滑动而非报 RenderFlex overflow。Spacer 在无 max
         // width 约束下不工作，改为固定 SizedBox 间距。
-        child: SingleChildScrollView(
+        child: OverflowBar(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildItem('块数: ${coordinator.blockCount}'),
-              const SizedBox(width: 16),
-              // Phase 3.3 §3.3.4：字数统计
-              _buildItem('字数: ${coordinator.wordCount}'),
-              const SizedBox(width: 16),
-              // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
-              _buildItem(coordinator.canUndo ? '可撤销' : '—'),
-              const SizedBox(width: 8),
-              _buildItem(coordinator.canRedo ? '可重做' : '—'),
-              const SizedBox(width: 16),
-              // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
-              _buildZoomControls(),
-            ],
-          ),
+          children: [
+            // #246：块数订阅 blockCountNotifier，仅块数变化时重建
+            ValueListenableBuilder<int>(
+              builder: (context, blockCount, _) =>
+                  _buildItem('块数: $blockCount'),
+              valueListenable: widget.coordinator.blockCountNotifier,
+            ),
+            const SizedBox(width: 16),
+            // Phase 3.3 §3.3.4：字数统计
+            // #246：字数订阅 wordCountNotifier，仅字数变化时重建
+            ValueListenableBuilder<int>(
+              builder: (context, wordCount, _) =>
+                  _buildItem('字数: $wordCount'),
+              valueListenable: widget.coordinator.wordCountNotifier,
+            ),
+            const SizedBox(width: 16),
+            // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
+            // #246：订阅 undoRedoNotifier，仅 Undo/Redo 可用性变化时重建
+            ValueListenableBuilder<bool>(
+              builder: (context, canUndoRedo, _) => Row(
+                children: [
+                  _buildItem(widget.coordinator.canUndo ? '可撤销' : '—'),
+                  const SizedBox(width: 8),
+                  _buildItem(widget.coordinator.canRedo ? '可重做' : '—'),
+                ],
+              ),
+              valueListenable: widget.coordinator.undoRedoNotifier,
+            ),
+            const SizedBox(width: 16),
+            // Phase 3.3 §3.3.2：字号缩放控制（替代调试「聚焦」项）
+            _buildZoomControls(),
+          ],
         ),
       ),
     );
@@ -83,7 +103,7 @@ class EditorStatusBar extends StatelessWidget {
 
   /// 字号缩放控制簇（Phase 3.3 §3.3.2）：缩小 / 百分比 / 放大 / 重置。
   Widget _buildZoomControls() {
-    final percent = (zoomScale * 100).round();
+    final percent = (widget.zoomScale * 100).round();
     return Row(
       children: [
         IconButton(
@@ -92,7 +112,7 @@ class EditorStatusBar extends StatelessWidget {
           tooltip: '缩小',
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          onPressed: onZoomOut,
+          onPressed: widget.onZoomOut,
         ),
         Text(
           '$percent%',
@@ -107,7 +127,7 @@ class EditorStatusBar extends StatelessWidget {
           tooltip: '放大',
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          onPressed: onZoomIn,
+          onPressed: widget.onZoomIn,
         ),
         IconButton(
           icon: const Icon(Icons.restart_alt),
@@ -115,7 +135,7 @@ class EditorStatusBar extends StatelessWidget {
           tooltip: '重置字号',
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-          onPressed: zoomScale != 1.0 ? onZoomReset : null,
+          onPressed: widget.zoomScale != 1.0 ? widget.onZoomReset : null,
         ),
       ],
     );

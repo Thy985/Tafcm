@@ -338,9 +338,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (!_ready) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    // 用 AnimatedBuilder 监听 ChangeNotifier（_coordinator）变化，
-    // 当 coordinator.handle / setFocus / clearFocus / undo / redo 调用
-    // notifyListeners() 时，触发 EditorShell 重建。
+    // #246：移除 AnimatedBuilder 整树重建包裹。此前每次按键
+    // coordinator.notifyListeners() → AnimatedBuilder 重建整个 EditorShell
+    // （含 AppBar / StatusBar / Workspace / MarkdownToolbar / TOC）。
+    // 现改为局部化订阅：
+    // - AppBar  → EditorShell 内 ValueListenableBuilder(title/dirty/undoRedo)
+    // - StatusBar → EditorStatusBar 内 ValueListenableBuilder(blockCount/wordCount/undoRedo)
+    // - Workspace / MarkdownToolbar → EditorShell 内 AnimatedBuilder（结构变化）
+    // - TocPanel → 内部 ListenableBuilder（仅抽屉打开时）
     final currentPath = ref.watch(currentPathProvider);
     // Phase 3.4.3 / ADR-0015：主题模式从 provider 读取，透传给 EditorShell → EditorAppBar。
     // chrome/ 保持 Riverpod-free，主题状态在此（唯一持 ref 的层）解析后向下传递。
@@ -358,23 +363,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       child: ExportProgressOverlay(
         child: EditorScope(
           coordinator: _coordinator,
-          child: AnimatedBuilder(
-            animation: _coordinator,
-            builder: (context, _) => EditorShell(
-              coordinator: _coordinator,
-              currentPath: currentPath,
-              onOpenFile: _openFile,
-              themeMode: mode,
-              onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
-              baseDir: baseDir,
-              // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
-              // chrome 层不直接 import core/services。
-              pickImage: ref.read(imagePickAndImportProvider),
-              // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
-              onExportTo: (format) => _exportActions.handleExport(context, format),
-              // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
-              onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
-            ),
+          child: EditorShell(
+            coordinator: _coordinator,
+            currentPath: currentPath,
+            onOpenFile: _openFile,
+            themeMode: mode,
+            onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
+            baseDir: baseDir,
+            // ADR-0014 + TC-ARCH-3：图片选择函数由 provider 注入，
+            // chrome 层不直接 import core/services。
+            pickImage: ref.read(imagePickAndImportProvider),
+            // Phase 3.4 Slice 7 / 3.4.4：导出动作回调，AppBar 导出 PopupMenu 选中触发。
+            onExportTo: (format) => _exportActions.handleExport(context, format),
+            // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
+            onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
           ),
         ),
       ),
