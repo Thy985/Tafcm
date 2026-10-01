@@ -226,10 +226,13 @@ class _EditorShellState extends ConsumerState<EditorShell> {
       appBar: _focusMode
           ? null
           : ValueListenableBuilder<String>(
+              valueListenable: coordinator.titleNotifier,
               builder: (context, title, _) =>
                   ValueListenableBuilder<bool>(
+                valueListenable: coordinator.dirtyNotifier,
                 builder: (context, isDirty, _) =>
                     ValueListenableBuilder<bool>(
+                  valueListenable: coordinator.undoRedoNotifier,
                   builder: (context, canUndoRedo, _) => EditorAppBar(
                     coordinator: coordinator,
                     title: title,
@@ -244,9 +247,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                     onExportDiagnostics: widget.onExportDiagnostics,
                   ),
                 ),
-                valueListenable: coordinator.dirtyNotifier,
               ),
-              valueListenable: coordinator.titleNotifier,
             ),
       body: _focusMode
           // P1-2 修复：焦点模式 appBar:null，body 顶到屏幕顶端被状态栏遮挡。

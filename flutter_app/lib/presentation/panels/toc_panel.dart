@@ -100,135 +100,73 @@ class TocPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // #246：TOC 内容依赖两件事——块集合顺序（增删 / 拖拽）与标题类型
+    // （段落 ⇄ 标题 转换会改变 HeadingElement 集合）。前者由
+    // structureNotifier 覆盖；后者 BlockId 与块集合都不变，
+    // 靠受影响块的块级 notifier 触发，故额外订阅 toolbarNotifier
+    // （命令执行时同步递增），确保 `## ` 转标题后大纲立刻出现该条。
+    return ValueListenableBuilder<int>(
+      valueListenable: coordinator.structureNotifier,
+      builder: (context, structureVersion, _) =>
+          ValueListenableBuilder<int>(
+        valueListenable: coordinator.toolbarNotifier,
+        builder: (context, toolbarVersion, _) => _buildDrawer(context),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    final items = _collect();
     // 链接色取当前主题（而非 ThemeData() 默认主题），保证 TOC 链接跟随运行时主题。
     // 注：普通文本颜色由父级 TextSpan(style: baseStyle) 继承，无需单独传参。
     final linkColor = Theme.of(context).colorScheme.primary;
     final baseStyle = Theme.of(context).textTheme.bodyMedium;
-    // #246：TOC 内容只依赖块集合与标题文本，故订阅 structureNotifier
-    // （块增删 / 重排 / 标题变更）而非整个 coordinator —— 输入 / 光标同步
-    // 不应触发 TOC 重建。
-    return ValueListenableBuilder<int>(
-      valueListenable: coordinator.structureNotifier,
-      builder: (context, structureVersion, _) {
-        final items = _collect();
-        return Drawer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DrawerHeader(
-                child: Text(
-                  '目录',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              Expanded(
-                child: items.isEmpty
-                    ? const Center(
-                        child: Text('（暂无标题）', style: TextStyle(fontSize: 14)),
-                      )
-                    : ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          // 复用 inline parser 还原标题文本（含 **bold** 等）
-                          final inlines = MarkdownParser.parseInline(item.rawText);
-                          return InkWell(
-                            key: Key('toc_${item.id}'),
-                            onTap: () {
-                              coordinator.setFocus(item.id);
-                              onJump?.call(item.id);
-                            },
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                left: 16.0 + (item.level - 1) * 12.0,
-                                right: 16.0,
-                                top: 8.0,
-                                bottom: 8.0,
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  style: baseStyle,
-                                  children: _inlineSpans(inlines, linkColor),
-                                ),
-                              ),
-                            ),
-                          );
+    return Drawer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DrawerHeader(
+            child: Text(
+              '目录',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          Expanded(
+            child: items.isEmpty
+                ? const Center(
+                    child: Text('（暂无标题）', style: TextStyle(fontSize: 14)),
+                  )
+                : ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      // 复用 inline parser 还原标题文本（含 **bold** 等）
+                      final inlines = MarkdownParser.parseInline(item.rawText);
+                      return InkWell(
+                        key: Key('toc_${item.id}'),
+                        onTap: () {
+                          coordinator.setFocus(item.id);
+                          onJump?.call(item.id);
                         },
-                      ),
-              ),
-            ],
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: 16.0 + (item.level - 1) * 12.0,
+                            right: 16.0,
+                            top: 8.0,
+                            bottom: 8.0,
+                          ),
+                          child: Text.rich(
+                            TextSpan(
+                              style: baseStyle,
+                              children: _inlineSpans(inlines, linkColor),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
-        );
-      },
+        ],
+      ),
     );
-  }
-
-  /// 把 [MarkdownParser.parseInline] 输出的 inline 元素树渲染为 [InlineSpan]。
-  ///
-  /// 复用现有 inline parser（不手写正则），保持与正文渲染一致的语义。
-  List<InlineSpan> _inlineSpans(List<InlineElement> children, Color linkColor) {
-    final spans = <InlineSpan>[];
-    for (final child in children) {
-      spans.addAll(_renderInline(child, linkColor));
-    }
-    return spans;
-  }
-
-  List<InlineSpan> _renderInline(InlineElement child, Color linkColor) {
-    if (child is TextElement) {
-      return [TextSpan(text: child.text)];
-    } else if (child is BoldElement) {
-      return [
-        TextSpan(
-          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ];
-    } else if (child is ItalicElement) {
-      return [
-        TextSpan(
-          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
-          style: const TextStyle(fontStyle: FontStyle.italic),
-        ),
-      ];
-    } else if (child is StrikethroughElement) {
-      return [
-        TextSpan(
-          children: child.children.expand((c) => _renderInline(c, linkColor)).toList(),
-          style: const TextStyle(decoration: TextDecoration.lineThrough),
-        ),
-      ];
-    } else if (child is InlineCodeElement) {
-      return [
-        TextSpan(
-          text: child.code,
-          style: const TextStyle(fontFamily: 'monospace'),
-        ),
-      ];
-    } else if (child is LinkElement) {
-      return [
-        TextSpan(
-          text: child.text,
-          style: TextStyle(
-            color: linkColor,
-            decoration: TextDecoration.underline,
-          ),
-        ),
-      ];
-    } else if (child is FormulaElement) {
-      // 目录内公式同样经统一 [FormulaRenderer] 真实渲染（行内、无卡片）。
-      return [
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: FormulaRenderer(
-            element: FormulaElement(latex: child.latex, displayMode: false),
-            displayMode: false,
-          ),
-        ),
-      ];
-    } else if (child is ImageElement) {
-      return [TextSpan(text: child.alt.isNotEmpty ? child.alt : '[图片]')];
-    }
-    return [];
-  }
-}
+  }}

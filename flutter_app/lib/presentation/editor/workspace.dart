@@ -154,7 +154,13 @@ class EditorViewport extends StatelessWidget {
               final id = ids[index];
               // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
               // 其他块（含视口与其余可见块）完全不参与。
+              //
+              // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
+              // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
+              // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
+              // 拖拽重排会失去稳定的 item 身份。
               return ValueListenableBuilder<int>(
+                key: ValueKey(id),
                 valueListenable: coordinator.blockNotifiers.notifierOf(id),
                 builder: (context, blockVersion, _) => _buildBlock(context, id, index),
               );
