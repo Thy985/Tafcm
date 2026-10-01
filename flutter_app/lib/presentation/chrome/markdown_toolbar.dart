@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_coordinator_notifiers.dart';
 import '../editor/editor_intent.dart';
 import 'editor_strings.dart';
 import 'templates.dart';
@@ -53,6 +54,17 @@ class MarkdownToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // §2.8：CodeBlock 聚焦时显示禁用提示替代工具栏按钮
+    // ADR-0011 §3：Toolbar 不 import core/editing/，通过 coordinator 便捷属性查询
+    // #246：订阅 toolbarNotifier（聚焦块 / 选区 / 块类型的聚合信号），
+    // 而非整个 coordinator —— 块内容变化不应重建工具栏。
+    return ValueListenableBuilder<int>(
+      valueListenable: coordinator.toolbarNotifier,
+      builder: (context, toolbarVersion, _) => _buildToolbar(context),
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context) {
     // §2.8：CodeBlock 聚焦时显示禁用提示替代工具栏按钮
     // ADR-0011 §3：Toolbar 不 import core/editing/，通过 coordinator 便捷属性查询
     final isCodeBlock = coordinator.isFocusedOnCodeBlock;

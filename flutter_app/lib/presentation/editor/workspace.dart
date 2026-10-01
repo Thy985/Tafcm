@@ -17,6 +17,7 @@ import '../states/block_view_state.dart';
 import '../themes/editor_tokens.dart';
 import 'block_reorder.dart';
 import 'editor_coordinator.dart';
+import 'editor_coordinator_notifiers.dart';
 import 'editor_scope.dart';
 
 /// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。
@@ -89,6 +90,18 @@ class EditorViewport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // #246：视口只订阅「结构变化」，块内文本 / 焦点 / 选区变化由
+    // itemBuilder 内的块级 ValueListenableBuilder 就地消化。
+    // 此前整个视口挂在 coordinator 的 AnimatedBuilder 上，每次按键
+    // 都会重建 ReorderableListView + 全部可见块。
+    return ValueListenableBuilder<int>(
+      valueListenable: coordinator.structureNotifier,
+      builder: (context, structureVersion, _) =>
+          _buildViewport(context, structureVersion),
+    );
+  }
+
+  Widget _buildViewport(BuildContext context, int structureVersion) {
     final ids = coordinator.allIds;
     // 修剪已删除块的孤儿 GlobalKey（Level 1 评审发现 3：原为只读 TOC 未触发，
     // 但编辑操作落地前须消除 —— 否则 _blockKeys 随块增删无限膨胀）。
@@ -123,44 +136,36 @@ class EditorViewport extends StatelessWidget {
         Expanded(
           child: ReorderableListView.builder(
             scrollController: controller,
-      buildDefaultDragHandles: false,
-      padding: const EdgeInsets.all(EditorTokens.viewportPadding),
-      itemCount: ids.length,
-      onReorderItem: _onReorderItem,
-      // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
-      // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
-      // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
-      // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
-      proxyDecorator: (child, index, animation) => EditorScope(
-        coordinator: coordinator,
-        child: Material(
-          type: MaterialType.transparency,
-          child: child,
-        ),
-      ),
-      itemBuilder: (context, index) {
-        final id = ids[index];
-        final element = coordinator.getBlock(id);
-        // state 应已在 EditorCoordinator 构造时初始化；
-        // 此处 ?? 兜底防御：若 state 未初始化，使用默认 BlockViewState
-        final state = coordinator.viewStateOf(id) ?? BlockViewState(id: id);
-        final child = element == null
-            ? const SizedBox.shrink()
-            : BlockRenderer(
-                element: element,
-                state: state,
-                coordinator: coordinator,
-                baseDir: baseDir,
+            buildDefaultDragHandles: false,
+            padding: const EdgeInsets.all(EditorTokens.viewportPadding),
+            itemCount: ids.length,
+            onReorderItem: _onReorderItem,
+            // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
+            // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
+            // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
+            // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
+            proxyDecorator: (child, index, animation) => EditorScope(
+              coordinator: coordinator,
+              child: Material(
+                type: MaterialType.transparency,
+                child: child,
+              ),
+            ),
+            itemBuilder: (context, index) {
+              final id = ids[index];
+              // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
+              // 其他块（含视口与其余可见块）完全不参与。
+              //
+              // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
+              // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
+              // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
+              // 拖拽重排会失去稳定的 item 身份。
+              return ValueListenableBuilder<int>(
+                key: ValueKey(id),
+                valueListenable: coordinator.blockNotifiers.notifierOf(id),
+                builder: (context, blockVersion, _) => _buildBlock(context, id, index),
               );
-        // 包裹选中视觉外壳 + 悬浮工具条 + 拖拽手柄（Phase 3.5.3/4/5）
-        return BlockSelectionChrome(
-          key: blockKeys.putIfAbsent(id, () => GlobalKey()),
-          coordinator: coordinator,
-          blockId: id,
-          index: index,
-          child: child,
-        );
-      },
+            },
           ),
         ),
         // 尾部空白点击区：即点即插（AS-1.3）
@@ -188,6 +193,30 @@ class EditorViewport extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// 单块构建（由块级 [ValueListenableBuilder] 驱动）。
+  Widget _buildBlock(BuildContext context, BlockId id, int index) {
+    final element = coordinator.getBlock(id);
+    // state 应已在 EditorCoordinator 构造时初始化；
+    // 此处 ?? 兜底防御：若 state 未初始化，使用默认 BlockViewState
+    final state = coordinator.viewStateOf(id) ?? BlockViewState(id: id);
+    final child = element == null
+        ? const SizedBox.shrink()
+        : BlockRenderer(
+            element: element,
+            state: state,
+            coordinator: coordinator,
+            baseDir: baseDir,
+          );
+    // 包裹选中视觉外壳 + 悬浮工具条 + 拖拽手柄（Phase 3.5.3/4/5）
+    return BlockSelectionChrome(
+      key: blockKeys.putIfAbsent(id, () => GlobalKey()),
+      coordinator: coordinator,
+      blockId: id,
+      index: index,
+      child: child,
     );
   }
 

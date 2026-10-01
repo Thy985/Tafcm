@@ -130,6 +130,17 @@ class CommandSelectionSync {
         // 否则 coordinator 不 reconcile 该块，增量 wordCount 停在基线
         // （editor_coordinator_test undo 用例实证：Expected 11 / Actual 5）。
         return (state: state, newFocus: null, affectedIds: {c.blockId});
+      case TransformBlockCommand c:
+        // #246 修复：BlockType 转换（paragraph → heading 等）会换掉整个
+        // BlockRenderer 分支（ParagraphBlock → HeadingBlock），但 BlockId
+        // 与块集合都不变，故 blockSetVersion 不递增、视口也不整体重建——
+        // 该块必须靠自己的块级 notifier 重建，否则界面仍显示旧类型。
+        // 同时 TOC（大纲）依赖 HeadingElement 集合，需一并刷新。
+        return (state: state, newFocus: null, affectedIds: {c.blockId});
+      case MoveBlockCommand c:
+        // #246：拖拽重排经 removeBlock + insertBlock(preserveId) 实现，
+        // 两者都递增 blockSetVersion → 视口整体重建，顺序正确。
+        return (state: state, newFocus: null, affectedIds: {c.targetId});
       default:
         return (state: state, newFocus: null, affectedIds: const {});
     }

@@ -18,6 +18,7 @@ import '../../core/editing/block_types.dart';
 import '../../core/parser/markdown_parser.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_coordinator_notifiers.dart';
 import '../widgets/formula_renderer.dart';
 
 /// 单个 TOC 条目（不可变快照）。
@@ -100,63 +101,74 @@ class TocPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // #246：TOC 内容依赖两件事——块集合顺序（增删 / 拖拽）与标题类型
+    // （段落 ⇄ 标题 转换会改变 HeadingElement 集合）。前者由
+    // structureNotifier 覆盖；后者 BlockId 与块集合都不变，
+    // 靠受影响块的块级 notifier 触发，故额外订阅 toolbarNotifier
+    // （命令执行时同步递增），确保 `## ` 转标题后大纲立刻出现该条。
+    return ValueListenableBuilder<int>(
+      valueListenable: coordinator.structureNotifier,
+      builder: (context, structureVersion, _) =>
+          ValueListenableBuilder<int>(
+        valueListenable: coordinator.toolbarNotifier,
+        builder: (context, toolbarVersion, _) => _buildDrawer(context),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    final items = _collect();
     // 链接色取当前主题（而非 ThemeData() 默认主题），保证 TOC 链接跟随运行时主题。
     // 注：普通文本颜色由父级 TextSpan(style: baseStyle) 继承，无需单独传参。
     final linkColor = Theme.of(context).colorScheme.primary;
     final baseStyle = Theme.of(context).textTheme.bodyMedium;
-    return ListenableBuilder(
-      listenable: coordinator,
-      builder: (context, _) {
-        final items = _collect();
-        return Drawer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DrawerHeader(
-                child: Text(
-                  '目录',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              Expanded(
-                child: items.isEmpty
-                    ? const Center(
-                        child: Text('（暂无标题）', style: TextStyle(fontSize: 14)),
-                      )
-                    : ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          // 复用 inline parser 还原标题文本（含 **bold** 等）
-                          final inlines = MarkdownParser.parseInline(item.rawText);
-                          return InkWell(
-                            key: Key('toc_${item.id}'),
-                            onTap: () {
-                              coordinator.setFocus(item.id);
-                              onJump?.call(item.id);
-                            },
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                left: 16.0 + (item.level - 1) * 12.0,
-                                right: 16.0,
-                                top: 8.0,
-                                bottom: 8.0,
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  style: baseStyle,
-                                  children: _inlineSpans(inlines, linkColor),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+    return Drawer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DrawerHeader(
+            child: Text(
+              '目录',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ),
-        );
-      },
+          Expanded(
+            child: items.isEmpty
+                ? const Center(
+                    child: Text('（暂无标题）', style: TextStyle(fontSize: 14)),
+                  )
+                : ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      // 复用 inline parser 还原标题文本（含 **bold** 等）
+                      final inlines = MarkdownParser.parseInline(item.rawText);
+                      return InkWell(
+                        key: Key('toc_${item.id}'),
+                        onTap: () {
+                          coordinator.setFocus(item.id);
+                          onJump?.call(item.id);
+                        },
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: 16.0 + (item.level - 1) * 12.0,
+                            right: 16.0,
+                            top: 8.0,
+                            bottom: 8.0,
+                          ),
+                          child: Text.rich(
+                            TextSpan(
+                              style: baseStyle,
+                              children: _inlineSpans(inlines, linkColor),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
