@@ -16,68 +16,57 @@ import 'package:tafcm/core/editing/block_types.dart';
 import 'package:tafcm/core/editing/document_editor.dart';
 
 /// 用于单测的 DocumentEditor mock 实现。
-///
-/// 维护 `List<_Entry>` 保存每个 BlockId 对应的 DocumentElement，
-/// 模拟真实 DocumentEditor 的 BlockId 分配 / 查找 / 修改行为。
-class _MockDocumentEditor implements DocumentEditor {
-  final List<_Entry> _blocks = [];
+  ///
+  /// 维护 `Map<BlockId, _Entry>` + `List<BlockId>` 保存每个 BlockId 对应的 DocumentElement，
+  /// 模拟真实 DocumentEditor 的 BlockId 分配 / 查找 / 修改行为。
+  class _MockDocumentEditor implements DocumentEditor {
+  final Map<BlockId, _Entry> _blocks = {};
+  final List<BlockId> _ids = [];
 
   _MockDocumentEditor();
 
   @override
-  int get blockCount => _blocks.length;
+  int get blockCount => _ids.length;
 
   @override
-  List<BlockId> get allIds =>
-      _blocks.map((e) => e.id).toList(growable: false);
+  List<BlockId> get allIds => List.unmodifiable(_ids);
 
   @override
-  DocumentElement? getBlock(BlockId id) {
-    for (final entry in _blocks) {
-      if (entry.id == id) return entry.element;
-    }
-    return null;
-  }
+  DocumentElement? getBlock(BlockId id) => _blocks[id]?.element;
 
   @override
-  int indexOf(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) return i;
-    }
-    return -1;
-  }
+  int indexOf(BlockId id) => _ids.indexOf(id);
 
   @override
   BlockId insertBlock(int index, DocumentElement element, {BlockId? preserveId}) {
-    if (index < 0 || index > _blocks.length) {
+    if (index < 0 || index > _ids.length) {
       throw RangeError('index out of range: $index');
     }
     final id = preserveId ?? BlockId.generate();
-    _blocks.insert(index, _Entry(id, element));
+    _ids.insert(index, id);
+    _blocks[id] = _Entry(id, element);
     return id;
   }
 
   @override
   DocumentElement removeBlock(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        return _blocks.removeAt(i).element;
-      }
+    final entry = _blocks.remove(id);
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _ids.remove(id);
+    return entry.element;
   }
 
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
-        _blocks[i] = _Entry(id, element);
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+    _blocks[id] = _Entry(id, element);
+    return entry.element;
   }
 
   @override
@@ -91,33 +80,30 @@ class _MockDocumentEditor implements DocumentEditor {
     DocumentElement element, {
     void Function(BlockId oldId, BlockId newId)? onMigrated,
   }) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        final newId = BlockId.generate();
-        _blocks[i] = _Entry(newId, element);
-        onMigrated?.call(id, newId);
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    final old = entry.element;
+    final newId = BlockId.generate();
+    _ids[_ids.indexOf(id)] = newId;
+    _blocks.remove(id);
+    _blocks[newId] = _Entry(newId, element);
+    onMigrated?.call(id, newId);
+    return old;
   }
 
   @override
   void updateBlockContent(BlockId id, DocumentElement newContent) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        // 保持 BlockId 不变，仅替换 element
-        _blocks[i] = _Entry(id, newContent);
-        return;
-      }
+    if (!_blocks.containsKey(id)) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _blocks[id] = _Entry(id, newContent);
   }
 
   /// 测试辅助：用 source 构造 Paragraph 并插入，返回 BlockId。
   BlockId addParagraph(String source) {
-    return insertBlock(_blocks.length, ParagraphElement(children: [
+    return insertBlock(_ids.length, ParagraphElement(children: [
       TextElement(source),
     ]));
   }

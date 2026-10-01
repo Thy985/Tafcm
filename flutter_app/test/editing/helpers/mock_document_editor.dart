@@ -24,60 +24,50 @@ import 'package:tafcm/data/models/document.dart';
 ///
 /// 提供 [addParagraph] / [sourceOf] 等测试辅助方法，简化测试代码。
 class MockDocumentEditor implements DocumentEditor {
-  final List<_Entry> _blocks = [];
+  final Map<BlockId, _Entry> _blocks = {};
+  final List<BlockId> _ids = [];
 
   MockDocumentEditor();
 
   @override
-  int get blockCount => _blocks.length;
+  int get blockCount => _ids.length;
 
   @override
-  DocumentElement? getBlock(BlockId id) {
-    for (final entry in _blocks) {
-      if (entry.id == id) return entry.element;
-    }
-    return null;
-  }
+  DocumentElement? getBlock(BlockId id) => _blocks[id]?.element;
 
   @override
-  int indexOf(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) return i;
-    }
-    return -1;
-  }
+  int indexOf(BlockId id) => _ids.indexOf(id);
 
   @override
   BlockId insertBlock(int index, DocumentElement element, {BlockId? preserveId}) {
-    if (index < 0 || index > _blocks.length) {
+    if (index < 0 || index > _ids.length) {
       throw RangeError('index out of range: $index');
     }
     final id = preserveId ?? BlockId.generate();
-    _blocks.insert(index, _Entry(id, element));
+    _ids.insert(index, id);
+    _blocks[id] = _Entry(id, element);
     return id;
   }
 
   @override
   DocumentElement removeBlock(BlockId id) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        return _blocks.removeAt(i).element;
-      }
+    final entry = _blocks.remove(id);
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _ids.remove(id);
+    return entry.element;
   }
 
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
-        _blocks[i] = _Entry(id, element);
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+    _blocks[id] = _Entry(id, element);
+    return entry.element;
   }
 
   @override
@@ -91,37 +81,32 @@ class MockDocumentEditor implements DocumentEditor {
     DocumentElement element, {
     void Function(BlockId oldId, BlockId newId)? onMigrated,
   }) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        final old = _blocks[i].element;
-        final newId = BlockId.generate();
-        _blocks[i] = _Entry(newId, element);
-        onMigrated?.call(id, newId);
-        return old;
-      }
+    final entry = _blocks[id];
+    if (entry == null) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    final old = entry.element;
+    final newId = BlockId.generate();
+    _ids[_ids.indexOf(id)] = newId;
+    _blocks.remove(id);
+    _blocks[newId] = _Entry(newId, element);
+    onMigrated?.call(id, newId);
+    return old;
   }
 
   @override
   void updateBlockContent(BlockId id, DocumentElement newContent) {
-    for (var i = 0; i < _blocks.length; i++) {
-      if (_blocks[i].id == id) {
-        // 保持 BlockId 不变，仅替换 element
-        _blocks[i] = _Entry(id, newContent);
-        return;
-      }
+    if (!_blocks.containsKey(id)) {
+      throw StateError('BlockId not found: $id');
     }
-    throw StateError('BlockId not found: $id');
+    _blocks[id] = _Entry(id, newContent);
   }
 
   // ============ 测试辅助方法 ============
 
   /// 用 source 构造 [ParagraphElement] 并插入到末尾，返回 [BlockId]。
-  ///
-  /// 用于快速设置测试初始状态。
   BlockId addParagraph(String source) {
-    return insertBlock(_blocks.length, ParagraphElement(children: [
+    return insertBlock(_ids.length, ParagraphElement(children: [
       TextElement(source),
     ]));
   }
@@ -135,7 +120,7 @@ class MockDocumentEditor implements DocumentEditor {
 
   /// 用任意 source + type 构造 [DocumentElement] 并插入到末尾，返回 [BlockId]。
   BlockId addBlock(String source, BlockType type) {
-    return insertBlock(_blocks.length, toElement(source, type));
+    return insertBlock(_ids.length, toElement(source, type));
   }
 
   /// 获取指定 [BlockId] 对应块的 Markdown source（通过 [fromElement] 序列化）。
@@ -151,14 +136,12 @@ class MockDocumentEditor implements DocumentEditor {
 
   /// 返回所有块的 source 列表（用于断言整体状态）。
   List<String> get allSources {
-    return _blocks.map((e) => fromElement(e.element)).toList();
+    return [for (final id in _ids) fromElement(_blocks[id]!.element)];
   }
 
   /// 返回当前所有 BlockId 列表（按顺序）。
   @override
-  List<BlockId> get allIds {
-    return _blocks.map((e) => e.id).toList();
-  }
+  List<BlockId> get allIds => List.unmodifiable(_ids);
 }
 
 class _Entry {
