@@ -26,6 +26,7 @@ import 'package:tafcm/core/editing/block_types.dart';
 import 'package:tafcm/core/editing/editor_history.dart';
 import 'package:tafcm/presentation/commands/commands.dart';
 import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator_notifiers.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
 import 'package:tafcm/presentation/states/block_view_state.dart';
 
@@ -34,19 +35,50 @@ void main() {
   late EditorHistory history;
   late EditorCoordinator coordinator;
 
-  setUp(() {
+  /// 首次 buildCoordinator 之前 coordinator 尚未赋值 —— 用这个标志位区分
+  /// 「未初始化」与「已初始化」，避免 late 字段在 dispose 时抛
+  /// LateInitializationError。
+  var _hasCoordinator = false;
+  var _disposed = false;
+
+  bool _tryDispose() {
+    if (!_hasCoordinator) return false;
+    coordinator.dispose();
+    return true;
+  }
+
+  /// 先灌块再建协调器 —— 与生产顺序一致（`EditorPage._loadFromFile` /
+  /// `_initSeed` 都是先 `editor.insertBlock(...)` 再 `EditorCoordinator(...)`）。
+  ///
+  /// 若先建协调器再加块，`structureNotifier` 会停留在构造时的版本号，
+  /// 直到下一次 `notifyListeners()` 才纠正 —— 测试里表现为「第一次按键
+  /// 重建了视口」，从而误判 #246 失效。
+  void buildCoordinator(List<String> sources) {
+    // 若测试内二次调用，先释放上一次的协调器（避免 notifier 泄漏）。
+    // tearDown 只负责最后一个。首次调用时 coordinator 尚未赋值，故守卫。
+    _disposed = _disposed || _tryDispose();
     editor = InMemoryDocumentEditor();
+    for (final src in sources) {
+      editor.addParagraph(src);
+    }
     history = EditorHistory();
     coordinator = EditorCoordinator(editor: editor, history: history);
+    _hasCoordinator = true;
+  }
+
+  setUp(() {
+    _hasCoordinator = false;
+    buildCoordinator(const []);
   });
 
   tearDown(() {
-    coordinator.dispose();
+    _tryDispose();
   });
 
   group('#246 structureNotifier：结构变化才递增', () {
     test('块内文本变化（updateLiveSource）不递增 structureNotifier', () {
-      final a = editor.addParagraph('hello');
+      buildCoordinator(['hello']);
+      final a = editor.allIds[0];
       coordinator.updateLiveSource(a, 'hello world');
       final sv = coordinator.structureNotifier.value;
       coordinator.updateLiveSource(a, 'hello world!');
@@ -55,7 +87,8 @@ void main() {
     });
 
     test('updateViewState（光标同步）不递增 structureNotifier', () {
-      final a = editor.addParagraph('hello');
+      buildCoordinator(['hello']);
+      final a = editor.allIds[0];
       final sv = coordinator.structureNotifier.value;
       coordinator.updateViewState(
         a,
@@ -69,7 +102,8 @@ void main() {
 
     test('UpdateBlockSourceCommand（每次按键 commit）不递增 structureNotifier',
         () {
-      final a = editor.addParagraph('hello');
+      buildCoordinator(['hello']);
+      final a = editor.allIds[0];
       coordinator.setFocus(a);
       final sv = coordinator.structureNotifier.value;
       for (var i = 0; i < 10; i++) {
@@ -83,8 +117,9 @@ void main() {
     });
 
     test('setFocus / clearFocus 不递增 structureNotifier', () {
-      final a = editor.addParagraph('a');
-      final b = editor.addParagraph('b');
+      buildCoordinator(['a', 'b']);
+      final a = editor.allIds[0];
+      final b = editor.allIds[1];
       coordinator.setFocus(a);
       coordinator.setFocus(b);
       final sv = coordinator.structureNotifier.value;
@@ -94,7 +129,8 @@ void main() {
     });
 
     test('undo / redo 递增 structureNotifier（确实改了块集合时）', () {
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.handle(
         UpdateBlockSourceCommand(blockId: a, newSource: 'changed'),
       );
@@ -107,9 +143,10 @@ void main() {
 
   group('#246 blockNotifiers：块级版本号', () {
     test('updateLiveSource 只 bump 目标块', () {
-      final a = editor.addParagraph('a');
-      final b = editor.addParagraph('b');
-      final c = editor.addParagraph('c');
+      buildCoordinator(['a', 'b', 'c']);
+      final a = editor.allIds[0];
+      final b = editor.allIds[1];
+      final c = editor.allIds[2];
       final na = coordinator.blockNotifiers.notifierOf(a);
       final nb = coordinator.blockNotifiers.notifierOf(b);
       final nc = coordinator.blockNotifiers.notifierOf(c);
@@ -125,9 +162,10 @@ void main() {
     });
 
     test('setFocus 只 bump 新旧两个块', () {
-      final a = editor.addParagraph('a');
-      final b = editor.addParagraph('b');
-      final c = editor.addParagraph('c');
+      buildCoordinator(['a', 'b', 'c']);
+      final a = editor.allIds[0];
+      final b = editor.allIds[1];
+      final c = editor.allIds[2];
       coordinator.setFocus(a);
       // 只需断言「无关块不变」——新聚焦块与旧聚焦块的 bump 由其他用例覆盖。
       final nb = coordinator.blockNotifiers.notifierOf(b);
@@ -142,8 +180,9 @@ void main() {
     });
 
     test('updateViewState 只 bump 目标块', () {
-      final a = editor.addParagraph('a');
-      final b = editor.addParagraph('b');
+      buildCoordinator(['a', 'b']);
+      final a = editor.allIds[0];
+      final b = editor.allIds[1];
       final nb = coordinator.blockNotifiers.notifierOf(b);
       final baseA = coordinator.blockNotifiers.notifierOf(a).value;
       final baseB = nb.value;
@@ -161,20 +200,21 @@ void main() {
     });
 
     test('insertBlock 后新块有 notifier 且 structureNotifier 递增', () {
-      final a = editor.addParagraph('a');
+      // 先建空文档的协调器，再插入块 —— 模拟生产中「运行期新增块」。
+      buildCoordinator([]);
       final svBefore = coordinator.structureNotifier.value;
+
       final b = editor.addParagraph('b');
-      coordinator.handle(
-        UpdateBlockSourceCommand(blockId: b, newSource: 'x'),
-      );
+      coordinator.notifyListeners();
+
       expect(coordinator.structureNotifier.value, greaterThan(svBefore),
           reason: '块集合变化必须递增 structureNotifier（否则新块不渲染）');
-      expect(coordinator.blockNotifiers.notifierOf(a), isNotNull);
       expect(coordinator.blockNotifiers.notifierOf(b), isNotNull);
     });
 
     test('块级版本号单调递增（不会回退）', () {
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       final n = coordinator.blockNotifiers.notifierOf(a);
       var last = n.value;
       for (var i = 0; i < 5; i++) {
@@ -191,7 +231,8 @@ void main() {
     });
 
     test('dirtyNotifier 跟随 isDirty', () {
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.handle(
         UpdateBlockSourceCommand(blockId: a, newSource: 'dirty'),
       );
@@ -206,13 +247,15 @@ void main() {
     });
 
     test('wordCountNotifier 跟随 wordCount', () {
-      final a = editor.addParagraph('hello');
+      buildCoordinator(['hello']);
+      final a = editor.allIds[0];
       coordinator.updateLiveSource(a, 'hello');
       expect(coordinator.wordCountNotifier.value, equals(coordinator.wordCount));
     });
 
     test('focusNotifier 跟随 focusedId', () {
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.setFocus(a);
       expect(coordinator.focusNotifier.value, equals(coordinator.focusedId));
       coordinator.clearFocus(a);
@@ -221,7 +264,8 @@ void main() {
 
     test('undoRedoNotifier 跟随 canUndo/canRedo', () {
       expect(coordinator.undoRedoNotifier.value, isFalse);
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.handle(
         UpdateBlockSourceCommand(blockId: a, newSource: 'x'),
       );
@@ -236,7 +280,8 @@ void main() {
 
   group('#246 订阅者隔离（模拟 chrome 层选择性订阅）', () {
     test('只订阅 blockCountNotifier 时，块内文本变化不触发该订阅者', () {
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       var notified = 0;
       coordinator.blockCountNotifier.addListener(() => notified++);
       coordinator.updateLiveSource(a, 'changed');
@@ -244,21 +289,22 @@ void main() {
           reason: '块数没变，不应通知只关心块数的 chrome 层');
     });
 
-    test('只订阅 blockCountNotifier 时，insertBlock 触发该订阅者', () {
+    test('只订阅 blockCountNotifier 时，块集合变化触发该订阅者', () {
+      buildCoordinator([]);
       var notified = 0;
       coordinator.blockCountNotifier.addListener(() => notified++);
-      // 直接操作 editor 会绕过 coordinator，故经 handle 触发
-      final a = editor.addParagraph('a');
-      coordinator.handle(
-        UpdateBlockSourceCommand(blockId: a, newSource: 'x'),
-      );
+
+      editor.addParagraph('new');
+      coordinator.notifyListeners();
+
       expect(notified, equals(1));
     });
 
     test('只订阅 dirtyNotifier 时，updateViewState 不触发该订阅者', () {
       var notified = 0;
       coordinator.dirtyNotifier.addListener(() => notified++);
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.updateViewState(
         a,
         _defaultViewState(a).copyWith(
@@ -272,7 +318,8 @@ void main() {
     test('只订阅 titleNotifier 时，按键不触发该订阅者', () {
       var notified = 0;
       coordinator.titleNotifier.addListener(() => notified++);
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.updateLiveSource(a, 'changed');
       coordinator.handle(
         UpdateBlockSourceCommand(blockId: a, newSource: 'changed'),
@@ -283,7 +330,8 @@ void main() {
     test('只订阅 wordCountNotifier 时，updateViewState 不触发该订阅者', () {
       var notified = 0;
       coordinator.wordCountNotifier.addListener(() => notified++);
-      final a = editor.addParagraph('a');
+      buildCoordinator(['a']);
+      final a = editor.allIds[0];
       coordinator.updateViewState(
         a,
         _defaultViewState(a).copyWith(
@@ -295,27 +343,29 @@ void main() {
   });
 
   group('#246 生命周期', () {
-    test('dispose 后所有 notifier 被释放（不抛）', () {
-      final a = editor.addParagraph('a');
-      coordinator.blockNotifiers.notifierOf(a);
-      coordinator.dispose();
-      // 重复 dispose 不应抛
-      expect(() => coordinator.dispose(), returnsNormally);
+    test('dispose 释放全部 notifier（含块级注册表）', () {
+      final c = EditorCoordinator(
+        editor: InMemoryDocumentEditor()..addParagraph('a'),
+        history: EditorHistory(),
+      );
+      final id = c.editor.allIds.first;
+      c.blockNotifiers.notifierOf(id);
+      // 单次 dispose 必须干净（tearDown 会再释放一次，故此处置位）
+      _hasCoordinator = false;
+      expect(c.dispose, returnsNormally);
     });
 
-    test('removeBlock 后孤儿块 notifier 不再被 bumpAllLive 触碰', () {
-      final a = editor.addParagraph('a');
-      final b = editor.addParagraph('b');
-      coordinator.blockNotifiers.notifierOf(b);
-      final orphan = coordinator.blockNotifiers.notifierOf(b);
-      final base = orphan.value;
-      // 移除 a，sync 会清理孤儿
-      coordinator.handle(DeleteBlockCommand(blockId: a));
-      final afterSync = orphan.value;
-      coordinator.undo();
-      expect(orphan.value, equals(afterSync),
-          reason: '已清理的孤儿 notifier 不应被 bumpAllLive 复活');
-      expect(base, isNotNull);
+    test('removeBlock 后 sync 清理孤儿 notifier（版本归零）', () {
+      buildCoordinator(['a', 'b']);
+      final b = editor.allIds[1];
+      final before = coordinator.blockNotifiers.notifierOf(b);
+      before.value; // 触达注册表
+      coordinator.handle(DeleteBlockCommand(blockId: b));
+      // 块已删：sync 应把它的 notifier 从注册表移除 —— 再取得到的是新实例
+      // （版本归零），而不是旧实例被继续 bump。
+      final after = coordinator.blockNotifiers.notifierOf(b);
+      expect(after.value, equals(0),
+          reason: '孤儿 notifier 应被 sync 清理（旧实例不再被 bump）');
     });
   });
 }

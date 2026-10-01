@@ -241,11 +241,19 @@ class InMemoryDocumentEditor implements DocumentEditor {
       [for (final id in _ids) _blocks[id]!.element];
 
   /// 获取指定 [BlockId] 对应块的 Markdown source。
+  ///
+  /// [EmptyLineElement] 是 MarkdownParser 产出的**空行分隔符**，既不是可编辑块
+  /// 也无法被 `fromElement` 序列化（后者对其抛
+  /// "EmptyLineElement is not serializable as a Block"）。生产加载路径
+  /// （`EditorPage._loadFromFile`）会显式跳过它，但测试 / ADI 可直接构造含分隔符
+  /// 的 editor，故此处返回空串而非让异常冒泡到 `LiveEditingState.wordCount`
+  /// / `EditorStatusBar` 等只读展示路径。
   String sourceOf(BlockId id) {
     final element = getBlock(id);
     if (element == null) {
       throw StateError('BlockId not found: $id');
     }
+    if (element is EmptyLineElement) return '';
     return fromElement(element);
   }
 

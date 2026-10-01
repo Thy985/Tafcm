@@ -17,6 +17,7 @@ import '../states/block_view_state.dart';
 import '../themes/editor_tokens.dart';
 import 'block_reorder.dart';
 import 'editor_coordinator.dart';
+import 'editor_coordinator_notifiers.dart';
 import 'editor_scope.dart';
 
 /// 页面最大内容宽度（Phase 3.4 Slice 5 / 3.4.8 页面宽度控制）。

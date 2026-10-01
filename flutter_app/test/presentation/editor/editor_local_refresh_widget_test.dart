@@ -22,6 +22,7 @@ import 'package:tafcm/core/editing/block_types.dart';
 import 'package:tafcm/core/editing/editor_history.dart';
 import 'package:tafcm/presentation/commands/commands.dart';
 import 'package:tafcm/presentation/editor/editor_coordinator.dart';
+import 'package:tafcm/presentation/editor/editor_coordinator_notifiers.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
 
 /// 重建计数探针（记录自身 build() 被调用的次数）。
@@ -33,15 +34,32 @@ void main() {
   late InMemoryDocumentEditor editor;
   late EditorHistory history;
   late EditorCoordinator coordinator;
+  var _hasCoordinator = false;
 
-  setUp(() {
+  /// 先灌块再建协调器 —— 与生产顺序一致（`EditorPage._loadFromFile` /
+  /// `_initSeed` 都是先 `editor.insertBlock(...)` 再 `EditorCoordinator(...)`）。
+  ///
+  /// [EditorCoordinator.structureNotifier] 在构造时捕获当时的块集合版本；
+  /// 若先建协调器再加块，首次 `ValueListenableBuilder` build 会读到过期版本，
+  /// 测试表现为「第一次按键重建了视口」，误判 #246 失效。
+  void buildCoordinator(List<String> sources) {
+    if (_hasCoordinator) coordinator.dispose();
     editor = InMemoryDocumentEditor();
+    for (final src in sources) {
+      editor.addParagraph(src);
+    }
     history = EditorHistory();
     coordinator = EditorCoordinator(editor: editor, history: history);
+    _hasCoordinator = true;
+  }
+
+  setUp(() {
+    _hasCoordinator = false;
+    buildCoordinator(const []);
   });
 
   tearDown(() {
-    coordinator.dispose();
+    if (_hasCoordinator) coordinator.dispose();
   });
 
   /// 搭建与 `EditorViewport` 同构的最小树：
@@ -74,9 +92,10 @@ void main() {
   }
 
   testWidgets('#246 输入不触发结构级重建，仅目标块重建', (tester) async {
-    final a = editor.addParagraph('hello');
-    final b = editor.addParagraph('world');
-    final c = editor.addParagraph('third');
+    buildCoordinator(['hello', 'world', 'third']);
+    final a = editor.allIds[0];
+    final b = editor.allIds[1];
+    final c = editor.allIds[2];
 
     final structureCounter = BuildCounter();
     final blockCounters = <BlockId, BuildCounter>{};
@@ -114,9 +133,10 @@ void main() {
 
   testWidgets('#246 连续 10 次按键：结构重建 0 次，仅焦点块重建 10 次',
       (tester) async {
-    final a = editor.addParagraph('a');
-    final b = editor.addParagraph('b');
-    final c = editor.addParagraph('c');
+    buildCoordinator(['a', 'b', 'c']);
+    final a = editor.allIds[0];
+    final b = editor.allIds[1];
+    final c = editor.allIds[2];
 
     final structureCounter = BuildCounter();
     final blockCounters = <BlockId, BuildCounter>{};
@@ -145,9 +165,10 @@ void main() {
   });
 
   testWidgets('#246 焦点切换只重建新旧两块', (tester) async {
-    final a = editor.addParagraph('a');
-    final b = editor.addParagraph('b');
-    final c = editor.addParagraph('c');
+    buildCoordinator(['a', 'b', 'c']);
+    final a = editor.allIds[0];
+    final b = editor.allIds[1];
+    final c = editor.allIds[2];
 
     final structureCounter = BuildCounter();
     final blockCounters = <BlockId, BuildCounter>{};
@@ -210,6 +231,11 @@ void main() {
     final structureCounter = BuildCounter();
     final blockCounters = <BlockId, BuildCounter>{};
 
+    // 先建带块的协调器再 pumpWidget —— 反过来会让 widget 树捕获旧的
+    // （空文档）coordinator，后续 buildCoordinator 替换掉它，订阅失效。
+    buildCoordinator(['a']);
+    final a = editor.allIds[0];
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -221,10 +247,8 @@ void main() {
       ),
     );
 
-    final a = editor.addParagraph('a');
-    coordinator.notifyListeners();
-    await tester.pump();
     final afterInsert = structureCounter.count;
+    expect(find.text('a'), findsOneWidget, reason: '首帧应已渲染该块');
 
     // 模拟连续按键
     for (var i = 0; i < 5; i++) {
@@ -241,7 +265,8 @@ void main() {
   });
 
   testWidgets('#246 chrome 层选择订阅：只关心块数的不被按键唤醒', (tester) async {
-    final a = editor.addParagraph('a');
+    buildCoordinator(['a']);
+    final a = editor.allIds[0];
     var blockCountRebuilds = 0;
     var wordCountRebuilds = 0;
     var titleRebuilds = 0;
@@ -295,8 +320,9 @@ void main() {
   });
 
   testWidgets('#246 wordCountNotifier 首帧即为真实字数（非 0）', (tester) async {
-    editor.addParagraph('hello'); // 5
-    editor.addParagraph('world'); // 5
+    // 必须在建协调器之前灌块：`wordCountNotifier` 的初值由
+    // `_initialWordCount(editor)` 在构造时算出。
+    buildCoordinator(['hello', 'world']); // 5 + 5 = 10
 
     var initialWords = -1;
     await tester.pumpWidget(

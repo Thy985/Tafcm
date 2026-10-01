@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_coordinator_notifiers.dart';
 import '../editor/editor_intent.dart';
 import 'editor_strings.dart';
 import 'templates.dart';

@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../../../core/editing/block_types.dart';
 import '../../../core/observability/models.dart' as obs;
 import '../../editor/editor_coordinator.dart';
+import '../../editor/editor_coordinator_notifiers.dart';
 import '../../states/block_view_state.dart';
 import '../../themes/editor_tokens.dart';
 import 'block_drag_handle.dart';

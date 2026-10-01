@@ -20,6 +20,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_coordinator_notifiers.dart';
 import '../themes/editor_tokens.dart';
 
 /// 编辑器底部状态栏（chrome 组件）。

@@ -18,6 +18,7 @@ import '../../core/editing/block_types.dart';
 import '../../core/parser/markdown_parser.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
+import '../editor/editor_coordinator_notifiers.dart';
 import '../widgets/formula_renderer.dart';
 
 /// 单个 TOC 条目（不可变快照）。
