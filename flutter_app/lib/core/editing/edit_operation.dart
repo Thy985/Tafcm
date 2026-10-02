@@ -63,23 +63,16 @@ class TextOperation extends EditOperation {
   /// 插入文本（revert 时删除）。
   final String inserted;
 
-  /// 可选：cached index（性能优化，不作为 identity）。
-  ///
-  /// apply 时填充，仅用于快速查找。失效时降级到 [DocumentEditor.indexOf]。
-  /// 不可作为 revert 定位依据。
-  int? cachedIndex;
-
-  TextOperation({
+  const TextOperation({
     required this.blockId,
     required this.offset,
     this.deleted = '',
     this.inserted = '',
-    this.cachedIndex,
   });
 
   @override
   bool apply(DocumentEditor editor) {
-    // 1. 通过 BlockId 定位（不依赖 cachedIndex）
+    // 1. 通过 BlockId 定位
     final element = editor.getBlock(blockId);
     if (element == null) return false;
 
@@ -103,15 +96,12 @@ class TextOperation extends EditOperation {
     // 6. 保持 BlockId 不变，仅替换内容
     editor.updateBlockContent(blockId, newElement);
 
-    // 7. 缓存 index（性能优化）
-    cachedIndex = editor.indexOf(blockId);
-
     return true;
   }
 
   @override
   void revert(DocumentEditor editor) {
-    // 逆操作：通过 blockId 定位（不依赖 cachedIndex）
+    // 逆操作：通过 blockId 定位
     // 当前 element 已是 apply 后的状态，先序列化拿到当前 source
     final currentElement = editor.getBlock(blockId);
     if (currentElement == null) {

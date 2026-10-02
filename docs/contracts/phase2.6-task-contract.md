@@ -324,18 +324,11 @@ final class TextOperation extends EditOperation {
   /// 插入文本（revert 时删除）。
   final String inserted;
 
-  /// 可选：cached index（性能优化，不作为 identity）。
-  ///
-  /// apply 时填充，仅用于快速查找。失效时降级到 editor.indexOf(blockId)。
-  /// 不可作为 revert 定位依据。
-  int? cachedIndex;
-
   const TextOperation({
     required this.blockId,
     required this.offset,
     this.deleted = '',
     this.inserted = '',
-    this.cachedIndex,
   });
 
   @override
@@ -345,13 +338,12 @@ final class TextOperation extends EditOperation {
     // 3. source = source.substring(0, offset) + inserted + source.substring(offset + deleted.length)
     // 4. block_serializer.toElement(source, type) → newElement
     // 5. editor.updateBlockContent(blockId, newElement)  // BlockId 保持不变
-    // 6. cachedIndex = editor.indexOf(blockId)  // 缓存优化
-    // 7. 返回 true
+    // 6. 返回 true
   }
 
   @override
   void revert(DocumentEditor editor) {
-    // 逆操作：通过 blockId 定位（不依赖 cachedIndex）
+    // 逆操作：通过 blockId 定位
     // 1. editor.getBlock(blockId) → currentElement
     // 2. block_serializer.fromElement(currentElement) → source + type
     // 3. // 先删 inserted，再插 deleted
@@ -366,7 +358,7 @@ final class TextOperation extends EditOperation {
 
 - `apply` 返回 bool，不抛异常（调用方决定 rollback）
 - `apply` 内部填充 `revertContext`，`revert` 读取使用（不依赖外部可变状态）
-- **TextOperation 用 BlockId 作为 identity**（评审反馈 1），cachedIndex 仅作性能优化
+- **TextOperation 用 BlockId 作为 identity**（评审反馈 1）
 - **BlockOperation 用 BlockId 定位**（评审反馈 1+3 联动），index 存入 revertContext 用于精确恢复
 - offset 语义对齐 [block_types.dart:148](file:///d:/Projects/Active/math2/flutter_app/lib/core/editing/block_types.dart) UTF-16 code unit
 - TextOperation 通过 `updateBlockContent` 修改内容（BlockId 不变），不通过 `replaceBlock`（会重新分配 BlockId）
@@ -954,7 +946,7 @@ abstract class BlockOperations {
 - move apply + revert（前移 / 后移 / 跨多块移动）
   - revert 后 oldIndex + newId 都恢复
 - TextOperation apply + revert（insert / delete / replace / 空 source / 含 emoji UTF-16 offset）
-  - revert 后通过 BlockId 定位（不依赖 cachedIndex）
+  - revert 后通过 BlockId 定位
 - 幂等性：同一 op 连续 apply 2 次结果一致（apply-revert-apply-revert 循环）
 - 非法 BlockId（不存在的 id）→ apply 返回 false（不抛异常）
 - 边界：empty deleted + empty inserted（空操作）

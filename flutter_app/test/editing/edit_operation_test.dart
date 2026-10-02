@@ -348,24 +348,8 @@ void main() {
       );
     });
 
-    group('cachedIndex 优化', () {
-      test('apply 后 cachedIndex 被填充', () {
-        final editor = MockDocumentEditor();
-        final id = editor.addParagraph('hello');
-
-        final op = TextOperation(
-          blockId: id,
-          offset: 0,
-          inserted: 'x',
-        );
-
-        expect(op.cachedIndex, isNull);
-        op.apply(editor);
-        expect(op.cachedIndex, isNotNull);
-        expect(op.cachedIndex, equals(0));
-      });
-
-      test('revert 不依赖 cachedIndex（通过 BlockId 定位）', () {
+    group('revert 通过 BlockId 定位（不受其他块删除影响）', () {
+      test('revert 不受其他块删除影响（BlockId 定位）', () {
         final editor = MockDocumentEditor();
         final id1 = editor.addParagraph('a');
         final id2 = editor.addParagraph('b');
@@ -380,10 +364,10 @@ void main() {
         op.apply(editor);
         expect(editor.sourceOf(id2), equals('bX'));
 
-        // 删除 id1（cachedIndex 会失效，但 revert 仍应正确工作）
+        // 删除 id1（index 已失效，但 revert 仍通过 BlockId 正确定位）
         editor.removeBlock(id1);
 
-        // revert id2 的 op（cachedIndex=1 现在已失效）
+        // revert id2 的 op（不受其他块删除影响）
         op.revert(editor);
         expect(editor.sourceOf(id2), equals('b'));
 
