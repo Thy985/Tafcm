@@ -63,7 +63,7 @@ class TextOperation extends EditOperation {
   /// 插入文本（revert 时删除）。
   final String inserted;
 
-  TextOperation({
+  const TextOperation({
     required this.blockId,
     required this.offset,
     this.deleted = '',
