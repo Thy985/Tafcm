@@ -43,7 +43,7 @@ jobs:
         run: |
           cline auth -p openai \
             -k "${{ secrets.AGNES_API_KEY }}" \
-            -m agnes-2.5-flash \
+            -m agnes-3.0-flash \
             -b https://apihub.agnes-ai.com/v1
 
       - name: Get PR number
