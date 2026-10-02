@@ -465,10 +465,24 @@ jobs:
             set +e;
             timeout 1200 flutter build apk --debug --target-platform android-x64 --dart-define=DISABLE_MERMAID_HOST=true --no-pub > build.log 2>&1; BEXIT=$?;
             [ $BEXIT -ne 0 ] && { echo "BUILD_FAILED exit=$BEXIT"; tail -30 build.log; exit $BEXIT; };
+            # #263: emulator-5554 sometimes offline (adb devices shows empty/unknown), so drive fails immediately.
+            # Fix: after build success, poll adb readiness (12 x 10s); on timeout dump logcat and exit instead of forcing drive.
+            ADB_READY=0; for i in $(seq 1 12); do STATE=$(adb devices | awk '$1=="emulator-5554"{print $2}'); [ "$STATE" = "device" ] && { ADB_READY=1; break; }; sleep 10; done; if [ $ADB_READY -ne 1 ]; then echo "ADB_DEVICE_NOT_READY"; adb devices -l; timeout 30 adb logcat -d > adb_logcat.log 2>&1; tail -40 adb_logcat.log; exit 1; fi;
             timeout 1500 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart -d emulator-5554 --use-application-binary=build/app/outputs/flutter-apk/app-debug.apk --no-pub > flutter_test.log 2>&1; EXIT=$?;
-            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; tail -40 flutter_test.log; exit $EXIT; fi;
-            if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; echo "===== flutter_test.log tail 50 ====="; tail -50 flutter_test.log; echo "===== build.log tail 20 ====="; tail -20 build.log; exit 124; fi;
-            echo "DRIVE_PASSED exit=$EXIT" 
+            if [ $EXIT -ne 0 ] && [ $EXIT -ne 124 ]; then echo "DRIVE_FAILED exit=$EXIT"; timeout 30 adb logcat -d > adb_logcat.log 2>&1; tail -40 flutter_test.log; tail -40 adb_logcat.log; exit $EXIT; fi;
+            if [ $EXIT -eq 124 ] && ! grep -qE "smoke test: 1+1=2|All tests passed" flutter_test.log; then echo "TIMEOUT_BEFORE_TEST_COMPLETION"; timeout 30 adb logcat -d > adb_logcat.log 2>&1; echo "===== flutter_test.log tail 50 ====="; tail -50 flutter_test.log; echo "===== build.log tail 20 ====="; tail -20 build.log; echo "===== adb_logcat.log tail 40 ====="; tail -40 adb_logcat.log; exit 124; fi;
+            echo "DRIVE_PASSED exit=$EXIT"
+
+      - name: Upload emulator logs (#263)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-logs
+          path: |
+            flutter_app/build.log
+            flutter_app/flutter_test.log
+            flutter_app/adb_logcat.log
+          if-no-files-found: ignore
 
   build-web:
     name: Build Web
