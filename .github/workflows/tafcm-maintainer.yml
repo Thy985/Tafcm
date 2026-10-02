@@ -60,7 +60,7 @@ env:
   FLUTTER_VERSION: '3.44.6'
   CLINE_VERSION: '3.0.60'                     # 锁定 Cline 版本，防每日漂移
   AGNES_BASE_URL: 'https://apihub.agnes-ai.com/v1'
-  AGNES_MODEL: 'agnes-2.5-flash'
+  AGNES_MODEL: 'agnes-3.0-flash'
   AUDIT_DIR: 'docs/agent-audit'
   INVESTIGATIONS_DIR: 'docs/agent-investigations'
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
