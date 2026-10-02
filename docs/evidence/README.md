@@ -10,6 +10,7 @@
 | `capability/` | 能力证据（E6 模拟器/真机渲染判定） | RUN-012~016 |
 | `visual/` | 视觉证据（E8 截图 + Expected LaTeX → AST Diff 判定） | RUN-013~016 |
 | `consumer/` | 消费端证据（Word/PDF 消费端验证） | RUN-007/011 |
+| `performance/` | 性能审查批次的收口记录（issue 状态 + 证据等级 + 守门测试） | 2026-09-04 审查批次 |
 
 ## 视觉证据（visual/formula）
 
