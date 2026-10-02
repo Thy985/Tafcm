@@ -22,6 +22,10 @@ import 'pdf_exporter.dart';
 import 'word_ooxml_builder.dart';
 import '../word_ooxml_templates.dart';
 
+/// Mermaid 代码 → SVG 的渲染函数签名。默认实现为
+/// [MermaidService.renderToSvg]；测试可注入 fake（AGENTS.md §1.3 显式依赖）。
+typedef MermaidSvgRenderer = Future<String> Function(String code);
+
 class WordExporter {
   WordExporter._();
 
@@ -33,6 +37,7 @@ class WordExporter {
     String? title,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    MermaidSvgRenderer? renderMermaid,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
@@ -109,29 +114,35 @@ class WordExporter {
       );
     }
 
-    // 渲染 Mermaid 为 SVG
+    // 渲染 Mermaid 为 SVG。
+    // #250：一次性并发派发全部图表，由 MermaidService 内部并发池
+    //（max 4）限流。旧实现逐条 `await`，把共享 WebView 池退化为
+    // 严格串行（N × 单图时间），是 Word 大文档导出慢的根因之一。
     if (allMermaids.isNotEmpty) {
-      for (int i = 0; i < allMermaids.length; i++) {
-        final code = allMermaids[i];
-        try {
-          final svg = await MermaidService.renderToSvg(code);
-          final info = mermaidRels[code];
-          if (info != null) {
-            mermaidRels[code] = MermaidImageInfo(
-              relId: info.relId,
-              svg: svg,
-            );
+      final renderer = renderMermaid ?? MermaidService.renderToSvg;
+      await Future.wait(
+        allMermaids.map((code) async {
+          try {
+            final svg = await renderer(code);
+            final info = mermaidRels[code];
+            if (info != null) {
+              mermaidRels[code] = MermaidImageInfo(
+                relId: info.relId,
+                svg: svg,
+              );
+            }
+          } catch (e) {
+            debugPrint('Mermaid SVG render failed for Word: $e');
           }
-        } catch (e) {
-          debugPrint('Mermaid SVG render failed for Word: $e');
-        }
-        phase2Done++;
-        onProgress?.call(ExportProgress(
-          stage: ExportStage.preRenderingFormulaSvg,
-          completed: phase2Done,
-          total: phase2Total,
-        ));
-      }
+          phase2Done++;
+          onProgress?.call(ExportProgress(
+            stage: ExportStage.preRenderingFormulaSvg,
+            completed: phase2Done,
+            total: phase2Total,
+          ));
+        }),
+        eagerError: false,
+      );
     }
 
     // Phase 3: 计算每个公式图片的实际尺寸并更新 formulaRels —— 仍归入

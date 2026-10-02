@@ -37,9 +37,19 @@ const int _progressLogInterval = 4;
 ///
 /// 通过在 MaterialApp 顶层插入一个 Offstage 的 [FormulaRenderHost]，
 /// 公式渲染请求可以排队交给它处理，避免摧毁应用主 UI。
+///
+/// **并发模型（#250）**：队列前 [maxConcurrentRenders] 个请求各自挂载
+/// 一个独立、以请求 id 为 key 的捕获 widget。key 保证请求之间绝不复用
+/// [_OffscreenCaptureState]——旧实现只挂载队首且无 key，rebuild 时
+/// State 复用导致 initState 的捕获不再触发，第二个请求起整条队列卡死
+/// （每个请求白等 7s 超时，表现为"串行更糟：僵尸阻塞"）。
 class FormulaRenderHost extends StatefulWidget {
   const FormulaRenderHost({super.key, required this.child});
   final Widget child;
+
+  /// host 端同时在飞的离屏捕获上限。与 [FormulaPdfRenderer] 预渲染批次
+  /// 大小一致；再高会放大小屏设备 GPU 内存峰值（见 _offscreenPixelRatio 注释）。
+  static const int maxConcurrentRenders = 4;
 
   static _FormulaRenderHostState? _instance;
 
@@ -65,6 +75,34 @@ class FormulaRenderHost extends StatefulWidget {
     ));
     inst._schedule();
     return completer.future;
+  }
+
+  /// 当前排队请求总数（含未派发）。
+  @visibleForTesting
+  static int debugQueueLength() => _instance?._pendingRenders.length ?? 0;
+
+  /// 当前已挂载 capture widget 的请求 latex（按入队顺序，最多
+  /// [maxConcurrentRenders] 个）。
+  @visibleForTesting
+  static List<String> debugActiveLatexes() {
+    final inst = _instance;
+    if (inst == null) return const [];
+    return inst._pendingRenders
+        .take(maxConcurrentRenders)
+        .map((r) => r.latex)
+        .toList();
+  }
+
+  /// 以 null 完成所有排队请求并清空队列。仅供测试隔离，防止
+  /// pending completer 跨测试泄漏。
+  @visibleForTesting
+  static void debugDrainQueueForTest() {
+    final inst = _instance;
+    if (inst == null) return;
+    for (final r in inst._pendingRenders) {
+      if (!r.completer.isCompleted) r.completer.complete(null);
+    }
+    inst._pendingRenders.clear();
   }
 
   @override
@@ -98,22 +136,27 @@ class _FormulaRenderHostState extends State<FormulaRenderHost> {
 
   @override
   Widget build(BuildContext context) {
-    final pending = _pendingRenders.isNotEmpty ? _pendingRenders.first : null;
+    final active = _pendingRenders
+        .take(FormulaRenderHost.maxConcurrentRenders)
+        .toList();
     return Stack(
       children: [
         widget.child,
-        if (pending != null)
+        for (final request in active)
           Positioned(
+            key: ValueKey(request.id),
             left: -10000,
             top: -10000,
             child: _OffscreenCapture(
-              latex: pending.latex,
-              fontSize: pending.fontSize,
-              displayMode: pending.displayMode,
-              isDark: pending.isDark,
+              latex: request.latex,
+              fontSize: request.fontSize,
+              displayMode: request.displayMode,
+              isDark: request.isDark,
               onCaptured: (bytes) {
-                pending.completer.complete(bytes);
-                _pendingRenders.removeAt(0);
+                if (!request.completer.isCompleted) {
+                  request.completer.complete(bytes);
+                }
+                _pendingRenders.remove(request);
                 _schedule();
               },
             ),
@@ -123,7 +166,10 @@ class _FormulaRenderHostState extends State<FormulaRenderHost> {
   }
 }
 
+int _renderRequestCounter = 0;
+
 class _RenderRequest {
+  final int id;
   final String latex;
   final double fontSize;
   final bool displayMode;
@@ -136,7 +182,7 @@ class _RenderRequest {
     required this.displayMode,
     required this.isDark,
     required this.completer,
-  });
+  }) : id = ++_renderRequestCounter;
 }
 
 class _OffscreenCapture extends StatefulWidget {
@@ -261,7 +307,7 @@ class FormulaPdfRenderer {
 
   static const int _maxEntries = 256;
   static const int _maxBytes = 64 * 1024 * 1024; // 64 MB
-  static const int _maxConcurrent = 4; // 最大并发渲染数
+  static const int _maxConcurrent = FormulaRenderHost.maxConcurrentRenders;
 
   /// PDF 导出格式的 cache key 维度。
   static const String formatPdf = 'pdf';
