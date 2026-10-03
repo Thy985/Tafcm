@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Thy985/Tafcm/.github/schemas/verdict.schema.json",
+  "title": "Deterministic Verifier verdict",
+  "description": "第四阶段（Governance）的产出契约：机器决定一次调查结果是否足以改变仓库状态。Investigator 只交 evidence_bundle，不交结论权限。Publisher（纯脚本，无 LLM）**只消费本对象 + evidence_bundle**，不读 investigator 的 confirmed 自述，也不存在 GitHub 写权——LLM job 全部零写权。所有 check 的 status 由执行结果或 git 事实得出，本文件内不得出现任何由模型填写的数值。",
+  "type": "object",
+  "required": ["schema_version", "hypothesis_id", "verifier_version", "run_id", "checks", "decision", "publisher_action"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "hypothesis_id": { "type": "string", "pattern": "^HYP-[0-9]{3,6}$" },
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{16}$", "description": "由 verifier 重算，与账本行比对；不一致 = reject(schema_valid)" },
+    "verifier_version": { "type": "string" },
+    "run_id": { "type": "string" },
+    "created_by_run": { "type": "string", "description": "从账本读出，用于 tier_run_separation 检查" },
+    "evidence_bundle": { "type": "string", "description": "artifact 名或路径，verifier 的输入" },
+    "tier_claimed": { "enum": ["L0", "L1", "L2"] },
+    "tier_granted": { "enum": ["L0", "L1", "L2"], "description": "verifier 按凭证存在性重新判定，不接受上游申报值" },
+
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "enum": [
+              "schema_valid",
+              "fingerprint_dedupe_clear",
+              "falsifier_present",
+              "invariant_provenance",
+              "differential_arms_present",
+              "repro_artifact_committed",
+              "clean_checkout_rerun_matches_claim",
+              "sandbox_isolation_verified",
+              "tier_run_separation",
+              "severity_within_tier_ceiling",
+              "budget_within_cap",
+              "secret_leak_scan_clean",
+              "record_kb_within",
+              "protocol_required_evidence_present"
+            ]
+          },
+          "status": { "enum": ["pass", "fail", "skip", "not_applicable"] },
+          "hard_required": { "type": "boolean", "description": "true 且非 pass → decision=reject" },
+          "detail": { "type": ["string", "null"], "description": "必须 redact 后写入；禁止含密钥 / stack 原文" },
+          "measured_by": { "type": ["string", "null"], "description": "得出该结论的命令或脚本，便于人 30 秒复核" }
+        }
+      }
+    },
+
+    "decision": { "enum": ["verified", "reject"] },
+    "publisher_action": {
+      "enum": ["create_issue", "comment_existing", "suggest_only", "drop"],
+      "description": "verified 且 fingerprint 未命中历史 → create_issue；verified 但重复 → comment_existing（追加证据，禁止新建同主题 issue，POLICY.md:201 既有纪律）；reject 且 tier>=L1 → suggest_only（入账本等人）；reject 且 L0 → drop"
+    },
+    "independence_proofs_granted": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["preexisting_oracle", "differential_test", "clean_checkout_reproduction", "deterministic_ci_rerun", "external_contract"]
+      },
+      "description": "verifier 实际确认存在的凭证类型。独立性按**证据来源类型**判定，不按 run_id 不同判定（跨 run 只是必要非充分条件——同一个 Agent 自提假设自设计测试自解释，形式两 run 仍不独立）"
+    },
+    "reject_reason_code": {
+      "type": ["string", "null"],
+      "enum": [
+        "no_independent_proof", "self_authored_expectation", "no_differential_arm",
+        "repro_not_committed", "rerun_mismatch", "sandbox_writes_detected",
+        "same_run_confirmation", "severity_inflated", "budget_exhausted",
+        "secret_in_output", "record_too_large", "duplicate_active_issue", null
+      ]
+    }
+  },
+
+  "x-l2-definition": {
+    "description": "L2 的可执行定义（三条件合取，替代『不同 run 即独立』）",
+    "tier_granted_L2_requires_all": [
+      "stable_reproduction（repro_artifact_committed + clean_checkout_rerun_matches_claim）",
+      "independent_proof（independence_proofs_granted 非空，且 invariant_provenance=pass ⇒ 预期出处不是本次自建）",
+      "deterministic_rerun（由普通 CI job 或本 verifier 在干净 checkout 执行，不由 Agent 执行）"
+    ],
+    "additional_constraint": "tier_run_separation：verifier run_id != created_by_run（附加约束，不作为独立性的核心定义）"
+  }
+}
