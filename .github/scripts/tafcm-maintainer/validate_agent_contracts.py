@@ -18,7 +18,8 @@ import re
 import sys
 from pathlib import Path
 
-SCHEMA_DIR = Path(".github/schemas")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SCHEMA_DIR = REPO_ROOT / ".github" / "schemas"
 REQUIRED_SCHEMAS = [
     "findings.schema.json",
     "ledger-event.schema.json",
@@ -46,7 +47,10 @@ INDEPENDENCE_PROOFS = {
 
 PUBLISHER_ACTIONS = {"create_issue", "comment_existing", "suggest_only", "drop"}
 
-ACTORS = {"scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human"}
+# importer 是历史导入专用角色：导入行必须与实时 Agent 事件可区分，
+# 否则"这条是谁证的"在账本里说不清（P0-2 的 provenance 要求）。
+ACTORS = {"scheduler", "scout", "investigator", "verifier", "publisher",
+          "supervisor", "human", "importer"}
 
 VERIFIER_CHECKS = {
     "schema_valid",
@@ -96,8 +100,9 @@ def enums(node: dict | None, key: str) -> set:
 
 
 def main() -> int:
-    if not (Path.cwd() / ".github").is_dir():
-        print("FAIL: 必须在仓库根目录运行", file=sys.stderr)
+    # 路径由 __file__ 解析，不依赖 cwd：本地从 scripts 目录跑和 CI 从仓库根跑必须同结果
+    if not SCHEMA_DIR.is_dir():
+        print(f"FAIL: 找不到 schema 目录 {SCHEMA_DIR}", file=sys.stderr)
         return 2
 
     for name in REQUIRED_SCHEMAS:
@@ -195,10 +200,15 @@ def main() -> int:
     embedded = lp.get("verdict", {})
     check("publisher_action" in json.dumps(embedded),
           "ledger-event: 内嵌 verdict 必须含 publisher_action")
-    check({"verdict_recorded", "published", "gate_no_work", "hypothesis_added"}
-          <= enums(lp, "type"), "ledger-event: type 枚举缺关键事件")
+    check({"verdict_recorded", "published", "gate_no_work", "gate_eligible",
+           "gate_skipped_run", "hypothesis_added"}
+          <= enums(lp, "type"),
+          "ledger-event: type 枚举缺关键事件（gate_eligible 必须有，否则 gate_skip_rate 无分母）")
     check("created_by_run" in hp,
           "ledger-event: 缺 created_by_run（tier_run_separation 的比较基准）")
+    check("last_observed" in hp,
+          "ledger-event: 缺 hypothesis.last_observed —— 陈旧度必须来自观察日期；"
+          "用事件写入时间会让一次历史回填把所有维度的探测节律清零")
 
     # ---------------- 红线：契约文件内不得含密钥形态 ----------------
     blob = json.dumps([ledger, gate, verdict])

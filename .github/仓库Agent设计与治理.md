@@ -426,7 +426,7 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 |----|------|
 | Gate + Scheduler | `.github/scripts/tafcm-maintainer/eligibility_gate.py`（纯 stdlib，`--fixture` 注入信号） |
 | 写前校验器 | `contract_minicheck.py`（draft-07 子集：type/enum/required/additionalProperties/items/minItems/pattern/$ref） |
-| 不变量测试 | `eligibility_gate_test.py`（28 例）+ `contract_minicheck_test.py`（16 例） |
+| 不变量测试 | `eligibility_gate_test.py`（37 例）+ `contract_minicheck_test.py`（16 例） |
 | 接线 | `tafcm-maintainer.yml` step `Eligibility Gate (shadow)`，产物 `gate-result.json` 进 artifact；失败夜另由 `Alert — Eligibility Gate 本夜未产出判定` 步骤标注（§3.6 分母纪律） |
 | 守门 | `ci.yml` job `agent-control-plane-contracts` 跑上述两份测试 |
 
@@ -485,6 +485,47 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 
 ---
 
+### 3.10 已落地：P0-2 Canonical Ledger + 只读投影
+
+| 件 | 位置 |
+|----|------|
+| 账本写入者（唯一入口） | `.github/scripts/tafcm-maintainer/ledger.py`：`append` / `append-gate` / `import-audit` / `import-findings` / `state` / `project` / `reconcile` |
+| 账本（canonical） | `docs/agent-audit/ledger.ndjson`（append-only NDJSON，已 bootstrap：注册表 31 条 + audit finding + gate 行） |
+| 只读投影 | `docs/agent-audit/LEDGER.md`（人读）、`ledger-metrics.json`（指标） |
+| 不变量测试 | `ledger_test.py`（33 例） |
+| 接线 | `tafcm-maintainer.yml` §3.6 步骤组；`ci.yml` 跑测试 + `reconcile` |
+
+机器强制的不变量（每条都有对应用例，不是文档承诺）：
+
+1. **身份由脚本计算，且与注册表同源**：ledger 复用 `fingerprint.py` 的
+   `SHA-256(category|files|norm_summary)[:16]`。上游给不一致的 fingerprint → 拒写。
+   `actor=importer` 有一条窄例外（历史行沿用注册表已赋予的身份，且仅对 `run_id` 以
+   `import-` 开头的事件开放）——重算会给同一个 Finding 造出第二个 id，那正是本阶段要消灭的东西。
+2. **自证阻断**：`tier_promoted` / `verdict(verified)` 只能由 verifier 及以上角色写，
+   且 `run_id` 必须不同于该假设的 `created_by_run`；scout/investigator 写 promote → 拒写。
+3. **append-only + 损坏即停**：只追加；已有行 JSON 损坏时**拒绝在损坏账本上续写**，不"顺手重建"。
+4. **单条 KB 硬顶 32KB**：超限拒写（#289 自毁的后半个防线）。
+5. **去重**：同 fingerprint 的开放假设 → 记 `duplicate_of` 并复用原 `HYP-id`，不新开编号。
+6. **导入幂等**：`import-findings` 跑两次不会多一份状态。
+7. **降级可见**：散文 audit 的 Finding 一律 `evidence_tier=L1`，`P0/P1` 触到 L1 天花板被降为
+   `medium`，原值留在 `severity_declared`——降级必须能被审计，不能是悄悄改数据。
+8. **每次 run 必留 gate 行**（`gate_eligible` / `gate_no_work` / `gate_skipped_run`），
+   否则 `gate_skip_rate` 没有分母；闸门步骤自己失败时写 `gate_step_failed` 而不是静默跳过。
+
+两条由真实数据（不是 fixture）逼出的修正：
+
+- **回填不得清零陈旧度**。首版 `state` 用事件 `updated_ts` 算"最近探测时间"，导入 31 条历史后
+  所有维度都变成"今天刚查过"，探索通道会安静 21 天。改为 `hypothesis.last_observed`
+  （注册表的 `last_seen` / audit 文件名日期），并已把该字段加进 schema + 契约校验断言。
+- **`by_bucket` 暴露导入行归属**：历史导入记 `meta`，实时活动记 maintenance/exploration，
+  两者混算会让成本指标失真，投影里分开显示。
+
+**已知限制（诚实登记）**：`category → dimension` 是查表映射（`tech-debt` 目前落到 `infra_ci`），
+所以"某维度在账本里没有行"**不等于**"该维度从未被探测"。因此 `never_probed` 只能显式记录，
+不由缺席推断——这正是 §3.9 规则 1 的延伸。
+
+---
+
 ## 第四部分 治理红线（机器强制优先于协议约定）
 
 1. Agent **不 merge PR、不 push main**（AGENTS.md §6.4）；写操作由 Actions 代执行。
@@ -513,7 +554,8 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 | **P0-0** | **三份接口契约定稿**（ledger-event / gate-result / verdict）+ 跨文件一致性校验脚本 + CI job `agent-control-plane-contracts` | ✅ 已合入 main（PR #311） |
 | P0-1 | **双路 Eligibility Gate + Dimension Scheduler**（零 token，输出 `gate-result.json`；两通道分别记预算）——**影子模式已上线，尚未接管激活** | ✅ 本 PR（详见 §3.9） |
 | P0-1b | 接管激活：`eligible=false` 时不起 Cline，改写一行 NO_WORK 终态。**前置条件**：影子期攒到 `gate_skip_rate` 与误判样本、阈值完成校准、账本提供真实陈旧度 | 待影子数据 |
-| P0-2 | Canonical Ledger（append-only NDJSON）+ `FRONTIER.md`/`FINDINGS.md`/Dashboard 降为投影；KB 硬顶 + 写前校验；tier/promote 作者分离 | <1 天 |
+| P0-2 | **Canonical Ledger**（append-only NDJSON + KB 硬顶 + 写前校验 + promote 作者分离 + 只读投影） | ✅ 本 PR（详见 §3.10） |
+| P0-2b | 投影收编：`FRONTIER.md` 由账本生成；`FINDINGS.md` 的写入者从 `fingerprint.py` 换成账本投影。**过渡期靠 `reconcile` 守漂移**，两套状态并存不是终态 | 1 天 |
 | P0-3 | noop 终态契约；**删除** `ensure_daily_audit.py`；PROMPT 增加强制 `INCOMPLETE` 出口 | <0.5 天 |
 | P1-4 | 错误分层语义 + 凭据/工具 preflight 烟测；#310 onError 增加 transient 先重试 + 降级粘住 N 小时 | <1 天 |
 | P1-5 | 四段管道接线（Scout / Top-N / Investigator / Verifier+Publisher），复用管道 A 的 extract→analyze→create 骨架与 GH_MOCK fixtures 手法 | 1-2 天 |
