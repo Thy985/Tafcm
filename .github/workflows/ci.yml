@@ -622,7 +622,6 @@ jobs:
           python3 .github/scripts/tafcm-maintainer/ledger.py project \
             --out-md docs/agent-audit/LEDGER.md \
             --out-metrics docs/agent-audit/ledger-metrics.json --check
-          python3 .github/scripts/tafcm-maintainer/ledger.py reconcile
 
       - name: Run eligibility gate invariants check
         run: python3 .github/scripts/tafcm-maintainer/eligibility_gate_test.py
@@ -633,6 +632,7 @@ jobs:
       - name: Run canonical ledger invariants check
         run: python3 .github/scripts/tafcm-maintainer/ledger_test.py
 
-      # 账本与注册表不得漂移（P0-2 的完整性定义）
+      # 账本与注册表不得漂移（P0-2 的完整性定义）。刻意与"投影一致性"分成两步：一条
+      # 判"展示 == 账本"，一条判"注册表 ⊆ 账本"，失败时日志直接告诉你是哪一侧漂了。
       - name: Reconcile ledger with finding registry
         run: python3 .github/scripts/tafcm-maintainer/ledger.py reconcile
