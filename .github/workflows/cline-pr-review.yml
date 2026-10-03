@@ -1,5 +1,7 @@
-# PR 自动代码审查 — Cline CLI + AGNES OpenAI-compatible 端点
+# PR 自动代码审查 — Cline CLI + 模型降级链（.agent/tafcm-maintainer/models.json）
 # 官方示例: https://docs.cline.bot/cli/samples/github-pr-review
+# 提示词单一真相源: .agent/tafcm-maintainer/PR_REVIEW_PROMPT.md
+# cline 调用统一走 .github/scripts/tafcm-maintainer/cline_fallback_runner.py
 name: PR Code Review (Cline)
 
 on:
@@ -37,15 +39,6 @@ jobs:
       - name: Install Cline CLI
         run: npm install -g cline
 
-      # AGNES 网关：OpenAI-compatible（/v1/chat/completions 实测 200）
-      # Cline provider id "openai" = OpenAI-compatible，-b 指定 base URL
-      - name: Configure Cline Authentication (AGNES)
-        run: |
-          cline auth -p openai \
-            -k "${{ secrets.AGNES_API_KEY }}" \
-            -m agnes-3.0-flash \
-            -b https://apihub.agnes-ai.com/v1
-
       - name: Get PR number
         id: pr
         run: |
@@ -58,8 +51,8 @@ jobs:
       - name: Review PR with Cline
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
-          GITHUB_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           # 限制 Cline 仅可执行安全的只读 gh 命令 + 回贴审查
           CLINE_COMMAND_PERMISSIONS: |
             {
@@ -77,57 +70,11 @@ jobs:
               ]
             }
         run: |
-          cline --auto-approve true 'You are a GitHub PR reviewer for this repository. Your goal is to give the PR author helpful feedback and give maintainers the context they need to review efficiently.
-
-          PR: #'"${PR_NUMBER}"'
-
-          ## Gather context
-          Use `gh` commands to fetch the PR diff, details, and checks.
-
-          ```bash
-          # Get full PR details
-          gh pr view '"${PR_NUMBER}"' --json number,title,body,author,createdAt,updatedAt,isDraft,labels,commits,files,additions,deletions,changedFiles,baseRefName,headRefName,mergeable,reviewDecision
-
-          # Get the diff
-          gh pr diff '"${PR_NUMBER}"'
-
-          # Check CI status
-          gh pr checks '"${PR_NUMBER}"'
-
-          # Get existing review comments
-          gh api repos/${{ github.repository }}/pulls/'"${PR_NUMBER}"'/comments --jq '"'"'.[] | {user: .user.login, body: .body, path: .path, created_at: .created_at}'"'"'
-
-          # Get conversation comments
-          gh pr view '"${PR_NUMBER}"' --comments
-          ```
-
-          ## Review focus
-          Focus on the actual changes in the diff:
-          - Correctness: bugs, edge cases, race conditions
-          - Security: injection, secrets, auth, unsafe deserialization
-          - Maintainability: duplication, naming, dead code, complexity
-          - Tests: are new behaviors covered?
-          - API compatibility: does this break existing interfaces or callers?
-          Be concise and specific. Flag real issues, not style nits.
-
-          ## Posting feedback
-          For concrete code improvements, use GitHub suggestion syntax via `gh api` to create inline suggestions the author can commit with one click:
-
-          ```bash
-          gh api repos/${{ github.repository }}/pulls/'"${PR_NUMBER}"'/reviews \
-            -X POST \
-            -f commit_id="$(gh pr view '"${PR_NUMBER}"' --json headRefOid -q .headRefOid)" \
-            -f event="COMMENT" \
-            -f body="Review summary" \
-            -F comments='"'"'[{"path":"src/example.ts","line":42,"body":"Consider simplifying:\\n\\n```suggestion\\nconst result = items.filter(Boolean);\\n```"}]'"'"'
-          ```
-
-          Use inline suggestions for concrete improvements. Use regular comments (via `gh pr comment`) for questions or broader feedback.
-
-          ## Final output
-          End your review with a PR comment containing:
-          - 总体结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
-          - 要点清单（问题 → 位置 → 建议）
-          - Output in Chinese.
-          '
+          mkdir -p .tmp/cline-pr-review
+          python3 .github/scripts/tafcm-maintainer/cline_fallback_runner.py \
+            --config .agent/tafcm-maintainer/models.json \
+            --prompt-file .agent/tafcm-maintainer/PR_REVIEW_PROMPT.md \
+            --output-model-file .tmp/cline-pr-review/model_used.json \
+            --var PR_NUMBER="${PR_NUMBER}" \
+            --var GH_REPO="${{ github.repository }}"
 

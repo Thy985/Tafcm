@@ -556,3 +556,38 @@ jobs:
 
       - name: Run registry dedup invariants check
         run: python3 .github/scripts/tafcm-maintainer/fingerprint_dedupe_test.py
+
+  # Cline 模型降级链 runner 守门（2026-10 治理规划 F 项加固）
+  # 拦截方式：runner 的降级契约（分类降级 / unknown 不掩盖 / 密钥 redact /
+  # 尝试封顶 / prompt 变量替换）回归 → CI 失败。纯 stdlib + stub cline。
+  cline-fallback-runner:
+    name: Cline Fallback Runner Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify runner + models.json present
+        run: |
+          test -f .github/scripts/tafcm-maintainer/cline_fallback_runner.py \
+            || { echo "FAIL: cline_fallback_runner.py missing"; exit 1; }
+          test -f .agent/tafcm-maintainer/models.json \
+            || { echo "FAIL: models.json missing"; exit 1; }
+
+      - name: Validate models.json schema basics
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          cfg = json.load(open('.agent/tafcm-maintainer/models.json'))
+          assert cfg['chain'], 'chain must be non-empty'
+          assert cfg['providers'], 'providers must be non-empty'
+          for e in cfg['chain']:
+              p = cfg['providers'][e['provider']]
+              assert p['keySecret'].isupper(), 'keySecret must be env-var name'
+              assert '@' not in json.dumps(cfg), 'no key values in config'
+          print('models.json OK:', len(cfg['chain']), 'models,',
+                len(cfg['providers']), 'providers')
+          EOF
+
+      - name: Run fallback runner invariants check
+        run: python3 .github/scripts/tafcm-maintainer/cline_fallback_runner_test.py

@@ -1,0 +1,26 @@
+{
+  "_doc": "Cline provider/model 降级链单一真相源，tafcm-maintainer.yml 与 cline-pr-review.yml 共用（runner: .github/scripts/tafcm-maintainer/cline_fallback_runner.py）。本文件只存 Secret 的【名字】，永不存密钥值。新增 provider 三步：repo Settings 加 secret → workflow 加一行显式 env 注入（Actions 不支持按名动态引用 secrets，此摩擦是有意审查点）→ 本文件 providers + chain 各加一条。失败分类动作：rate_limit/timeout/auth → 降级下一模型；unknown → 直接失败（真问题不得被降级链洗白）。",
+  "providers": {
+    "agnes": {
+      "clineProvider": "openai",
+      "baseUrl": "https://apihub.agnes-ai.com/v1",
+      "keySecret": "AGNES_API_KEY"
+    }
+  },
+  "chain": [
+    { "provider": "agnes", "model": "agnes-3.0-flash" }
+  ],
+  "maxAttemptsPerRun": 3,
+  "onError": {
+    "rate_limit": "next",
+    "timeout": "next",
+    "auth": "next",
+    "missing_key": "next",
+    "unknown": "fail"
+  },
+  "signatures": {
+    "rate_limit": ["rate limit", "rate_limit", "429", "quota", "token plan"],
+    "timeout": ["timed out", "timeout", "etimedout", "econnreset", "connection reset"],
+    "auth": ["401", "403", "unauthorized", "invalid api key", "authentication", "invalid key"]
+  }
+}
