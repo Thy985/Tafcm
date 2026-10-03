@@ -1,14 +1,13 @@
 {
-  "events_total": 33,
-  "gate_evaluations": 1,
+  "events_total": 32,
+  "gate_evaluations": 0,
   "gate_no_work": 0,
   "gate_skipped_run": 0,
-  "gate_eligible": 1,
+  "gate_eligible": 0,
   "llm_activations": 1,
-  "gate_skip_rate": 0.0,
   "by_bucket": {
     "meta": 31,
-    "maintenance": 2
+    "maintenance": 1
   },
   "by_tier": {
     "L0": 0,
@@ -17,7 +16,15 @@
   },
   "published_issues": 0,
   "verified": 0,
+  "identity_source": {
+    "registry_declared": 31,
+    "script_derived": 1
+  },
+  "registry_label_collisions": 8,
+  "budget_caps_enforced": false,
   "cost_estimate": {
     "llm_cost_estimate": 0.0
-  }
+  },
+  "gate_unavailable": 0,
+  "gate_skip_rate": null
 }

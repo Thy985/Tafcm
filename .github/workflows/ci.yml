@@ -614,6 +614,16 @@ jobs:
       - name: Validate control-plane contracts
         run: python3 .github/scripts/tafcm-maintainer/validate_agent_contracts.py
 
+      # 投影是账本的派生物，不是第二份可编辑的真相。这条把"只读投影"从注释变成
+      # 门禁：谁手改了 LEDGER.md / ledger-metrics.json，或者写了账本却没重生成投影，
+      # PR 就红。#289 的成因正是展示层与状态层是同一份文件。
+      - name: Ledger projections match the ledger
+        run: |
+          python3 .github/scripts/tafcm-maintainer/ledger.py project \
+            --out-md docs/agent-audit/LEDGER.md \
+            --out-metrics docs/agent-audit/ledger-metrics.json --check
+          python3 .github/scripts/tafcm-maintainer/ledger.py reconcile
+
       - name: Run eligibility gate invariants check
         run: python3 .github/scripts/tafcm-maintainer/eligibility_gate_test.py
 

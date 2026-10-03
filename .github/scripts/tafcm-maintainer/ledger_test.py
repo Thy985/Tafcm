@@ -73,6 +73,14 @@ class TempLedgerCase(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             return append(self.ledger_path, event)
 
+    def registry(self, rows) -> Path:
+        path = self.ledger_path.parent / "FINDINGS.md"
+        header = ("| fingerprint | latest_id | category | evidence | status | issue | "
+                  "first_seen | last_seen |\n|---|---|---|---|---|---|---|---|\n")
+        body = "".join("| {} | {} | {} | {} | {} | {} | {} | {} |\n".format(*r) for r in rows)
+        path.write_text(header + body, encoding="utf-8")
+        return path
+
 
 class AppendBasicsTest(TempLedgerCase):
     def test_gate_row_appends(self):
@@ -396,14 +404,6 @@ nothing here
 
 
 class ImportAndReconcileTest(TempLedgerCase):
-    def registry(self, rows) -> Path:
-        path = self.ledger_path.parent / "FINDINGS.md"
-        header = ("| fingerprint | latest_id | category | evidence | status | issue | "
-                  "first_seen | last_seen |\n|---|---|---|---|---|---|---|---|\n")
-        body = "".join("| {} | {} | {} | {} | {} | {} | {} | {} |\n".format(*r) for r in rows)
-        path.write_text(header + body, encoding="utf-8")
-        return path
-
     def test_import_then_reconcile_is_consistent(self):
         rows = [("0" * 16, "F-2026-09-01-01", "bug", "a.dart", "UNCHANGED", "#216",
                  "2026-09-01", "2026-09-01")]
@@ -457,6 +457,172 @@ class ImportAndReconcileTest(TempLedgerCase):
             code = ledger.cmd_reconcile(recon)
         self.assertEqual(code, 1)
         self.assertIn("不在账本里", err.getvalue())
+
+
+class ScriptOwnershipTest(TempLedgerCase):
+    """申报制就是 #289 的成因：能被上游填的身份字段，上游就会填出一个自洽的假身份。
+
+    这条是参数化的—— commit message 里那句"身份由脚本算"只有在每个字段都撞过墙
+    之后才成立。
+    """
+
+    def test_declared_identity_fields_are_rejected(self):
+        cases = [
+            ("event_id", {"event_id": "EV-ffffffffffffffff"}, "event_id 由脚本拥有"),
+            ("ts", {"ts": "2020-01-01T00:00:00+00:00"}, "ts 由脚本拥有"),
+            ("hypothesis_id", {"hypothesis_id": "HYP-001"}, "hypothesis_id 由脚本分配"),
+            ("created_by_run", {"hypothesis": {**hyp_event()["hypothesis"],
+                                               "created_by_run": "not-my-run"}},
+             "created_by_run 由脚本"),
+        ]
+        for name, extra, needle in cases:
+            with self.subTest(field=name), self.assertRaises(LedgerError) as ctx:
+                self.append_quietly(hyp_event(**extra))
+            self.assertIn(needle, str(ctx.exception))
+
+    def test_verdict_for_unknown_hypothesis_is_rejected(self):
+        """拼错一个 hypothesis_id 就给不存在的假设签了字：metrics.verified 会凭空涨。"""
+        with self.assertRaises(LedgerError) as ctx:
+            self.append_quietly({"type": "verdict_recorded", "actor": "verifier",
+                                 "run_id": "run-v-1", "budget_bucket": "meta",
+                                 "hypothesis_id": "HYP-999",
+                                 "verdict": {"decision": "verified", "rationale": "x"}})
+        self.assertIn("未知假设", str(ctx.exception))
+
+    def test_importer_cannot_certify(self):
+        """importer 是装载器不是判定者：给它签字权 = 自证阻断整条对导入通道失效。"""
+        self.append_quietly(hyp_event(run_id="run-1"))
+        for etype in ("tier_promoted", "verdict_recorded"):
+            payload = {"type": etype, "actor": "importer", "run_id": "import-2026-10-03",
+                       "budget_bucket": "meta", "hypothesis_id": "HYP-001"}
+            if etype == "verdict_recorded":
+                payload["verdict"] = {"decision": "verified", "rationale": "x"}
+            else:
+                payload["hypothesis"] = {"evidence_tier": "L2"}
+            with self.subTest(type=etype), self.assertRaises(LedgerError) as ctx:
+                self.append_quietly(payload)
+            self.assertIn("无权写", str(ctx.exception))
+
+    def test_self_authored_l2_is_blocked_at_write_step(self):
+        """契约把这条叫"机械阻断点"，那它就不能只存在于契约文字里。"""
+        with self.assertRaises(LedgerError) as ctx:
+            self.append_quietly(hyp_event(hypothesis={
+                **hyp_event()["hypothesis"], "evidence_tier": "L2",
+                "invariant_source": {"kind": "self_authored"}}))
+        self.assertIn("self_authored", str(ctx.exception))
+
+    def test_retired_hypothesis_recurrence_gets_its_own_id(self):
+        """闭合只"不再覆盖"是不够的：复发必须能被当成新候选，而不是挂在退役假设上。"""
+        first = self.append_quietly(hyp_event())
+        self.append_quietly({"type": "retired", "actor": "verifier", "run_id": "run-v",
+                             "budget_bucket": "meta", "hypothesis_id": first["hypothesis_id"]})
+        again = self.append_quietly(hyp_event(run_id="run-2"))
+        self.assertNotEqual(again["hypothesis_id"], first["hypothesis_id"])
+        self.assertIsNone(again.get("duplicate_of"))
+
+    def test_content_addressed_event_id_is_replayable(self):
+        """同一内容重跑夜间管道不该在账本里堆两份；event_id 也必须能被人重算核对。"""
+        event = gate_row(run_id="run-gate-x")
+        first = self.append_quietly(event)
+        with redirect_stdout(io.StringIO()) as out:
+            second = append(self.ledger_path, event)
+        self.assertIn("[SKIP]", out.getvalue())
+        self.assertEqual(len(read_events(self.ledger_path)), 1)
+        self.assertEqual(first["event_id"], second["event_id"])
+
+    def test_null_hypothesis_payload_does_not_brick_readers(self):
+        """`hypothesis: null` 是契约允许的取值；读路径按 dict 假设它，账本就没法投影了。"""
+        self.append_quietly(hyp_event())
+        with open(self.ledger_path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"schema_version": "1.0", "event_id": "EV-00000000000000ab",
+                                 "ts": "2026-10-03T00:00:00+00:00", "type": "hypothesis_updated",
+                                 "actor": "scout", "run_id": "run-1", "budget_bucket": "meta",
+                                 "hypothesis_id": "HYP-001", "hypothesis": None},
+                                sort_keys=True) + "\n")
+        out = self.ledger_path.parent / "state.json"
+        st = type("A", (), {"ledger": str(self.ledger_path), "out": str(out),
+                            "date": "2026-10-20", "allow_missing": False})()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ledger.cmd_state(st), 0)
+        md = self.ledger_path.parent / "L.md"
+        metrics = self.ledger_path.parent / "m.json"
+        pr = type("A", (), {"ledger": str(self.ledger_path), "out_md": str(md),
+                            "out_metrics": str(metrics), "check": False})()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ledger.cmd_project(pr), 0)
+
+    def test_state_refuses_missing_ledger(self):
+        """空账本与读不到账本是两件事：后者意味着文件被移走，不能当普通夜晚继续跑。"""
+        out = Path(self._tmp.name) / "state.json"
+        st = type("A", (), {"ledger": str(Path(self._tmp.name) / "nope.ndjson"),
+                            "out": str(out), "date": "2026-10-20", "allow_missing": False})()
+        with self.assertRaises(LedgerError) as ctx:
+            ledger.cmd_state(st)
+        self.assertIn("账本不存在", str(ctx.exception))
+
+    def test_projection_is_reproducible_and_checkable(self):
+        """投影里带生成时间 = 每晚都把没变的账本改脏，CI 也没法判"投影与账本一致"。"""
+        self.append_quietly(hyp_event())
+        md = self.ledger_path.parent / "LEDGER.md"
+        metrics = self.ledger_path.parent / "m.json"
+        args = type("A", (), {"ledger": str(self.ledger_path), "out_md": str(md),
+                              "out_metrics": str(metrics), "check": False})()
+        with redirect_stdout(io.StringIO()):
+            ledger.cmd_project(args)
+        first = md.read_text(encoding="utf-8")
+        with redirect_stdout(io.StringIO()):
+            ledger.cmd_project(args)
+        self.assertEqual(first, md.read_text(encoding="utf-8"))
+        check = type("A", (), {"ledger": str(self.ledger_path), "out_md": str(md),
+                               "out_metrics": str(metrics), "check": True})()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ledger.cmd_project(check), 0)
+        md.write_text("手写投影\n", encoding="utf-8")
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(ledger.cmd_project(check), 1, "投影被手改必须被 --check 抓到")
+
+    def test_crashed_gate_nights_do_not_count_as_skips(self):
+        """§3.6 的分母纪律：闸门自己崩掉的夜晚连一次有效评估都没做成。"""
+        self.append_quietly(gate_row(type="gate_skipped_run", budget_bucket="meta",
+                                     gate={"channel": "none",
+                                           "reasons": ["maintenance_budget_exhausted"],
+                                           "dimension": None}))
+        self.append_quietly(gate_row(type="gate_skipped_run", budget_bucket="meta",
+                                     gate={"channel": "none", "reasons": ["gate_step_failed"],
+                                           "dimension": None}))
+        md = self.ledger_path.parent / "LEDGER.md"
+        metrics = self.ledger_path.parent / "m.json"
+        args = type("A", (), {"ledger": str(self.ledger_path), "out_md": str(md),
+                              "out_metrics": str(metrics), "check": False})()
+        with redirect_stdout(io.StringIO()):
+            ledger.cmd_project(args)
+        data = json.loads(metrics.read_text(encoding="utf-8"))
+        self.assertEqual(data["gate_unavailable"], 1)
+        self.assertEqual(data["gate_skip_rate"], 1.0,
+                         "分母必须剔掉不可用夜晚，否则坏闸门看起来很有用")
+
+    def test_registry_label_collision_is_surfaced_not_merged(self):
+        """同一个注册表标签挂两个身份 = 注册表自己漂了；账本如实记录，不替它合并。"""
+        registry = self.registry([
+            ("aaaaaaaaaaaaaaaa", "F-2026-09-10-01", "test-gap", "a_test.dart", "NEW",
+             "#265", "2026-09-10", "2026-09-10"),
+            ("bbbbbbbbbbbbbbbb", "F-2026-09-10-01", "architecture", "b.dart", "NEW",
+             "N/A", "2026-09-10", "2026-09-10"),
+        ])
+        args = type("A", (), {"ledger": str(self.ledger_path), "registry": str(registry),
+                              "date": "2026-10-03", "dry_run": False})()
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(ledger.cmd_import_findings(args), 0)
+        md = self.ledger_path.parent / "LEDGER.md"
+        metrics = self.ledger_path.parent / "m.json"
+        pr = type("A", (), {"ledger": str(self.ledger_path), "out_md": str(md),
+                            "out_metrics": str(metrics), "check": False})()
+        with redirect_stdout(io.StringIO()):
+            ledger.cmd_project(pr)
+        data = json.loads(metrics.read_text(encoding="utf-8"))
+        self.assertEqual(data["registry_label_collisions"], 1)
+        self.assertEqual(data["identity_source"], {"registry_declared": 2})
+        self.assertIn("身份来源告警", md.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

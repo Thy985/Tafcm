@@ -34,6 +34,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SCHEMA = REPO_ROOT / ".github" / "schemas" / "gate-result.schema.json"
 DEFAULT_FRONTIER = REPO_ROOT / ".agent" / "tafcm-maintainer" / "FRONTIER.md"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# state 契约的真相在写入方（ledger.py state）；两边各写一份键名，漂移就只能靠影子期
+# 读数去发现——那正是本闸门要避免的调试方式。
+from ledger import STATE_REQUIRED_KEYS, STATE_SCHEMA_VERSION  # noqa: E402
+
 MAINTENANCE_CAP_TODAY = 1.0      # 单位：llm_cost_estimate
 EXPLORATION_CAP_TODAY = 0.6
 EXPLORATION_SLOT_DAYS = 7        # 每周一次探索槽位
@@ -44,6 +49,9 @@ COVERAGE_FLOOR_DAYS = 30         # 高实验成本维度的覆盖下限
 # 结构性抖动只统计产品代码路径。不从 DIMENSION_WORKSET 取并集：那会把 infra_ci 的
 # .github/ 与 tools/ 也算进来，而 CI 配置改动不构成"代码结构抖动"。
 CHURN_CODE_PREFIXES = ("flutter_app/lib/", "flutter_app/test/")
+# Agent 夜间管道自己写进 main 的产物。它们不构成"有人改了代码"，留着就是自指：
+# 上一夜的输出 → 这一夜的输入，maintenance 通道会夜夜必开。
+AGENT_OWNED_PREFIXES = ("docs/agent-audit/", "docs/agent-investigations/")
 STRUCTURAL_CHURN_LINES = 800     # 未校准，见设计文档 §6-8
 
 HYP_ID_RE = re.compile(r"^HYP-(\d{1,6})$")
@@ -108,28 +116,47 @@ def _run(args: list[str]) -> str:
     return proc.stdout
 
 
-def _last_audit_date() -> date | None:
-    """最近一次 daily maintainer audit 提交日期（近似"上次审查时刻"）。"""
+def _last_audit_ref() -> tuple[str | None, date | None]:
+    """最近一次 daily maintainer audit 的 (sha, 日期)——近似"上次审查时刻"。
+
+    返回 sha 而不只是日期：判定要的是"那次审查之后进了什么"，用 rev-range 表达。
+    """
     try:
-        out = _run(["git", "log", "-1", "--format=%cd", "--date=short",
+        out = _run(["git", "log", "-1", "--format=%H%x09%cd", "--date=short",
                     "--grep=chore(agent): daily maintainer audit", "origin/main"])
     except GateError:
-        return None
+        return None, None
     out = out.strip()
     if not out:
-        return None
+        return None, None
+    sha, _, committed = out.partition("\t")
     try:
-        return date.fromisoformat(out)
+        return sha, date.fromisoformat(committed.strip())
     except ValueError:
         raise GateError(f"无法解析 audit 日期: {out!r}")
 
 
+def _is_agent_owned(path: str) -> bool:
+    return path.startswith(AGENT_OWNED_PREFIXES)
+
+
 def _collect_live_signals(run_date: date) -> dict:
-    audit_at = _last_audit_date()
-    since = (audit_at - timedelta(days=1)) if audit_at else (run_date - timedelta(days=1))
-    raw = _run(["git", "log", f"--since={since.isoformat()}", "--name-only",
-                "--format=COMMIT:%H", "origin/main"])
+    audit_sha, audit_at = _last_audit_ref()
+    if audit_sha:
+        # 必须是 <audit sha>..origin/main，不能是"日期窗口"：审查提交本身就落在那天，
+        # 用日期取窗口会把"上一次审查自己写的文件"当成新变更 → maintenance 夜夜必开。
+        # 影子期读数就此失去意义，而这是 P0-1b 激活判定的唯一数据来源。
+        rev_range = f"{audit_sha}..origin/main"
+        since_clause: list[str] = []
+    else:
+        # 首夜还没有 audit 提交：按窗口取最近一天，行为与建闸前一致
+        since = (run_date - timedelta(days=1))
+        rev_range = "origin/main"
+        since_clause = [f"--since={since.isoformat()}"]
+    raw = _run(["git", "log", *since_clause, "--name-only",
+                "--format=COMMIT:%H", rev_range])
     commits: dict[str, list[str]] = {}
+    self_referential = 0
     current = None
     for line in raw.splitlines():
         line = line.strip()
@@ -138,6 +165,16 @@ def _collect_live_signals(run_date: date) -> dict:
             commits.setdefault(current, [])
         elif line and current:
             commits[current].append(line)
+    # 剔除 Agent 自己产出的路径：账本三件套 + audit 正文都是每晚确定性写入 main 的，
+    # 留着它们，"有变更"就等于"上个夜晚管道跑过"，与有没有人写代码无关。
+    filtered: dict[str, list[str]] = {}
+    for sha, paths in commits.items():
+        human = [p for p in paths if not _is_agent_owned(p)]
+        if len(human) != len(paths):
+            self_referential += 1
+        if human:
+            filtered[sha] = human
+    commits = filtered
 
     untriaged = _run(["gh", "issue", "list", "--state", "open", "--search", "no:label",
                       "--json", "number", "--jq", "length"]).strip()
@@ -156,6 +193,8 @@ def _collect_live_signals(run_date: date) -> dict:
         "date": run_date.isoformat(),
         "commits_since_last_audit": [{"sha": sha, "paths": paths}
                                      for sha, paths in commits.items()],
+        # 读数可复核：剔除是自指防御，不是把证据藏起来——被剔的提交数要留在结果里
+        "self_referential_commits_excluded": self_referential,
         "untriaged_issue_count": int(untriaged or 0),
         "failed_check_count": int(failed or 0),
         "frontier_entries": _frontier_open_entries(),
@@ -271,8 +310,12 @@ def exploration_channel(signals: dict, run_date: date, dimension_ids: list[str],
 
     state = signals.get("dimension_state", {}) or {}
     if stale_dimensions:
-        never = [d for d in stale_dimensions if state.get(d, {}).get("never_probed")]
-        reasons.append("dimension_never_probed" if never else "frontier_stale")
+        # 两件事都要能说，不许互相遮蔽：只 append 一个原因时，"有维度从没探测过"
+        # 会把"有维度探测过但过期了"盖掉——影子期就从读数里看不出该走哪条策略。
+        if any(_never_probed(signals, d) for d in stale_dimensions):
+            reasons.append("dimension_never_probed")
+        if any(not _never_probed(signals, d) for d in stale_dimensions):
+            reasons.append("frontier_stale")
 
     churn = signals.get("churn") or {}
     if sum(lines for path, lines in churn.items()
@@ -285,7 +328,7 @@ def exploration_channel(signals: dict, run_date: date, dimension_ids: list[str],
             continue
         d_state = state.get(dim, {}) or {}
         days = _days_since(d_state.get("last_probed"), run_date)
-        if d_state.get("never_probed") or (days is not None and days >= COVERAGE_FLOOR_DAYS):
+        if _never_probed(signals, dim) or (days is not None and days >= COVERAGE_FLOOR_DAYS):
             high_cost_covered.append(dim)
     if high_cost_covered:
         reasons.append("coverage_floor")
@@ -323,9 +366,9 @@ def _staleness(d_state: dict, run_date: date) -> int:
     return days if days is not None else 0
 
 
-def _is_stale(d_state: dict, run_date: date) -> bool:
+def _is_stale(d_state: dict, run_date: date, never_probed: bool = False) -> bool:
     """陈旧 = 账本说从没查过，或有明确日期且已超期。缺数据不算陈旧。"""
-    if d_state.get("never_probed"):
+    if never_probed or d_state.get("never_probed"):
         return True
     days = _days_since(d_state.get("last_probed"), run_date)
     return days is not None and days >= DIMENSION_STALE_DAYS
@@ -439,6 +482,10 @@ def assign_dimension(signals: dict, run_date: date, maintenance: dict) -> tuple[
 
 def budget_block(signals: dict) -> dict:
     given = signals.get("budget") or {}
+    # 账本还没记成本 → spent_today 永远是 0 → 上限永远不触发。这必须是机读事实，
+    # 不能只写在注释里：否则影子期会把"闸门很宽容"读成"预算够用"。
+    cost_observed = any((given.get(name) or {}).get("spent_today")
+                        for name in ("maintenance", "exploration"))
 
     def bucket(name: str, cap: float, unit: str = "llm_cost_estimate") -> dict:
         raw = given.get(name) or {}
@@ -457,13 +504,29 @@ def budget_block(signals: dict) -> dict:
         }
 
     return {"maintenance": bucket("maintenance", MAINTENANCE_CAP_TODAY),
-            "exploration": bucket("exploration", EXPLORATION_CAP_TODAY)}
+            "exploration": bucket("exploration", EXPLORATION_CAP_TODAY),
+            "enforced": cost_observed,
+            "note": None if cost_observed else "cost_not_recorded：账本尚无成本行，日上限不生效"}
+
+
+def _never_probed(signals: dict, dimension: str) -> bool:
+    """探测记录由账本给（闸门行分配过的维度 + 有假设的维度）。
+
+    没有这个字段就等于"不知道探测过没有"，此时不许推断成"从没探测过"——否则一空的
+    fixture 会让 7 个维度全部陈旧、探索通道夜夜放行，把自指饱和换成另一种饱和。
+    """
+    probed = signals.get("probed_dimensions")
+    if isinstance(probed, list):
+        return dimension not in probed
+    return bool((signals.get("dimension_state") or {}).get(dimension, {}).get("never_probed"))
 
 
 def evaluate(signals: dict, run_date: date) -> dict:
     maintenance = maintenance_channel(signals)
     state = signals.get("dimension_state") or {}
-    stale_dims = [d for d in DIMENSION_WORKSET if _is_stale(state.get(d) or {}, run_date)]
+    stale_dims = [d for d in DIMENSION_WORKSET
+                  if _is_stale(state.get(d) or {}, run_date,
+                               never_probed=_never_probed(signals, d))]
     exploration = exploration_channel(signals, run_date, list(DIMENSION_WORKSET), stale_dims)
     budget = budget_block(signals)
 
@@ -555,7 +618,10 @@ def emit(result: dict, extras: dict, out_path: Path, schema_path: Path, max_kb: 
     if result["noop_record"]:
         lines.append(f"- NO_WORK: `{result['noop_record']['reason']}`（本次零 token）")
     if summary_path:
-        Path(summary_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # GITHUB_STEP_SUMMARY 是整个 job 共享的文件，后面的步骤用 >> 往里加。
+        # 用写模式会把它们的内容抹掉——闸门是第 2 步，今天还没人排在它前面。
+        with open(summary_path, "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
 
     if github_output:
         with open(github_output, "a", encoding="utf-8") as fh:
@@ -574,14 +640,34 @@ def merge_ledger_state(signals: dict, state_path: Path) -> dict:
 
     没有这一步，调度器的 staleness 只能来自 fixture；有了它，P0-1 与 P0-2 才闭环：
     账本 → 陈旧度 → 领域分配 → 激活与否。
+
+    契约是硬前置：`ledger.py state` 少给一个键、把 dict 给成字符串，都必须在这里响。
+    曾经的做法是 `.get()` 到底，结果 schema 漂移安静地退化成"今晚没有陈旧维度"，
+    影子期就把"闸门读不到账本"和"确实没有陈旧"记成了同一件事。
     """
-    ledger_state = json.loads(Path(state_path).read_text(encoding="utf-8"))
-    for key in ("dimension_state", "commits_since_last_audit", "churn"):
-        if not signals.get(key) and ledger_state.get(key):
-            signals[key] = ledger_state[key]
+    try:
+        ledger_state = json.loads(Path(state_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise GateError(f"账本 state 不可读：{state_path}（{exc}）") from exc
+    if not isinstance(ledger_state, dict):
+        raise GateError(f"账本 state 必须是对象，实得 {type(ledger_state).__name__}")
+    missing = [k for k in STATE_REQUIRED_KEYS if k not in ledger_state]
+    if missing:
+        raise GateError(f"账本 state 缺必填键 {missing}——ledger.py 与闸门已经漂移，"
+                        "不许按缺省值继续判")
+    version = ledger_state.get("schema_version")
+    if version != STATE_SCHEMA_VERSION:
+        raise GateError(f"账本 state schema_version={version!r}，闸门认 "
+                        f"{STATE_SCHEMA_VERSION!r}")
+    if not isinstance(ledger_state.get("dimension_state"), dict):
+        raise GateError("账本 state 的 dimension_state 不是对象")
     for key in ("days_since_last_exploration", "last_exploration_date"):
         if signals.get(key) is None and ledger_state.get(key) is not None:
             signals[key] = ledger_state[key]
+    # 陈旧度永远以账本为准（fixture/探针给的只是没有账本时的替身）
+    signals["dimension_state"] = ledger_state["dimension_state"]
+    signals["probed_dimensions"] = ledger_state["probed_dimensions"]
+    signals["ledger_state_events"] = ledger_state["events_total"]
     return signals
 
 
