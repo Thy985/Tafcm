@@ -407,6 +407,9 @@ jobs:
 
       # 完整性守门：注册表里的身份必须都能在账本里找到。两套状态并存的过渡期里，
       # 这条是"账本仍是唯一真相"的可执行定义；漂了就 FAILED，不做静默容忍。
+      # 刻意保持硬失败，但不再卡住落账：两个 Guard 与 Commit 都走 always()，所以
+      # 漂移的夜晚照样把闸门行提交进去，只是 job 判红。改 FINDINGS.md 的 PR 必须
+      # 在同一个 PR 里跑 import-findings + project，否则这条就是它的守门。
       - name: Ledger — reconcile with finding registry
         run: |
           set -euo pipefail
@@ -416,6 +419,7 @@ jobs:
       # "只有确定性步骤能写它"目前只是一句注释。这条把它变成可执行检查：
       # 与 HEAD 相比，账本不许有删除或改写的行——Cline 直接改账本会被拦下。
       - name: Guard — ledger is append-only
+        if: always()
         run: |
           set -euo pipefail
           if git diff --unified=0 -- docs/agent-audit/ledger.ndjson | grep -q '^-[^-]'; then
@@ -434,6 +438,11 @@ jobs:
       # 因此必须检查完整工作树（git status），不能用 git diff --cached。
       - name: Guard — 仅允许 audit / investigations 目录变更
         id: guard
+        # 两个 Guard 都必须 always()：Commit 只在"范围守卫判定为成功"时提交，而
+        # reconcile / import-audit 失败的夜晚闸门行仍要落账。若 Guard 因为上游失败
+        # 而被 skip，它的 outcome 就不是 success，Commit 会被连带跳过——守门反而
+        # 把账本冻住了。
+        if: always()
         run: |
           CHANGED="$(git status --porcelain \
             | sed -E 's/^.. //; s/.* -> //' \
