@@ -110,4 +110,33 @@ golden 视觉回归保护现已在 CI 常驻生效。后续新增 golden 测试�
 
 ---
 
+## 6. 环境条件跳过：F-02 像素套件本机默认跳过（PIXEL-LOCAL-001）
+
+```yaml
+id: PIXEL-LOCAL-001
+status: ACTIVE  # 2026-10-03 登记
+tests:
+  - flutter_app/test/renderers/offscreen_capture_pixel_test.dart
+    `F-02 正向：boundary 直接包内容（生产定稿）→ 不透明且有墨迹`
+  - 同文件 `F-02 反向：boundary 包 Opacity(0) 复现全透明（守门非恒真）`
+kind: 运行时环境变量条件跳过（非 skip: 旗标，不计入 §5 越界检查 grep 计数）
+root_cause: >
+  PR #278 假设"CI 挂起、本机(Windows desktop)正常"。2026-10-03 实测
+  （#250 会话）本机假设失效：断言本体照常通过并打印
+  （opaque=1.0 ink=0.11 / opaque=0.0），但 toImage 依赖的真实异步
+  悬挂，binding 拖满 10min/条 测试超时，全量 flutter test 多耗 2×10min。
+gate:
+  ci: CI=true → 跳过（沿 #278 原逻辑）
+  local: 默认跳过；RUN_OFFSCREEN_PIXEL_TESTS=true 显式开启人工像素验证
+evidence_owners:
+  - 像素正确性改由真机 U7 发布门承担（与本文件 GOLDEN-CI-001 销案后的
+    职责划分一致）
+re_enable_checklist:
+  - 本机或等价 desktop runner 上 toImage 不再悬挂时，去掉默认跳过
+  - 或 #250 真机吞吐验证（needs-device-validation）时顺带采集像素证据后关闭本条
+tracking: issue #250 / PR #307 会话记录
+```
+
+---
+
 **本文档由 AI Agent 维护，版本 v1.0，生效日期 2026-07-19。**
