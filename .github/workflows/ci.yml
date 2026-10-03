@@ -619,3 +619,10 @@ jobs:
 
       - name: Run contract minicheck self-test
         run: python3 .github/scripts/tafcm-maintainer/contract_minicheck_test.py
+
+      - name: Run canonical ledger invariants check
+        run: python3 .github/scripts/tafcm-maintainer/ledger_test.py
+
+      # 账本与注册表不得漂移（P0-2 的完整性定义）
+      - name: Reconcile ledger with finding registry
+        run: python3 .github/scripts/tafcm-maintainer/ledger.py reconcile

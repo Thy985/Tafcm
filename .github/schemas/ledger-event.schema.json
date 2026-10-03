@@ -11,11 +11,11 @@
     "event_id": { "type": "string", "pattern": "^EV-[0-9a-f]{16}$" },
     "ts": { "type": "string", "description": "ISO-8601 UTC" },
     "run_id": { "type": "string", "description": "GitHub Actions run id；promote 类事件的 run_id 必须不同于该 hypothesis 的 created run_id" },
-    "actor": { "enum": ["scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human"] },
+    "actor": { "enum": ["scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human", "importer"] },
     "budget_bucket": { "enum": ["maintenance", "exploration", "meta"] },
     "type": {
       "enum": [
-        "gate_no_work", "gate_skipped_run",
+        "gate_eligible", "gate_no_work", "gate_skipped_run",
         "hypothesis_added", "hypothesis_updated",
         "experiment_planned", "experiment_executed",
         "evidence_attached", "tier_promoted",
@@ -111,6 +111,7 @@
           }
         },
         "created_by_run": { "type": "string", "description": "promote 到 L2 时，写入步骤校验 run_id != created_by_run" },
+        "last_observed": { "type": ["string", "null"], "description": "YYYY-MM-DD：这次观察**实际发生**的日期。陈旧度用它算，绝不能用事件写入时间——否则一次回填就把所有维度的探测节律清零。" },
         "last_verified_at": { "type": ["string", "null"] },
         "activation_reason": {
           "enum": ["changed-code", "new-issue", "test-failure", "new-evidence", "risk-driven", "frontier-stale", "structural-churn", null]

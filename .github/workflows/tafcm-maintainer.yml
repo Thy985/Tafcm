@@ -99,7 +99,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .tmp/tafcm-maintainer
+          # 账本 → 真实陈旧度 → 领域分配（P0-2 把这条闭环接上；账本尚不存在时
+          # state 输出空 dimension_state，gate 退回"缺数据不算陈旧"的保守判定）
+          python3 .github/scripts/tafcm-maintainer/ledger.py state \
+            --out .tmp/tafcm-maintainer/ledger-state.json
           python3 .github/scripts/tafcm-maintainer/eligibility_gate.py \
+            --state-file .tmp/tafcm-maintainer/ledger-state.json \
             --output .tmp/tafcm-maintainer/gate-result.json \
             --summary "$GITHUB_STEP_SUMMARY" \
             --github-output "$GITHUB_OUTPUT"
@@ -366,6 +371,34 @@ jobs:
           python3 .github/scripts/tafcm-maintainer/fingerprint.py \
             "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             "docs/agent-audit/FINDINGS.md"
+
+      # ---------- 3.6 Canonical Ledger（P0-2）----------
+      # 账本写入一律由确定性步骤执行；Cline 没有账本写权限（治理红线 §4-5 / §4-7）。
+      # LEDGER.md / ledger-metrics.json 是只读投影：改展示不碰账本，改账本重生成投影。
+      - name: Ledger — append gate outcome
+        if: always()
+        run: |
+          python3 .github/scripts/tafcm-maintainer/ledger.py append-gate \
+            --gate-result .tmp/tafcm-maintainer/gate-result.json \
+            --missing-reason gate_step_failed \
+            --run-id "${{ github.run_id }}"
+
+      - name: Ledger — import today's audit findings
+        run: |
+          python3 .github/scripts/tafcm-maintainer/ledger.py import-audit \
+            --audit "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md"
+
+      - name: Ledger — regenerate read-only projections
+        if: always()
+        run: |
+          python3 .github/scripts/tafcm-maintainer/ledger.py project \
+            --out-md docs/agent-audit/LEDGER.md \
+            --out-metrics docs/agent-audit/ledger-metrics.json
+
+      # 完整性守门：注册表里的身份必须都能在账本里找到。两套状态并存的过渡期里，
+      # 这条是"账本仍是唯一真相"的可执行定义；漂了就 FAILED，不做静默容忍。
+      - name: Ledger — reconcile with finding registry
+        run: python3 .github/scripts/tafcm-maintainer/ledger.py reconcile
 
       # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
       # 精确前缀匹配：先剥离 porcelain 状态码（"XY path"，重命名取 new），

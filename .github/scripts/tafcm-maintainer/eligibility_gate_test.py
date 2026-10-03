@@ -414,6 +414,33 @@ class CliTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue(out.is_file())
 
+    def test_ledger_state_closes_the_staleness_loop(self):
+        """账本 → 陈旧度 → 领域分配 → 激活。没有 --state-file 时这条闭环不存在。
+
+        用 fixture 提供"无任何变更"的信号，让账本负责陈旧度：既 hermetic
+        （不跑真实 git/gh 探针），又正好验证账本值只填空、不覆盖探针值。
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "ledger-state.json"
+            state.write_text(json.dumps({
+                "dimension_state": {"export": {"last_probed": "2026-08-01",
+                                               "open_candidates": 1, "candidate_ids": [7],
+                                               "open_severity": "high"}},
+                "days_since_last_exploration": None,
+                "last_exploration_date": None,
+            }), encoding="utf-8")
+            empty = Path(tmp) / "signals.json"
+            empty.write_text(json.dumps(quiet()), encoding="utf-8")
+            out = Path(tmp) / "gate.json"
+            code = gate.main(["--date", MONDAY.isoformat(), "--fixture", str(empty),
+                              "--state-file", str(state), "--output", str(out)])
+            self.assertEqual(code, 0)
+            result = json.loads(out.read_text(encoding="utf-8"))
+            self.assertTrue(result["eligible"], "export 已 65 天未探测，非槽位日也该放行")
+            self.assertIn("frontier_stale", result["exploration"]["reasons"])
+            self.assertEqual(result["dimension"]["assigned"], "export")
+            self.assertEqual(result["dimension"]["candidates"], ["HYP-007"])
+
     def test_missing_fixture_fails_loudly(self):
         code = gate.main(["--fixture", "/nope/missing.json", "--date", MONDAY.isoformat()])
         self.assertEqual(code, 1, "gate 自身出错必须响，不得静默降级成 NO_WORK")

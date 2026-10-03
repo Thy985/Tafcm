@@ -569,6 +569,22 @@ def emit(result: dict, extras: dict, out_path: Path, schema_path: Path, max_kb: 
     return []
 
 
+def merge_ledger_state(signals: dict, state_path: Path) -> dict:
+    """把账本算出的真实陈旧度并进来（账本优先于缺省，不覆盖已有探针值）。
+
+    没有这一步，调度器的 staleness 只能来自 fixture；有了它，P0-1 与 P0-2 才闭环：
+    账本 → 陈旧度 → 领域分配 → 激活与否。
+    """
+    ledger_state = json.loads(Path(state_path).read_text(encoding="utf-8"))
+    for key in ("dimension_state", "commits_since_last_audit", "churn"):
+        if not signals.get(key) and ledger_state.get(key):
+            signals[key] = ledger_state[key]
+    for key in ("days_since_last_exploration", "last_exploration_date"):
+        if signals.get(key) is None and ledger_state.get(key) is not None:
+            signals[key] = ledger_state[key]
+    return signals
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", type=Path, help="信号 JSON（测试/复盘用，给了就不跑探针）")
@@ -579,6 +595,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--summary", type=Path, help="GITHUB_STEP_SUMMARY 路径")
     parser.add_argument("--github-output", type=Path, help="GITHUB_OUTPUT 路径")
     parser.add_argument("--max-record-kb", type=float, default=16.0)
+    parser.add_argument("--state-file", type=Path,
+                        help="ledger.py state 的输出：把真实陈旧度/候选队列并进来（账本→调度闭环）")
     parser.add_argument("--var", action="append", default=[], help="KEY=VALUE 覆盖信号")
     args = parser.parse_args(argv)
 
@@ -591,6 +609,8 @@ def main(argv: list[str] | None = None) -> int:
             signals.setdefault("date", run_date.isoformat())
         else:
             signals = _collect_live_signals(run_date)
+        if args.state_file:
+            signals = merge_ledger_state(signals, Path(args.state_file))
         for pair in args.var:
             if "=" not in pair:
                 raise GateError(f"--var 需要 KEY=VALUE：{pair}")
