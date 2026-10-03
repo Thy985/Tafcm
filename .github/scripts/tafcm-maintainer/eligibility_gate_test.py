@@ -203,6 +203,70 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(result["not_eligible_reason"], "both_budgets_exhausted")
 
 
+class LedgerShapeTest(unittest.TestCase):
+    """账本形状的输入必须走得通——P0-2 一接上真实 candidate_ids 就会走这条路。"""
+
+    def _signals(self, candidate_ids):
+        return quiet(
+            commits_since_last_audit=[
+                {"sha": "a", "paths": ["flutter_app/lib/core/parser/markdown_parser.dart"]}],
+            dimension_state={"correctness_test_gap": {"candidate_ids": candidate_ids}})
+
+    def test_full_hyp_ids_pass_through(self):
+        result, _ = evaluate(self._signals(["HYP-007", "HYP-012"]), MONDAY)
+        self.assertEqual(result["dimension"]["candidates"], ["HYP-007", "HYP-012"],
+                         "账本写的是完整 id（与 ledger-event.hypothesis_id 同形），"
+                         "不是能 int() 的序号")
+
+    def test_bare_integers_are_normalized(self):
+        result, _ = evaluate(self._signals([7, "7"]), MONDAY)
+        self.assertEqual(result["dimension"]["candidates"], ["HYP-007"])
+
+    def test_malformed_candidate_is_rejected_not_silently_fixed(self):
+        result, extras = evaluate(self._signals(["hyp-seven"]), MONDAY)
+        self.assertEqual(result["dimension"]["candidates"], ["hyp-seven"])
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "gate-result.json"
+            problems = gate.emit(result, extras, out, SCHEMA_PATH, 16.0, None, None)
+            self.assertTrue(problems, "非法候选 id 必须被写前契约校验拦下")
+            self.assertFalse(out.exists())
+
+
+class ChurnPrefixTest(unittest.TestCase):
+    def test_test_dir_churn_counts_as_structural(self):
+        """flutter_app/test/ 下的抖动不该被漏掉。"""
+        churn = {f"flutter_app/test/unit/f{i}.dart": 100 for i in range(10)}
+        result, _ = evaluate(quiet(churn=churn), MONDAY)
+        self.assertIn("structural_churn", result["exploration"]["reasons"])
+
+    def test_ci_dir_churn_is_not_structural(self):
+        """.github/ 是 infra_ci 的 workset，但 CI 配置改动不构成代码结构抖动。"""
+        result, _ = evaluate(quiet(churn={".github/workflows/ci.yml": 5000}), MONDAY)
+        self.assertNotIn("structural_churn", result["exploration"]["reasons"])
+
+
+class FrontierParsingTest(unittest.TestCase):
+    SAMPLE = ("# Tafcm Audit Frontier\n\n"
+              "## 活跃队列（active / deepening / blocked）\n\n"
+              "### FR-001 — a\n- id: FR-001\n\n### FR-002 — b\n- id: FR-002\n\n"
+              "## 冷却区（cooling）\n\n### FR-003 — c\n- id: FR-003\n\n"
+              "## 归档区（retired）\n\n### FR-004 — d\n- id: FR-004\n")
+
+    def test_counts_only_active_region(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "FRONTIER.md"
+            path.write_text(self.SAMPLE, encoding="utf-8")
+            self.assertEqual(gate._frontier_open_count(path), 2)
+
+    def test_missing_marker_raises_instead_of_overcounting(self):
+        """标记被改名时，旧写法会把 cooling/retired 全算进活跃区，信号静默虚高。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "FRONTIER.md"
+            path.write_text(self.SAMPLE.replace("## 冷却区", "## 冷却队列"), encoding="utf-8")
+            with self.assertRaises(gate.GateError):
+                gate._frontier_open_count(path)
+
+
 class GuardEffectivenessTest(unittest.TestCase):
     """守门必须能变红：证明契约校验不是恒真通过。"""
 

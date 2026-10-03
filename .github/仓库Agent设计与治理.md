@@ -374,6 +374,11 @@ Net Maintainer Value = Accepted Findings + Follow-up Fixes [− 暂不计量: Pr
 统计功效不足，**只作趋势不作门槛**；Prevented Regressions 是反事实量，无操作化定义前显式不入账
 （候选代理：守门测试回归覆盖的历史 finding 数，另立条目计量）。
 
+**影子期分母纪律**：gate 步骤是 `continue-on-error: true`，失败夜晚步骤仍显示 success。
+这类夜晚**必须从 `gate_skip_rate` / `agent_activation_rate` 的分母中显式剔除或单独标注**，
+否则算出来的空转率是假的。`tafcm-maintainer.yml` 里 `Alert — Eligibility Gate 本夜未产出判定`
+步骤负责把缺席写在 step summary 与 workflow annotation 上。
+
 **Scout vs 全扫的比较用"同夜影子跑"**，不用前后分段——每晚 1 次、n≈30/臂的顺序分段会被 main 活跃度混淆。
 影子跑：全扫照旧 + 每晚 1 个专题 Scout，比较单位是**每条 finding 的证据完整度**与
 **Scout→Verifier 的 verified 转化率**（不是 Agent 自报的 confirmed），不是原始 finding 数。
@@ -418,15 +423,15 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 |----|------|
 | Gate + Scheduler | `.github/scripts/tafcm-maintainer/eligibility_gate.py`（纯 stdlib，`--fixture` 注入信号） |
 | 写前校验器 | `contract_minicheck.py`（draft-07 子集：type/enum/required/additionalProperties/items/minItems/pattern/$ref） |
-| 不变量测试 | `eligibility_gate_test.py`（21 例）+ `contract_minicheck_test.py`（16 例） |
-| 接线 | `tafcm-maintainer.yml` step `Eligibility Gate (shadow)`，产物 `gate-result.json` 进 artifact |
+| 不变量测试 | `eligibility_gate_test.py`（28 例）+ `contract_minicheck_test.py`（16 例） |
+| 接线 | `tafcm-maintainer.yml` step `Eligibility Gate (shadow)`，产物 `gate-result.json` 进 artifact；失败夜另由 `Alert — Eligibility Gate 本夜未产出判定` 步骤标注（§3.6 分母纪律） |
 | 守门 | `ci.yml` job `agent-control-plane-contracts` 跑上述两份测试 |
 
 **影子语义（刻意）**：闸门只记录判定，Cline 仍每晚执行；`continue-on-error: true`——闸门自身缺陷
 不得红掉夜间管道，缺陷在 artifact 与 step summary 留痕。攒够真实夜晚的 `gate_skip_rate` 与误判样本后，
 再把 `eligible=false` 变成真正的激活条件。
 
-三条由测试逼出来的实现规则（不是风格选择）：
+五条由测试或评审逼出来的实现规则（不是风格选择）：
 
 1. **缺数据 ≠ 陈旧**。`dimension_state` 为空若被当作"90 天没查"，探索通道会每晚放行，
    闸门立刻退化成它本该关闭的每日无界全扫。只有账本显式记 `never_probed` 或确有日期且超期才算陈旧。
@@ -436,6 +441,19 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 3. **两本账分别扣减**。`maintenance 耗尽 + exploration 耗尽` 必须得出 `eligible=false`；
    早期写法在这种组合下会算出 true，等于预算上限形同虚设。`no_work` 与
    `*_budget_exhausted` 是不同终态，混淆会让空转率指标说谎。
+4. **契约形状就是接口，消费方必须按形状解析**。首版把账本候选 id 当序号 `int(c)` 重排，
+   而契约与 `ledger-event.hypothesis_id` 规定的是完整字符串 `HYP-007` → 账本一接上就
+   `ValueError` 裸 traceback（`evaluate()` 调用点在 `main()` 的 try 之外）。修法是原样透传、
+   无法归一的形状交给写前契约校验拒绝，**不在闸门内部静默修形**。
+   21 例测试没抓到它，因为没有任何一例填过 `candidate_ids`——没走过的输入路径等于没有测试。
+5. **会让触发器静默失真的解析必须响，不该只写在 docstring 里**。活跃区 Entry 数原先只按
+   `## 冷却区` 切分，标题一旦改名，cooling/retired 会全数算进活跃区、`frontier_change` 虚高；
+   现在两个小节标记缺一即 `GateError`。同理 `structural_churn` 的代码路径改为显式常量
+   `CHURN_CODE_PREFIXES = (lib/, test/)`：原先硬编码 `lib/` 会漏掉 `test/`，
+   但**不能**从 workset 取并集——那会把 `.github/`、`tools/` 的配置改动也算成代码结构抖动。
+
+**周预算维度暂未生效**：`budget.*.spent_this_week / cap_this_week` 由信号透传，真实探针目前
+返回空 budget（恒 `null`，契约允许）。周上限要等 P0-2 账本提供逐夜成本行才能算，在此之前只有日上限起作用。
 
 **已知未接**：陈旧度与候选队列目前来自 fixture/缺省（账本尚未建立，P0-2 才提供
 `last_probed_at` / `candidate_ids` 的真实来源）；阈值（`EXPLORATION_SLOT_DAYS=7`、

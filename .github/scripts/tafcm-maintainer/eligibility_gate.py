@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -39,6 +40,17 @@ EXPLORATION_SLOT_DAYS = 7        # 每周一次探索槽位
 DIMENSION_STALE_DAYS = 21        # 超过即视为 frontier 陈旧
 NEVER_PROBED_STALENESS = 90      # 从未探测过维度的陈旧度替身
 COVERAGE_FLOOR_DAYS = 30         # 高实验成本维度的覆盖下限
+
+# 结构性抖动只统计产品代码路径。不从 DIMENSION_WORKSET 取并集：那会把 infra_ci 的
+# .github/ 与 tools/ 也算进来，而 CI 配置改动不构成"代码结构抖动"。
+CHURN_CODE_PREFIXES = ("flutter_app/lib/", "flutter_app/test/")
+STRUCTURAL_CHURN_LINES = 800     # 未校准，见设计文档 §6-8
+
+HYP_ID_RE = re.compile(r"^HYP-(\d{1,6})$")
+
+# FRONTIER.md 的小节标记（活跃区读数依赖两者同时存在）
+FRONTIER_ACTIVE_MARKER = "## 活跃队列"
+FRONTIER_COOLING_MARKER = "## 冷却区"
 
 # 维度 → 允许观察的工作集前缀（成本归因到工作集大小，不归因到日历条数）
 DIMENSION_WORKSET = {
@@ -96,7 +108,7 @@ def _run(args: list[str]) -> str:
     return proc.stdout
 
 
-def _last_audit_date(frontier_mode: str = "audit") -> date | None:
+def _last_audit_date() -> date | None:
     """最近一次 daily maintainer audit 提交日期（近似"上次审查时刻"）。"""
     try:
         out = _run(["git", "log", "-1", "--format=%cd", "--date=short",
@@ -155,11 +167,20 @@ def _collect_live_signals(run_date: date) -> dict:
     }
 
 
-def _frontier_open_count() -> int:
-    if not DEFAULT_FRONTIER.is_file():
+def _frontier_open_count(path: Path = DEFAULT_FRONTIER) -> int:
+    """活跃区 Entry 数（frontier_change 触发器的读数）。
+
+    两个小节标记都必须存在：只按 `## 冷却区` 切分时，标题一旦被改名，cooling 与
+    retired 条目会全数落进"活跃区"，让 frontier_change 静默虚高——一个会左右
+    maintenance 触发器的解析，不该用 docstring 里的"注意"来宽容。
+    """
+    if not path.is_file():
         return 0
-    text = DEFAULT_FRONTIER.read_text(encoding="utf-8")
-    active = text.split("## 冷却区")[0]
+    text = path.read_text(encoding="utf-8")
+    for marker in (FRONTIER_ACTIVE_MARKER, FRONTIER_COOLING_MARKER):
+        if marker not in text:
+            raise GateError(f"FRONTIER.md 缺少小节标记 {marker!r}，无法判定活跃区")
+    active = text.split(FRONTIER_ACTIVE_MARKER, 1)[1].split(FRONTIER_COOLING_MARKER, 1)[0]
     return active.count("\n### FR-")
 
 
@@ -208,7 +229,8 @@ def exploration_channel(signals: dict, run_date: date, dimension_ids: list[str],
         reasons.append("dimension_never_probed" if never else "frontier_stale")
 
     churn = signals.get("churn") or {}
-    if sum(churn.get(p, 0) for p in churn if p.startswith("flutter_app/lib/")) > 800:
+    if sum(lines for path, lines in churn.items()
+           if path.startswith(CHURN_CODE_PREFIXES)) > STRUCTURAL_CHURN_LINES:
         reasons.append("structural_churn")
 
     high_cost_covered = []
@@ -282,6 +304,22 @@ def _dimension_for_path(path: str) -> str | None:
     return best
 
 
+def _normalize_candidate(raw: object) -> str:
+    """账本候选 id → 契约形状 `HYP-NNN`。
+
+    账本写的是完整 id（与 ledger-event.hypothesis_id 同形），不是能 `int()` 的序号。
+    纯数字只是兼容旧 fixture。无法归一的形状原样返回，交给写前契约校验拒绝——
+    闸门宁可响亮失败，也不在这里静默修形。
+    """
+    text = str(raw).strip()
+    match = HYP_ID_RE.match(text)
+    if match:
+        return f"HYP-{int(match.group(1)):03d}"
+    if text.isdigit():
+        return f"HYP-{int(text):03d}"
+    return text
+
+
 def assign_dimension(signals: dict, run_date: date, maintenance: dict) -> tuple[str, dict]:
     """确定性领域分配：领域必须由本步骤决定，不得由 LLM 选——否则 Agent 会漂向
     实验成本最低的 parser/export 维度，复制 24-issue 的聚类偏差。"""
@@ -343,9 +381,8 @@ def assign_dimension(signals: dict, run_date: date, maintenance: dict) -> tuple[
     return best_dim, {
         "assigned": best_dim,
         "workset": workset,
-        "candidates": [f"HYP-{int(c):03d}" for c in
-                       (signals.get("dimension_state", {}).get(best_dim, {})
-                        .get("candidate_ids", []))],
+        "candidates": sorted({_normalize_candidate(c) for c in
+                              (state.get(best_dim, {}) or {}).get("candidate_ids", [])}),
         "score_components": best_components,
         "anti_inflation": {
             "severity_ceiling_by_tier": {"L0": "medium", "L1": "high", "L2": "critical"},

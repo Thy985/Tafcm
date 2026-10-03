@@ -104,6 +104,20 @@ jobs:
             --summary "$GITHUB_STEP_SUMMARY" \
             --github-output "$GITHUB_OUTPUT"
 
+      # 影子期的指标依赖"每夜 gate 真的跑了"。continue-on-error 会让失败步骤显示
+      # success，gate 缺席的夜晚必须显式标注，否则 gate_skip_rate 的分母是假的。
+      - name: Alert — Eligibility Gate 本夜未产出判定
+        if: steps.gate.outcome == 'failure'
+        run: |
+          {
+            echo "## [ALERT] Eligibility Gate 未产出判定"
+            echo ""
+            echo "- 本夜 gate 步骤失败（已被 continue-on-error 放行，夜间审查不受影响）"
+            echo "- **本夜必须从 gate_skip_rate / agent_activation_rate 的分母中剔除**"
+            echo "- 排查：本步骤日志的 traceback；对照 .github/仓库Agent设计与治理.md §3.9"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Eligibility Gate 未产出判定——本夜不计入影子期指标"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
