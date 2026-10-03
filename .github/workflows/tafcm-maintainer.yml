@@ -15,7 +15,9 @@
 #   - Audit 成功 + 邮件失败 → workflow 仍 SUCCESS，但明确报告
 #     "Audit completed but email delivery failed."（不伪装全成功）
 #
-# 复用：AGNES OpenAI 兼容端点 + AGNES_API_KEY（与 cline-pr-review.yml 一致）
+# 复用：模型降级链 .agent/tafcm-maintainer/models.json（单一真相，与
+#       cline-pr-review.yml 共用）+ runner .github/scripts/tafcm-maintainer/
+#       cline_fallback_runner.py（失败分类降级，密钥只走 env 注入）
 #       Flutter 3.44.6 / ubuntu-24.04（与 ci.yml 一致）
 # ============================================================================
 name: tafcm-maintainer
@@ -59,8 +61,8 @@ permissions:
 env:
   FLUTTER_VERSION: '3.44.6'
   CLINE_VERSION: '3.0.60'                     # 锁定 Cline 版本，防每日漂移
-  AGNES_BASE_URL: 'https://apihub.agnes-ai.com/v1'
-  AGNES_MODEL: 'agnes-3.0-flash'
+  MODELS_CONFIG: '.agent/tafcm-maintainer/models.json'
+  FALLBACK_RUNNER: '.github/scripts/tafcm-maintainer/cline_fallback_runner.py'
   AUDIT_DIR: 'docs/agent-audit'
   INVESTIGATIONS_DIR: 'docs/agent-investigations'
   TARGET_BRANCH: ${{ inputs.target_branch || 'main' }}
@@ -114,14 +116,6 @@ jobs:
           which cline
           cline --version
 
-      # AGNES 网关：OpenAI-compatible（/v1/chat/completions），与 cline-pr-review.yml 同款
-      - name: Configure Cline Authentication (AGNES)
-        run: |
-          cline auth -p openai \
-            -k "${{ secrets.AGNES_API_KEY }}" \
-            -m "${{ env.AGNES_MODEL }}" \
-            -b "${{ env.AGNES_BASE_URL }}"
-
       # ---------- 1.5 确保 Issue 标签存在（source:agent / type:* / priority:*）----------
       - name: Ensure issue labels
         env:
@@ -134,6 +128,7 @@ jobs:
         timeout-minutes: 90
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           # 命令权限（POLICY.md §2.3）——只允许维护与验证所需命令
           CLINE_COMMAND_PERMISSIONS: |
             {
@@ -200,7 +195,11 @@ jobs:
           "
           # Cline CLI 3.x headless：仅 --auto-approve true + prompt（官方文档与
           # cline-pr-review.yml 验证用法；--output-format 等选项不存在）
-          cline --auto-approve true "${PROMPT}${RUN_CTX}"
+          printf '%s' "${PROMPT}${RUN_CTX}" > .tmp/tafcm-maintainer/prompt_main.txt
+          python3 "$FALLBACK_RUNNER" \
+            --config "$MODELS_CONFIG" \
+            --prompt-file .tmp/tafcm-maintainer/prompt_main.txt \
+            --output-model-file .tmp/tafcm-maintainer/model_used_main.json
 
       # ---------- 2.5 兜底：保证每日 audit 文件存在（Issue #288）----------
       # Cline 偶发在"无 significant findings"日未正常产出 audit，导致每日
@@ -239,6 +238,7 @@ jobs:
         timeout-minutes: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           # 命令权限（POLICY.md §2.3）——与主 Cline 步骤一致
           CLINE_COMMAND_PERMISSIONS: |
             {
@@ -299,7 +299,11 @@ jobs:
           Status 用状态机枚举、Recommendation 用纯枚举词、必填字段一个不缺）。
           修正完成后必须自行运行 validate_audit.py 确认输出 ✅ 才算完成。
           "
-          cline --auto-approve true "${PROMPT}${FIX_CTX}"
+          printf '%s' "${PROMPT}${FIX_CTX}" > .tmp/tafcm-maintainer/prompt_fix.txt
+          python3 "$FALLBACK_RUNNER" \
+            --config "$MODELS_CONFIG" \
+            --prompt-file .tmp/tafcm-maintainer/prompt_fix.txt \
+            --output-model-file .tmp/tafcm-maintainer/model_used_fix.json
 
       # 最终守门：重试后仍失败 → workflow FAILED（不伪装成功）
       - name: Validate Audit format (final gate)
@@ -365,6 +369,14 @@ jobs:
           git push origin "HEAD:${TARGET_BRANCH}"
 
       # ---------- 6. 机器可读报告 + 邮件（独立脚本；失败不连坐 Audit）----------
+      - name: Log effective model (fallback attribution)
+        if: always()
+        run: |
+          for f in .tmp/tafcm-maintainer/model_used_main.json \
+                   .tmp/tafcm-maintainer/model_used_fix.json; do
+            [ -f "$f" ] && echo "MODEL_USED $(basename "$f"): $(cat "$f")"
+          done
+
       - name: Generate report
         id: report
         run: |
@@ -394,6 +406,8 @@ jobs:
           path: |
             .tmp/tafcm-maintainer/cline-result.json
             .tmp/tafcm-maintainer/report.json
+            .tmp/tafcm-maintainer/model_used_main.json
+            .tmp/tafcm-maintainer/model_used_fix.json
           retention-days: 30
           if-no-files-found: warn
 
