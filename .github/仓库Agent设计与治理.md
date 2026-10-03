@@ -412,6 +412,38 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 
 ---
 
+### 3.9 已落地：P0-1 双路 Gate（影子模式）
+
+| 件 | 位置 |
+|----|------|
+| Gate + Scheduler | `.github/scripts/tafcm-maintainer/eligibility_gate.py`（纯 stdlib，`--fixture` 注入信号） |
+| 写前校验器 | `contract_minicheck.py`（draft-07 子集：type/enum/required/additionalProperties/items/minItems/pattern/$ref） |
+| 不变量测试 | `eligibility_gate_test.py`（21 例）+ `contract_minicheck_test.py`（16 例） |
+| 接线 | `tafcm-maintainer.yml` step `Eligibility Gate (shadow)`，产物 `gate-result.json` 进 artifact |
+| 守门 | `ci.yml` job `agent-control-plane-contracts` 跑上述两份测试 |
+
+**影子语义（刻意）**：闸门只记录判定，Cline 仍每晚执行；`continue-on-error: true`——闸门自身缺陷
+不得红掉夜间管道，缺陷在 artifact 与 step summary 留痕。攒够真实夜晚的 `gate_skip_rate` 与误判样本后，
+再把 `eligible=false` 变成真正的激活条件。
+
+三条由测试逼出来的实现规则（不是风格选择）：
+
+1. **缺数据 ≠ 陈旧**。`dimension_state` 为空若被当作"90 天没查"，探索通道会每晚放行，
+   闸门立刻退化成它本该关闭的每日无界全扫。只有账本显式记 `never_probed` 或确有日期且超期才算陈旧。
+2. **维度映射取最具体前缀**。`flutter_app/lib/`（architecture，最便宜）会吞掉
+   `flutter_app/lib/presentation/` 下的全部变更，把每次 run 都派到成本最低的维度——
+   正是"漂向易实验模块"这个偏差在代码层的复现。
+3. **两本账分别扣减**。`maintenance 耗尽 + exploration 耗尽` 必须得出 `eligible=false`；
+   早期写法在这种组合下会算出 true，等于预算上限形同虚设。`no_work` 与
+   `*_budget_exhausted` 是不同终态，混淆会让空转率指标说谎。
+
+**已知未接**：陈旧度与候选队列目前来自 fixture/缺省（账本尚未建立，P0-2 才提供
+`last_probed_at` / `candidate_ids` 的真实来源）；阈值（`EXPLORATION_SLOT_DAYS=7`、
+`DIMENSION_STALE_DAYS=21`、`structural_churn > 800 行/7 天`）**未校准**，
+2026-10-03 实跑 `lib/` 增行 1141 即触发 structural_churn，说明该阈值在当前活动强度下偏低。
+
+---
+
 ## 第四部分 治理红线（机器强制优先于协议约定）
 
 1. Agent **不 merge PR、不 push main**（AGENTS.md §6.4）；写操作由 Actions 代执行。
@@ -437,8 +469,9 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 
 | 阶段 | 内容 | 量级 |
 |------|------|------|
-| **P0-0** | **三份接口契约定稿**（ledger-event / gate-result / verdict）+ 跨文件一致性校验脚本 + CI job `agent-control-plane-contracts` | ✅ 本 PR |
-| P0-1 | **双路** Eligibility Gate + Dimension Scheduler（零 token，输出 `gate-result.json`），`if: eligible` 才起 LLM；两通道分别记预算 | <0.5 天 |
+| **P0-0** | **三份接口契约定稿**（ledger-event / gate-result / verdict）+ 跨文件一致性校验脚本 + CI job `agent-control-plane-contracts` | ✅ 已合入 main（PR #311） |
+| P0-1 | **双路 Eligibility Gate + Dimension Scheduler**（零 token，输出 `gate-result.json`；两通道分别记预算）——**影子模式已上线，尚未接管激活** | ✅ 本 PR（详见 §3.9） |
+| P0-1b | 接管激活：`eligible=false` 时不起 Cline，改写一行 NO_WORK 终态。**前置条件**：影子期攒到 `gate_skip_rate` 与误判样本、阈值完成校准、账本提供真实陈旧度 | 待影子数据 |
 | P0-2 | Canonical Ledger（append-only NDJSON）+ `FRONTIER.md`/`FINDINGS.md`/Dashboard 降为投影；KB 硬顶 + 写前校验；tier/promote 作者分离 | <1 天 |
 | P0-3 | noop 终态契约；**删除** `ensure_daily_audit.py`；PROMPT 增加强制 `INCOMPLETE` 出口 | <0.5 天 |
 | P1-4 | 错误分层语义 + 凭据/工具 preflight 烟测；#310 onError 增加 transient 先重试 + 降级粘住 N 小时 | <1 天 |
@@ -467,3 +500,7 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 6. `docs/agent-supervision/` 的 5 份人工监督报告与新四段管道的边界（哪些维度仍归人，尤其真机验证）。
 7. 三份 schema 的 CI 校验位置：**已并入 `ci.yml` job `agent-control-plane-contracts`**。
    待定的是下一步 Verifier 实现用同一 job 追加 fixture 测试，还是新开 `agent-verifier` job。
+8. **阈值校准与接管判据**（P0-1b 的入口条件）：`EXPLORATION_SLOT_DAYS` / `DIMENSION_STALE_DAYS` /
+   `structural_churn` 行数阈值目前是先验值，2026-10-03 实跑即触发 churn（1141 > 800），说明偏低。
+   需要影子期回答两个问题：真实夜晚里 maintenance-only 判定的 precision 是多少？
+   连续几夜 NO_WORK 会不会漏掉后来被证明有价值的发现？在拿到这两条之前不接管激活。

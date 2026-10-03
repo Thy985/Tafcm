@@ -85,6 +85,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ---------- 0.5 Eligibility Gate（P0-1，影子模式）----------
+      # 只记录判定，不参与放行：Cline 仍每晚执行。目的是先用真实夜晚攒出
+      # gate_skip_rate 与阈值校准数据，再决定让闸门真正接管激活
+      # （见 .github/仓库Agent设计与治理.md §3.1 / §5）。
+      # continue-on-error 是影子阶段的刻意选择——闸门自身缺陷不得红掉夜间管道，
+      # 缺陷本身会在 artifact 与 step summary 里留痕。
+      - name: Eligibility Gate (shadow)
+        id: gate
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/tafcm-maintainer
+          python3 .github/scripts/tafcm-maintainer/eligibility_gate.py \
+            --output .tmp/tafcm-maintainer/gate-result.json \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -406,6 +425,9 @@ jobs:
           path: |
             .tmp/tafcm-maintainer/cline-result.json
             .tmp/tafcm-maintainer/report.json
+            .tmp/tafcm-maintainer/gate-result.json
+            .tmp/tafcm-maintainer/model_used_main.json
+            .tmp/tafcm-maintainer/model_used_fix.json
             .tmp/tafcm-maintainer/model_used_main.json
             .tmp/tafcm-maintainer/model_used_fix.json
           retention-days: 30

@@ -613,3 +613,9 @@ jobs:
 
       - name: Validate control-plane contracts
         run: python3 .github/scripts/tafcm-maintainer/validate_agent_contracts.py
+
+      - name: Run eligibility gate invariants check
+        run: python3 .github/scripts/tafcm-maintainer/eligibility_gate_test.py
+
+      - name: Run contract minicheck self-test
+        run: python3 .github/scripts/tafcm-maintainer/contract_minicheck_test.py
