@@ -9,13 +9,13 @@
   "properties": {
     "schema_version": { "type": "string" },
     "event_id": { "type": "string", "pattern": "^EV-[0-9a-f]{16}$" },
-    "ts": { "type": "string", "description": "ISO-8601 UTC" },
+    "ts": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T", "description": "ISO-8601 UTC，由脚本写入；上游申报即拒写（掺时钟的身份会把节律算成负数或未来）" },
     "run_id": { "type": "string", "description": "GitHub Actions run id；promote 类事件的 run_id 必须不同于该 hypothesis 的 created run_id" },
-    "actor": { "enum": ["scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human"] },
+    "actor": { "enum": ["scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human", "importer"] },
     "budget_bucket": { "enum": ["maintenance", "exploration", "meta"] },
     "type": {
       "enum": [
-        "gate_no_work", "gate_skipped_run",
+        "gate_eligible", "gate_no_work", "gate_skipped_run",
         "hypothesis_added", "hypothesis_updated",
         "experiment_planned", "experiment_executed",
         "evidence_attached", "tier_promoted",
@@ -24,7 +24,7 @@
       ]
     },
     "hypothesis_id": { "type": "string", "pattern": "^HYP-[0-9]{3,6}$" },
-    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{16}$", "description": "sha256(dimension|area|root_cause)[:16]，由脚本计算" },
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{16}$", "description": "有 evidence_files 时 sha256(category|files)[:16]，无 evidence 时 sha256(category|norm_summary)[:16]——与 fingerprint.py 同一套配方，由脚本计算" },
     "duplicate_of": { "type": ["string", "null"] },
     "gate": { "$ref": "#/definitions/gate_reason" },
     "hypothesis": { "$ref": "#/definitions/hypothesis" },
@@ -58,7 +58,11 @@
         "human_review_minutes": { "type": ["number", "null"] }
       }
     },
-    "record_kb": { "type": "number", "description": "写入步骤在落盘前计算并校验，超 max-record-kb 直接拒绝该行为 FAILED" }
+    "record_kb": { "type": "number", "description": "写入步骤在落盘前按最终序列化字节计算并校验，超 max-record-kb 直接拒绝该行为 FAILED" },
+    "identity_source": {
+      "enum": ["script_derived", "registry_declared"],
+      "description": "这一行的身份是算出来的还是申报来的。import-* 沿用注册表 fingerprint 的行标 registry_declared：注册表没存 Summary 原文，重算所需输入根本不在那一行。两种\\\"我知道它是谁\\\"不是同一种，投影与 reconcile 必须按这个前提说话"
+    }
   },
   "definitions": {
     "gate_reason": {
@@ -66,8 +70,21 @@
       "description": "本行为何发生：哪个 gate 放行、哪个维度被分配（gate-result.schema.json 的摘要）",
       "properties": {
         "channel": { "enum": ["maintenance", "exploration", "none"] },
-        "reasons": { "type": "array", "items": { "type": "string" } },
-        "dimension": { "type": ["string", "null"] }
+        "reasons": {
+          "type": "array",
+          "items": {
+            "enum": ["changed_code", "untriaged_issue", "test_failure", "frontier_change",
+                     "scheduled_slot", "frontier_stale", "dimension_never_probed",
+                     "structural_churn", "coverage_floor", "maintenance_budget_exhausted",
+                     "exploration_budget_exhausted", "no_work", "gate_step_failed"]
+          },
+          "description": "封闭词表：闸门行的 reasons 是投影分母与校准读数的输入，开放字符串词表等于允许任何值——gate_step_failed 之所以能被剔出分母，前提是这个值不许被随手写成别的"
+        },
+        "dimension": { "type": ["string", "null"] },
+        "exploration_due": {
+          "type": "boolean",
+          "description": "双路闸门可以同时成立：maintenance 赢下 channel 时，探索仍然做了。节律必须据此推进，只看 channel 会让 days_since_last_exploration 永远是 null"
+        }
       }
     },
     "hypothesis": {
@@ -92,11 +109,11 @@
           }
         },
         "falsifier": { "type": "string", "description": "什么观测结果会使假设不成立；缺失则 plan 不可执行" },
-        "root_cause_hypothesis": { "type": ["string", "null"], "description": "非空 kebab-case，参与 fingerprint" },
+        "root_cause_hypothesis": { "type": ["string", "null"], "description": "非空 kebab-case。不参与 fingerprint（配方只用 category|files|norm_summary，见 fingerprint.py）" },
         "evidence_tier": { "enum": ["L0", "L1", "L2"] },
         "severity": {
           "enum": ["critical", "high", "medium", "low"],
-          "description": "LLM 可标注，但受 tier 天花板约束：L0/L1 不得标 critical/high（由写入步骤强制降级）"
+          "description": "LLM 可标注，但受 tier 天花板约束：L0/L1 不得标 critical/high。散文 audit 导入时强制降为 medium 并在 severity_declared 留原值（降级必须可审计）；其他写入者申报 high 由 tier 校验拒绝"
         },
         "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "lifecycle_stage": {
@@ -111,6 +128,7 @@
           }
         },
         "created_by_run": { "type": "string", "description": "promote 到 L2 时，写入步骤校验 run_id != created_by_run" },
+        "last_observed": { "type": ["string", "null"], "description": "YYYY-MM-DD：这次观察**实际发生**的日期。陈旧度用它算，绝不能用事件写入时间——否则一次回填就把所有维度的探测节律清零。" },
         "last_verified_at": { "type": ["string", "null"] },
         "activation_reason": {
           "enum": ["changed-code", "new-issue", "test-failure", "new-evidence", "risk-driven", "frontier-stale", "structural-churn", null]

@@ -123,11 +123,14 @@
     "budget": {
       "type": "object",
       "description": "两本账分开，各设上限：给空转标上价格",
-      "required": ["maintenance", "exploration"],
+      "required": ["maintenance", "exploration", "enforced"],
       "additionalProperties": false,
       "properties": {
         "maintenance": { "$ref": "#/definitions/bucket" },
-        "exploration": { "$ref": "#/definitions/bucket" }
+        "exploration": { "$ref": "#/definitions/bucket" },
+        "enforced": { "type": "boolean",
+                      "description": "成本有没有真的落账。false = 上限不参与判定，影子读数不能解读成预算够用" },
+        "note": { "type": ["string", "null"] }
       }
     },
 

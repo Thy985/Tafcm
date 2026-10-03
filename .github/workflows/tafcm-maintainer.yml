@@ -99,7 +99,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .tmp/tafcm-maintainer
+          # 全管道只用一把日历：UTC。audit 文件名沿用 CST 是历史约定，但喂给闸门和
+          # 账本的日期必须统一——夜间 cron 17:23Z 正好落在 CST 的次日 01:23，两套
+          # 日历混用会让 21 天陈旧度阈值系统性少算一天，同日夜重跑还会算出负数。
+          RUN_DATE="$(date -u +%Y-%m-%d)"
+          # 账本首夜还不存在（P0-2 之前）：按空账本跑一次，拿保守判定。
+          # 第二夜起账本就在仓库里，读不到会被 state 判成事故——那是我们要的语义。
+          STATE_ARGS=(--date "$RUN_DATE" --out .tmp/tafcm-maintainer/ledger-state.json)
+          [ -f docs/agent-audit/ledger.ndjson ] || STATE_ARGS+=(--allow-missing)
+          python3 .github/scripts/tafcm-maintainer/ledger.py state "${STATE_ARGS[@]}"
           python3 .github/scripts/tafcm-maintainer/eligibility_gate.py \
+            --date "$RUN_DATE" \
+            --state-file .tmp/tafcm-maintainer/ledger-state.json \
             --output .tmp/tafcm-maintainer/gate-result.json \
             --summary "$GITHUB_STEP_SUMMARY" \
             --github-output "$GITHUB_OUTPUT"
@@ -367,6 +378,58 @@ jobs:
             "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
             "docs/agent-audit/FINDINGS.md"
 
+      # ---------- 3.6 Canonical Ledger（P0-2）----------
+      # 账本写入一律由确定性步骤执行；Cline 没有账本写权限（治理红线 §4-5 / §4-7）。
+      # LEDGER.md / ledger-metrics.json 是只读投影：改展示不碰账本，改账本重生成投影。
+      - name: Ledger — append gate outcome
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/tafcm-maintainer/ledger.py append-gate \
+            --gate-result .tmp/tafcm-maintainer/gate-result.json \
+            --missing-reason gate_step_failed \
+            --run-id "${{ github.run_id }}"
+
+      - name: Ledger — import today's audit findings
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/tafcm-maintainer/ledger.py import-audit \
+            --audit "docs/agent-audit/$(TZ='Asia/Shanghai' date +%Y-%m-%d)-maintainer-audit.md" \
+            --observed-date "$(date -u +%Y-%m-%d)"
+
+      - name: Ledger — regenerate read-only projections
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/tafcm-maintainer/ledger.py project \
+            --out-md docs/agent-audit/LEDGER.md \
+            --out-metrics docs/agent-audit/ledger-metrics.json
+
+      # 完整性守门：注册表里的身份必须都能在账本里找到。两套状态并存的过渡期里，
+      # 这条是"账本仍是唯一真相"的可执行定义；漂了就 FAILED，不做静默容忍。
+      # 刻意保持硬失败，但不再卡住落账：两个 Guard 与 Commit 都走 always()，所以
+      # 漂移的夜晚照样把闸门行提交进去，只是 job 判红。改 FINDINGS.md 的 PR 必须
+      # 在同一个 PR 里跑 import-findings + project，否则这条就是它的守门。
+      - name: Ledger — reconcile with finding registry
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/tafcm-maintainer/ledger.py reconcile
+
+      # 账本是 append-only 的，但 Guard 按目录前缀放行 docs/agent-audit/，所以
+      # "只有确定性步骤能写它"目前只是一句注释。这条把它变成可执行检查：
+      # 与 HEAD 相比，账本不许有删除或改写的行——Cline 直接改账本会被拦下。
+      - name: Guard — ledger is append-only
+        if: always()
+        run: |
+          set -euo pipefail
+          if git diff --unified=0 -- docs/agent-audit/ledger.ndjson | grep -q '^-[^-]'; then
+            echo "❌ ledger.ndjson 出现删除/改写行：账本只许追加"
+            git diff -- docs/agent-audit/ledger.ndjson | head -20
+            exit 1
+          fi
+          git diff --quiet -- docs/agent-audit/ledger.ndjson \
+            && echo "账本无改动" || echo "✅ 账本仅追加"
+
       # ---------- 4. 越权防护（Agent 只能产生 audit/investigations 变更）----------
       # 精确前缀匹配：先剥离 porcelain 状态码（"XY path"，重命名取 new），
       # 再只放行 docs/(agent-audit|agent-investigations)/ 前缀的路径。
@@ -374,6 +437,12 @@ jobs:
       # 注意：Guard 在 git add 之前执行，audit 文件仍是 ?? 未跟踪状态，
       # 因此必须检查完整工作树（git status），不能用 git diff --cached。
       - name: Guard — 仅允许 audit / investigations 目录变更
+        id: guard
+        # 两个 Guard 都必须 always()：Commit 只在"范围守卫判定为成功"时提交，而
+        # reconcile / import-audit 失败的夜晚闸门行仍要落账。若 Guard 因为上游失败
+        # 而被 skip，它的 outcome 就不是 success，Commit 会被连带跳过——守门反而
+        # 把账本冻住了。
+        if: always()
         run: |
           CHANGED="$(git status --porcelain \
             | sed -E 's/^.. //; s/.* -> //' \
@@ -391,6 +460,10 @@ jobs:
       # ---------- 5. Action commit + push（Cline 无 git push 权限）----------
       - name: Commit Audit
         id: commit
+        # audit 解析或 reconcile 失败的夜晚，闸门行仍然必须落账（§3.10 不变量 8：
+        # 每次 run 必留一行 gate 判定），所以这里不能只在"全绿"时提交；
+        # 但 Guard 判越权时绝不提交。
+        if: always() && steps.guard.outcome == 'success'
         run: |
           set -euo pipefail
           TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
@@ -450,6 +523,7 @@ jobs:
             .tmp/tafcm-maintainer/report.json
             .tmp/tafcm-maintainer/gate-result.json
             .tmp/tafcm-maintainer/gate-failure.json
+            .tmp/tafcm-maintainer/ledger-state.json
             .tmp/tafcm-maintainer/model_used_main.json
             .tmp/tafcm-maintainer/model_used_fix.json
           retention-days: 30

@@ -426,7 +426,7 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 |----|------|
 | Gate + Scheduler | `.github/scripts/tafcm-maintainer/eligibility_gate.py`（纯 stdlib，`--fixture` 注入信号） |
 | 写前校验器 | `contract_minicheck.py`（draft-07 子集：type/enum/required/additionalProperties/items/minItems/pattern/$ref） |
-| 不变量测试 | `eligibility_gate_test.py`（28 例）+ `contract_minicheck_test.py`（16 例） |
+| 不变量测试 | `eligibility_gate_test.py`（37 例）+ `contract_minicheck_test.py`（16 例） |
 | 接线 | `tafcm-maintainer.yml` step `Eligibility Gate (shadow)`，产物 `gate-result.json` 进 artifact；失败夜另由 `Alert — Eligibility Gate 本夜未产出判定` 步骤标注（§3.6 分母纪律） |
 | 守门 | `ci.yml` job `agent-control-plane-contracts` 跑上述两份测试 |
 
@@ -456,7 +456,14 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
    但**不能**从 workset 取并集——那会把 `.github/`、`tools/` 的配置改动也算成代码结构抖动。
 
 **周预算维度暂未生效**：`budget.*.spent_this_week / cap_this_week` 由信号透传，真实探针目前
-返回空 budget（恒 `null`，契约允许）。周上限要等 P0-2 账本提供逐夜成本行才能算，在此之前只有日上限起作用。
+返回空 budget（恒 `null`，契约允许）。周上限要等 P0-2 账本提供逐夜成本行才能算。
+
+**日上限同样不生效**（2026-10-03 评审更正，此前的说法是错的）：夜间管道从来没用
+`append-gate --llm-cost` 传成本，账本里没有任何成本行 → `spent_today` 恒 0 → `exhausted`
+永不成立 → 预算这条"独立于工作量的否决路径"端到端是惰性的。这不是接线遗漏可以悄悄略过的
+程度问题：影子期读数如果被解读成"预算够用"，P0-1b 的激活判定就建在一个不存在的约束上。
+现在 `budget.enforced`（布尔）与 `budget.note="cost_not_recorded…"` 进入 gate-result，
+投影里对应 `ledger-metrics.json: budget_caps_enforced=false`。成本落账归 P0-3。
 
 6. **契约描述就是验收标准，代码与它不符即为 bug**。`gate-result.schema.json` 里写的是
    `frontier_change = ledger 有 open candidate 且其 target 路径出现在近期 diff`，首版只实现了前半个合取
@@ -469,9 +476,25 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
    现由日期推算天数，推算不出（日期不可解析）直接 `GateError`，不做"当没数据"的静默降级。
 8. **判定阶段的错误走同一条响亮失败路径**。`evaluate()` / `emit()` 原先在 `main()` 的 try 之外，
    任何 `GateError` 会变成裸 traceback。现已收进同一个 try，退出码 1 且 `[FAIL]` 可读。
+9. **闸门不能吃自己的排泄物**。"上次审查"用日期窗口取 diff 时，审查提交本身就落在那一天，
+   而 P0-2 之后账本三件套每晚必然往 main 提交一次 → `commits_since_last_audit` 恒非空 →
+   `changed_code` 夜夜必开 → `eligible` 恒为 true。这是第 6 条同一个根因的更严重版本：第 6 条
+   修的是"数 Entry 条数"，这条是"把上一夜的输出当成本夜 inputs"。现在窗口改为
+   `<audit sha>..origin/main` 的精确 rev-range，并按 `AGENT_OWNED_PREFIXES`
+   （`docs/agent-audit/`、`docs/agent-investigations/`）剔除自产物；被剔除的提交数以
+   `self_referential_commits_excluded` 留在读数里，剔除本身可审计。
+   讽刺的是影子期无法用影子读数发现这条——一个恒为 true 的布尔值，离线复算也造不出一个
+   "可跳过"的夜晚，而日历时间花掉就没了。
 
-**已知未接**：陈旧度与候选队列目前来自 fixture/缺省（账本尚未建立，P0-2 才提供
-`last_probed_at` / `candidate_ids` 的真实来源）；阈值（`EXPLORATION_SLOT_DAYS=7`、
+**陈旧度与候选队列已接上账本**（P0-2 收尾，此前"已知未接"）：`ledger.py state` 产
+`dimension_state` / `probed_dimensions` / `days_since_last_exploration`，闸门用
+`--state-file` 消费。这条交接现在是**契约**而不是约定：键名与 `schema_version` 由
+`ledger.STATE_REQUIRED_KEYS` 单侧声明、闸门侧强制校验，缺键或形状不对一律 `GateError`
+（以前是 `.get()` 到底，schema 漂移会安静退化成"今晚没有陈旧维度"——把"读不到账本"
+记成"确实没有陈旧"，正是本闸门要避免的调试方式）。`eligibility_gate_test` 里有一条
+真跑 `cmd_state` 再喂闸门的 round-trip 用例，两边任何一侧改键名都会撞墙。
+
+阈值仍未校准：`EXPLORATION_SLOT_DAYS=7`、
 `DIMENSION_STALE_DAYS=21`、`STRUCTURAL_CHURN_LINES=800`）**未校准**，
 2026-10-03 实跑产品代码 7 天增行 1141 已越过 800。
 
@@ -482,6 +505,85 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 
 - `structural_churn` 是 **7 天滚动累计**，一旦越线会连响数夜，不代表当晚有新抖动；
 - 影子期第一周**只读数、不调阈值**，任何阈值改动必须在 PR 里引用影子读数本身。
+
+---
+
+### 3.10 已落地：P0-2 Canonical Ledger + 只读投影
+
+| 件 | 位置 |
+|----|------|
+| 账本写入者（唯一入口） | `.github/scripts/tafcm-maintainer/ledger.py`：`append` / `append-gate` / `import-audit` / `import-findings` / `state` / `project` / `reconcile` |
+| 账本（canonical） | `docs/agent-audit/ledger.ndjson`（append-only NDJSON；2026-10-03 评审后**重生成 bootstrap**：注册表 31 条 + 1 条 audit finding = 32 事件，不再有手写 gate 行） |
+| 只读投影 | `docs/agent-audit/LEDGER.md`（人读）、`ledger-metrics.json`（指标） |
+| 不变量测试 | `ledger_test.py`（44 例）+ `eligibility_gate_test.py`（44 例，含 state→gate round-trip） |
+| 接线 | `tafcm-maintainer.yml` §3.6 步骤组 + `Guard — ledger is append-only`；`ci.yml` 跑测试 + `project --check` + `reconcile` |
+
+机器强制的不变量（每条都有对应用例，不是文档承诺）：
+
+1. **身份与时刻由脚本拥有，申报即拒写**：ledger 复用 `fingerprint.py` 的
+   `SHA-256(category|files|norm_summary)[:16]`。`event_id` / `ts` / `hypothesis_id` /
+   `hypothesis.created_by_run` 上游给了就**拒写**（不是覆盖——覆盖等于让调用方以为自己的
+   值生效，下次它就不来看这份账本了）。`actor=importer` 有一条窄例外：历史行沿用注册表
+   已申报的身份，仅对 `run_id` 以 `import-` 开放，**代价写进账本本身** ——
+   `identity_source=registry_declared`，投影与 `reconcile` 按这个前提说话。
+   评审实测：注册表里有 8 个 `latest_id` 各挂两个 fingerprint（含 `a1b2c3d4e5f60001`
+   这类手填占位），说明 `latest_id` 从来不是身份。账本如实记录并计数
+   （`registry_label_collisions`），**不替它合并**——那可能是两个真不同的 Finding
+   被起了同一个名字。
+2. **自证阻断**：`tier_promoted` / `verdict(verified)` / `published` 只能由 verifier 及以上
+   角色写，且 `run_id` 必须不同于该假设的 `created_by_run`；scout/investigator 写 promote → 拒写。
+   `importer` 也被移出签字方（本 PR 前它在 `PROMOTION_ACTORS` 里，等于给自证开了一条既带
+   fingerprint 申报权、又带批准权的通道）。账本里没有该假设的 `hypothesis_added` 也不许签字，
+   否则 `metrics.verified` 会被一个拼错的 id 涨上去。
+3. **append-only + 损坏即停 + 重放可识别**：只追加；已有行 JSON 损坏或非 UTF-8 时**拒绝续写**，
+   不"顺手重建"；`event_id` 改为内容寻址（掺时钟的行既不能被人重算核对，也识别不出重放），
+   同一行重复写入直接跳过。夜间管道里的 `Guard — ledger is append-only` 用 diff 检查
+   "无删除/改写行"——此前"只有确定性步骤能写账本"只是注释，而 Guard 按目录前缀放行
+   `docs/agent-audit/`，Cline 本来就能直接改这个文件。
+4. **单条 KB 硬顶 32KB**：按**落盘字节**算（按去掉字段的估算算会漏掉转义与 id 开销，
+   实测能写出 32,787 字节的行）。
+5. **去重只对未闭合身份**：同 fingerprint 有开放假设 → 记 `duplicate_of` 复用原编号；
+   `retired` / `verified` 会从开放映射里**摘除**（只"不再覆盖"不够：同一个 bug 复发会被挂到
+   一个退役假设上，永远进不了候选队列）。`retired` 事件按契约不许自带 fingerprint，
+   闭合靠已有的 id→fingerprint 映射回填。
+6. **导入幂等**：`import-findings` 跑两次不会多一份状态。
+7. **降级与阻断可见**：散文 audit 的 Finding 一律 `evidence_tier=L1`，`P0/P1` 触到 L1 天花板
+   被降为 `medium`，原值留在 `severity_declared`；`L2` 且 `invariant_source.kind=self_authored`
+   在写入步骤直接拒（契约把这句叫"机械阻断点"，那它就不能只存在于契约文字里）。
+8. **每次 run 必留 gate 行**（`gate_eligible` / `gate_no_work` / `gate_skipped_run`），
+   否则 `gate_skip_rate` 没有分母；闸门步骤自己失败时写 `gate_step_failed` 而不是静默跳过。
+   读数口径修正：`gate_step_failed` 的夜晚**既不进分子也不进分母**（单列 `gate_unavailable`）——
+   把它们算成"合法跳过"会让坏掉的闸门看起来很有用。`Commit Audit` 因此改成
+   `if: always() && steps.guard.outcome == 'success'`，audit 解析失败的夜晚闸门行仍要落账。
+9. **投影必须可复现**：`LEDGER.md` 正文不含生成时间（带时间戳 = 每晚都把没变的账本改脏，
+   而且 CI 永远没法判"投影与账本一致"）。新增 `project --check`，已挂进 `ci.yml`：
+   手改投影、或写了账本没重生成投影，PR 直接红。这是 #289 那条红线的机器版本。
+10. **一把日历**：夜间管道统一 `RUN_DATE="$(date -u +%Y-%m-%d)"` 传给 `state` / 闸门 /
+    `import-audit --observed-date`。cron `17:23Z` 恰好落在 CST 次日 01:23，audit 文件名沿用
+    CST，两套日历混在一个 `last_observed` 字段里会让 21 天阈值系统性少算一天，同日夜重跑
+    还会算出负数天数（探索被永久抑制）。
+
+**P0-2 未解决、留给 P0-2b/P0-3 的**（现在写下，别等校准数据里才发现）：
+
+- 账本只增不减：目前没有任何写入者会产出 `retired` / `verified`，`open_severity` 是对历史的
+  max、`candidate_ids` 永不收缩 → 调度器的 risk 输入会朝"最老的导入说了算"固化；
+- 成本未落账 → 预算上限惰性（见 §3.9）；
+- 注册表 `FINDINGS.md` 与账本仍两套状态并存，靠 `reconcile` 守着；`import-findings` 的
+  身份是"申报来的"而不是"算出来的"，注册表里没有存 Summary 原文，重算所需输入根本不在那一行；
+- `frontier_open_candidates` 已由 `state` 产出但闸门仍解析 `FRONTIER.md`，两个 frontier 概念
+  并存到 P0-2b。
+
+两条由真实数据（不是 fixture）逼出的修正：
+
+- **回填不得清零陈旧度**。首版 `state` 用事件 `updated_ts` 算"最近探测时间"，导入 31 条历史后
+  所有维度都变成"今天刚查过"，探索通道会安静 21 天。改为 `hypothesis.last_observed`
+  （注册表的 `last_seen` / audit 文件名日期），并已把该字段加进 schema + 契约校验断言。
+- **`by_bucket` 暴露导入行归属**：历史导入记 `meta`，实时活动记 maintenance/exploration，
+  两者混算会让成本指标失真，投影里分开显示。
+
+**已知限制（诚实登记）**：`category → dimension` 是查表映射（`tech-debt` 目前落到 `infra_ci`），
+所以"某维度在账本里没有行"**不等于**"该维度从未被探测"。因此 `never_probed` 只能显式记录，
+不由缺席推断——这正是 §3.9 规则 1 的延伸。
 
 ---
 
@@ -513,7 +615,8 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 | **P0-0** | **三份接口契约定稿**（ledger-event / gate-result / verdict）+ 跨文件一致性校验脚本 + CI job `agent-control-plane-contracts` | ✅ 已合入 main（PR #311） |
 | P0-1 | **双路 Eligibility Gate + Dimension Scheduler**（零 token，输出 `gate-result.json`；两通道分别记预算）——**影子模式已上线，尚未接管激活** | ✅ 本 PR（详见 §3.9） |
 | P0-1b | 接管激活：`eligible=false` 时不起 Cline，改写一行 NO_WORK 终态。**前置条件**：影子期攒到 `gate_skip_rate` 与误判样本、阈值完成校准、账本提供真实陈旧度 | 待影子数据 |
-| P0-2 | Canonical Ledger（append-only NDJSON）+ `FRONTIER.md`/`FINDINGS.md`/Dashboard 降为投影；KB 硬顶 + 写前校验；tier/promote 作者分离 | <1 天 |
+| P0-2 | **Canonical Ledger**（append-only NDJSON + KB 硬顶 + 写前校验 + promote 作者分离 + 只读投影） | ✅ 本 PR（详见 §3.10） |
+| P0-2b | 投影收编：`FRONTIER.md` 由账本生成；`FINDINGS.md` 的写入者从 `fingerprint.py` 换成账本投影。**过渡期靠 `reconcile` 守漂移**，两套状态并存不是终态 | 1 天 |
 | P0-3 | noop 终态契约；**删除** `ensure_daily_audit.py`；PROMPT 增加强制 `INCOMPLETE` 出口 | <0.5 天 |
 | P1-4 | 错误分层语义 + 凭据/工具 preflight 烟测；#310 onError 增加 transient 先重试 + 降级粘住 N 小时 | <1 天 |
 | P1-5 | 四段管道接线（Scout / Top-N / Investigator / Verifier+Publisher），复用管道 A 的 extract→analyze→create 骨架与 GH_MOCK fixtures 手法 | 1-2 天 |

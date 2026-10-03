@@ -414,9 +414,155 @@ class CliTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue(out.is_file())
 
+    def test_ledger_state_closes_the_staleness_loop(self):
+        """账本 → 陈旧度 → 领域分配 → 激活，走的是真实 `ledger.py state` 产物。
+
+        以前这里手写 state JSON，两个脚本的键名一旦漂开，测试照样绿而线上闸门
+        读不到东西——闭环是否存在，必须由写入方和消费方一起证明。
+        """
+        import ledger as led
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "ledger.ndjson"
+            led.append(ledger_path, {
+                "type": "hypothesis_added", "actor": "scout", "run_id": "run-1",
+                "budget_bucket": "exploration",
+                "hypothesis": {
+                    "dimension": "export", "area": "flutter_app/lib/domain/services",
+                    "title": "HTML 导出丢公式", "norm_summary": "html export loses formulas",
+                    "statement": "HTML 导出丢公式", "invariant": "导出后公式仍在",
+                    "invariant_source": {"kind": "passing_test"},
+                    "falsifier": "含公式文档导出 HTML 后仍可见",
+                    "evidence_tier": "L1", "severity": "high", "category": "export",
+                    "evidence_files": ["flutter_app/lib/domain/services/export_service.dart"],
+                    "lifecycle_stage": "candidate", "last_observed": "2026-08-01",
+                }})
+            state = Path(tmp) / "ledger-state.json"
+            led.main(["--ledger", str(ledger_path), "state", "--out", str(state),
+                      "--date", MONDAY.isoformat()])
+            empty = Path(tmp) / "signals.json"
+            empty.write_text(json.dumps(quiet()), encoding="utf-8")
+            out = Path(tmp) / "gate.json"
+            code = gate.main(["--date", MONDAY.isoformat(), "--fixture", str(empty),
+                              "--state-file", str(state), "--output", str(out)])
+            self.assertEqual(code, 0)
+            result = json.loads(out.read_text(encoding="utf-8"))
+            self.assertTrue(result["eligible"], "export 已 65 天未探测，非槽位日也该放行")
+            self.assertIn("frontier_stale", result["exploration"]["reasons"])
+            self.assertEqual(result["dimension"]["assigned"], "export")
+            self.assertEqual(result["dimension"]["candidates"], ["HYP-001"])
+
+    def test_state_contract_drift_fails_loudly(self):
+        """键名漂了必须响：静默按缺省值判 = 把"读不到账本"记成"确实没有陈旧"。"""
+        for drop in ("schema_version", "dimension_state", "probed_dimensions"):
+            with self.subTest(drop=drop), tempfile.TemporaryDirectory() as tmp:
+                state = Path(tmp) / "ledger-state.json"
+                payload = {
+                    "schema_version": "1.0", "date": MONDAY.isoformat(), "events_total": 1,
+                    "dimension_state": {}, "probed_dimensions": [],
+                    "days_since_last_exploration": None, "last_exploration_date": None,
+                }
+                payload.pop(drop)
+                state.write_text(json.dumps(payload), encoding="utf-8")
+                empty = Path(tmp) / "signals.json"
+                empty.write_text(json.dumps(quiet()), encoding="utf-8")
+                code = gate.main(["--date", MONDAY.isoformat(), "--fixture", str(empty),
+                                  "--state-file", str(state),
+                                  "--output", str(Path(tmp) / "gate.json")])
+                self.assertEqual(code, 1, f"缺 {drop} 必须响亮失败，不得按缺省继续判")
+
+    def test_dimension_state_of_wrong_type_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "ledger-state.json"
+            state.write_text(json.dumps({
+                "schema_version": "1.0", "date": MONDAY.isoformat(), "events_total": 0,
+                "dimension_state": "oops", "probed_dimensions": [],
+                "days_since_last_exploration": None, "last_exploration_date": None}),
+                encoding="utf-8")
+            empty = Path(tmp) / "signals.json"
+            empty.write_text(json.dumps(quiet()), encoding="utf-8")
+            code = gate.main(["--date", MONDAY.isoformat(), "--fixture", str(empty),
+                              "--state-file", str(state),
+                              "--output", str(Path(tmp) / "gate.json")])
+            self.assertEqual(code, 1, "形状不对要走响亮失败路径，不许抛裸 traceback")
+
     def test_missing_fixture_fails_loudly(self):
         code = gate.main(["--fixture", "/nope/missing.json", "--date", MONDAY.isoformat()])
         self.assertEqual(code, 1, "gate 自身出错必须响，不得静默降级成 NO_WORK")
+
+
+class SelfReferenceTest(unittest.TestCase):
+    """maintenance 通道不许被管道自己写的文件喂饱（P0-2 评审 gate-C1）。
+
+    夜间管道每晚都往 main 提交账本三件套 + audit 正文。用"上次审查的日期 - 1 天"
+    取窗口会把那次审查自己的提交算成新变更，于是 `changed_code` 夜夜必开、
+    `eligible` 恒为 true——影子期攒一整月也拿不到一个 skip 读数，P0-1b 的激活
+    判定就只能建立在饱和的读数上。
+    """
+
+    AUDIT_SHA = "a" * 40
+
+    def run_signals(self, commit_paths: list[str]) -> dict:
+        calls: list[list[str]] = []
+
+        def fake_run(cmd):
+            calls.append(list(cmd))
+            if cmd[:3] == ["git", "log", "-1"]:
+                return f"{self.AUDIT_SHA}\t2026-10-02\n"
+            if "--name-only" in cmd:
+                return "COMMIT:" + self.AUDIT_SHA + "\n" + "\n".join(commit_paths) + "\n"
+            if "--numstat" in cmd:
+                return ""
+            if "issue" in cmd:
+                return "0\n"
+            return "0\n"
+
+        original = gate._run
+        gate._run = fake_run
+        try:
+            signals = gate._collect_live_signals(MONDAY)
+        finally:
+            gate._run = original
+        self._calls = calls
+        return signals
+
+    def test_agent_owned_output_alone_is_not_work(self):
+        signals = self.run_signals(["docs/agent-audit/ledger.ndjson",
+                                    "docs/agent-audit/LEDGER.md",
+                                    "docs/agent-audit/FINDINGS.md",
+                                    "docs/agent-investigations/x.md"])
+        self.assertEqual(signals["commits_since_last_audit"], [],
+                         "只剩 Agent 自产物时不构成有人改了代码")
+        self.assertEqual(signals["self_referential_commits_excluded"], 1)
+        self.assertFalse(gate.maintenance_channel(signals)["work_present"])
+
+    def test_human_commit_still_opens_maintenance(self):
+        signals = self.run_signals(["flutter_app/lib/core/parser/md.dart"])
+        self.assertEqual(len(signals["commits_since_last_audit"]), 1)
+        self.assertIn("changed_code", gate.maintenance_channel(signals)["reasons"])
+
+    def test_mixed_commit_keeps_only_human_paths(self):
+        signals = self.run_signals(["flutter_app/lib/main.dart",
+                                    "docs/agent-audit/ledger.ndjson"])
+        paths = signals["commits_since_last_audit"][0]["paths"]
+        self.assertEqual(paths, ["flutter_app/lib/main.dart"])
+
+    def test_window_is_an_exact_rev_range_not_a_date(self):
+        self.run_signals(["docs/agent-audit/ledger.ndjson"])
+        git_log = next(cmd for cmd in self._calls if "--name-only" in cmd)
+        self.assertIn(f"{self.AUDIT_SHA}..origin/main", git_log)
+        self.assertNotIn("--since", " ".join(git_log),
+                         "日期窗口会把上次审查自己那天算进来")
+
+    def test_budget_reports_itself_inert(self):
+        """成本没落账时上限根本不生效——这点必须机读，不能只写在注释里。"""
+        budget = gate.budget_block(quiet())
+        self.assertFalse(budget["enforced"])
+        self.assertIn("cost_not_recorded", budget["note"])
+        self.assertFalse(budget["maintenance"]["exhausted"])
+        spent = {"budget": {"maintenance": {"spent_today": 1.2}}}
+        self.assertTrue(gate.budget_block(spent)["enforced"],
+                        "一旦有成本行，enforced 就该转真")
 
 
 if __name__ == "__main__":
