@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Thy985/Tafcm/.github/schemas/ledger-event.schema.json",
+  "title": "Repository Agent Canonical Ledger event (NDJSON, one object per line)",
+  "description": "Canonical 账本的唯一真相单元（append-only 事件流）。FRONTIER.md / FINDINGS.md / Dashboard / metrics 一律为本流的只读投影。Agent 不得直接写本流：每行由确定性写入步骤产生。identity（fingerprint / event_id）由脚本计算，模型输出中不得出现（沿用 ADR-0025 findings.schema.json 的同一原则）。",
+  "type": "object",
+  "required": ["schema_version", "event_id", "ts", "type", "actor", "run_id", "budget_bucket"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "event_id": { "type": "string", "pattern": "^EV-[0-9a-f]{16}$" },
+    "ts": { "type": "string", "description": "ISO-8601 UTC" },
+    "run_id": { "type": "string", "description": "GitHub Actions run id；promote 类事件的 run_id 必须不同于该 hypothesis 的 created run_id" },
+    "actor": { "enum": ["scheduler", "scout", "investigator", "verifier", "publisher", "supervisor", "human"] },
+    "budget_bucket": { "enum": ["maintenance", "exploration", "meta"] },
+    "type": {
+      "enum": [
+        "gate_no_work", "gate_skipped_run",
+        "hypothesis_added", "hypothesis_updated",
+        "experiment_planned", "experiment_executed",
+        "evidence_attached", "tier_promoted",
+        "verdict_recorded", "published", "suggest_only",
+        "duplicate_of", "cooling", "reactivated", "retired", "incomplete"
+      ]
+    },
+    "hypothesis_id": { "type": "string", "pattern": "^HYP-[0-9]{3,6}$" },
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{16}$", "description": "sha256(dimension|area|root_cause)[:16]，由脚本计算" },
+    "duplicate_of": { "type": ["string", "null"] },
+    "gate": { "$ref": "#/definitions/gate_reason" },
+    "hypothesis": { "$ref": "#/definitions/hypothesis" },
+    "experiment": { "$ref": "#/definitions/experiment" },
+    "evidence": { "$ref": "#/definitions/evidence" },
+    "verdict": {
+      "type": ["object", "null"],
+      "description": "内嵌 verdict.schema.json 的对象；publisher 只读此字段，不读 investigator 的自然语言结论",
+      "required": ["decision", "checks"],
+      "properties": {
+        "decision": { "enum": ["verified", "reject"] },
+        "publisher_action": { "enum": ["create_issue", "comment_existing", "suggest_only", "drop"] },
+        "checks": { "type": "array" }
+      }
+    },
+    "issue": {
+      "type": ["object", "null"],
+      "properties": {
+        "number": { "type": ["integer", "null"] },
+        "url": { "type": ["string", "null"] },
+        "adopted": { "type": ["boolean", "null"], "description": "human 后续回填：是否被接受并进入修复" }
+      }
+    },
+    "cost": {
+      "type": ["object", "null"],
+      "description": "每次激活记账（给空转标上价格）",
+      "properties": {
+        "duration_s": { "type": ["number", "null"] },
+        "turns": { "type": ["integer", "null"] },
+        "llm_cost_estimate": { "type": ["number", "null"] },
+        "human_review_minutes": { "type": ["number", "null"] }
+      }
+    },
+    "record_kb": { "type": "number", "description": "写入步骤在落盘前计算并校验，超 max-record-kb 直接拒绝该行为 FAILED" }
+  },
+  "definitions": {
+    "gate_reason": {
+      "type": ["object", "null"],
+      "description": "本行为何发生：哪个 gate 放行、哪个维度被分配（gate-result.schema.json 的摘要）",
+      "properties": {
+        "channel": { "enum": ["maintenance", "exploration", "none"] },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "dimension": { "type": ["string", "null"] }
+      }
+    },
+    "hypothesis": {
+      "type": ["object", "null"],
+      "description": "Scout 的产出物是**可实验假设**，不是 bug 结论",
+      "required": ["dimension", "area", "title", "statement", "invariant", "invariant_source", "falsifier", "evidence_tier", "severity"],
+      "properties": {
+        "dimension": { "enum": ["performance", "correctness_test_gap", "architecture_data_flow", "persistence", "export", "ux_state", "infra_ci"] },
+        "area": { "type": "string", "description": "模块 / 文件 / 机制，kebab-case 或路径" },
+        "title": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "description": "若为假会怎样；必须可被单个实验否证" },
+        "invariant": { "type": "string", "description": "被测不变量，What should happen + Why" },
+        "invariant_source": {
+          "type": "object",
+          "description": "预期的出处。L2 要求 kind != self_authored —— 这是『Agent 写错测试自证 bug』的机械阻断点",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["self_authored", "passing_test", "adr_clause", "dartdoc_contract", "golden_baseline", "shipped_behavior", "external_spec"] },
+            "ref_path": { "type": ["string", "null"] },
+            "ref_line": { "type": ["integer", "null"] },
+            "ref_commit": { "type": ["string", "null"], "description": "必须能被 git 解析，且早于本 hypothesis 的 created run" }
+          }
+        },
+        "falsifier": { "type": "string", "description": "什么观测结果会使假设不成立；缺失则 plan 不可执行" },
+        "root_cause_hypothesis": { "type": ["string", "null"], "description": "非空 kebab-case，参与 fingerprint" },
+        "evidence_tier": { "enum": ["L0", "L1", "L2"] },
+        "severity": {
+          "enum": ["critical", "high", "medium", "low"],
+          "description": "LLM 可标注，但受 tier 天花板约束：L0/L1 不得标 critical/high（由写入步骤强制降级）"
+        },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "lifecycle_stage": {
+          "enum": ["candidate", "active", "deepening", "blocked", "verified", "cooling", "retired"],
+          "description": "与 evidence_tier / publisher_action 正交的三条轴，勿混淆（沿用 FRONTIER.md 既有状态机，不新建）"
+        },
+        "next_action": {
+          "type": ["object", "null"],
+          "properties": {
+            "type": { "enum": ["targeted-test", "static-trace", "code-read", "device-validation", "regression-check", "benchmark", "profile"] },
+            "target": { "type": ["string", "null"] }
+          }
+        },
+        "created_by_run": { "type": "string", "description": "promote 到 L2 时，写入步骤校验 run_id != created_by_run" },
+        "last_verified_at": { "type": ["string", "null"] },
+        "activation_reason": {
+          "enum": ["changed-code", "new-issue", "test-failure", "new-evidence", "risk-driven", "frontier-stale", "structural-churn", null]
+        }
+      }
+    },
+    "experiment": {
+      "type": ["object", "null"],
+      "description": "Investigator 实际执行的实验（含对照）",
+      "properties": {
+        "protocol": { "enum": ["performance", "correctness", "persistence_roundtrip", "export_artifact_diff", "architecture_trace"] },
+        "design": { "type": "array", "items": { "type": "string" }, "description": "参数矩阵，如 100/500/1000 edits × 1KB/100KB/1MB doc" },
+        "arms": {
+          "type": "array",
+          "minItems": 0,
+          "description": "差分对照的两臂及以上；L2 的 differential_test 凭证要求 minItems >= 2",
+          "items": {
+            "type": "object",
+            "required": ["label", "command_or_patch"],
+            "properties": {
+              "label": { "type": "string" },
+              "command_or_patch": { "type": "string" },
+              "result_ref": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "repro_artifact": {
+          "type": ["object", "null"],
+          "description": "复现物：提交进仓库测试目录的文件 + 定位；publisher 前由确定性步骤在干净 checkout 重跑",
+          "properties": {
+            "path": { "type": ["string", "null"] },
+            "commit": { "type": ["string", "null"] },
+            "command": { "type": ["string", "null"] },
+            "expected_result": { "type": ["string", "null"] }
+          }
+        },
+        "sandbox": {
+          "type": ["object", "null"],
+          "description": "执行环境声明。Agent -authored repro 必须在 zero-write / 无写权 Secret 的 job 里跑（红线）",
+          "properties": {
+            "job": { "type": ["string", "null"] },
+            "writes": { "type": ["boolean", "null"] },
+            "secrets_available": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": ["object", "null"],
+      "properties": {
+        "observed": { "type": ["string", "null"], "description": "实际数值，非形容词" },
+        "expected": { "type": ["string", "null"] },
+        "impact": { "type": ["string", "null"] },
+        "artifacts": { "type": "array", "items": { "type": "string" }, "description": "workflow artifact 名 / 文件路径" },
+        "independence_proofs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "preexisting_oracle",
+              "differential_test",
+              "clean_checkout_reproduction",
+              "deterministic_ci_rerun",
+              "external_contract"
+            ]
+          },
+          "description": "独立性的类型化凭证。跨 run 只是附加约束，不是核心定义"
+        }
+      }
+    }
+  }
+}

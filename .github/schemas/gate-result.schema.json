@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Thy985/Tafcm/.github/schemas/gate-result.schema.json",
+  "title": "Dual Eligibility Gate result",
+  "description": "零 token 确定性闸的产出契约。两条独立 eligibility 判定，避免『无变更』把『值得主动探索』一起杀掉：eligible = maintenance_work OR exploration_due。本文件由 shell/python 步骤生成，任何字段不得来自 LLM。",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "run_date", "eligible", "maintenance", "exploration", "budget"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "run_date": { "type": "string", "description": "YYYY-MM-DD（Asia/Shanghai，与 audit 日期口径一致）" },
+
+    "eligible": { "type": "boolean", "description": "= maintenance.work_present OR exploration.due" },
+
+    "maintenance": {
+      "type": "object",
+      "description": "Precision 通道：change-driven，目标高 precision",
+      "required": ["work_present", "reasons"],
+      "additionalProperties": false,
+      "properties": {
+        "work_present": { "type": "boolean" },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "changed_code", "new_issue", "reopened_issue", "untriaged_issue",
+              "test_failure", "ci_red", "frontier_change", "new_pr_review"
+            ]
+          },
+          "description": "changed_code = git log origin/main --since=<上次 audit>；untriaged_issue = gh issue list --label 缺失判定；frontier_change = ledger 有 open candidate 且其 target 路径出现在近期 diff"
+        },
+        "signals": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "commits_since_last_audit": { "type": ["integer", "null"] },
+            "changed_paths": { "type": "array", "items": { "type": "string" } },
+            "untriaged_issue_count": { "type": ["integer", "null"] },
+            "failed_check_count": { "type": ["integer", "null"] },
+            "open_candidate_count": { "type": ["integer", "null"] }
+          }
+        }
+      }
+    },
+
+    "exploration": {
+      "type": "object",
+      "description": "Recall 通道：低频主动探索，Tafcm 独有的 repository-driven discovery 能力所在；与 maintenance 各记各账",
+      "required": ["due", "reasons"],
+      "additionalProperties": false,
+      "properties": {
+        "due": { "type": "boolean" },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "scheduled_slot", "frontier_stale", "structural_churn",
+              "dimension_never_probed", "coverage_floor", "budget_rollover"
+            ]
+          },
+          "description": "scheduled_slot = 每周 1 次的探索槽位；frontier_stale = 某维度 last_probed_at 超期；structural_churn = lib/ 下新增文件/新目录/新 Provider 的 git 统计；coverage_floor = 高实验成本维度（真机/集成）连续 N 周未被覆盖，强制排队或显式 handoff"
+        },
+        "signals": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "days_since_last_exploration": { "type": ["integer", "null"] },
+            "last_exploration_date": { "type": ["string", "null"] },
+            "stale_dimensions": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "not_eligible_reason": { "type": ["string", "null"] },
+
+    "dimension": {
+      "type": ["object", "null"],
+      "description": "确定性 Dimension Scheduler 的分配结果。领域必须由本步骤决定，不得由 LLM 选择——否则 Agent 会漂向实验成本最低的 parser/export 维度，复制 24-issue 的聚类偏差",
+      "required": ["assigned", "workset", "score_components"],
+      "additionalProperties": false,
+      "properties": {
+        "assigned": {
+          "enum": ["performance", "correctness_test_gap", "architecture_data_flow", "persistence", "export", "ux_state", "infra_ci"]
+        },
+        "workset": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "本次 Agent 允许观察的文件/目录闭包。Scout 成本由工作集大小决定，不由日历条数决定——这是预算的真正来源"
+        },
+        "candidates": {
+          "type": "array",
+          "description": "Top-N 输入队列（N 小；来自 ledger 的 open candidates + 本维度信号）",
+          "items": { "type": "string", "pattern": "^HYP-[0-9]{3,6}$" }
+        },
+        "score_components": {
+          "type": "object",
+          "description": "Priority Score = (risk × churn × staleness × activation_weight × expected_value) / evidence_cost。分母是成本而非乘项——乘 evidence_cost 会让最烧预算的实验排最前",
+          "required": ["churn", "staleness_days", "activation_weight", "evidence_cost"],
+          "additionalProperties": false,
+          "properties": {
+            "risk": { "type": ["number", "null"], "description": "来自 ledger 的 severity 枚举 × tier 天花板，不得由 LLM 直接填数值" },
+            "churn": { "type": ["number", "null"], "description": "git numstat 统计，机械可得" },
+            "staleness_days": { "type": ["integer", "null"], "description": "now - last_probed_at/last_verified_at，机械可得" },
+            "activation_weight": { "type": ["number", "null"], "description": "activation_reason → 权重表查表，机械可得" },
+            "expected_value": { "type": ["number", "null"], "description": "severity 档 × 该 category 的历史 adopted_rate（账本算出），LLM 只在 ceiling 内标注" },
+            "evidence_cost": { "type": ["number", "null"], "description": "protocol × independence_proof 类型 → 成本表查表，机械可得" },
+            "score": { "type": ["number", "null"] }
+          }
+        },
+        "anti_inflation": {
+          "type": ["object", "null"],
+          "description": "公式里凡 LLM 可标注的量都必须被脚本封顶（ADR-0025 的 fork→confidence≤0.6 是同一手法的已有先例）",
+          "properties": {
+            "severity_ceiling_by_tier": { "type": ["object", "null"] },
+            "llm_scored_fields_capped": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "budget": {
+      "type": "object",
+      "description": "两本账分开，各设上限：给空转标上价格",
+      "required": ["maintenance", "exploration"],
+      "additionalProperties": false,
+      "properties": {
+        "maintenance": { "$ref": "#/definitions/bucket" },
+        "exploration": { "$ref": "#/definitions/bucket" }
+      }
+    },
+
+    "noop_record": {
+      "type": ["object", "null"],
+      "description": "eligible=false 时的可机读终态（替代整份 audit 文件）；NO_WORK 是合法体面出口，不得被兜底文件伪装成产出",
+      "required": ["date", "reason", "duration_s"],
+      "additionalProperties": false,
+      "properties": {
+        "date": { "type": "string" },
+        "reason": { "type": "string" },
+        "duration_s": { "type": ["number", "null"] },
+        "llm_activated": { "type": "boolean", "description": "false = 本次零 token" }
+      }
+    }
+  },
+  "definitions": {
+    "bucket": {
+      "type": "object",
+      "required": ["spent_today", "cap_today", "remaining"],
+      "additionalProperties": false,
+      "properties": {
+        "spent_today": { "type": "number" },
+        "cap_today": { "type": "number" },
+        "spent_this_week": { "type": ["number", "null"] },
+        "cap_this_week": { "type": ["number", "null"] },
+        "remaining": { "type": "number" },
+        "unit": { "enum": ["llm_cost_estimate", "runner_minutes", "turns"] },
+        "exhausted": { "type": "boolean", "description": "true → 本通道本次不得激活 LLM，记 gate_skipped_run" }
+      }
+    }
+  }
+}

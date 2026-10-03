@@ -591,3 +591,25 @@ jobs:
 
       - name: Run fallback runner invariants check
         run: python3 .github/scripts/tafcm-maintainer/cline_fallback_runner_test.py
+
+  # 仓库 Agent 控制面契约守门（设计文档 §3.8，P0-0）
+  # 拦截方式：三份接口（ledger-event / gate-result / verdict）的单文件约束失效，
+  # 或跨文件枚举分叉（维度 / 独立性凭证类型 / publisher 动作）→ CI 失败。纯 stdlib。
+  agent-control-plane-contracts:
+    name: Agent Control Plane Contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify contract files present
+        run: |
+          for f in .github/schemas/ledger-event.schema.json \
+                   .github/schemas/gate-result.schema.json \
+                   .github/schemas/verdict.schema.json \
+                   .github/scripts/tafcm-maintainer/validate_agent_contracts.py; do
+            test -f "$f" || { echo "FAIL: missing $f"; exit 1; }
+          done
+
+      - name: Validate control-plane contracts
+        run: python3 .github/scripts/tafcm-maintainer/validate_agent_contracts.py
