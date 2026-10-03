@@ -158,7 +158,7 @@ def _collect_live_signals(run_date: date) -> dict:
                                      for sha, paths in commits.items()],
         "untriaged_issue_count": int(untriaged or 0),
         "failed_check_count": int(failed or 0),
-        "frontier_open_candidates": _frontier_open_count(),
+        "frontier_entries": _frontier_open_entries(),
         "days_since_last_exploration": None,   # 无账本前由 --fixture 或人工提供
         "last_exploration_date": None,
         "dimension_state": {},
@@ -167,37 +167,77 @@ def _collect_live_signals(run_date: date) -> dict:
     }
 
 
-def _frontier_open_count(path: Path = DEFAULT_FRONTIER) -> int:
-    """活跃区 Entry 数（frontier_change 触发器的读数）。
+FRONTIER_TARGET_RE = re.compile(r"target:\s*([^\s（()]+)")
+FRONTIER_ID_RE = re.compile(r"^### (FR-\d+)")
+
+
+def _frontier_open_entries(path: Path = DEFAULT_FRONTIER) -> list[dict]:
+    """活跃区 Entry → `[{id, target}]`。
 
     两个小节标记都必须存在：只按 `## 冷却区` 切分时，标题一旦被改名，cooling 与
     retired 条目会全数落进"活跃区"，让 frontier_change 静默虚高——一个会左右
     maintenance 触发器的解析，不该用 docstring 里的"注意"来宽容。
+
+    target 是 `frontier_change` 与近期 diff 求交用的：契约要的是"这条未闭合证据链
+    所指的文件又被改了"，不是"存在未闭合 Entry"（后者会让通道每晚必开）。
     """
     if not path.is_file():
-        return 0
+        return []
     text = path.read_text(encoding="utf-8")
     for marker in (FRONTIER_ACTIVE_MARKER, FRONTIER_COOLING_MARKER):
         if marker not in text:
             raise GateError(f"FRONTIER.md 缺少小节标记 {marker!r}，无法判定活跃区")
     active = text.split(FRONTIER_ACTIVE_MARKER, 1)[1].split(FRONTIER_COOLING_MARKER, 1)[0]
-    return active.count("\n### FR-")
+
+    entries: list[dict] = []
+    current: dict | None = None
+    for line in active.splitlines():
+        id_match = FRONTIER_ID_RE.match(line)
+        if id_match:
+            current = {"id": id_match.group(1), "target": None}
+            entries.append(current)
+            continue
+        if current is not None and current["target"] is None:
+            target_match = FRONTIER_TARGET_RE.search(line)
+            if target_match:
+                current["target"] = target_match.group(1).rstrip("/")
+    return entries
+
+
+def _target_touched(target: str | None, changed_paths: list[str]) -> bool:
+    """Entry 的 target 与近期变更是否有交集：同文件，或同一目录下的兄弟文件。"""
+    if not target:
+        return False
+    if target in changed_paths:
+        return True
+    target_dir = target.rsplit("/", 1)[0] + "/" if "/" in target else ""
+    for path in changed_paths:
+        if target_dir and path.startswith(target_dir):
+            return True
+        parent = path.rsplit("/", 1)[0] + "/" if "/" in path else ""
+        if parent and target.startswith(parent):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------- 判定
 def maintenance_channel(signals: dict) -> dict:
     reasons: list[str] = []
     commits = signals.get("commits_since_last_audit") or []
+    changed_paths = sorted({p for c in commits for p in c.get("paths", [])})
+    entries = signals.get("frontier_entries") or []
+
     if commits:
         reasons.append("changed_code")
     if int(signals.get("untriaged_issue_count") or 0) > 0:
         reasons.append("untriaged_issue")
     if int(signals.get("failed_check_count") or 0) > 0:
         reasons.append("test_failure")
-    if int(signals.get("frontier_open_candidates") or 0) > 0:
+    # 契约语义：open candidate 的 target 路径出现在近期 diff 里，才算 frontier 变化。
+    # 只数 Entry 条数会让一条长期 blocked 的 FR 把 maintenance 通道夜夜打开。
+    if any(_target_touched(e.get("target"), changed_paths) for e in entries):
         reasons.append("frontier_change")
 
-    changed_paths = sorted({p for c in commits for p in c.get("paths", [])})
     return {
         "work_present": bool(reasons),
         "reasons": sorted(reasons),
@@ -206,7 +246,7 @@ def maintenance_channel(signals: dict) -> dict:
             "changed_paths": changed_paths[:40],
             "untriaged_issue_count": int(signals.get("untriaged_issue_count") or 0),
             "failed_check_count": int(signals.get("failed_check_count") or 0),
-            "open_candidate_count": int(signals.get("frontier_open_candidates") or 0),
+            "open_candidate_count": len(entries),
         },
     }
 
@@ -216,6 +256,12 @@ def exploration_channel(signals: dict, run_date: date, dimension_ids: list[str],
     reasons: list[str] = []
     gap = signals.get("days_since_last_exploration")
     last = signals.get("last_exploration_date")
+    if gap is None and last:
+        # 账本只提供日期不提供天数时自行推算。缺这一层，"有账本"反而比"没账本"更保守：
+        # 下面的槽位分支两个条件都进不去，每周探索被静默关闭。
+        gap = _days_since(last, run_date)
+        if gap is None:
+            raise GateError(f"last_exploration_date 无法解析：{last!r}")
     if gap is None and last is None:
         # 账本尚未建立时，探索通道按周槽位兜底运行（否则探索能力会被静默清零）
         if run_date.weekday() == 2:
@@ -553,16 +599,18 @@ def main(argv: list[str] | None = None) -> int:
                 signals[key] = json.loads(value)
             except json.JSONDecodeError:
                 signals[key] = value
+        # evaluate/emit 也在 try 内：判定阶段的 GateError（如无法解析的账本日期）
+        # 必须走同一条响亮失败路径，不能变成裸 traceback。
+        result, extras = evaluate(signals, run_date)
+        problems = emit(result, extras, Path(args.output), Path(args.schema),
+                        args.max_record_kb, args.summary, args.github_output)
     except GateError as exc:
-        print(f"[FAIL] gate 探针失败：{exc}", file=sys.stderr)
+        print(f"[FAIL] gate 判定失败：{exc}", file=sys.stderr)
         return 1
     except (json.JSONDecodeError, OSError, ValueError) as exc:
         print(f"[FAIL] gate 输入不可用：{exc}", file=sys.stderr)
         return 1
 
-    result, extras = evaluate(signals, run_date)
-    problems = emit(result, extras, Path(args.output), Path(args.schema),
-                    args.max_record_kb, args.summary, args.github_output)
     if problems:
         for problem in problems:
             print(f"[FAIL] {problem}", file=sys.stderr)

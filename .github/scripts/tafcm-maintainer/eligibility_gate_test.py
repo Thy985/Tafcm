@@ -39,7 +39,7 @@ def quiet(**overrides) -> dict:
         "commits_since_last_audit": [],
         "untriaged_issue_count": 0,
         "failed_check_count": 0,
-        "frontier_open_candidates": 0,
+        "frontier_entries": [],
         "days_since_last_exploration": 3,
         "last_exploration_date": "2026-10-02",
         "dimension_state": {},
@@ -246,25 +246,110 @@ class ChurnPrefixTest(unittest.TestCase):
 
 
 class FrontierParsingTest(unittest.TestCase):
-    SAMPLE = ("# Tafcm Audit Frontier\n\n"
-              "## 活跃队列（active / deepening / blocked）\n\n"
-              "### FR-001 — a\n- id: FR-001\n\n### FR-002 — b\n- id: FR-002\n\n"
-              "## 冷却区（cooling）\n\n### FR-003 — c\n- id: FR-003\n\n"
-              "## 归档区（retired）\n\n### FR-004 — d\n- id: FR-004\n")
+    SAMPLE = (
+        "# Tafcm Audit Frontier\n\n"
+        "## 活跃队列（active / deepening / blocked）\n\n"
+        "### FR-001 — smoke 管道\n"
+        "- id: FR-001\n"
+        "- next_action: type: targeted-test / target: "
+        "flutter_app/integration_test/phase35_home_smoke_test.dart（已通）→ 扩展至 editor_screen\n\n"
+        "### FR-002 — 无 target 的条目\n- id: FR-002\n- open_question: 待补\n\n"
+        "## 冷却区（cooling）\n\n"
+        "### FR-003 — 冷却条目\n- next_action: type: code-read / target: tools/adi/adi.dart\n\n"
+        "## 归档区（retired）\n\n### FR-004 — 归档\n- id: FR-004\n"
+    )
 
-    def test_counts_only_active_region(self):
+    def _write(self, tmp: Path, text: str = SAMPLE) -> Path:
+        path = tmp / "FRONTIER.md"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_parses_only_active_region_with_targets(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "FRONTIER.md"
-            path.write_text(self.SAMPLE, encoding="utf-8")
-            self.assertEqual(gate._frontier_open_count(path), 2)
+            entries = gate._frontier_open_entries(self._write(Path(tmp)))
+            self.assertEqual([e["id"] for e in entries], ["FR-001", "FR-002"],
+                             "冷却区与归档区的条目不得算进活跃区")
+            self.assertEqual(entries[0]["target"],
+                             "flutter_app/integration_test/phase35_home_smoke_test.dart",
+                             "target 必须停在路径边界，不能把中文说明一起吞进来")
+            self.assertIsNone(entries[1]["target"])
 
     def test_missing_marker_raises_instead_of_overcounting(self):
         """标记被改名时，旧写法会把 cooling/retired 全算进活跃区，信号静默虚高。"""
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "FRONTIER.md"
-            path.write_text(self.SAMPLE.replace("## 冷却区", "## 冷却队列"), encoding="utf-8")
+            path = self._write(Path(tmp), self.SAMPLE.replace("## 冷却区", "## 冷却队列"))
             with self.assertRaises(gate.GateError):
-                gate._frontier_open_count(path)
+                gate._frontier_open_entries(path)
+
+
+class FrontierChangeSemanticsTest(unittest.TestCase):
+    """契约要的是"target 又出现在近期 diff 里"，不是"存在未闭合 Entry"。
+
+    后者会让一条长期 blocked 的 FR（仓库现状就是 FR-001）把 maintenance 通道夜夜打开，
+    影子期"哪些夜晚本可跳过"的读数因此系统性偏高。
+    """
+
+    FR = [{"id": "FR-001",
+           "target": "flutter_app/integration_test/phase35_home_smoke_test.dart"}]
+
+    def _reasons(self, changed_paths, entries):
+        result, _ = evaluate(quiet(
+            commits_since_last_audit=[{"sha": "a", "paths": changed_paths}] if changed_paths else [],
+            frontier_entries=entries), MONDAY)
+        return result["maintenance"]["reasons"]
+
+    def test_unrelated_diff_does_not_open_the_channel(self):
+        reasons = self._reasons(["flutter_app/lib/core/parser/markdown_parser.dart"], self.FR)
+        self.assertIn("changed_code", reasons)
+        self.assertNotIn("frontier_change", reasons)
+
+    def test_target_file_changed_opens_it(self):
+        reasons = self._reasons(
+            ["flutter_app/integration_test/phase35_home_smoke_test.dart"], self.FR)
+        self.assertIn("frontier_change", reasons)
+
+    def test_sibling_file_in_target_dir_opens_it(self):
+        reasons = self._reasons(
+            ["flutter_app/integration_test/editor_test.dart"], self.FR)
+        self.assertIn("frontier_change", reasons)
+
+    def test_open_entries_alone_never_make_work_present(self):
+        """活跃区有条目但今晚零变更：maintenance 必须判无活。"""
+        result, _ = evaluate(quiet(frontier_entries=self.FR), MONDAY)
+        self.assertFalse(result["maintenance"]["work_present"])
+        self.assertEqual(result["maintenance"]["signals"]["open_candidate_count"], 1,
+                         "Entry 数仍作为读数保留，只是不再单独构成触发条件")
+
+
+class ExplorationGapFallbackTest(unittest.TestCase):
+    """账本只提供日期、不提供天数时，槽位判定不得被静默关掉。"""
+
+    def test_gap_derived_from_last_exploration_date(self):
+        result, _ = evaluate(quiet(days_since_last_exploration=None,
+                                   last_exploration_date="2026-09-01"), MONDAY)
+        self.assertIn("scheduled_slot", result["exploration"]["reasons"])
+        self.assertEqual(result["exploration"]["signals"]["days_since_last_exploration"], 34)
+
+    def test_recent_date_still_blocks_the_slot(self):
+        result, _ = evaluate(quiet(days_since_last_exploration=None,
+                                   last_exploration_date="2026-10-02"), MONDAY)
+        self.assertNotIn("scheduled_slot", result["exploration"]["reasons"])
+
+    def test_unparseable_date_fails_loudly(self):
+        """静默当"没数据"处理会让有账本比没账本更保守，且没人知道。"""
+        with self.assertRaises(gate.GateError):
+            evaluate(quiet(days_since_last_exploration=None,
+                           last_exploration_date="上周三"), MONDAY)
+
+    def test_cli_reports_unparseable_date_as_exit_1(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "s.json"
+            fixture.write_text(json.dumps(quiet(days_since_last_exploration=None,
+                                                last_exploration_date="上周三")),
+                               encoding="utf-8")
+            code = gate.main(["--fixture", str(fixture), "--date", MONDAY.isoformat(),
+                              "--output", str(Path(tmp) / "out.json")])
+            self.assertEqual(code, 1, "判定阶段的 GateError 必须走响亮失败，不能裸 traceback")
 
 
 class GuardEffectivenessTest(unittest.TestCase):

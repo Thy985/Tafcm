@@ -106,14 +106,23 @@ jobs:
 
       # 影子期的指标依赖"每夜 gate 真的跑了"。continue-on-error 会让失败步骤显示
       # success，gate 缺席的夜晚必须显式标注，否则 gate_skip_rate 的分母是假的。
+      # 同时落一个可机读终态：artifact 里缺 gate-result.json 本身无法区分"没跑"
+      # 与"跑崩"，分母剔除需要机器可读的来源。
+      # 注意这是 gate-failure.json，不冒充 gate-result（后者 required 字段更多）。
       - name: Alert — Eligibility Gate 本夜未产出判定
         if: steps.gate.outcome == 'failure'
         run: |
+          set -euo pipefail
+          mkdir -p .tmp/tafcm-maintainer
+          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+          cat > .tmp/tafcm-maintainer/gate-failure.json <<JSON
+          {"schema_version":"1.0","status":"gate_failed","run_date":"${TODAY}","run_id":"${GITHUB_RUN_ID}","gate_result_produced":false,"note":"本夜必须从 gate_skip_rate / agent_activation_rate 的分母中剔除"}
+          JSON
           {
             echo "## [ALERT] Eligibility Gate 未产出判定"
             echo ""
             echo "- 本夜 gate 步骤失败（已被 continue-on-error 放行，夜间审查不受影响）"
-            echo "- **本夜必须从 gate_skip_rate / agent_activation_rate 的分母中剔除**"
+            echo "- **本夜不计入影子期指标**（分母剔除依据：artifact 内的 gate-failure.json）"
             echo "- 排查：本步骤日志的 traceback；对照 .github/仓库Agent设计与治理.md §3.9"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::warning::Eligibility Gate 未产出判定——本夜不计入影子期指标"
@@ -440,8 +449,7 @@ jobs:
             .tmp/tafcm-maintainer/cline-result.json
             .tmp/tafcm-maintainer/report.json
             .tmp/tafcm-maintainer/gate-result.json
-            .tmp/tafcm-maintainer/model_used_main.json
-            .tmp/tafcm-maintainer/model_used_fix.json
+            .tmp/tafcm-maintainer/gate-failure.json
             .tmp/tafcm-maintainer/model_used_main.json
             .tmp/tafcm-maintainer/model_used_fix.json
           retention-days: 30
