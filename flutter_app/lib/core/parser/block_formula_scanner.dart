@@ -51,7 +51,6 @@ abstract final class BlockFormulaScanner {
     // 必须在这里把前导空白 > 0 的行排除掉，否则该行为会被静默覆盖。
     if (!first.startsWith(r'$$')) return null;
 
-    const firstScanFrom = 2;
     var source = first;
     // 增量续扫下标：每轮只从上一轮**已扫完**的文本末尾继续，而不是每轮对
     // 全量 source 从头重扫（后者在未闭合 `$$` + 长文档下退化为 O(n²)）。
@@ -68,7 +67,11 @@ abstract final class BlockFormulaScanner {
     // `scanFrom = source.length`（0 偏移）与 `source.length - 1` 产出完全相同
     // 的结果。保留 `-1` 只为让重扫起点与「已扫完的文本末尾」这一语义直觉对齐，
     // 代价是每轮至多多看 1 个字符，总量仍为线性。
-    var scanFrom = firstScanFrom;
+    //
+    // 初值 `2` 只服务**首轮**（跳过开定界符 `$$` 本身）；进入循环后每轮都被
+    // 重新赋为 `source.length - 1`。不为它单独声明常量——那会让名字与「循环内
+    // 每轮覆盖」的实际用法产生假对称。
+    var scanFrom = 2;
     var end = FormulaExtractor.findDisplayDelimiter(source, scanFrom);
     var index = startIndex;
     while (end == -1 && index + 1 < lines.length) {

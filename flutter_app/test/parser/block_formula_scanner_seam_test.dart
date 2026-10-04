@@ -23,7 +23,7 @@ void main() {
     test(r'闭合 $$ 恰在 source 末尾：不漏判、不越界', () {
       // 上一轮 source 末尾就是 `$$` 闭合定界符。增量续扫起点 = length-1
       // 必须命中这个 `$$`，不能因 `i < text.length - 1` 守卫漏掉末尾对。
-      // 单行场景下 scanFrom == firstScanFrom == 2，正好覆盖。
+      // 单行场景下 scanFrom 初值 == 2，正好覆盖。
       final formulas = allFormulas(MarkdownParser.parse(r'$$E=mc^2$$'));
       expect(formulas, hasLength(1));
       expect(formulas.single.displayMode, isTrue);
