@@ -555,6 +555,12 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
    读数口径修正：`gate_step_failed` 的夜晚**既不进分子也不进分母**（单列 `gate_unavailable`）——
    把它们算成"合法跳过"会让坏掉的闸门看起来很有用。`Commit Audit` 因此改成
    `if: always() && steps.guard.outcome == 'success'`，audit 解析失败的夜晚闸门行仍要落账。
+   **失败夜的既定行为**（写清楚，免得下次当成 bug）：`import-audit` 读不到当晚 audit 文件
+   会 `OSError → exit 1`（缺文件=事故，不静默跳过），该夜 Finding 不进账本、job 判红；
+   `append-gate` / `project` / 两个 Guard 都带 `always()`，所以闸门行仍被提交。
+   **漏掉的夜晚不会自动补**：workflow 每晚只传当天的文件名，补录要人工跑
+   `ledger.py import-audit --audit docs/agent-audit/<漏的那晚>-maintainer-audit.md`
+   （按 fingerprint 去重，重复导入不会多一份）。自动补扫未导入的 audit 文件记在 P0-2b。
 9. **投影必须可复现**：`LEDGER.md` 正文不含生成时间（带时间戳 = 每晚都把没变的账本改脏，
    而且 CI 永远没法判"投影与账本一致"）。新增 `project --check`，已挂进 `ci.yml`：
    手改投影、或写了账本没重生成投影，PR 直接红。这是 #289 那条红线的机器版本。
@@ -571,7 +577,9 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 - 注册表 `FINDINGS.md` 与账本仍两套状态并存，靠 `reconcile` 守着；`import-findings` 的
   身份是"申报来的"而不是"算出来的"，注册表里没有存 Summary 原文，重算所需输入根本不在那一行；
 - `frontier_open_candidates` 已由 `state` 产出但闸门仍解析 `FRONTIER.md`，两个 frontier 概念
-  并存到 P0-2b。
+  并存到 P0-2b；
+- 漏掉的一夜不会自动补录：`import-audit` 只读当天文件名，audit 生成后、导入前挂掉的窗口
+  需要人工补跑或加自动补扫（P0-2b）。
 
 两条由真实数据（不是 fixture）逼出的修正：
 
