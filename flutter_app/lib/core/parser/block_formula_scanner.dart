@@ -1,6 +1,6 @@
 /// BlockFormulaScanner：多行块级公式（`$$`）定界边界扫描（issue #321）。
 ///
-/// [MarkdownParser.parse] 逐行解析，多行 `$$\n...\n$$` 曾被拆成逐行字面文本
+/// `MarkdownParser.parse` 逐行解析，多行 `$$\n...\n$$` 曾被拆成逐行字面文本
 /// （`$$` 定界行退化成空公式，正文原样显示）。本扫描器在块级先收集闭合的
 /// display 公式块，交回完整原文交给 `MarkdownParser._parseInline` 统一解析，
 /// 与单行 `$$...$$` 走同一条链路（`_findInlineFormulaEnd` 仍禁止行内跨行）。
@@ -22,7 +22,7 @@ abstract final class BlockFormulaScanner {
   /// 支持的开定界行形态（判定按 `trim` 后的行内容）：
   /// - 定界符独占行：`$$`（允许前导缩进与尾随空白）
   /// - 定界符紧跟正文：`$$\begin{aligned}` / `$$ E=mc^2`
-  ///   （[InlineSerializer] 把含换行的 latex 写成开闭定界符跨行的单块；
+  ///   （`InlineSerializer` 把含换行的 latex 写成开闭定界符跨行的单块；
   ///   手写时把公式首行写在开定界行上也属同一形态）
   ///
   /// **开定界行内已有正文会被保留，不丢弃**：`trim` 只剥首尾空白，
