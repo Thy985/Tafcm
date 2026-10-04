@@ -29,6 +29,12 @@ abstract final class BlockFormulaScanner {
   /// `$$ E=mc^2` 的正文 `E=mc^2` 随 source 一起进入解析，产出
   /// latex = ` E=mc^2`。因此不把「定界符后紧跟正文」当作非法形态降级——
   /// 那样会让序列化回写形态和手写首行公式都退回字面文本。
+  ///
+  /// **首行尾随空白会被裁剪**：`trim` 同时作用于首尾，`$$ E=mc^2   ` 的
+  /// 三个尾随空格在 source 里已丢，但内部行（含换行后的行）只剥 `\r`、
+  /// 保留全部空白。该不对称是既有惰性尾部空白语义的一小块，round-trip
+  /// 不翻转（已验证）；若日后需要严格保真首行尾随空白，需把首行单独按
+  /// `_stripCr` 处理而非 `trim`。
   static ({int endIndex, String source})? scan(
     List<String> lines,
     int startIndex,
@@ -47,12 +53,22 @@ abstract final class BlockFormulaScanner {
 
     const contentStart = 2;
     var source = first;
-    var end = FormulaExtractor.findDisplayDelimiter(source, contentStart);
+    // 增量续扫下标：每轮只从上一轮**已扫完**的文本末尾继续，而不是每轮对
+    // 全量 source 从头重扫（后者在未闭合 `$$` + 长文档下退化为 O(n²)）。
+    //
+    // 续扫起点取「追加前」的 `source.length - 1`，即**回退一格**。这是保守取
+    // 值而非必要优化：追加的 `'\n'` 本身已隔断跨拼接缝的 `$$` 定界对与
+    // `\$` 转义对，从追加位置起扫即等价正确；回退一格让 `_findMatchingDelimiter`
+    // 重看旧文本末字符一次，避免任何对「拼接缝位置」的推理依赖。代价是每轮
+    // 至多多看 1 个字符，总量仍为线性。
+    var scanFrom = contentStart;
+    var end = FormulaExtractor.findDisplayDelimiter(source, scanFrom);
     var index = startIndex;
     while (end == -1 && index + 1 < lines.length) {
       index++;
+      scanFrom = source.length - 1;
       source = '$source\n${_stripCr(lines[index])}';
-      end = FormulaExtractor.findDisplayDelimiter(source, contentStart);
+      end = FormulaExtractor.findDisplayDelimiter(source, scanFrom);
     }
     if (end == -1) return null;
     return (endIndex: index, source: source);

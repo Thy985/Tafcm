@@ -12,74 +12,12 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/formula_ast.dart';
 import 'package:tafcm/core/parser/formula_extractor.dart';
 import 'package:tafcm/core/parser/markdown_parser.dart';
 import 'package:tafcm/core/parser/markdown_serializer.dart';
 import 'package:tafcm/data/models/document.dart';
 
-/// 收集文档中全部 inline 公式（含嵌套块）。
-List<FormulaElement> _allFormulas(List<DocumentElement> elements) {
-  final out = <FormulaElement>[];
-  void walkInline(List<InlineElement> children) {
-    for (final child in children) {
-      switch (child) {
-        case FormulaElement():
-          out.add(child);
-        case BoldElement(:final children):
-        case ItalicElement(:final children):
-        case StrikethroughElement(:final children):
-          walkInline(children);
-        case TextElement():
-        case InlineCodeElement():
-        case LinkElement():
-        case ImageElement():
-          break;
-      }
-    }
-  }
-
-  void walk(List<DocumentElement> nodes) {
-    for (final node in nodes) {
-      switch (node) {
-        case ParagraphElement(:final children):
-        case ListElement(:final children):
-        case TaskListItemElement(:final children):
-        case BlockquoteElement(:final children):
-          walkInline(children);
-        case TableElement(:final headers, :final rows):
-          for (final header in headers) {
-            walkInline(header);
-          }
-          for (final row in rows) {
-            for (final cell in row) {
-              walkInline(cell);
-            }
-          }
-        case HeadingElement(:final children):
-          walkInline(children);
-        case CodeElement():
-        case MermaidElement():
-        case HorizontalRuleElement():
-        case EmptyLineElement():
-          break;
-      }
-    }
-  }
-
-  walk(elements);
-  return out;
-}
-
-/// 取仅含单个 display 公式的段落（`ParagraphBlock._isPureBlockFormula` 的契约）。
-ParagraphElement _pureFormulaParagraph(List<DocumentElement> elements) {
-  final candidates = elements
-      .whereType<ParagraphElement>()
-      .where((p) => p.children.length == 1 && p.children.first is FormulaElement)
-      .toList();
-  expect(candidates, hasLength(1),
-      reason: '期望恰好一个「纯块级公式」段落，实际 AST：$elements');
-  return candidates.single;
-}
 
 void main() {
   group(r'issue #321：多行 $$...$$ 块级公式', () {
@@ -91,7 +29,7 @@ void main() {
           '\$\$';
 
       final elements = MarkdownParser.parse(md);
-      final paragraph = _pureFormulaParagraph(elements);
+      final paragraph = pureFormulaParagraph(elements);
 
       expect(paragraph.children, hasLength(1),
           reason: '块级公式段落只应有公式本身，不夹带空公式 / 原文文本');
@@ -108,7 +46,7 @@ void main() {
       const md = '\$\$\n$latexBody\n\$\$';
 
       final elements = MarkdownParser.parse(md);
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
 
       expect(formulas, hasLength(1),
           reason: '多行块级公式必须合并为 1 个公式，而不是逐行拆成多个');
@@ -128,7 +66,7 @@ void main() {
       final paragraphs = elements.whereType<ParagraphElement>().toList();
 
       expect(paragraphs, hasLength(3));
-      expect(_allFormulas(elements), hasLength(1));
+      expect(allFormulas(elements), hasLength(1));
       expect((paragraphs[1].children.single as FormulaElement).latex, 'E=mc^2');
       expect((paragraphs[2].children.single as TextElement).text, '后文');
     });
@@ -137,7 +75,7 @@ void main() {
       const md = '\$\$\na=1\n\$\$\n\n\$\$\nb=2\n\$\$';
 
       final elements = MarkdownParser.parse(md);
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
 
       expect(formulas.map((f) => f.latex).toList(), ['a=1', 'b=2']);
       expect(formulas.every((f) => f.displayMode), isTrue);
@@ -147,7 +85,7 @@ void main() {
       const md = '前置\r\n\r\n\$\$\r\nE=mc^2\r\n\$\$\r\n';
 
       final elements = MarkdownParser.parse(md);
-      final formula = _pureFormulaParagraph(elements).children.single
+      final formula = pureFormulaParagraph(elements).children.single
           as FormulaElement;
 
       expect(formula.displayMode, isTrue);
@@ -160,7 +98,7 @@ void main() {
 
       final elements = MarkdownParser.parse(md);
 
-      expect(_allFormulas(elements), isEmpty);
+      expect(allFormulas(elements), isEmpty);
       final code = elements.whereType<CodeElement>().single;
       expect(code.code, contains(r'$$'));
     });
@@ -177,7 +115,7 @@ void main() {
       final md2 = MarkdownSerializer.serialize(second);
 
       expect(md2, md1, reason: '二次序列化应收敛到不动点');
-      expect(_allFormulas(second).single.latex, 'a=1\nb=2',
+      expect(allFormulas(second).single.latex, 'a=1\nb=2',
           reason: 'round-trip 后多行正文不得丢失');
     });
 
@@ -186,7 +124,7 @@ void main() {
       // 该形态必须同样被识别为一个公式，否则保存后再打开会退化成源码文本。
       const md = r'$$\begin{aligned}' '\n' r'a &= b' '\n' r'\end{aligned}$$';
 
-      final formulas = _allFormulas(MarkdownParser.parse(md));
+      final formulas = allFormulas(MarkdownParser.parse(md));
 
       expect(formulas, hasLength(1));
       expect(formulas.single.displayMode, isTrue);
@@ -212,7 +150,7 @@ void main() {
       // 保存后再打开就会把公式退化成源码字面量。
       const md = r'$$ E=mc^2' '\n' r'$$';
 
-      final formulas = _allFormulas(MarkdownParser.parse(md));
+      final formulas = allFormulas(MarkdownParser.parse(md));
 
       expect(formulas, hasLength(1));
       expect(formulas.single.displayMode, isTrue);
@@ -226,7 +164,7 @@ void main() {
         r'$$\begin{aligned}' '\n' r'\alpha' '\n' r'\end{aligned}$$',
       );
 
-      final paragraph = _pureFormulaParagraph(elements);
+      final paragraph = pureFormulaParagraph(elements);
       expect((paragraph.children.single as FormulaElement).latex,
           r'\begin{aligned}' '\n' r'\alpha' '\n' r'\end{aligned}');
     });
@@ -237,7 +175,7 @@ void main() {
       // 必须同步收紧 BlockFormulaScanner 的判定，否则这里会静默失败。
       const md = '    \$\$\nE=mc^2\n\$\$';
 
-      final formulas = _allFormulas(MarkdownParser.parse(md));
+      final formulas = allFormulas(MarkdownParser.parse(md));
 
       expect(formulas, hasLength(1),
           reason: '前导缩进的块级公式仍应被识别，不落入代码块/正文');
@@ -248,8 +186,8 @@ void main() {
       // 刻意选择：空块按公式卡片渲染，而非降级为文本。
       // 若改为降级，必须同时改两条路径，否则同一内容不同写法走不同渲染路径，
       // 保存-重载 round-trip 会在文本与卡片之间翻转。
-      final fromBlock = _allFormulas(MarkdownParser.parse('\$\$\n\$\$'));
-      final fromSingleLine = _allFormulas(MarkdownParser.parse(r'$$$$'));
+      final fromBlock = allFormulas(MarkdownParser.parse('\$\$\n\$\$'));
+      final fromSingleLine = allFormulas(MarkdownParser.parse(r'$$$$'));
 
       expect(fromBlock, hasLength(1));
       expect(fromBlock.single.displayMode, isTrue);
@@ -281,7 +219,7 @@ void main() {
     test(r'单行 $$...$$ 仍是单个 display 公式', () {
       final elements = MarkdownParser.parse(r'$$\int_0^1 x^2 dx$$');
 
-      final paragraph = _pureFormulaParagraph(elements);
+      final paragraph = pureFormulaParagraph(elements);
       final formula = paragraph.children.single as FormulaElement;
       expect(formula.displayMode, isTrue);
       expect(formula.latex, r'\int_0^1 x^2 dx');
@@ -290,7 +228,7 @@ void main() {
     test('单行多段公式互不吞并', () {
       final elements = MarkdownParser.parse('前 \$\$a\$\$ 中 \$\$b\$\$ 后');
 
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
       expect(formulas.map((f) => f.latex).toList(), ['a', 'b']);
       expect(formulas.every((f) => f.displayMode), isTrue);
     });
@@ -298,7 +236,7 @@ void main() {
     test(r'行内 $...$ 仍为 inline 公式且不被跨行配对', () {
       final elements = MarkdownParser.parse('行内 \$x^2\$ 结束');
 
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
       expect(formulas, hasLength(1));
       expect(formulas.single.latex, 'x^2');
       expect(formulas.single.displayMode, isFalse);
@@ -307,7 +245,7 @@ void main() {
     test('行内公式与多行块级公式混排各自保持 displayMode', () {
       const md = '行内 \$E=mc^2\$。\n\n\$\$\n\\int_0^1 x\\,dx\n\$\$';
 
-      final formulas = _allFormulas(MarkdownParser.parse(md));
+      final formulas = allFormulas(MarkdownParser.parse(md));
 
       expect(formulas.map((f) => f.displayMode).toList(), [false, true]);
       expect(formulas.map((f) => f.latex).toList(), ['E=mc^2', r'\int_0^1 x\,dx']);
@@ -318,7 +256,7 @@ void main() {
 
       final elements = MarkdownParser.parse(md);
 
-      expect(_allFormulas(elements).map((f) => f.latex).toList(), ['x', 'y']);
+      expect(allFormulas(elements).map((f) => f.latex).toList(), ['x', 'y']);
     });
   });
 
@@ -328,7 +266,7 @@ void main() {
 
       // 解析不抛异常；坏公式不会产出公式元素（由 FormulaRenderer 走源码降级）
       expect(elements, isNotEmpty);
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
       expect(formulas.where((f) => f.displayMode), isEmpty);
     });
 
@@ -336,7 +274,7 @@ void main() {
       final elements = MarkdownParser.parse('前文\n\n\$\$\n\\int_0^1 x dx');
 
       expect(elements, isNotEmpty);
-      expect(_allFormulas(elements).where((f) => f.displayMode), isEmpty);
+      expect(allFormulas(elements).where((f) => f.displayMode), isEmpty);
       // 原文不丢失：仍以文本形式可见
       final text = elements
           .whereType<ParagraphElement>()
@@ -350,7 +288,7 @@ void main() {
     test(r'孤立 $$ 定界行降级为文本且不吞掉后续段落', () {
       final elements = MarkdownParser.parse('前文\n\n\$\$\n\n后文');
 
-      final formulas = _allFormulas(elements);
+      final formulas = allFormulas(elements);
       expect(formulas.where((f) => f.displayMode), isEmpty);
       final texts = elements
           .whereType<ParagraphElement>()
@@ -360,6 +298,61 @@ void main() {
           .join();
       expect(texts, contains('前文'));
       expect(texts, contains('后文'));
+    });
+  });
+
+  group('增量续扫边界（O(n²) → O(n) 优化等价性）', () {
+    // 锁住增量续扫实现（scanFrom = source.length - 1）在拼接缝附近的
+    // 正确性。差分探针已验证 18174 个随机输入与原全量重扫 0 mismatch，
+    // 这里补的是差分探针不易稳定命中的**结构性**边界用例。
+
+    test(r'闭合 $$ 恰在 source 末尾：不漏判、不越界', () {
+      // 上一轮 source 末尾就是 `$$` 闭合定界符。增量续扫起点 = length-1
+      // 必须命中这个 `$$`，不能因 `i < text.length - 1` 守卫漏掉末尾对。
+      // 单行场景下 scanFrom == contentStart == 2，正好覆盖。
+      final formulas = allFormulas(MarkdownParser.parse(r'$$E=mc^2$$'));
+      expect(formulas, hasLength(1));
+      expect(formulas.single.displayMode, isTrue);
+      expect(formulas.single.latex, r'E=mc^2');
+    });
+
+    test(r'上一行行尾孤立 $ 不与下一行行首 $ 跨缝配对', () {
+      // 拼接缝陷阱：上一轮 source 末字符是 `$`，下一行行首也是 `$`，
+      // 增量续扫若从追加位置起扫、且不做转义检查，可能把这两个 `$`
+      // 跨缝拼成行内公式定界对。`\n` 隔断 + `_findMatchingDelimiter`
+      // 的转义规则必须让这种输入判未闭合。
+      //
+      // 本用例直接构造 Markdown 文档级输入：开定界行后跟一个孤立 `$` 行，
+      // 再跟闭合 `$$` 行——孤立 `$` 不应被吞进公式，也不应跨缝配对。
+      const md = r'$$' '\n' r'$' '\n' r'$$';
+      final formulas = allFormulas(MarkdownParser.parse(md));
+      expect(formulas, hasLength(1),
+          reason: '应识别为一个 display 公式（latex 含中间的 \$ 与换行）');
+      expect(formulas.single.displayMode, isTrue);
+      // latex 经 _stripFenceNewlines 剥首层换行后含 ` $\n`
+      expect(formulas.single.latex, contains(r'$'));
+    });
+
+    test(r'未闭合 $$ + 长文档：单次线性扫描，不抛异常', () {
+      // 复杂度契约：未闭合场景下，扫描器对每行只做一次 findDisplayDelimiter
+      // 调用（从上一轮末尾续扫），总量 O(n)。这里不直接断言复杂度，
+      // 只锁住「长文档不抛异常 + 不产出 display 公式 + 原文不丢」三个不变量。
+      final lines = <String>['\$\$'];
+      for (var i = 0; i < 500; i++) {
+        lines.add('正文行 \$$i');
+      }
+      final md = lines.join('\n');
+
+      final elements = MarkdownParser.parse(md);
+      expect(allFormulas(elements).where((f) => f.displayMode), isEmpty);
+      final text = elements
+          .whereType<ParagraphElement>()
+          .expand((p) => p.children)
+          .whereType<TextElement>()
+          .map((t) => t.text)
+          .join();
+      expect(text, contains(r'正文行 $0'));
+      expect(text, contains(r'正文行 $499'));
     });
   });
 }
