@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// 页面加载完成后的回调签名。由 [MermaidService.markPageLoaded] 触发。
@@ -437,11 +437,31 @@ class MermaidService {
     }
   }
 
+  /// 构造派发给 WebView 的 `window.renderMermaid(...)` 调用脚本。
+  ///
+  /// 暴露为 visibleForTesting，供 `mermaid_render_script_test.dart` 断言主题参数
+  /// 是**带引号的 JS 字符串字面量**——`default` 是 ES 保留字，裸插值会生成
+  /// `window._mermaidTheme!==default`，eval 脚本报 `SyntaxError: Unexpected token
+  /// 'default'`，整个脚本无法解析，导致每张图都渲染失败（issue #322）。
+  ///
+  /// 字符串一律经 [_js] 转义后插值；非字符串的 JS 字面量（如 bool）才可直接插值。
+  @visibleForTesting
+  static String buildRenderScript({
+    required String requestId,
+    required String code,
+    required MermaidTheme theme,
+  }) {
+    final themeStr = theme == MermaidTheme.dark ? "'dark'" : "'default'";
+    return '(function(){if(!window._mermaidTheme||window._mermaidTheme!==$themeStr){window._mermaidTheme=$themeStr;} '
+        'return window.renderMermaid(${_js(requestId)}, ${_js(code)}, $themeStr);})()';
+  }
+
   static Future<void> _evaluate(_PendingRender p) async {
-    final themeStr = p.theme == MermaidTheme.dark ? 'dark' : 'default';
-    final script =
-        '(function(){if(!window._mermaidTheme||window._mermaidTheme!==$themeStr){window._mermaidTheme=$themeStr;} '
-        'return window.renderMermaid(${_js(p.requestId)}, ${_js(p.code)}, $themeStr);})()';
+    final script = buildRenderScript(
+      requestId: p.requestId,
+      code: p.code,
+      theme: p.theme,
+    );
     try {
       await (_controller?.evaluateJavascript(source: script) ?? Future.value(null))
           .timeout(_renderTimeout);
