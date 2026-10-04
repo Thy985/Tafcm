@@ -265,11 +265,17 @@ class InMemoryDocumentEditor implements DocumentEditor {
   ///
   /// 结果会被缓存到 [_serializedContent]，在块集合或块内容变化前
   /// 重复读取不会再次全量序列化（#249 优化）。
+  ///
+  /// **块间分隔符**（issue #343）：用 [joinBlocks] 而非裸 `join('\n')`。
+  /// 段落是非自终止块，单 `\n` 会让 `MarkdownParser.parse` 把相邻段落合成
+  /// 一个软换行段落，保存即塌缩（9 块 → 7 块）。[joinBlocks] 在前一块是
+  /// `ParagraphElement` 时插入 `\n\n`，保住段落边界。
   String get serializedContent {
     final cached = _serializedContent;
     if (cached != null) return cached;
-    return _serializedContent = [for (final id in _ids) fromElement(_blocks[id]!.element)]
-        .join('\n');
+    return _serializedContent = joinBlocks(
+      [for (final id in _ids) _blocks[id]!.element],
+    );
   }
 }
 
