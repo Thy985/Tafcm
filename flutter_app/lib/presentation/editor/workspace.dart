@@ -7,6 +7,8 @@
 /// - [EditorViewport]：编辑视口（ReorderableListView，渲染所有 Block）。
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/editing/block_types.dart';
@@ -25,6 +27,19 @@ import 'editor_scope.dart';
 /// 编辑视口在宽屏（> 720）下约束于此值并居中；窄屏（< 720）不受影响。
 /// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
 const double kMaxPageWidth = 720.0;
+
+/// 尾部「点击此处添加新块」点击区的完整高度（即点即插手势热区，AS-1.3）。
+///
+/// 该区域不是内容，仅是便捷插入入口，故在竖直空间紧张时允许按比例收缩。
+const double kTailTapAreaHeight = 120.0;
+
+/// 尾部点击区最多可占编辑区可用高度的比例（#324）。
+///
+/// 取 0.25 保证：任何可用高度 ≥ 480px 的编辑区（即全部竖屏场景）都仍能取满
+/// [kTailTapAreaHeight]，像素级不变；只有横屏这类可用高度骤降的场景才收缩，
+/// 把空间让给可滚动的块列表。真机横屏编辑区仅 203px → 尾部约 51px，
+/// 列表由 83px 恢复到 152px。
+const double kTailTapAreaMaxHeightRatio = 0.25;
 
 /// Workspace：编辑区布局容器（编辑视口 + 页面宽度约束）。
 ///
@@ -115,84 +130,101 @@ class EditorViewport extends StatelessWidget {
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
       );
     }
-    return Column(
-      children: [
-        // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化
-        // 路径，编辑已禁用——显式告知"不可保存"，消除静默丢内容的误解。
-        if (coordinator.isReadOnly)
-          Material(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const SizedBox(
-              width: double.infinity,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  '查看模式 · 外部文件不可保存，编辑已禁用',
-                  style: TextStyle(fontSize: 13),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // #324：横屏下编辑区高度骤降（真机 923→411），尾部「点击此处添加新块」
+        // 占位若仍固定 120px，会吃掉编辑区 59% 高度（203.2 中占 120），
+        // 把可滚动的块列表压到 83px——不足一个标题块的高度，导致标题之后的
+        // 正文块全部落在可视区之外，且总滚动范围仅 1.5px（表现为"滚动无效"）。
+        //
+        // 修复：尾部占位高度按编辑区可用高度的比例收缩，保证竖屏像素级不变
+        // （竖屏编辑区 ≥600px 时比例项 ≥120px，仍取满 120px），横屏则让位给内容。
+        final tailHeight = math.min(
+          kTailTapAreaHeight,
+          constraints.maxHeight * kTailTapAreaMaxHeightRatio,
+        );
+        return Column(
+          children: [
+            // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化
+            // 路径，编辑已禁用——显式告知"不可保存"，消除静默丢内容的误解。
+            if (coordinator.isReadOnly)
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      '查看模式 · 外部文件不可保存，编辑已禁用',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ReorderableListView.builder(
+                scrollController: controller,
+                buildDefaultDragHandles: false,
+                padding: const EdgeInsets.all(EditorTokens.viewportPadding),
+                itemCount: ids.length,
+                onReorderItem: _onReorderItem,
+                // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
+                // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
+                // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
+                // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
+                proxyDecorator: (child, index, animation) => EditorScope(
+                  coordinator: coordinator,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: child,
+                  ),
+                ),
+                itemBuilder: (context, index) {
+                  final id = ids[index];
+                  // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
+                  // 其他块（含视口与其余可见块）完全不参与。
+                  //
+                  // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
+                  // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
+                  // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
+                  // 拖拽重排会失去稳定的 item 身份。
+                  return ValueListenableBuilder<int>(
+                    key: ValueKey(id),
+                    valueListenable: coordinator.blockNotifiers.notifierOf(id),
+                    builder: (context, blockVersion, _) =>
+                        _buildBlock(context, id, index),
+                  );
+                },
+              ),
+            ),
+            // 尾部空白点击区：即点即插（AS-1.3）
+            GestureDetector(
+              onTap: () {
+                final newId = coordinator.intents.appendBlock();
+                coordinator.setFocus(newId);
+              },
+              behavior: HitTestBehavior.translucent,
+              child: SizedBox(
+                // #324：随编辑区高度按比例收缩（见 LayoutBuilder 注释）。
+                height: tailHeight,
+                width: double.infinity,
+                child: const Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    // 实测bug1.md §2：占位提示下移 0.7cm（≈27 逻辑像素，
+                    // 160dpi 基准 1cm≈37.8dp），避免贴住上一块底部。
+                    padding: EdgeInsets.only(top: 33),
+                    child: Text(
+                      '点击此处添加新块',
+                      style: TextStyle(fontSize: 13, color: Colors.black38),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        Expanded(
-          child: ReorderableListView.builder(
-            scrollController: controller,
-            buildDefaultDragHandles: false,
-            padding: const EdgeInsets.all(EditorTokens.viewportPadding),
-            itemCount: ids.length,
-            onReorderItem: _onReorderItem,
-            // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
-            // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
-            // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
-            // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
-            proxyDecorator: (child, index, animation) => EditorScope(
-              coordinator: coordinator,
-              child: Material(
-                type: MaterialType.transparency,
-                child: child,
-              ),
-            ),
-            itemBuilder: (context, index) {
-              final id = ids[index];
-              // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
-              // 其他块（含视口与其余可见块）完全不参与。
-              //
-              // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
-              // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
-              // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
-              // 拖拽重排会失去稳定的 item 身份。
-              return ValueListenableBuilder<int>(
-                key: ValueKey(id),
-                valueListenable: coordinator.blockNotifiers.notifierOf(id),
-                builder: (context, blockVersion, _) => _buildBlock(context, id, index),
-              );
-            },
-          ),
-        ),
-        // 尾部空白点击区：即点即插（AS-1.3）
-        GestureDetector(
-          onTap: () {
-            final newId = coordinator.intents.appendBlock();
-            coordinator.setFocus(newId);
-          },
-          behavior: HitTestBehavior.translucent,
-          child: const SizedBox(
-            height: 120,
-            width: double.infinity,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                // 实测bug1.md §2：占位提示下移 0.7cm（≈27 逻辑像素，
-                // 160dpi 基准 1cm≈37.8dp），避免贴住上一块底部。
-                padding: EdgeInsets.only(top: 33),
-                child: Text(
-                  '点击此处添加新块',
-                  style: TextStyle(fontSize: 13, color: Colors.black38),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
