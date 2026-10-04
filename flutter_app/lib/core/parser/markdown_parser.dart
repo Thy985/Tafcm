@@ -1,4 +1,5 @@
 import '../../data/models/document.dart';
+import 'block_formula_scanner.dart';
 import 'formula_extractor.dart';
 
 /// Markdown 解析异常。
@@ -198,6 +199,24 @@ class MarkdownParser {
           flushListItems();
           flushTable();
           elements.add(const EmptyLineElement());
+          continue;
+        }
+
+        // 块级公式（issue #321）：`$$` 定界行独占的标准多行写法
+        // （`$$\n...\n$$`）在块级先收集成一块，再交给 _parseInline 统一解析，
+        // 产出**单个** displayMode FormulaElement（此前被逐行拆成字面文本，
+        // `$$` 定界行还退化成空公式）。
+        // - 单行 `$$...$$`（endIndex == lineIndex）不进入本分支，走既有路径
+        // - 未闭合 `$$`（scan 返回 null）降级为既有逐行行为，不抛异常
+        final displayBlock = BlockFormulaScanner.scan(lines, lineIndex);
+        if (displayBlock != null && displayBlock.endIndex > lineIndex) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          elements.add(ParagraphElement(
+            children: _parseInline(displayBlock.source),
+          ));
+          lineIndex = displayBlock.endIndex;
           continue;
         }
 

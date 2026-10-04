@@ -96,7 +96,7 @@ class FormulaExtractor {
         final end = _findMatchingDelimiter(text, i + 2);
         if (end != -1) {
           results.add(FormulaMatch(
-            latex: text.substring(i + 2, end),
+            latex: _stripFenceNewlines(text.substring(i + 2, end)),
             start: i,
             end: end + 2,
             displayMode: true,
@@ -178,6 +178,42 @@ class FormulaExtractor {
     return -1;
   }
 
+  /// 查找 display 公式闭合定界符 `$$` 的起始下标，未找到返回 -1。
+  ///
+  /// 与 [extractFormulas] 内部使用同一套转义规则（`\$` / `\\` 不算定界符），
+  /// 供 [BlockFormulaScanner] 跨行拼接后复用，避免转义语义出现第二份实现。
+  ///
+  /// [start] 为开定界符 `$$` 之后的下标；扫描**允许跨 `\n`**——标准多行块级
+  /// 公式（`$$\n...\n$$`）的正文就在换行之后。
+  static int findDisplayDelimiter(String text, int start) =>
+      _findMatchingDelimiter(text, start);
+
+  /// 剥掉 display 公式正文紧贴定界符的一层换行（CRLF 兼容）。
+  ///
+  /// 多行写法 `$$\nE=mc^2\n$$` 的首尾换行是定界产物而非 LaTeX 正文，
+  /// 剥掉后与单行写法 `$$E=mc^2$$` 产出**同一个** latex（SVG 预渲染缓存
+  /// key 一致，且 `$$\n$$\n$$` 空块不会被当成非空公式）。
+  /// 只剥一层，正文**内部**换行（LaTeX 多行排版）原样保留。
+  static String _stripFenceNewlines(String latex) {
+    var result = latex;
+    if (result.startsWith('\r\n')) {
+      result = result.substring(2);
+    } else if (result.startsWith('\n')) {
+      result = result.substring(1);
+    }
+    if (result.endsWith('\r\n')) {
+      result = result.substring(0, result.length - 2);
+    } else if (result.endsWith('\n')) {
+      result = result.substring(0, result.length - 1);
+    }
+    return result;
+  }
+
+  /// 行内公式 `$...$` 的闭合 `$` 下标，未闭合返回 -1。
+  ///
+  /// **遇 `\n` 即判未闭合是刻意行为**（issue #321 修复时确认）：行内公式按
+  /// CommonMark 语义不允许跨行，若放开会让文档里任意两个孤立 `$` 跨整篇配对。
+  /// 多行块级公式由 [BlockFormulaScanner] 在块级先行收集，不走本函数。
   static int _findInlineFormulaEnd(String text, int start) {
     int i = start;
     while (i < text.length) {
