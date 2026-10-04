@@ -67,6 +67,8 @@ class FileRepository implements DocumentRepository {
     String raw,
     DateTime fallbackModified,
   ) {
+    // issue #318：解析不确定（malformed）时 [FrontMatterParseResult.body]
+    // 即整份原文、meta 为 null —— 此处不采信任何 meta，正文一字不丢。
     final parsed = FrontMatterParser.parse(raw);
     final meta = parsed.meta;
     final body = parsed.body;
@@ -88,12 +90,19 @@ class FileRepository implements DocumentRepository {
   /// P0-2（§4.2）：探测 [f] 的 front matter `encoding:` 声明；无可识别
   /// 声明返回 null（走自动链）。声明行必为 ASCII，任意解码器下均可安全
   /// 提取（只看前 256 字节）。
+  ///
+  /// issue #318：搜索范围**限定在已闭合的 front matter 块内**。旧实现对
+  /// 前 256 字节做多行匹配，正文里出现 `encoding: gbk` 这类行（YAML 教程、
+  /// 示例文档）也会被判为编码声明 → 整文件按 GBK 解码并按 GBK 写回，
+  /// 静默改写文件编码。无 front matter / 块未闭合时不探测。
   Future<TextEncoding?> _declaredEncodingOf(File f) async {
     final bytes = await f.readAsBytes();
     if (bytes.isEmpty) return null;
     final head = latin1.decode(bytes.sublist(0, bytes.length.clamp(0, 256)));
+    final block = FrontMatterParser.closedBlockOf(head);
+    if (block == null) return null;
     final match = RegExp(r'^encoding:\s*(\S+)\s*$', multiLine: true)
-        .firstMatch(head);
+        .firstMatch(block);
     return match == null ? null : TextEncoding.tryParse(match.group(1));
   }
 
@@ -166,6 +175,12 @@ class FileRepository implements DocumentRepository {
 
   /// 写入（upsert）：保留已有 id / createdAt，刷新 updatedAt。
   /// 正文原样透传（含用户写入的 `# H1`），不重复注入标题。
+  ///
+  /// issue #318 不变量：仅当原文件解析为
+  /// [FrontMatterStatus.valid] 时才采信原有 meta / encoding 声明；
+  /// `malformed`（首行 `---` 未闭合）时 meta 为 null、声明不参与，
+  /// 元信息回落到文件名与当前时间——**正文只来自 [content]，绝不因
+  /// 解析不确定而被裁剪**。
   @override
   Future<void> writeDocument(
     String path, {
@@ -179,6 +194,8 @@ class FileRepository implements DocumentRepository {
     if (await file.exists()) {
       declared = await _declaredEncodingOf(file);
       final raw = await _readDecoded(file);
+      // 解析不确定时 meta 为 null（见 FrontMatterParseResult 不变量），
+      // 故此处不会把正文里的 `key: value` 误当 id/createdAt 复用。
       final meta = FrontMatterParser.parse(raw).meta;
       id = (meta?['id']?.isNotEmpty == true) ? meta!['id']! : _stem(path);
       createdAt = _parseDate(meta?['createdAt']) ?? DateTime.now();
@@ -208,6 +225,9 @@ class FileRepository implements DocumentRepository {
   }
 
   /// 重命名：仅替换正文首个 `# H1`，路径（uuid）不变。
+  ///
+  /// issue #318：`malformed`（首行 `---` 未闭合）时 [body] 即整份原文，
+  /// 改标题只动首个 `# H1` / 缺标题时在**前面**加标题，其余行原样保留。
   @override
   Future<void> renameDocument(String path, String newTitle) async {
     final file = File(path);
