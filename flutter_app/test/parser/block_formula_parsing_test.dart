@@ -12,11 +12,11 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../helpers/formula_ast.dart';
 import 'package:tafcm/core/parser/formula_extractor.dart';
 import 'package:tafcm/core/parser/markdown_parser.dart';
 import 'package:tafcm/core/parser/markdown_serializer.dart';
 import 'package:tafcm/data/models/document.dart';
+import '../helpers/formula_ast.dart';
 
 
 void main() {
@@ -278,6 +278,28 @@ void main() {
       final elements = MarkdownParser.parse(md);
 
       expect(allFormulas(elements).map((f) => f.latex).toList(), ['x', 'y']);
+    });
+
+    test('表格后紧邻多行块级公式（无空行）：表格与公式块各自独立', () {
+      // 块级公式分支位于表格分支**之前**，而表格是流式解析（currentTable 挂起、
+      // 到非 `|` 行才 flushTable）。本用例锁住「表格行后紧邻多行 `$$...$$` 块」
+      // 的边界：`$$` 行触发公式分支先 flushTable()，随后收集公式块——二者不得
+      // 合并，也不得因分支顺序调整而静默回归。
+      const md = '| a | b |\n| --- | --- |\n| x | y |\n\$\$\nE=mc^2\n\$\$';
+
+      final elements = MarkdownParser.parse(md);
+
+      expect(elements, hasLength(2),
+          reason: '表格与公式段应各自独立，中间无空行也不合并');
+      expect(elements[0], isA<TableElement>());
+      final table = elements[0] as TableElement;
+      expect(table.headers, hasLength(2));
+      expect(table.rows, hasLength(1));
+
+      final formulas = allFormulas(elements);
+      expect(formulas, hasLength(1));
+      expect(formulas.single.displayMode, isTrue);
+      expect(formulas.single.latex, 'E=mc^2');
     });
   });
 

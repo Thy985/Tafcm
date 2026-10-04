@@ -10,9 +10,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import '../helpers/formula_ast.dart';
 import 'package:tafcm/core/parser/markdown_parser.dart';
 import 'package:tafcm/data/models/document.dart';
+import '../helpers/formula_ast.dart';
 
 void main() {
   group('增量续扫边界（O(n²) → O(n) 优化等价性）', () {
