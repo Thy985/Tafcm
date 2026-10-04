@@ -85,6 +85,33 @@ String fromElement(DocumentElement element) {
   }
 }
 
+/// 把过滤掉 [EmptyLineElement] 后的块列表序列化为完整 Markdown 文档。
+///
+/// 块间分隔符按**前一块类型**决定：前一块是 [ParagraphElement] 时用 `\n\n`，
+/// 否则用 `\n`。理由：段落是非自终止块——`MarkdownParser.parse` 把连续的
+/// 普通行累积进同一个 `pendingParagraph`（软换行合并），所以 `para1\npara2`
+/// 会被解析成**一个**段落。保存时若块间一律 `join('\n')`，相邻段落的空行
+/// 就被抹除，重新加载即合并塌缩（issue #343：9 块 → 7 块）。
+///
+/// 其余块类型（heading / list / fenced code / blockquote / hr / table / mermaid）
+/// 的序列化形式都以可识别的行首前缀（`#` / `-` / ` ` `> ` / `|` / ```` ``` ```` / `---`）
+/// 自终止，单 `\n` 已足以让 parser 起新块。列表行后的普通行也会被 parser 显式
+/// `flushListItems()` 切断，不会合并进列表项。
+///
+/// 该函数是「加载 → 编辑 → 保存 → 重新加载」往返的**序列化侧**契约；
+/// 配套的块数守恒属性测试见 `test/editing/paragraph_roundtrip_test.dart`。
+String joinBlocks(List<DocumentElement> elements) {
+  if (elements.isEmpty) return '';
+  final buf = StringBuffer();
+  for (var i = 0; i < elements.length; i++) {
+    if (i > 0) {
+      buf.write(elements[i - 1] is ParagraphElement ? '\n\n' : '\n');
+    }
+    buf.write(fromElement(elements[i]));
+  }
+  return buf.toString();
+}
+
 // ---------------------------------------------------------------------------
 // toElement 内部实现
 // ---------------------------------------------------------------------------
