@@ -208,6 +208,11 @@ class MarkdownParser {
         // `$$` 定界行还退化成空公式）。
         // - 单行 `$$...$$`（endIndex == lineIndex）不进入本分支，走既有路径
         // - 未闭合 `$$`（scan 返回 null）降级为既有逐行行为，不抛异常
+        //
+        // **空 latex 对称**：`$$\n$$`（块级空围栏）与单行 `$$$$` 都被解析为
+        // latex 为空的 display 公式（经 `_stripFenceNewlines` 归一），二者不区分
+        // 来源写法。这是刻意选择——空块按公式卡片渲染，避免同一内容在不同写法
+        // 下走不同渲染路径（文本 ↔ 卡片）导致 round-trip 翻转。
         final displayBlock = BlockFormulaScanner.scan(lines, lineIndex);
         if (displayBlock != null && displayBlock.endIndex > lineIndex) {
           flushParagraph();

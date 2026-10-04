@@ -1,3 +1,9 @@
+/// FormulaExtractor：从纯文本中抽取行内 / 块级 LaTeX 公式。
+///
+/// 供 `MarkdownParser._parseInline` 在解析行内内容时调用，也供
+/// [BlockFormulaScanner] 复用同一套定界符 / 转义规则。
+library;
+
 class FormulaMatch {
   final String latex;
   final int start;
@@ -59,6 +65,21 @@ class FormulaExtractor {
     'Sigma', 'Upsilon', 'Phi', 'Psi', 'Omega',
   };
 
+  /// 从 [text] 中抽取全部公式，返回按出现位置排序、互不重叠的匹配列表。
+  ///
+  /// **`latex` 的语义（调用方须知）**：
+  /// - 行内公式（`displayMode == false`）：`latex` 是 `[text, start, end)` 的
+  ///   **逐字子串**（去掉首尾各一个 `$`）。
+  /// - 块级公式（`displayMode == true`）：`latex` 是同一区间去掉紧贴定界符的
+  ///   **一层**首尾换行（`\n` / `\r\n`，见 [_stripFenceNewlines]）后的结果，
+  ///   因此**不再保证是逐字子串**——多行写法 `$$\nE=mc^2\n$$` 得到
+  ///   `E=mc^2` 而非 `\nE=mc^2\n`。内部换行原样保留。
+  ///   `start` / `end` 仍是**原文** `[text]` 中的字节区间下标，不受规范化影响。
+  ///
+  /// 这样归一化的目的：多行写法 `$$\nE=mc^2\n$$` 与单行写法 `$$E=mc^2$$` 产出
+  /// **同一个** latex 字符串，SVG 预渲染缓存 key 一致，且空围栏 `$$\n$$`
+  /// 与 `$$$$` 归一到同一无误判结果。只剥一层换行，正文内部换行
+  /// （LaTeX 多行排版，如 `\begin{aligned}`）不受影响。
   static List<FormulaMatch> extractFormulas(String text) {
     final results = <FormulaMatch>[];
 

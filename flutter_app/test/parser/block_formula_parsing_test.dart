@@ -204,6 +204,77 @@ void main() {
       expect(FormulaExtractor.findDisplayDelimiter(text, 2), 10,
           reason: r'闭合定界符下标：text = 开定界 + 换行 + E=mc^2 + 换行 + 闭合定界');
     });
+
+    test(r'开定界行内已有正文保留，不静默丢弃', () {
+      // trim 只剥首尾空白：`$$ E=mc^2` 的正文随 source 进入解析。
+      // 锁住此契约是因为「定界符后紧跟正文」既可能是手写首行公式，
+      // 也可能是 InlineSerializer 的回写形态——若当成非法形态降级为文本，
+      // 保存后再打开就会把公式退化成源码字面量。
+      const md = r'$$ E=mc^2' '\n' r'$$';
+
+      final formulas = _allFormulas(MarkdownParser.parse(md));
+
+      expect(formulas, hasLength(1));
+      expect(formulas.single.displayMode, isTrue);
+      expect(formulas.single.latex, r' E=mc^2',
+          reason: '开定界行内正文必须保留在 latex 中（含定界符后的空格）');
+    });
+
+    test(r'序列化回写形态的开定界行内正文同样保留', () {
+      // 与上一个用例合起来锁住「不因为定界符后紧跟正文而丢内容」。
+      final elements = MarkdownParser.parse(
+        r'$$\begin{aligned}' '\n' r'\alpha' '\n' r'\end{aligned}$$',
+      );
+
+      final paragraph = _pureFormulaParagraph(elements);
+      expect((paragraph.children.single as FormulaElement).latex,
+          r'\begin{aligned}' '\n' r'\alpha' '\n' r'\end{aligned}');
+    });
+
+    test(r'开定界行允许前导空白（indent 未识别为代码块）', () {
+      // 刻意契约：本解析器只识别 ``` fence，无 4 空格缩进代码块分支，
+      // 缩进行的 `$$` 仍按普通正文 → 块级公式处理。若日后引入 indent 代码块，
+      // 必须同步收紧 BlockFormulaScanner 的判定，否则这里会静默失败。
+      const md = '    \$\$\nE=mc^2\n\$\$';
+
+      final formulas = _allFormulas(MarkdownParser.parse(md));
+
+      expect(formulas, hasLength(1),
+          reason: '前导缩进的块级公式仍应被识别，不落入代码块/正文');
+      expect(formulas.single.latex, r'E=mc^2');
+    });
+
+    test(r'空 latex 对称：$$\n$$ 与 $$$$ 同样解析为空 display 公式', () {
+      // 刻意选择：空块按公式卡片渲染，而非降级为文本。
+      // 若改为降级，必须同时改两条路径，否则同一内容不同写法走不同渲染路径，
+      // 保存-重载 round-trip 会在文本与卡片之间翻转。
+      final fromBlock = _allFormulas(MarkdownParser.parse('\$\$\n\$\$'));
+      final fromSingleLine = _allFormulas(MarkdownParser.parse(r'$$$$'));
+
+      expect(fromBlock, hasLength(1));
+      expect(fromBlock.single.displayMode, isTrue);
+      expect(fromBlock.single.latex, isEmpty);
+      expect(fromSingleLine, hasLength(1));
+      expect(fromSingleLine.single.displayMode, isTrue);
+      expect(fromSingleLine.single.latex, isEmpty);
+    });
+
+    test('extractFormulas 的 display latex 规范化不移动 start/end', () {
+      // extractFormulas 是 public API：display 分支的 latex 经
+      // _stripFenceNewlines 归一，不再保证是原文逐字子串；
+      // 但 start/end 必须仍指原文区间，否则依赖下标做二次处理的调用方会错位。
+      const text = '前缀 \$\$\nE=mc^2\n\$\$ 后缀';
+
+      final match = FormulaExtractor.extractFormulas(text).single;
+
+      expect(match.displayMode, isTrue);
+      expect(match.latex, r'E=mc^2', reason: '首尾各剥一层换行');
+      expect(text.substring(match.start, match.end),
+          r'$$' '\n' r'E=mc^2' '\n' r'$$',
+          reason: 'start/end 仍指向原文区间');
+      expect(text[match.start], r'$');
+      expect(text[match.end - 1], r'$');
+    });
   });
 
   group('不回退：既有公式行为保持不变', () {
