@@ -33,13 +33,18 @@ const double kMaxPageWidth = 720.0;
 /// 该区域不是内容，仅是便捷插入入口，故在竖直空间紧张时允许按比例收缩。
 const double kTailTapAreaHeight = 120.0;
 
-/// 尾部点击区最多可占编辑区可用高度的比例（#324）。
+/// 尾部点击区允许按比例收缩的最大比例（#324）。
 ///
-/// 取 0.25 保证：任何可用高度 ≥ 480px 的编辑区（即全部竖屏场景）都仍能取满
-/// [kTailTapAreaHeight]，像素级不变；只有横屏这类可用高度骤降的场景才收缩，
-/// 把空间让给可滚动的块列表。真机横屏编辑区仅 203px → 尾部约 51px，
-/// 列表由 83px 恢复到 152px。
+/// 仅当编辑区可用高度低于 [kTailTapAreaShrinkThreshold]（尾部会占到一半以上）
+/// 时才按本比例收缩：真机横屏编辑区 203px → 尾部约 51px，列表由 83px 恢复到
+/// 152px。竖屏（含 golden 800×1200 整页基线的视口 ≈474px）一律取满
+/// [kTailTapAreaHeight]，像素级不变——0.25 比例若无条件生效，474×0.25=118.6px
+/// 会让尾部文字整体下移 ~1.4px，Golden(compare) 即挂（PR #348 首跑实证）。
 const double kTailTapAreaMaxHeightRatio = 0.25;
+
+/// 尾部点击区收缩的触发阈值：可用高度低于 `2 × [kTailTapAreaHeight]`
+/// （即尾部将占编辑区一半以上）才收缩（#324）。
+const double kTailTapAreaShrinkThreshold = kTailTapAreaHeight * 2;
 
 /// Workspace：编辑区布局容器（编辑视口 + 页面宽度约束）。
 ///
@@ -137,12 +142,17 @@ class EditorViewport extends StatelessWidget {
         // 把可滚动的块列表压到 83px——不足一个标题块的高度，导致标题之后的
         // 正文块全部落在可视区之外，且总滚动范围仅 1.5px（表现为"滚动无效"）。
         //
-        // 修复：尾部占位高度按编辑区可用高度的比例收缩，保证竖屏像素级不变
-        // （竖屏编辑区 ≥600px 时比例项 ≥120px，仍取满 120px），横屏则让位给内容。
-        final tailHeight = math.min(
-          kTailTapAreaHeight,
-          constraints.maxHeight * kTailTapAreaMaxHeightRatio,
-        );
+        // 修复：仅在尾部将占到编辑区一半以上（maxHeight < 240）时按比例收缩，
+        // 其余场景（含全部竖屏与 golden 整页基线）恒取满 120px，像素级不变。
+        // 注意不可用无条件比例：golden 整页基线视口实测 ≈474px，0.25 比例在
+        // 该区间也会生效（118.6px），尾部文字整体下移 → Golden(compare) 挂。
+        final tailHeight =
+            constraints.maxHeight < kTailTapAreaShrinkThreshold
+            ? math.min(
+                kTailTapAreaHeight,
+                constraints.maxHeight * kTailTapAreaMaxHeightRatio,
+              )
+            : kTailTapAreaHeight;
         return Column(
           children: [
             // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化

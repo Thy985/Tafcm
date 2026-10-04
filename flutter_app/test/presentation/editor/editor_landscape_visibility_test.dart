@@ -11,8 +11,9 @@
 ///
 /// 块数据本身完好（状态栏「块数 2」不变），转回竖屏立即恢复——纯布局问题。
 ///
-/// **修复**：尾部点击区高度按编辑区可用高度比例收缩
-/// （见 workspace.dart `kTailTapAreaMaxHeightRatio`）。
+/// **修复**：尾部点击区仅在将占编辑区一半以上（可用高度 < 2×120=240px）时
+/// 按比例收缩，其余场景恒为 120px
+/// （见 workspace.dart `kTailTapAreaShrinkThreshold`）。
 ///
 /// **本文件覆盖**：多组块组合（标题 + 段落 / 列表 / 代码 / 公式 / 引用 / 表格）
 /// 在横屏尺寸下的可见性，以及竖屏零回归。
@@ -30,7 +31,6 @@ import 'package:tafcm/presentation/editor/editor_coordinator.dart';
 import 'package:tafcm/presentation/editor/editor_scope.dart';
 import 'package:tafcm/presentation/editor/editor_shell.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
-import 'package:tafcm/presentation/editor/workspace.dart';
 import 'package:tafcm/presentation/theme/app_theme.dart';
 
 /// 真机竖屏逻辑尺寸（411.4 x 923.4）。
@@ -242,6 +242,63 @@ void main() {
 
       expect(_visibleBlockCount(tester), 2);
       expect(find.text('点击此处添加新块'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('#324 尾部收缩阈值（golden 基线保护）', () {
+    // CI Golden(compare) 实证（PR #348 首跑失败）：golden
+    // editor_shell_full_page_* 的编辑视口 maxHeight ≈ 474px，若 0.25 比例
+    // 无条件生效，尾部高度变为 118.6px，提示文字整体下移 ~1.4px（topCenter
+    // 锚定），整页基线产生 5610px 像素差。回归点：阈值（2×120=240px）之上
+    // 尾部必须恒为 120px，golden 像素级不变。
+    Future<void> pumpViewport(WidgetTester tester, double height) async {
+      final editor = InMemoryDocumentEditor(title: 'T');
+      editor.addBlock('# Title', BlockType.heading);
+      final coordinator = EditorCoordinator(
+        editor: editor,
+        history: EditorHistory(maxHistorySize: 200),
+      );
+      addTearDown(coordinator.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.themeFor(AppThemeMode.light),
+            home: Scaffold(
+              body: EditorScope(
+                coordinator: coordinator,
+                child: SizedBox(
+                  height: height,
+                  // 不能传 const/unmodifiable map：_buildViewport 会原地
+                  // 修剪孤儿 GlobalKey（removeWhere / putIfAbsent）。
+                  child: EditorViewport(
+                    coordinator: coordinator,
+                    blockKeys: <BlockId, GlobalKey>{},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('视口 500px（≥ 阈值 240）尾部恒为 120px', (tester) async {
+      await pumpViewport(tester, 500);
+      expect(_tailHeight(tester), 120.0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('视口 474px（golden 实测区间）尾部仍为 120px', (tester) async {
+      await pumpViewport(tester, 474);
+      expect(_tailHeight(tester), 120.0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('视口 203px（真机横屏区间）尾部按 0.25 比例收缩', (tester) async {
+      await pumpViewport(tester, 203);
+      expect(_tailHeight(tester), closeTo(203 * 0.25, 0.01));
       expect(tester.takeException(), isNull);
     });
   });
