@@ -591,7 +591,47 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 
 **已知限制（诚实登记）**：`category → dimension` 是查表映射（`tech-debt` 目前落到 `infra_ci`），
 所以"某维度在账本里没有行"**不等于**"该维度从未被探测"。因此 `never_probed` 只能显式记录，
-不由缺席推断——这正是 §3.9 规则 1 的延伸。
+不由缺席推断——这正是 §3.9 规则 1 的延伸。落地形态：`ledger.py state` 报
+`probed_dimensions`（闸门行分配过的维度 + 有假设的维度），判定与打分**共用同一个读取函数**
+`_never_probed()`。首版打分路径（`_staleness` / `assign_dimension`）还在读每维度
+`d_state["never_probed"]`——账本从不产这个字段，于是"从未探测"档在 Top-N 里永不成立，
+最该补覆盖的维度反而排在已探测的后面；2026-10-04 修掉，配 `ScoringSourceTest` 两例。
+
+---
+
+### 3.11 夜间管道连续失败的归因（2026-10-04 实测）
+
+现象：`schedule` run 2026-10-01 / 10-02 / 10-03 连续三夜 `completed/failure`，账本里
+`gate_evaluations` 仍是 0 —— **影子期指标的分母不是"还差点数据"，是断的**。
+
+日志证据（`gh run view 37149937938 --log-failed`）：
+
+```text
+error: You’ve reached the API rate limit for free users. Upgrade to a Token Plan …
+ALL_CHAIN_FAILED: 降级链耗尽或封顶，最后类别见上方 FALLBACK 行
+```
+
+根因是两层，不是一层：
+
+1. **provider 侧**：AGNES 免费配额耗尽（与 2026-10-02 那次定性相同）。
+2. **结构侧（真正的放大器）**：`.agent/tafcm-maintainer/models.json` 里 `providers` 只有
+   `agnes` 一个、`chain` 只有**一个节点**。所以 `onError: rate_limit → next` 在单节点链上
+   等价于"同一模型、同一配额池连撞 `maxAttemptsPerRun=3` 次然后失败"——**这不是降级链，
+   是重试**。配额是账户级的，重试烧穿的还是同一个池子。
+
+修法（按代价排序；第 1 条只能由 Human Owner 做，因为只有你能建 Secret）：
+
+1. 往 `providers` + `chain` 加**第二个独立配额池的 provider**，并在 workflow 显式加一行
+   `env`（Actions 不支持按名动态引用 secrets；这个摩擦是 #310 里确认过的故意设计）。
+   加完之后"降级"这个词才成立。
+2. `rate_limit` / `timeout` 是分钟到小时级窗口，立刻连打三次必然全撞同一窗口：应改成
+   **同模型退避重试一次再降级**（即 P1-5 里那条"transient 先同模型重试"）。
+3. 已完成：`Report status` 不再只看邮件 outcome 就打印 `Audit = SUCCESS`。那句措辞正是
+   三夜失败被读成"只是邮件挂了"的原因；现在按 `steps.cline.outcome` + audit 文件是否
+   存在报 `Audit = FAILED (Cline)` / `FAILED (无 audit 文件)`。
+
+**别把这条读成"闸门没用"**：闸门排在这些步骤之前，但失败发生在模型供给层，控制面本身
+没问题；恰恰是 §3.10 那条红线（LLM 写权限与供给解耦）还没做完的部分在疼。
 
 ---
 
