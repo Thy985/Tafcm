@@ -67,6 +67,11 @@ List<FormulaElement> allFormulas(List<DocumentElement> elements) {
 /// 对应 `ParagraphBlock._isPureBlockFormula` 的**形状**判定（子元素恰一个
 /// 且为公式元素）。本 helper **不校验** [FormulaElement.displayMode]——
 /// 需要该断言的用例请自行补 `expect(formula.displayMode, isTrue)`。
+///
+/// **仅用于正向断言（期望恰好 1 个）**：本函数在候选数为 0 或 ≥2 时都会
+/// 以「期望恰好一个」失败。想断言「不产出纯公式段」（候选 0 个）的负向用例，
+/// 请改用 [allFormulas] 配 `.where((f) => f.displayMode)` 之类的谓词，不要复用
+/// 本 helper——它把「恰好 1 个」写死成断言，不适合作负向检查。
 ParagraphElement pureFormulaParagraph(List<DocumentElement> elements) {
   final candidates = elements
       .whereType<ParagraphElement>()

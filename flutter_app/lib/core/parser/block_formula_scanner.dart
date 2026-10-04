@@ -19,6 +19,12 @@ abstract final class BlockFormulaScanner {
   ///
   /// 未闭合（文档内再无 `$$`）返回 `null`，调用方据此降级为既有逐行行为。
   ///
+  /// **`startIndex` 越界同样返回 `null`，不抛异常**：契约是它必须落在
+  /// `[0, lines.length)` 内。库内唯一调用方 `MarkdownParser.parse` 传入的
+  /// `lineIndex` 恒合法，该分支对它而言是死代码；但本方法作为 public static
+  /// API 暴露，把边界当作返回值的契约显式化（而非抛 `RangeError`）——外部调用
+  /// 方误用时最多降级为普通文本，不会让整篇解析中断。
+  ///
   /// 支持的开定界行形态（判定按 `trim` 后的行内容）：
   /// - 定界符独占行：`$$`（允许前导缩进与尾随空白）
   /// - 定界符紧跟正文：`$$\begin{aligned}` / `$$ E=mc^2`
