@@ -53,6 +53,7 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           GH_TOKEN: ${{ github.token }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
           # 限制 Cline 仅可执行安全的只读 gh 命令 + 回贴审查
           CLINE_COMMAND_PERMISSIONS: |
             {

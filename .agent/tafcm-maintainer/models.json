@@ -5,10 +5,16 @@
       "clineProvider": "openai",
       "baseUrl": "https://apihub.agnes-ai.com/v1",
       "keySecret": "AGNES_API_KEY"
+    },
+    "sensenova": {
+      "clineProvider": "openai",
+      "baseUrl": "https://token.sensenova.cn/v1",
+      "keySecret": "SENSENOVA_API_KEY"
     }
   },
   "chain": [
-    { "provider": "agnes", "model": "agnes-3.0-flash" }
+    { "provider": "agnes", "model": "agnes-3.0-flash" },
+    { "provider": "sensenova", "model": "sensenova-6.8-flash-lite" }
   ],
   "maxAttemptsPerRun": 3,
   "onError": {

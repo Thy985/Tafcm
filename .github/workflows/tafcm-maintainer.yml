@@ -184,6 +184,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
           # 命令权限（POLICY.md §2.3）——只允许维护与验证所需命令
           CLINE_COMMAND_PERMISSIONS: |
             {
@@ -294,6 +295,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          SENSENOVA_API_KEY: ${{ secrets.SENSENOVA_API_KEY }}
           # 命令权限（POLICY.md §2.3）——与主 Cline 步骤一致
           CLINE_COMMAND_PERMISSIONS: |
             {
