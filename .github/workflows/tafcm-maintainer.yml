@@ -541,12 +541,16 @@ jobs:
           TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
           AUDIT="docs/agent-audit/${TODAY}-maintainer-audit.md"
           EMAIL_STATE=$([ "${{ steps.email.outcome }}" = "failure" ] && echo FAILED || echo SUCCESS)
-          if [ "${{ steps.cline.outcome }}" != "success" ]; then
-            AUDIT_STATE="FAILED (Cline)"
-          elif [ -f "$AUDIT" ]; then
-            AUDIT_STATE="SUCCESS"
+          CLINE_OUTCOME="${{ steps.cline.outcome }}"
+          if [ "$CLINE_OUTCOME" = "success" ]; then
+            if [ -f "$AUDIT" ]; then AUDIT_STATE="SUCCESS"; else AUDIT_STATE="FAILED (无 audit 文件)"; fi
+          elif [ "$CLINE_OUTCOME" = "failure" ]; then
+            AUDIT_STATE="FAILED (Cline 执行失败)"
           else
-            AUDIT_STATE="FAILED (无 audit 文件)"
+            # skipped：上游步骤断了 job，Cline 根本没跑。说成"Cline 失败"会把排查方向
+            # 引向模型配额。工作树里可能有当天早先一次成功运行留下的 audit，所以不看
+            # 文件存在就判 SUCCESS —— 本夜没有新产物就是 FAILED。
+            AUDIT_STATE="FAILED (Cline 未运行: outcome=$CLINE_OUTCOME)"
           fi
           echo "============================================"
           echo "Audit = ${AUDIT_STATE} | Email = ${EMAIL_STATE}"

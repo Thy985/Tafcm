@@ -437,7 +437,8 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 八条由测试或评审逼出来的实现规则（不是风格选择）：
 
 1. **缺数据 ≠ 陈旧**。`dimension_state` 为空若被当作"90 天没查"，探索通道会每晚放行，
-   闸门立刻退化成它本该关闭的每日无界全扫。只有账本显式记 `never_probed` 或确有日期且超期才算陈旧。
+   闸门立刻退化成它本该关闭的每日无界全扫。只有在探测记录里确实没出现过、或有明确日期且
+   已超期才算陈旧（`never_probed` 由 §3.10 那个单一读取函数给，不从维度状态里读）。
 2. **维度映射取最具体前缀**。`flutter_app/lib/`（architecture，最便宜）会吞掉
    `flutter_app/lib/presentation/` 下的全部变更，把每次 run 都派到成本最低的维度——
    正是"漂向易实验模块"这个偏差在代码层的复现。
@@ -596,6 +597,9 @@ Scheduler / Scout / Investigator / Verifier 的字段语义会悄悄分叉，wor
 `_never_probed()`。首版打分路径（`_staleness` / `assign_dimension`）还在读每维度
 `d_state["never_probed"]`——账本从不产这个字段，于是"从未探测"档在 Top-N 里永不成立，
 最该补覆盖的维度反而排在已探测的后面；2026-10-04 修掉，配 `ScoringSourceTest` 两例。
+同轮评审又指出 `_staleness` / `_is_stale` 里留着 `or d_state.get("never_probed")`：三个调用点
+都已把结论算成参数传进来，那个分支永远为假，是死代码——删掉，读路只留一条（全仓 grep 确认
+无人产、无人测该字段后才动）。
 
 ---
 
@@ -627,8 +631,12 @@ ALL_CHAIN_FAILED: 降级链耗尽或封顶，最后类别见上方 FALLBACK 行
 2. `rate_limit` / `timeout` 是分钟到小时级窗口，立刻连打三次必然全撞同一窗口：应改成
    **同模型退避重试一次再降级**（即 P1-5 里那条"transient 先同模型重试"）。
 3. 已完成：`Report status` 不再只看邮件 outcome 就打印 `Audit = SUCCESS`。那句措辞正是
-   三夜失败被读成"只是邮件挂了"的原因；现在按 `steps.cline.outcome` + audit 文件是否
-   存在报 `Audit = FAILED (Cline)` / `FAILED (无 audit 文件)`。
+   三夜失败被读成"只是邮件挂了"的原因。现在 SUCCESS 要求两件事同时成立——本夜 Cline 跑成
+   **且** audit 文件在；三种失败分开说：`FAILED (Cline 执行失败)`（跑了但崩，指向供给层）、
+   `FAILED (Cline 未运行: outcome=skipped/cancelled)`（上游步骤断了 job，Cline 压根没跑，
+   此时工作树里可能还有当天早先一次成功运行的 audit，只看文件会重新掩盖失败）、
+   `FAILED (无 audit 文件)`（跑成了但没产物）。第二种是三轮评审指出 `outcome` 对 skipped
+   步骤返回 `skipped` 而非 `success` 后补的——归因错了，排查方向就会被引向模型配额。
 
 **别把这条读成"闸门没用"**：闸门排在这些步骤之前，但失败发生在模型供给层，控制面本身
 没问题；恰恰是 §3.10 那条红线（LLM 写权限与供给解耦）还没做完的部分在疼。

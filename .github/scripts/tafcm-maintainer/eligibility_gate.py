@@ -345,7 +345,7 @@ def _days_since(iso: str | None, run_date: date, default: int | None = None) -> 
     """缺数据返回 default（默认 None = 未知），**不得**当成"很久没查"。
 
     把未知当陈旧会让探索通道每晚放行，正好退化成本设计要关闭的每日无界全扫。
-    只有账本显式记了 never_probed 才按高陈旧度处理。
+    "从没探测过"只由探测记录（`_never_probed`）给，不从缺日期推断。
     """
     if not iso:
         return default
@@ -356,8 +356,12 @@ def _days_since(iso: str | None, run_date: date, default: int | None = None) -> 
 
 
 def _staleness(d_state: dict, run_date: date, never_probed: bool = False) -> int:
-    """打分用陈旧度：从没探测过记高值；有日期按日期；无数据记 0（未知不占优）。"""
-    if never_probed or d_state.get("never_probed"):
+    """打分用陈旧度：从没探测过记高值；有日期按日期；无数据记 0（未知不占优）。
+
+    never_probed 只从参数进——读 d_state 里的同名字段是第二条读路，而账本从不产它，
+    留着只会让人以为维度状态里能申报探测记录。
+    """
+    if never_probed:
         return NEVER_PROBED_STALENESS
     days = _days_since(d_state.get("last_probed"), run_date)
     return days if days is not None else 0
@@ -365,7 +369,7 @@ def _staleness(d_state: dict, run_date: date, never_probed: bool = False) -> int
 
 def _is_stale(d_state: dict, run_date: date, never_probed: bool = False) -> bool:
     """陈旧 = 账本说从没查过，或有明确日期且已超期。缺数据不算陈旧。"""
-    if never_probed or d_state.get("never_probed"):
+    if never_probed:
         return True
     days = _days_since(d_state.get("last_probed"), run_date)
     return days is not None and days >= DIMENSION_STALE_DAYS
