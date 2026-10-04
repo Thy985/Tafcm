@@ -71,6 +71,27 @@ void main() {
       expect((paragraphs[2].children.single as TextElement).text, '后文');
     });
 
+    test('开定界行紧邻非空文本（无空行）切成两个独立段落，不做 hard-break 合并', () {
+      // 与上一个用例互补：那里开定界行前有**空行**，这里没有。
+      // 块级公式分支追加公式段前会先 `flushParagraph()`，把紧邻的文本段 flush
+      // 出去，二者成为两个独立元素而非合并段落——不经过 `pendingParagraph` 的
+      // hard-break 合并逻辑（普通段落多行合并走那条路）。这是「公式自成一块
+      // （独立卡片）」的刻意选择，锁住以免后续改成合并语义时静默回退。
+      const md = '前一行正文\n\$\$\nE=mc^2\n\$\$';
+
+      final elements = MarkdownParser.parse(md);
+      final paragraphs = elements.whereType<ParagraphElement>().toList();
+
+      expect(paragraphs, hasLength(2),
+          reason: '文本段与公式段应各自独立，不合并为一个段落');
+      expect((paragraphs[0].children.single as TextElement).text, '前一行正文');
+      final paragraph = pureFormulaParagraph(elements);
+      expect(paragraph, paragraphs[1]);
+      final formula = paragraph.children.single as FormulaElement;
+      expect(formula.displayMode, isTrue);
+      expect(formula.latex, 'E=mc^2');
+    });
+
     test('多个块级公式块互不吞并', () {
       const md = '\$\$\na=1\n\$\$\n\n\$\$\nb=2\n\$\$';
 
