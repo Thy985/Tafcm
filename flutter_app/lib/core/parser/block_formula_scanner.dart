@@ -58,9 +58,16 @@ abstract final class BlockFormulaScanner {
     //
     // 续扫起点取「追加前」的 `source.length - 1`，即**回退一格**。这是保守取
     // 值而非必要优化：追加的 `'\n'` 本身已隔断跨拼接缝的 `$$` 定界对与
-    // `\$` 转义对，从追加位置起扫即等价正确；回退一格让 `_findMatchingDelimiter`
-    // 重看旧文本末字符一次，避免任何对「拼接缝位置」的推理依赖。代价是每轮
-    // 至多多看 1 个字符，总量仍为线性。
+    // `\$` 转义对，从追加位置起扫即等价正确。回退一格让 `_findMatchingDelimiter`
+    // 重看旧文本末字符一次，避免任何对「拼接缝位置」的推理依赖。
+    //
+    // **回退一格重看旧末字符是恒 no-op，不是功能必需**：
+    // `_findMatchingDelimiter` 的守卫 `i < text.length - 1` 使末字符既不能当
+    // `$$` 对的起点（其后必为刚追加的 `'\n'`，凑不成第二个 `$`），也不能当
+    // `\$` 转义对的起点（同样要求后接 `$` 或 `\\`）。因此
+    // `scanFrom = source.length`（0 偏移）与 `source.length - 1` 产出完全相同
+    // 的结果。保留 `-1` 只为让重扫起点与「已扫完的文本末尾」这一语义直觉对齐，
+    // 代价是每轮至多多看 1 个字符，总量仍为线性。
     var scanFrom = contentStart;
     var end = FormulaExtractor.findDisplayDelimiter(source, scanFrom);
     var index = startIndex;
