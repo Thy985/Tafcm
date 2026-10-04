@@ -19,6 +19,10 @@ abstract final class BlockFormulaScanner {
   ///
   /// 未闭合（文档内再无 `$$`）返回 `null`，调用方据此降级为既有逐行行为。
   ///
+  /// **最坏总成本 O(L)（L = `lines` 总字符数）**：增量续扫每轮只从上一轮
+  /// 已扫完的文本末尾（`source.length - 1`）继续扫**新追加的行**，不重扫已
+  /// 累积前缀——未闭合 `$$` + 长文档也不退化为 O(L²)。
+  ///
   /// **`startIndex` 越界同样返回 `null`，不抛异常**：契约是它必须落在
   /// `[0, lines.length)` 内。库内唯一调用方 `MarkdownParser.parse` 传入的
   /// `lineIndex` 恒合法，该分支对它而言是死代码；但本方法作为 public static

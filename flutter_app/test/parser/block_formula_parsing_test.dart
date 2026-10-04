@@ -18,7 +18,6 @@ import 'package:tafcm/core/parser/markdown_serializer.dart';
 import 'package:tafcm/data/models/document.dart';
 import '../helpers/formula_ast.dart';
 
-
 void main() {
   group(r'issue #321：多行 $$...$$ 块级公式', () {
     test(r'标准写法（$$ 定界行独占）解析为单个 display 公式元素', () {
