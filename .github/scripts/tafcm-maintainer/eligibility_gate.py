@@ -82,18 +82,15 @@ DIMENSION_EVIDENCE_COST = {
     "infra_ci": 1.0,
 }
 
+# 只列 `assign_dimension` 真能产出的 activation_reason。原先这里的 new-issue /
+# ci-red / new-evidence 三个键没有任何代码路径产出（test-failure / structural-churn /
+# scheduled_slot / coverage_floor 同理）：死权重形同注释，还会让人以为"这个信号该出现过
+# 却没出现"。要加回来，先加产出方。
 ACTIVATION_WEIGHT = {
-    "test-failure": 3.0,
     "changed-code": 2.0,
-    "new-issue": 2.0,
-    "ci-red": 2.5,
-    "structural-churn": 1.6,
-    "frontier-stale": 1.2,
-    "new-evidence": 1.4,
     "risk-driven": 1.0,
-    "scheduled_slot": 1.0,
-    "dimension_never_probed": 1.3,
-    "coverage_floor": 1.2,
+    "frontier-stale": 1.2,
+    "dimension_never_probed": 1.0,   # 覆盖率已经由 NEVER_PROBED_STALENESS 顶满，不再双重加成
 }
 
 # 期望价值 = severity 档 × 该维度历史采纳率；无历史时用保守先验（不用模型自评）
@@ -358,9 +355,9 @@ def _days_since(iso: str | None, run_date: date, default: int | None = None) -> 
         return default
 
 
-def _staleness(d_state: dict, run_date: date) -> int:
-    """打分用陈旧度：显式 never_probed 记高值；有日期按日期；无数据记 0（未知不占优）。"""
-    if d_state.get("never_probed"):
+def _staleness(d_state: dict, run_date: date, never_probed: bool = False) -> int:
+    """打分用陈旧度：从没探测过记高值；有日期按日期；无数据记 0（未知不占优）。"""
+    if never_probed or d_state.get("never_probed"):
         return NEVER_PROBED_STALENESS
     days = _days_since(d_state.get("last_probed"), run_date)
     return days if days is not None else 0
@@ -426,10 +423,15 @@ def assign_dimension(signals: dict, run_date: date, maintenance: dict) -> tuple[
             or list(DIMENSION_WORKSET)
         reason = "changed-code"
     else:
-        never = [d for d in DIMENSION_WORKSET if (state.get(d) or {}).get("never_probed")]
+        # 探测记录由账本给（probed_dimensions）。这里曾经读的是每维度
+        # `d_state["never_probed"]`，而 `ledger.py state` 从不产这个字段——于是打分池里
+        # "从未探测"档永不成立、未知维度陈旧度记 0 不占优，Top-N 打分退化成一个装饰性
+        # 乘数。判定路径与打分路径必须走同一个函数，否则两边会各自演化。
+        never = [d for d in DIMENSION_WORKSET if _never_probed(signals, d)]
         known_stale = [d for d in DIMENSION_WORKSET
-                       if _is_stale(state.get(d) or {}, run_date)
-                       and not (state.get(d) or {}).get("never_probed")]
+                       if _is_stale(state.get(d) or {}, run_date,
+                                    never_probed=_never_probed(signals, d))
+                       and d not in never]
         # 无数据 ≠ 陈旧：未知维度只作为兜底池参与打分，不构成为由放行探索
         pool = never or known_stale or list(DIMENSION_WORKSET)
         reason = ("dimension_never_probed" if never
@@ -438,7 +440,7 @@ def assign_dimension(signals: dict, run_date: date, maintenance: dict) -> tuple[
     scored: list[tuple[float, str, dict]] = []
     for dim in pool:
         d_state = state.get(dim, {}) or {}
-        staleness = _staleness(d_state, run_date)
+        staleness = _staleness(d_state, run_date, never_probed=_never_probed(signals, dim))
         churn_value = _dimension_churn(churn, dim)
         severity = d_state.get("open_severity", "medium")
         risk = SEVERITY_FACTOR.get(severity, SEVERITY_FACTOR["medium"])

@@ -125,9 +125,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .tmp/tafcm-maintainer
-          TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+          # run_date 用 UTC：闸门与账本都是 UTC 日历（§3.10 不变量 10）。这里曾经用
+          # CST，17:23Z→01:23CST 那扇窗口会让"剔除依据"与账本行的日期差一天。
+          RUN_DATE_UTC="$(date -u +%Y-%m-%d)"
           cat > .tmp/tafcm-maintainer/gate-failure.json <<JSON
-          {"schema_version":"1.0","status":"gate_failed","run_date":"${TODAY}","run_id":"${GITHUB_RUN_ID}","gate_result_produced":false,"note":"本夜必须从 gate_skip_rate / agent_activation_rate 的分母中剔除"}
+          {"schema_version":"1.0","status":"gate_failed","run_date":"${RUN_DATE_UTC}","run_id":"${GITHUB_RUN_ID}","gate_result_produced":false,"note":"本夜必须从 gate_skip_rate / agent_activation_rate 的分母中剔除"}
           JSON
           {
             echo "## [ALERT] Eligibility Gate 未产出判定"
@@ -519,7 +521,6 @@ jobs:
         with:
           name: tafcm-maintainer-${{ github.run_id }}
           path: |
-            .tmp/tafcm-maintainer/cline-result.json
             .tmp/tafcm-maintainer/report.json
             .tmp/tafcm-maintainer/gate-result.json
             .tmp/tafcm-maintainer/gate-failure.json
@@ -530,23 +531,32 @@ jobs:
           if-no-files-found: warn
 
       # ---------- 7. 状态汇总（明确区分 Audit / Email 成败）----------
+      # 这段曾经只看 email 步骤的 outcome 就打印 "Audit = SUCCESS | Email = FAILED"，
+      # 于是 2026-10-01/02/03 三夜 Cline 因 provider 配额耗尽、audit 根本没产出，
+      # 日志结论却写着 "Audit = SUCCESS"——排查方向被引到邮件上，实际问题看不见。
+      # 状态汇总的唯一职责是把真实结果说出来，不是让日志好看。
       - name: Report status
         if: always()
         run: |
           TODAY="$(TZ='Asia/Shanghai' date +%Y-%m-%d)"
-          if [ "${{ steps.email.outcome }}" = "failure" ]; then
-            echo "============================================"
-            echo "Audit completed but email delivery failed."
-            echo "Audit = SUCCESS | Email = FAILED"
-            echo "Audit 文件：docs/agent-audit/${TODAY}-maintainer-audit.md（已提交）"
-            echo "============================================"
-            exit 0   # Audit 成功，不因邮件失败使 workflow 变红
+          AUDIT="docs/agent-audit/${TODAY}-maintainer-audit.md"
+          EMAIL_STATE=$([ "${{ steps.email.outcome }}" = "failure" ] && echo FAILED || echo SUCCESS)
+          if [ "${{ steps.cline.outcome }}" != "success" ]; then
+            AUDIT_STATE="FAILED (Cline)"
+          elif [ -f "$AUDIT" ]; then
+            AUDIT_STATE="SUCCESS"
           else
-            echo "============================================"
-            echo "Audit completed and email delivered."
-            echo "Audit = SUCCESS | Email = SUCCESS"
-            echo "============================================"
+            AUDIT_STATE="FAILED (无 audit 文件)"
           fi
+          echo "============================================"
+          echo "Audit = ${AUDIT_STATE} | Email = ${EMAIL_STATE}"
+          echo "Audit 文件：${AUDIT}$([ -f "$AUDIT" ] && echo "（存在）" || echo "（缺失）")"
+          if [ "${AUDIT_STATE#SUCCESS}" != "" ]; then
+            echo "本夜没有可用审查产物：影子期指标按 gate-failure / 缺失 gate 行处理，不得记为正常夜。"
+          fi
+          echo "============================================"
+          # 邮件失败不该把已经成功的审查判红；审查本身失败由前面的步骤已经判红。
+          exit 0
 
   # ---------- 8. Weekly Digest（周五 10:00 UTC = 18:00 北京时间）----------
   # 独立 job：只读最近 audit 文件合成状态变化摘要邮件，不跑审查。

@@ -448,9 +448,54 @@ class CliTest(unittest.TestCase):
             self.assertEqual(code, 0)
             result = json.loads(out.read_text(encoding="utf-8"))
             self.assertTrue(result["eligible"], "export 已 65 天未探测，非槽位日也该放行")
+            # 账本只报了 export 一个维度有历史 → 其余维度按"从没探测过"参与判定，
+            # 两个原因必须同时出现（曾互相遮蔽）
             self.assertIn("frontier_stale", result["exploration"]["reasons"])
+            self.assertIn("dimension_never_probed", result["exploration"]["reasons"])
+
+    def test_ledger_state_feeds_candidates_when_all_dims_probed(self):
+        """闭环的第二半：领域候选必须来自账本，不是 fixture。
+
+        先把 6 个维度标成"探测过"（闸门行的 gate.dimension 就是探测记录），剩下 export
+        既是已探测又过期 65 天 → 它才是被派活的那一个，candidates 也来自账本的 HYP 编号。
+        """
+        import ledger as led
+
+        others = [d for d in gate.DIMENSION_WORKSET if d != "export"]
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "ledger.ndjson"
+            led.append(ledger_path, {
+                "type": "hypothesis_added", "actor": "scout", "run_id": "run-1",
+                "budget_bucket": "exploration",
+                "hypothesis": {
+                    "dimension": "export", "area": "flutter_app/lib/domain/services",
+                    "title": "HTML 导出丢公式", "norm_summary": "html export loses formulas",
+                    "statement": "HTML 导出丢公式", "invariant": "导出后公式仍在",
+                    "invariant_source": {"kind": "passing_test"},
+                    "falsifier": "含公式文档导出 HTML 后仍可见",
+                    "evidence_tier": "L1", "severity": "high", "category": "export",
+                    "evidence_files": ["flutter_app/lib/domain/services/export_service.dart"],
+                    "lifecycle_stage": "candidate", "last_observed": "2026-08-01",
+                }})
+            for i, dim in enumerate(others):
+                led.append(ledger_path, {
+                    "type": "gate_eligible", "actor": "scheduler",
+                    "run_id": f"run-probe-{i}", "budget_bucket": "exploration",
+                    "gate": {"channel": "exploration", "reasons": ["scheduled_slot"],
+                             "dimension": dim, "exploration_due": True}})
+            state = Path(tmp) / "ledger-state.json"
+            led.main(["--ledger", str(ledger_path), "state", "--out", str(state),
+                      "--date", MONDAY.isoformat()])
+            empty = Path(tmp) / "signals.json"
+            empty.write_text(json.dumps(quiet()), encoding="utf-8")
+            out = Path(tmp) / "gate.json"
+            self.assertEqual(gate.main(["--date", MONDAY.isoformat(),
+                                        "--fixture", str(empty), "--state-file", str(state),
+                                        "--output", str(out)]), 0)
+            result = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(result["dimension"]["assigned"], "export")
             self.assertEqual(result["dimension"]["candidates"], ["HYP-001"])
+            self.assertNotIn("dimension_never_probed", result["exploration"]["reasons"])
 
     def test_state_contract_drift_fails_loudly(self):
         """键名漂了必须响：静默按缺省值判 = 把"读不到账本"记成"确实没有陈旧"。"""
@@ -563,6 +608,38 @@ class SelfReferenceTest(unittest.TestCase):
         spent = {"budget": {"maintenance": {"spent_today": 1.2}}}
         self.assertTrue(gate.budget_block(spent)["enforced"],
                         "一旦有成本行，enforced 就该转真")
+
+
+class ScoringSourceTest(unittest.TestCase):
+    """Top-N 打分与放行判定必须共用同一个"探测过没有"的来源。
+
+    曾经的读路有两条：判定走 `probed_dimensions`（账本真给的），打分仍读每维度
+    `d_state["never_probed"]`（账本从不产这个字段）。后果不是报错而是静默失真——
+    "从未探测"档在打分里永不成立，未知维度陈旧度记 0 不占优，最该被补覆盖的维度
+    反而排在已有历史的那一个后面。
+    """
+
+    def signals(self):
+        return quiet(
+            probed_dimensions=["export"],
+            dimension_state={"export": {"last_probed": "2026-09-20",
+                                        "open_candidates": 1,
+                                        "open_severity": "high"}},
+        )
+
+    def test_never_probed_dims_win_the_scoring_pool(self):
+        maintenance = gate.maintenance_channel(self.signals())
+        dim, detail = gate.assign_dimension(self.signals(), WEDNESDAY, maintenance)
+        self.assertNotEqual(dim, "export",
+                            "从没探测过的维度应当优先于已有历史的维度")
+        self.assertEqual(detail["score_components"]["staleness_days"],
+                         gate.NEVER_PROBED_STALENESS)
+
+    def test_scoring_is_deterministic_across_runs(self):
+        maintenance = gate.maintenance_channel(self.signals())
+        first = gate.assign_dimension(self.signals(), WEDNESDAY, maintenance)
+        second = gate.assign_dimension(self.signals(), WEDNESDAY, maintenance)
+        self.assertEqual(first[0], second[0], "同输入必须同领域，不得随哈希序漂移")
 
 
 if __name__ == "__main__":

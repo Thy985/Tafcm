@@ -56,7 +56,7 @@
           "items": {
             "enum": [
               "scheduled_slot", "frontier_stale", "structural_churn",
-              "dimension_never_probed", "coverage_floor", "budget_rollover"
+              "dimension_never_probed", "coverage_floor"
             ]
           },
           "description": "scheduled_slot = 每周 1 次的探索槽位；frontier_stale = 某维度 last_probed_at 超期；structural_churn = lib/ 下新增文件/新目录/新 Provider 的 git 统计；coverage_floor = 高实验成本维度（真机/集成）连续 N 周未被覆盖，强制排队或显式 handoff"
@@ -104,7 +104,7 @@
             "churn": { "type": ["number", "null"], "description": "git numstat 统计，机械可得" },
             "staleness_days": { "type": ["integer", "null"], "description": "now - last_probed_at/last_verified_at，机械可得" },
             "activation_weight": { "type": ["number", "null"], "description": "activation_reason → 权重表查表，机械可得" },
-            "expected_value": { "type": ["number", "null"], "description": "severity 档 × 该 category 的历史 adopted_rate（账本算出），LLM 只在 ceiling 内标注" },
+            "expected_value": { "type": ["number", "null"], "description": "当前恒为先验 0.4：账本里还没有 adopted_rate 的生产者（需要 verdict→published→被采纳 的历史）。输出它只是为了让打分可复核，不代表在做自适应" },
             "evidence_cost": { "type": ["number", "null"], "description": "protocol × independence_proof 类型 → 成本表查表，机械可得" },
             "score": { "type": ["number", "null"] }
           }
