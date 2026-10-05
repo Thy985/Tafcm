@@ -126,9 +126,20 @@ class FileRepository implements DocumentRepository {
         .toList();
     final entries = <({Document doc, String path})>[];
     for (final f in files) {
-      final raw = await _readDecoded(f);
-      final stat = await f.stat();
-      entries.add(_parseEntry(f.path, raw, stat.modified));
+      // #319：单个文件在 listSync 与读取之间消失（外部删除 / 同步冲突 /
+      // 清理工具竞态）时，PathNotFoundException 不允许炸掉整个列表流——
+      // 旧实现的 watchAllDocuments 捕获后重试，但 listDocuments 本身再次
+      // 抛错会让流反复失败，两屏（首页 / 文件页）冻结在陈旧数据上互相
+      // 不一致。跳过消失的文件（列表如实反映磁盘现状），其余文档照常列出。
+      try {
+        // 与 [readDocument] 同一读取路径（_readDecoded + stat + 解析）——
+        // 公共方法即可覆写，为「单文件读取失败」提供可测 seam。
+        final doc = await readDocument(f.path);
+        entries.add((doc: doc, path: f.path));
+      } catch (e) {
+        debugPrint('[FileRepository] skip unreadable document: '
+            '${f.path} ($e)');
+      }
     }
     entries.sort((a, b) => b.doc.updatedAt.compareTo(a.doc.updatedAt));
     return entries;
@@ -286,7 +297,13 @@ class FileRepository implements DocumentRepository {
         }
       } catch (e) {
         debugPrint('[FileRepository] watchAllDocuments error (will retry): $e');
-        yield await listDocuments(); // 重连前发一次当前状态
+        // #319：重连前的快照自身也可能因同一竞态抛错——不能让异常冒出流
+        // 之外（StreamProvider 会整体进入 error 态，两屏同时不可用）。
+        try {
+          yield await listDocuments(); // 重连前发一次当前状态
+        } catch (e2) {
+          debugPrint('[FileRepository] listDocuments after watch error: $e2');
+        }
         await Future.delayed(const Duration(seconds: 3)); // 退避
       }
     }
@@ -311,6 +328,10 @@ class FileRepository implements DocumentRepository {
         ? '${text.substring(0, 40)}\u2026'
         : text;
   }
+
+  @override
+  Future<bool> documentFileExists(String path) async =>
+      File(path).exists();
 
   /// 全文搜索（P0-1 接线）：标题 + 正文，大小写不敏感，updatedAt 降序。
   ///
