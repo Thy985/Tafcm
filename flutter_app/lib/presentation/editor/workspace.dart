@@ -7,6 +7,8 @@
 /// - [EditorViewport]：编辑视口（ReorderableListView，渲染所有 Block）。
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/editing/block_types.dart';
@@ -25,6 +27,24 @@ import 'editor_scope.dart';
 /// 编辑视口在宽屏（> 720）下约束于此值并居中；窄屏（< 720）不受影响。
 /// 纯布局常量，无状态、不持久化（如需可调宽度，后续接入设置面板）。
 const double kMaxPageWidth = 720.0;
+
+/// 尾部「点击此处添加新块」点击区的完整高度（即点即插手势热区，AS-1.3）。
+///
+/// 该区域不是内容，仅是便捷插入入口，故在竖直空间紧张时允许按比例收缩。
+const double kTailTapAreaHeight = 120.0;
+
+/// 尾部点击区允许按比例收缩的最大比例（#324）。
+///
+/// 仅当编辑区可用高度低于 [kTailTapAreaShrinkThreshold]（尾部会占到一半以上）
+/// 时才按本比例收缩：真机横屏编辑区 203px → 尾部约 51px，列表由 83px 恢复到
+/// 152px。竖屏（含 golden 800×1200 整页基线的视口 ≈474px）一律取满
+/// [kTailTapAreaHeight]，像素级不变——0.25 比例若无条件生效，474×0.25=118.6px
+/// 会让尾部文字整体下移 ~1.4px，Golden(compare) 即挂（PR #348 首跑实证）。
+const double kTailTapAreaMaxHeightRatio = 0.25;
+
+/// 尾部点击区收缩的触发阈值：可用高度低于 `2 × [kTailTapAreaHeight]`
+/// （即尾部将占编辑区一半以上）才收缩（#324）。
+const double kTailTapAreaShrinkThreshold = kTailTapAreaHeight * 2;
 
 /// Workspace：编辑区布局容器（编辑视口 + 页面宽度约束）。
 ///
@@ -115,84 +135,108 @@ class EditorViewport extends StatelessWidget {
         child: Text('（空文档）', style: TextStyle(fontSize: 16)),
       );
     }
-    return Column(
-      children: [
-        // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化
-        // 路径，编辑已禁用——显式告知"不可保存"，消除静默丢内容的误解。
-        if (coordinator.isReadOnly)
-          Material(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const SizedBox(
-              width: double.infinity,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  '查看模式 · 外部文件不可保存，编辑已禁用',
-                  style: TextStyle(fontSize: 13),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // #324：横屏下编辑区高度骤降（真机屏幕逻辑高度 923→411，扣除
+        // AppBar/工具栏/系统栏后编辑区可用高度 713→约 203——本文件其余注释
+        // 与测试断言均用「编辑区可用高度」口径），尾部「点击此处添加新块」
+        // 占位若仍固定 120px，会吃掉编辑区 59% 高度（203.2 中占 120），
+        // 把可滚动的块列表压到 83px——不足一个标题块的高度，导致标题之后的
+        // 正文块全部落在可视区之外，且总滚动范围仅 1.5px（表现为"滚动无效"）。
+        //
+        // 修复：仅在尾部将占到编辑区一半以上（maxHeight < 240）时按比例收缩，
+        // 其余场景（含全部竖屏与 golden 整页基线）恒取满 120px，像素级不变。
+        // 注意不可用无条件比例：golden 整页基线视口实测 ≈474px，0.25 比例在
+        // 该区间也会生效（118.6px），尾部文字整体下移 → Golden(compare) 挂。
+        final tailHeight =
+            constraints.maxHeight < kTailTapAreaShrinkThreshold
+            ? math.min(
+                kTailTapAreaHeight,
+                constraints.maxHeight * kTailTapAreaMaxHeightRatio,
+              )
+            : kTailTapAreaHeight;
+        return Column(
+          children: [
+            // 只读查看模式横幅（#240 P1-B）：外部 URI 打开的文档无持久化
+            // 路径，编辑已禁用——显式告知"不可保存"，消除静默丢内容的误解。
+            if (coordinator.isReadOnly)
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      '查看模式 · 外部文件不可保存，编辑已禁用',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ReorderableListView.builder(
+                scrollController: controller,
+                buildDefaultDragHandles: false,
+                padding: const EdgeInsets.all(EditorTokens.viewportPadding),
+                itemCount: ids.length,
+                onReorderItem: _onReorderItem,
+                // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
+                // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
+                // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
+                // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
+                proxyDecorator: (child, index, animation) => EditorScope(
+                  coordinator: coordinator,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: child,
+                  ),
+                ),
+                itemBuilder: (context, index) {
+                  final id = ids[index];
+                  // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
+                  // 其他块（含视口与其余可见块）完全不参与。
+                  //
+                  // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
+                  // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
+                  // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
+                  // 拖拽重排会失去稳定的 item 身份。
+                  return ValueListenableBuilder<int>(
+                    key: ValueKey(id),
+                    valueListenable: coordinator.blockNotifiers.notifierOf(id),
+                    builder: (context, blockVersion, _) =>
+                        _buildBlock(context, id, index),
+                  );
+                },
+              ),
+            ),
+            // 尾部空白点击区：即点即插（AS-1.3）
+            GestureDetector(
+              onTap: () {
+                final newId = coordinator.intents.appendBlock();
+                coordinator.setFocus(newId);
+              },
+              behavior: HitTestBehavior.translucent,
+              child: SizedBox(
+                // #324：随编辑区高度按比例收缩（见 LayoutBuilder 注释）。
+                height: tailHeight,
+                width: double.infinity,
+                child: const Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    // 实测bug1.md §2：占位提示下移 0.7cm（≈27 逻辑像素，
+                    // 160dpi 基准 1cm≈37.8dp），避免贴住上一块底部。
+                    padding: EdgeInsets.only(top: 33),
+                    child: Text(
+                      '点击此处添加新块',
+                      style: TextStyle(fontSize: 13, color: Colors.black38),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        Expanded(
-          child: ReorderableListView.builder(
-            scrollController: controller,
-            buildDefaultDragHandles: false,
-            padding: const EdgeInsets.all(EditorTokens.viewportPadding),
-            itemCount: ids.length,
-            onReorderItem: _onReorderItem,
-            // 拖拽代理被提升到 Overlay（EditorScope / Material 之外）——
-            // Block 子树在 didChangeDependencies 调 EditorScope.of() 会抛
-            // FlutterError（T1-2 手势测试暴露的真实缺陷）。此处为代理重新注入
-            // EditorScope + 透明 Material，保证拖拽中的块可正常 build。
-            proxyDecorator: (child, index, animation) => EditorScope(
-              coordinator: coordinator,
-              child: Material(
-                type: MaterialType.transparency,
-                child: child,
-              ),
-            ),
-            itemBuilder: (context, index) {
-              final id = ids[index];
-              // #246：块级局部刷新 —— 只有该块版本号变化才重建它自己，
-              // 其他块（含视口与其余可见块）完全不参与。
-              //
-              // `key: ValueKey(id)` 必须挂在 itemBuilder 的**直接**返回值上：
-              // ReorderableListView 依赖直接子节点的 key 做拖拽身份识别，
-              // 若 key 只在更深层（BlockSelectionChrome 的 GlobalKey），
-              // 拖拽重排会失去稳定的 item 身份。
-              return ValueListenableBuilder<int>(
-                key: ValueKey(id),
-                valueListenable: coordinator.blockNotifiers.notifierOf(id),
-                builder: (context, blockVersion, _) => _buildBlock(context, id, index),
-              );
-            },
-          ),
-        ),
-        // 尾部空白点击区：即点即插（AS-1.3）
-        GestureDetector(
-          onTap: () {
-            final newId = coordinator.intents.appendBlock();
-            coordinator.setFocus(newId);
-          },
-          behavior: HitTestBehavior.translucent,
-          child: const SizedBox(
-            height: 120,
-            width: double.infinity,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                // 实测bug1.md §2：占位提示下移 0.7cm（≈27 逻辑像素，
-                // 160dpi 基准 1cm≈37.8dp），避免贴住上一块底部。
-                padding: EdgeInsets.only(top: 33),
-                child: Text(
-                  '点击此处添加新块',
-                  style: TextStyle(fontSize: 13, color: Colors.black38),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
