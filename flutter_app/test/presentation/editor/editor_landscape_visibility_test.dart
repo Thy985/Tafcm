@@ -102,6 +102,9 @@ Future<EditorCoordinator> _pumpShell(
     right: inset.right,
   );
   addTearDown(tester.view.reset);
+  // AGENTS.md §3.4：EditorCoordinator 持有变更通知流与 undo/redo 历史，
+  // 与本文件 pumpViewport 的清理行为保持一致（PR #348 评审）。
+  addTearDown(coordinator.dispose);
 
   await tester.pumpWidget(
     ProviderScope(
@@ -273,6 +276,9 @@ void main() {
                   // 修剪孤儿 GlobalKey（removeWhere / putIfAbsent）。
                   child: EditorViewport(
                     coordinator: coordinator,
+                    // 不能传 const/unmodifiable map：_buildViewport 会原地
+                    // 修剪孤儿 GlobalKey（removeWhere / putIfAbsent）。
+                    // ignore: prefer_const_literals_to_create_immutables
                     blockKeys: <BlockId, GlobalKey>{},
                   ),
                 ),
