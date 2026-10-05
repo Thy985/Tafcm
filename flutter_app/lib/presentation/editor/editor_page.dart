@@ -37,6 +37,7 @@ import 'editor_export_actions.dart';
 import 'editor_load_helpers.dart';
 import 'editor_scope.dart';
 import 'editor_shell.dart';
+import 'export_guard_pop_scope.dart';
 import 'in_memory_document_editor.dart';
 import 'seed_documents.dart';
 
@@ -355,11 +356,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go('/home');
-      },
+    // issue #323：返回拦截抽到 [ExportGuardPopScope] —— 导出进行中 BACK
+    // 先弹确认，确认退出即协作式取消并随路由销毁浮层；非导出态行为不变。
+    return ExportGuardPopScope(
       child: ExportProgressOverlay(
         child: EditorScope(
           coordinator: _coordinator,
