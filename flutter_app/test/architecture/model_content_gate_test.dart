@@ -20,9 +20,10 @@ void main() {
       // - file_manager_screen.dart / home_screen.dart → 从 documentListProvider
       //   stream 获取的 Document 对象上提取预览文本（数据经 Repository→Provider→Widget）
       const knownOffenders = <String>[
-        // 行号维护史：#323 导出 BACK 拦截接线（+1 行）139→140。
+        // 行号维护史：#323 导出 BACK 拦截接线（+1 行）139→140；
+        // merge main（#352 resume 守护接线 +6 行）140→146。
         // 违规行为未变（MarkdownParser.parse 加载方向豁免），仅位置维护。
-        'lib/presentation/editor/editor_page.dart:140',
+        'lib/presentation/editor/editor_page.dart:146',
         'lib/presentation/screens/file_manager_screen.dart:125',
         // 行号维护史：#242 删搜索按钮（-11 行）282→269；P0-1 恢复搜索按钮
         // （+10 行）269→279；merge origin/main（#283 入口删除冲突消解）→272。
