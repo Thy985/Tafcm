@@ -78,19 +78,19 @@ void main() {
   });
 
   group('U6-3 混合字节流（中国用户真实场景）', () {
-    test('UTF-8 流混入 GBK 字节 → 不抛错，UTF-8 部分完整保留', () {
+    test('UTF-8 流混入 GBK 字节 → 不抛错，GBK 段正确解码（#320）', () {
       final result = decodeBytesAuto(_readFixture('mixed_utf8_with_gbk.txt'));
       expect(result, contains('# Doc'),
-          reason: '混合流中 UTF-8 主体必须完好（decodeBytesAuto 的设计目标）');
+          reason: 'ASCII 主体完好（GBK 与 ASCII 字节同形，全流 GBK 解释不损伤结构）');
       // 文件内容 "# Doc\n\n<GBK字节>\n" → split 为 4 段。
       final lines = result.split('\n');
       expect(lines, hasLength(4), reason: '行结构不得因容错解码而丢失');
-      // GBK 段的真实行为：被容错 UTF-8 消费成 U+FFFD（GBK 分支不可达，
-      // 见文件头"已登记缺口"）。断言该行为以便 §4.2 修复时同步改断言。
-      // TODO(§4.2): 正确行为应是 lines[2] == '你好世界'。
-      expect(lines[2], contains('\uFFFD'),
-          reason: 'GBK 段当前走容错路径产出替换符——若此断言失败说明'
-              '解码行为已变化（可能 §4.2 已修复），请同步更新本组断言');
+      // #320 修复后：GBK 段（C4 E3 BA C3 = 你好）被 GBK 分支零损坏解码，
+      // 全流 GBK 解释完整且含 CJK → 采纳。原「FFFD 降级」表征断言随文件头
+      // 「已登记缺口」一并关闭（原 TODO 的正确行为预期在此兑现）。
+      expect(lines[2], '你好');
+      expect(containsReplacementChar(result), isFalse,
+          reason: 'GBK 采纳后不允许残留 U+FFFD');
     });
   });
 
