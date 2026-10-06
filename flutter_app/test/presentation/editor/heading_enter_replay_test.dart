@@ -6,7 +6,6 @@
 /// 重放 / 旧事件流（无该字段）兼容。
 library;
 
-import 'package:flutter/painting.dart' show TextSelection;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tafcm/core/editing/block_operations.dart';
@@ -16,8 +15,6 @@ import 'package:tafcm/core/editing/transaction.dart' show TransactionOrigin;
 import 'package:tafcm/core/editing/transaction_builder.dart';
 import 'package:tafcm/core/observability/models.dart' show ReplayCommandEvent;
 import 'package:tafcm/data/models/document.dart';
-import 'package:tafcm/presentation/editor/block_behavior_resolver.dart';
-import 'package:tafcm/presentation/editor/editor_coordinator.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
 import 'package:tafcm/presentation/commands/command_handler.dart';
 import 'package:tafcm/presentation/commands/commands.dart';
