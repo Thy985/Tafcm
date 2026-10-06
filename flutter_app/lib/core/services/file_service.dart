@@ -1,15 +1,54 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:fast_gbk/fast_gbk.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// GBK codec（#320）：Dart VM / Flutter 不内置 `gb18030`/`gbk`
+/// （`Encoding.getByName` 返回 null，旧代码因此整条 GBK 路径是死代码），
+/// 引入纯 Dart 的 fast_gbk 补齐解码 / 编码。
+const GbkCodec _kGbk = GbkCodec();
+
+/// 统计 [text] 中的 U+FFFD 数量（容错解码的损坏信号）。
+int _countReplacementChars(String text) {
+  var count = 0;
+  for (final rune in text.runes) {
+    if (rune == 0xFFFD) count++;
+  }
+  return count;
+}
+
+/// 是否包含 CJK 字符（汉字 / CJK 标点 / 全角符号 / GBK 私有区）。
+///
+/// 用于 #320 的 GBK 采纳判定：GBK 双字节解码出的中文落在这些区段；
+/// 若 GBK 解码结果一个 CJK 都没有，说明字节流大概率真不是 GBK。
+bool _containsCjk(String text) {
+  for (final rune in text.runes) {
+    if ((rune >= 0x4E00 && rune <= 0x9FFF) || // CJK 统一表意文字
+        (rune >= 0x3400 && rune <= 0x4DBF) || // 扩展 A
+        (rune >= 0x3000 && rune <= 0x303F) || // CJK 标点
+        (rune >= 0xFF00 && rune <= 0xFFEF) || // 全角 Forms
+        (rune >= 0xE000 && rune <= 0xF8FF)) {
+      // GBK 映射的 PUA 区
+      return true;
+    }
+  }
+  return false;
+}
+
 /// 把任意来源的字节流尝试解析为字符串。优先级：
 ///   1. UTF-8 BOM / 严格 UTF-8
-///   2. UTF-8 容错模式（用 U+FFFD 替换非法序列）— 在中国用户的 .md 文件里
-///      GBK / GB18030 字节序列混入 UTF-8 流中很常见，严格模式会抛
-///      "Unexpected extension byte"，容错模式可以挽救大部分内容。
-///   3. GBK（覆盖 GB2312 / GB18030 的子集）— 中文 Windows 记事本默认编码
-///   4. Latin-1（兜底，1:1 字节到字符映射，永不失败）
+///   2. 容错 UTF-8（U+FFFD 替换非法序列）零损坏 → 按 UTF-8 返回——
+///      覆盖「GBK 双字节恰好构成合法 UTF-8」的 `C7 A7`（→ ǧ）场景，
+///      合法 UTF-8 字节流绝不被误判为 GBK
+///   3. GBK（fast_gbk，覆盖 GB2312 / GBK 及 GB18030 双字节区）：仅当
+///      容错 UTF-8 有损坏（U+FFFD > 0）**且** GBK 能**零损坏**解码且
+///      产出含 CJK 时才采纳——GBK 完整解释了全部字节而 UTF-8 解释存在
+///      结构性损坏，字节证据压倒性偏向 GBK（中文 Windows 记事本默认编码）。
+///      GBK 自身也解不干净（罕见 GB18030 四字节区）时维持 UTF-8 容错
+///      结果 + U+FFFD 告警（`containsReplacementChar`），用户可经
+///      front matter `encoding:` 声明或 UI 手动指定重解码。
+///   4. Latin-1（兜底，1:1 字节到字符映射，永不失败；见下方 latin1 分支）
 String decodeBytesAuto(List<int> bytes) {
   if (bytes.isEmpty) return '';
   // BOM 探测
@@ -22,22 +61,21 @@ String decodeBytesAuto(List<int> bytes) {
   } on FormatException {
     // 继续尝试更宽松的解码器
   }
-  // 容错 UTF-8：保证不抛错，对 GBK 字节也基本能恢复出可读文本
+  // 容错 UTF-8：保证不抛错。
+  final utf8Tolerant = utf8.decode(bytes, allowMalformed: true);
+  final utf8Damage = _countReplacementChars(utf8Tolerant);
+  if (utf8Damage == 0) return utf8Tolerant;
+  // GBK 兜底判定（#320）：容错 UTF-8 永不抛错，旧版在此直接返回导致
+  // GBK 分支不可达（死代码）——必须在「UTF-8 有损坏」时主动比较两种解释。
   try {
-    return utf8.decode(bytes, allowMalformed: true);
+    final gbkTolerant = _kGbk.decode(bytes, allowMalformed: true);
+    if (_countReplacementChars(gbkTolerant) == 0 && _containsCjk(gbkTolerant)) {
+      return gbkTolerant;
+    }
   } on FormatException {
-    // 极小概率走到这
+    // GBK 解码器异常 → 维持 UTF-8 容错结果
   }
-  // GBK / GB18030：覆盖中文 Windows 记事本默认编码。某些 Flutter SDK
-  // 不在 dart:convert 顶层直接导出 `gb18030`，但可以通过
-  // `Encoding.getByName('gb18030')` 拿到。拿不到时退到 latin1 兜底。
-  try {
-    final gbk = Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
-    if (gbk != null) return gbk.decode(bytes);
-  } on FormatException {
-    // 最后兜底
-  }
-  return latin1.decode(bytes);
+  return utf8Tolerant;
 }
 
 /// P0-2 编码手动指定（EXTERNAL-PROJECTS-EMPOWERMENT-PLAN §4.2）：
@@ -84,10 +122,10 @@ enum TextEncoding {
         }
         return _kUtf8.decode(bytes, allowMalformed: true);
       case TextEncoding.gb18030:
-        final enc =
-            Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
-        if (enc != null) return enc.decode(bytes);
-        return latin1.decode(bytes);
+        // #320：`Encoding.getByName('gb18030')` 在 VM/Flutter 均为 null
+        // （dart:convert 不内置），旧实现实际恒降级 latin1（乱码）。
+        // 统一走 fast_gbk；编码失败（罕见不可映射字符）退 latin1 兜底。
+        return _kGbk.decode(bytes, allowMalformed: true);
       case TextEncoding.big5:
         final enc = Encoding.getByName('big5');
         if (enc != null) return enc.decode(bytes);
@@ -103,10 +141,10 @@ enum TextEncoding {
       case TextEncoding.utf8:
         return _kUtf8.encode(text);
       case TextEncoding.gb18030:
-        final enc =
-            Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
-        if (enc != null) return enc.encode(text);
-        return _encodeLatin1Fallback(text);
+        // #320：同 decode——fast_gbk 补齐写路径（旧实现 getByName null →
+        // 恒走 _encodeLatin1Fallback，中文写盘即 '??' 乱码）。
+        // fast_gbk 对不可映射字符内部替换为 GBK 替换码，encode 永不抛。
+        return _kGbk.encode(text);
       case TextEncoding.big5:
         final enc = Encoding.getByName('big5');
         if (enc != null) return enc.encode(text);
