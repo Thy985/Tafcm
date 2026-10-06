@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/providers/export_progress_provider.dart';
+import '../../domain/services/export_cancel_token.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/editor_providers.dart';
 import '../theme/app_theme.dart';
@@ -70,6 +71,12 @@ class EditorExportActions {
   /// guarantee —— 无论导出主流程 / 写盘 / 分享任一阶段失败，最终都回到
   /// `ExportIdleState`，避免 SnackBar 永久残留（Bug4）。
   ///
+  /// issue #323：协作式取消 —— 用户在确认对话框选择「取消导出并退出」
+  /// 后，[ExportProgressNotifier.cancel] 置位令牌；本方法把令牌透传给
+  /// 导出管线（阶段边界检查点），并在写临时文件前做最后检查，保证取消
+  /// 不产出任何中间文件。[ExportCancelledException] 在此吞掉（取消是
+  /// 用户意图，不是失败，也不进 observability）。
+  ///
   /// bytes 留在调用方直接写盘 / 分享，不经过 [exportProgressProvider] 状态机传输
   /// （避免 Provider state 序列化 Uint8List 导致内存/所有权混淆）。
   Future<void> handleExport(BuildContext context, ExportFormat format) async {
@@ -78,66 +85,81 @@ class EditorExportActions {
     final title = coordinator.title;
     final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
 
-    // runWithGuard 保证：success → Completed；任意阶段 throw → Failed
-    // （自动 classifyError 分类）；finally 强制 → Idle。
-    // observability 由 onError 钩子在 fail 之前记录。
-    await notifier.runWithGuard<void>(
-      format,
-      () async {
-        final Uint8List bytes = switch (format) {
-          ExportFormat.pdf => await MarkdownExporter.exportToPdf(
-              markdown,
-              title: title,
-              isDark: isDark,
-              onProgress: notifier.report,
-              observability: ref.read(observabilityProvider),
-            ),
-          ExportFormat.docx => await MarkdownExporter.exportToWord(
-              markdown,
-              title: title,
-              isDark: isDark,
-              onProgress: notifier.report,
-            ),
-          ExportFormat.txt => await MarkdownExporter.exportToTxt(
-              markdown,
-              onProgress: notifier.report,
-            ),
-        };
+    try {
+      // runWithGuard 保证：success → Completed；任意阶段 throw → Failed
+      // （自动 classifyError 分类）；取消 → Idle（rethrow，本方法吞掉）；
+      // finally 强制 → Idle。
+      // observability 由 onError 钩子在 fail 之前记录。
+      await notifier.runWithGuard<void>(
+        format,
+        () async {
+          // runWithGuard 已 start（创建令牌），此处读取并透传给管线。
+          final ExportCancelToken? cancelToken = notifier.activeCancelToken;
+          final Uint8List bytes = switch (format) {
+            ExportFormat.pdf => await MarkdownExporter.exportToPdf(
+                markdown,
+                title: title,
+                isDark: isDark,
+                onProgress: notifier.report,
+                observability: ref.read(observabilityProvider),
+                cancelToken: cancelToken,
+              ),
+            ExportFormat.docx => await MarkdownExporter.exportToWord(
+                markdown,
+                title: title,
+                isDark: isDark,
+                onProgress: notifier.report,
+                cancelToken: cancelToken,
+              ),
+            ExportFormat.txt => await MarkdownExporter.exportToTxt(
+                markdown,
+                onProgress: notifier.report,
+                cancelToken: cancelToken,
+              ),
+          };
+          // issue #323：写盘前最后取消检查点——保证取消不产出临时文件。
+          cancelToken?.throwIfCancelled();
 
-        final path = await ExportService.writeBytesToTempFile(
-          bytes,
-          format,
-          fileName: title,
-        );
-        // Bug（真机实测）：shareXFiles 的 Future 在 Android 上可能不 resolve
-        // （用户关闭分享面板后 Future 挂起）。若在此 await，runWithGuard 的
-        // body 永不返回 → complete() 永不执行 → state 永停 InProgress → 导出
-        // 完成但「正在导出 32%」SnackBar 永久残留（duration 1 天）。
-        // 写盘成功即视为导出完成，分享是用户交互，不阻塞导出状态机。
-        unawaited(
-          Share.shareXFiles(
-            [XFile(path, mimeType: mimeFor(format))],
-            subject: title,
-          ).then<void>(
-            (_) {},
-            onError: (Object e) {
-              // 分享失败不影响导出结果，仅记录（onError 兜底在 runWithGuard 层）。
-              debugPrint('[EditorExportActions] share failed: $e');
-            },
-          ),
-        );
-      },
-      onError: (e, st) {
-        // 写盘 / share 失败的兜底记录（导出主流程失败也走这里）。
-        debugPrint('[EditorExportActions] export failed: $e\n$st');
-        ref.read(observabilityProvider).captureError(
-              type: 'ExportError',
-              message: '$e',
-              commandName: 'handleExport',
-              commandParams: {'format': format.name},
-            );
-      },
-    );
+          final path = await ExportService.writeBytesToTempFile(
+            bytes,
+            format,
+            fileName: title,
+          );
+          // Bug（真机实测）：shareXFiles 的 Future 在 Android 上可能不 resolve
+          // （用户关闭分享面板后 Future 挂起）。若在此 await，runWithGuard 的
+          // body 永不返回 → complete() 永不执行 → state 永停 InProgress → 导出
+          // 完成但「正在导出 32%」SnackBar 永久残留（duration 1 天）。
+          // 写盘成功即视为导出完成，分享是用户交互，不阻塞导出状态机。
+          unawaited(
+            Share.shareXFiles(
+              [XFile(path, mimeType: mimeFor(format))],
+              subject: title,
+            ).then<void>(
+              (_) {},
+              onError: (Object e) {
+                // 分享失败不影响导出结果，仅记录（onError 兜底在 runWithGuard 层）。
+                debugPrint('[EditorExportActions] share failed: $e');
+              },
+            ),
+          );
+        },
+        onError: (e, st) {
+          // 写盘 / share 失败的兜底记录（导出主流程失败也走这里）。
+          debugPrint('[EditorExportActions] export failed: $e\n$st');
+          ref.read(observabilityProvider).captureError(
+                type: 'ExportError',
+                message: '$e',
+                commandName: 'handleExport',
+                commandParams: {'format': format.name},
+              );
+        },
+      );
+    } on ExportCancelledException {
+      // 用户确认「取消导出并退出」（issue #323）：状态机已由 runWithGuard
+      // 归 Idle、浮层随编辑器路由销毁。取消不是错误——不上报 observability，
+      // 也不向调用方（fire-and-forget 的 onExportTo 回调）抛未捕获异常。
+      debugPrint('[EditorExportActions] export cancelled by user');
+    }
   }
 
   /// [ExportFormat] → MIME，用于 `Share.shareXFiles` 的 XFile 标注。
