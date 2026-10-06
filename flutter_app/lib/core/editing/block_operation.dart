@@ -54,6 +54,14 @@ class BlockOperation extends EditOperation {
   /// [DocumentEditor.updateBlockContent]，revert 通过同一接口恢复 originalElement。
   final BlockType? transformedType;
 
+  /// split 的右半（新块）类型 override（issue #329 新增）。
+  ///
+  /// 仅 [BlockOpType.split] 使用。null = 继承源块类型（ADR-0007 §4.1 原语义，
+  /// 所有既有调用方默认路径不变）；非 null 时右半用该类型重建，左半（原块）
+  /// 始终保留源块类型。标题 Enter 传 paragraph：末尾回车新建普通段落、中间
+  /// 拆出的后半块也是段落（Typora 语义）。redo 经同一字段重放，幂等。
+  final BlockType? splitNewType;
+
   /// apply 时填充的 revert context（每类 op 不同）。
   ///
   /// Map 本身可变（apply 时写入），但保存的值都是 immutable snapshot
@@ -86,6 +94,7 @@ class BlockOperation extends EditOperation {
     this.splitOffset,
     this.moveBefore = true,
     this.transformedType,
+    this.splitNewType,
     Map<String, Object?>? revertContext,
   }) : revertContext = revertContext ?? <String, Object?>{};
 
@@ -282,8 +291,12 @@ class BlockOperation extends EditOperation {
     final leftSource = originalSource.substring(0, offset);
     final rightSource = originalSource.substring(offset);
 
+    // issue #329：右半类型可被 [splitNewType] override（null = 继承源块类型）。
+    // 标题 Enter 传 paragraph：末尾回车 → 空段落（输入不再被拼进标题）；
+    // 中间拆分 → 前半保留标题与 `# ` 序列化语义，后半为普通段落（Typora 语义）。
+    final rightType = splitNewType ?? type;
     final leftElement = toElement(leftSource, type);
-    final rightElement = toElement(rightSource, type);
+    final rightElement = toElement(rightSource, rightType);
 
     // 替换原块为截断的左部分（保持 BlockId 不变）
     editor.updateBlockContent(targetId, leftElement);

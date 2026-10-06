@@ -199,8 +199,10 @@ class CommandHandler {
   // ============ 各 _handle* 方法 ============
 
   bool _handleSplitBlock(SplitBlockCommand c, BlockOperations ops) {
-    // BlockOperations.split 内部已自动 tryTransform（Phase 2.7）
-    return ops.split(c.blockId, c.offset);
+    // BlockOperations.split 内部已自动 tryTransform（Phase 2.7）。
+    // issue #329：newBlockType 为右半类型 override（标题 Enter → paragraph），
+    // null = 继承源块类型（原语义）。
+    return ops.split(c.blockId, c.offset, newBlockType: c.newBlockType);
   }
 
   bool _handleMerge(MergeWithPreviousCommand c, BlockOperations ops) {
