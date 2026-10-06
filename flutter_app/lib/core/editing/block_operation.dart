@@ -2,10 +2,8 @@
 ///
 /// 落地 ADR-0007 §4.1（五原语）+ §4.3（transform）+ ADR-0008 §2（apply/revert 幂等纯函数）。
 part of 'edit_operation.dart';
-/// 6 类块级操作的类型标识。
-///
-/// Phase 2.7 新增 [transform]：基于 source 的 BlockType 重映射
-/// （如 `# Hello` 在 paragraph 块中输入后自动变 heading）。
+/// 6 类块级操作的类型标识。Phase 2.7 新增 [transform]：基于 source 的
+/// BlockType 重映射（如 `# Hello` 在 paragraph 块中输入后自动变 heading）。
 enum BlockOpType {
   insert,
   delete,
@@ -54,6 +52,14 @@ class BlockOperation extends EditOperation {
   /// [DocumentEditor.updateBlockContent]，revert 通过同一接口恢复 originalElement。
   final BlockType? transformedType;
 
+  /// split 的右半（新块）类型 override（issue #329）。
+  ///
+  /// 仅 [BlockOpType.split] 使用。null = 继承源块类型（ADR-0007 §4.1 原语义，
+  /// 既有调用方默认路径不变）；非 null 时右半用该类型重建、左半始终保留源
+  /// 类型。标题 Enter 传 paragraph（Typora 语义：末尾回车新建段落、中间拆分
+  /// 后半也是段落）。redo 经同一字段重放，幂等。
+  final BlockType? splitNewType;
+
   /// apply 时填充的 revert context（每类 op 不同）。
   ///
   /// Map 本身可变（apply 时写入），但保存的值都是 immutable snapshot
@@ -86,6 +92,7 @@ class BlockOperation extends EditOperation {
     this.splitOffset,
     this.moveBefore = true,
     this.transformedType,
+    this.splitNewType,
     Map<String, Object?>? revertContext,
   }) : revertContext = revertContext ?? <String, Object?>{};
 
@@ -134,16 +141,10 @@ class BlockOperation extends EditOperation {
     if (afterIndex == -1) return false;
 
     final insertIndex = afterIndex + 1;
-    // 幂等性（Phase 2.8 集成测试揭示的 P0 bug 修复）：
-    // re-apply（redo）时复用首次分配的 newId，与 split/delete/merge/move 一致
-    // （"BlockId 是稳定 identity"原则，ADR-0008 §9）。否则依赖此 insert 后续
-    // BlockId 的 op（如另一个 insertAfter(newId, ...)）在 redo 时会因 newId
-    // 不一致而 apply 失败。
-    //
-    // **Lifecycle 维护约定**：新增 [BlockOpType] 时若调用 insertBlock/replaceBlock
-    // （分配新 BlockId），必须遵循此模式：apply 时从 revertContext 读 preserveId、
-    // apply 后写回新 id、revert 不清除（下次 redo 复用）。违反将导致依赖该 BlockId
-    // 的后续 op redo 失败（参考 TC-EDIT-8.1 "多 Transaction 中途部分 undo + 部分 redo"）。
+    // 幂等性（Phase 2.8 P0 修复，ADR-0008 §9 "BlockId 稳定 identity"）：redo
+    // 复用首次分配的 newId，否则依赖该 id 的后续 op redo 时 apply 失败。
+    // Lifecycle 约定：新增 BlockOpType 若分配新 BlockId，须沿用此模式
+    // （apply 读 preserveId / 写回新 id / revert 不清除），参考 TC-EDIT-8.1。
     final preserveId = revertContext[kNewId] as BlockId?;
     final newId = editor.insertBlock(insertIndex, element!, preserveId: preserveId);
     revertContext[kNewId] = newId;
@@ -236,11 +237,8 @@ class BlockOperation extends EditOperation {
   }
 
   BlockType _mergeType(DocumentElement left, DocumentElement right) {
-    // ADR-0007 §4.1 类型兼容性：
-    // - Paragraph + Paragraph → Paragraph
-    // - List + List（同 ordered）→ List
-    // - List + List（异 ordered）→ 回退为 Paragraph
-    // - 不兼容 → 回退为 Paragraph
+    // ADR-0007 §4.1 类型兼容性：同型合并；列表需同 ordered 且无 nested，
+    // 其余（含不兼容）一律回退 Paragraph。
     final leftType = BlockType.fromElement(left);
     final rightType = BlockType.fromElement(right);
 
@@ -282,8 +280,10 @@ class BlockOperation extends EditOperation {
     final leftSource = originalSource.substring(0, offset);
     final rightSource = originalSource.substring(offset);
 
+    // issue #329：右半类型 override，null = 继承（语义见 splitNewType 字段 doc）。
+    final rightType = splitNewType ?? type;
     final leftElement = toElement(leftSource, type);
-    final rightElement = toElement(rightSource, type);
+    final rightElement = toElement(rightSource, rightType);
 
     // 替换原块为截断的左部分（保持 BlockId 不变）
     editor.updateBlockContent(targetId, leftElement);

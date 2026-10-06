@@ -120,13 +120,18 @@ class BlockOperations {
   /// 覆盖 ADR-0007 §4.3 的 12 类 Markdown 快捷映射规则（如 `# ` → heading）。
   /// 自动 transform 失败不影响 split 本身（split 已成功 apply）。
   /// 自动 transform 产生的 op 会单独加入 [TransactionBuilder]（与 split op 同一 Transaction）。
-  bool split(BlockId targetId, int offset) {
+  ///
+  /// **issue #329**：[newBlockType] 为右半（新块）类型 override；null（默认）
+  /// = 继承源块类型。标题块 Enter 由 resolver 传 paragraph——末尾回车新建
+  /// 普通段落、中间拆出的后半块也是段落（Typora 语义）；左半保留源块类型。
+  bool split(BlockId targetId, int offset, {BlockType? newBlockType}) {
     _composing?.assertBlockMutationAllowed();
 
     final op = BlockOperation(
       opType: BlockOpType.split,
       targetId: targetId,
       splitOffset: offset,
+      splitNewType: newBlockType,
     );
 
     if (!op.apply(_editor)) return false;

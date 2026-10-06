@@ -87,9 +87,17 @@ final class SplitBlockCommand extends EditorCommand {
   /// 拆分偏移（基于 source 字符串）。
   final int offset;
 
+  /// 新块（右半）的类型 override；null = 继承源块类型（原语义）。
+  ///
+  /// issue #329：标题块 Enter 由 resolver 传 [BlockType.paragraph]——末尾回车
+  /// 新建普通段落，中间拆出的后半块也是段落（Typora 语义）；列表 / 引用等
+  /// 其他类型不传，保持继承行为（既有基线不回归）。
+  final BlockType? newBlockType;
+
   const SplitBlockCommand({
     required this.blockId,
     required this.offset,
+    this.newBlockType,
     super.origin = CommandOrigin.keyboard,
   }) : super(displayName: '拆分块');
 }

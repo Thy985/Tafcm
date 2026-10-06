@@ -60,6 +60,11 @@ class BlockBehaviorResolver {
   ///
   /// 决策原则：Enter 产生"当前块类型的兄弟单元"；仅 Code 块内换行、
   /// 空列表 / 引用退出时例外（后者 Phase B）。
+  ///
+  /// **issue #329 Heading 例外（Typora 语义）**：标题 Enter 分块时新块
+  /// （右半）一律为普通段落——末尾回车新建空段落（输入不再被拼进标题），
+  /// 中间拆分前半保留标题与 `# ` 序列化语义、后半为段落。其余类型不传
+  /// override，维持继承行为（既有基线不回归）。
   EditorCommand? resolveEnter(
     IntentCoordinator c,
     BlockId id,
@@ -78,7 +83,15 @@ class BlockBehaviorResolver {
         return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
       case BlockType.heading:
         // 标题回车始终分块（标题不应多行）。
-        return SplitBlockCommand(blockId: id, offset: sel.baseOffset);
+        // issue #329：新块（右半）一律为普通段落（Typora 语义）——
+        // 末尾回车 → 空段落；中间拆分（`# abc|def`）→ `# abc` + 段落 `def`。
+        // offset=0（块首回车）右半经 tryTransform 检出 `# ` 回到 heading，
+        // 行为与旧版一致（空标题 + 标题），不回归。
+        return SplitBlockCommand(
+          blockId: id,
+          offset: sel.baseOffset,
+          newBlockType: BlockType.paragraph,
+        );
       case BlockType.code:
         // 代码块内换行，不分块（底层 Markdown 保留 \n）。
         return InsertTextCommand(

@@ -199,8 +199,8 @@ class CommandHandler {
   // ============ 各 _handle* 方法 ============
 
   bool _handleSplitBlock(SplitBlockCommand c, BlockOperations ops) {
-    // BlockOperations.split 内部已自动 tryTransform（Phase 2.7）
-    return ops.split(c.blockId, c.offset);
+    // split 内部已自动 tryTransform（Phase 2.7）；newBlockType 见 BlockOperation 文档。
+    return ops.split(c.blockId, c.offset, newBlockType: c.newBlockType);
   }
 
   bool _handleMerge(MergeWithPreviousCommand c, BlockOperations ops) {
