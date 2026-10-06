@@ -21,6 +21,7 @@ import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/formula_svg_service.dart';
 import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
+import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 import 'formula_render_plan.dart';
 import 'pdf_mermaid_renderer.dart';
@@ -181,6 +182,10 @@ class PdfExporter {
   ///
   /// [onProgress]（3.4.4 Slice 7）：在阶段切换（解析→公式预渲染→block 渲染→拼装）
   /// 与公式预渲染每个公式完成时回调。无回调时静默，保持旧行为兼容。
+  ///
+  /// [cancelToken]（issue #323）：协作式取消令牌。在阶段边界（入口 / 公式
+  /// 预渲染批次间 / 逐块 / 逐片拼装 / 保存前）检查，命中即抛
+  /// [ExportCancelledException]；null = 不可取消（旧行为兼容）。
   static Future<Uint8List> export(
     String markdown, {
     String? title,
@@ -188,10 +193,12 @@ class PdfExporter {
     bool isDark = false,
     ExportProgressCallback? onProgress,
     ObservabilityService? observability,
+    ExportCancelToken? cancelToken,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+    cancelToken?.throwIfCancelled();
     // PR-C：导出开始前清空 telemetry，聚合报告只含本次导出样本
     // （避免混入编辑器内渲染的历史样本）。
     FormulaSvgService.clearTelemetry();
@@ -237,6 +244,7 @@ class PdfExporter {
       var preRendered = 0;
       final totalForProgress = grouped.inline.length + grouped.block.length;
       try {
+        cancelToken?.throwIfCancelled();
         await FormulaSvgService.preRenderAll(
           grouped.inline,
           displayMode: false,
@@ -249,6 +257,7 @@ class PdfExporter {
             ));
           },
         );
+        cancelToken?.throwIfCancelled();
         await FormulaSvgService.preRenderAll(
           grouped.block,
           displayMode: true,
@@ -260,6 +269,9 @@ class PdfExporter {
             ));
           },
         );
+      } on ExportCancelledException {
+        // 取消不是渲染失败，不得吞进「降级 PNG/文本」兜底。
+        rethrow;
       } catch (e) {
         debugPrint('SVG pre-render failed (will fall back to PNG/text): $e');
       }
@@ -322,6 +334,8 @@ class PdfExporter {
     // P0-D：body 索引 → elements 索引映射（降级重建时需要重新遍历 elements）。
     final bodyToElementIndex = <int>[];
     for (final element in elements) {
+      // issue #323：逐块边界取消检查点。
+      cancelToken?.throwIfCancelled();
       // 块渲染埋点（logcat grep BlockLc）：定位导出卡死卡在哪一块。
       // 若某块 await 永久卡住，最后一条 render_start 即卡点（idx + type）。
       debugPrint('BlockLc render_start idx=$rendered type=${element.runtimeType}');
@@ -362,6 +376,8 @@ class PdfExporter {
       total: sliceCount,
     ));
     for (var s = 0; s < sliceCount; s++) {
+      // issue #323：逐片拼装边界取消检查点。
+      cancelToken?.throwIfCancelled();
       final start = s * kPageSliceSize;
       final end = (start + kPageSliceSize) > body.length
           ? body.length
@@ -442,6 +458,8 @@ class PdfExporter {
     // 缓存在 editor_screen 退出 / app pause 时由调用方清理。
     // 但每次导出后清理 WebView DOM payload 元素，减少内存压力。
     debugPrint('BlockLc cleanupPayloads_start');
+    // issue #323：保存前最后检查点——取消时不产出任何字节/临时文件。
+    cancelToken?.throwIfCancelled();
     await MermaidService.cleanupPayloads();
     debugPrint('BlockLc cleanupPayloads_done');
     try {

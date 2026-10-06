@@ -17,8 +17,10 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/services/export_cancel_token.dart';
 import '../../domain/services/export_service.dart';
 
 /// 导出状态 sealed 联合（3.4.4 Slice 7）。
@@ -82,11 +84,25 @@ class ExportFailedState extends ExportState {
 class ExportProgressNotifier extends StateNotifier<ExportState> {
   ExportProgressNotifier() : super(const ExportIdleState());
 
+  /// 当前在途导出的协作式取消令牌（issue #323）。
+  ///
+  /// [start] 创建、[runWithGuard] finally 中置 null；[cancel] 置位并归还。
+  /// null = 无在途导出（cancel 为幂等 no-op）。
+  ExportCancelToken? _activeToken;
+
+  /// 当前在途导出的取消令牌（导出管线检查点用）。
+  ///
+  /// 由 runWithGuard 在 start 之后、body 之前创建；调用方（EditorExportActions）
+  /// 在 body 内读取并透传给 MarkdownExporter.exportToXxx。无在途导出时为 null。
+  ExportCancelToken? get activeCancelToken => _activeToken;
+
   /// 启动一次导出（进入 [ExportInProgressState]）。
   ///
   /// 防止并发：已在导出中时直接返回（不覆盖前一次进度，也不抛异常中断调用方）。
+  /// 同时创建本轮 [ExportCancelToken]（issue #323 协作式取消）。
   void start(ExportFormat format) {
     if (state is ExportInProgressState) return;
+    _activeToken = ExportCancelToken();
     state = ExportInProgressState(
       format: format,
       progress: const ExportProgress(
@@ -121,6 +137,22 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
   /// 重置为空闲（例如 SnackBar 关闭后、用户再次选择导出前）。
   void reset() {
     state = const ExportIdleState();
+  }
+
+  /// 用户请求取消当前导出（issue #323：导出中 BACK 确认退出 / 浮层销毁兜底）。
+  ///
+  /// 行为：
+  /// 1. 置位协作式取消令牌 —— 导出管线在下一个阶段检查点抛出
+  ///    [ExportCancelledException]，runWithGuard 捕获后归 Idle（非 Failed）；
+  /// 2. 状态立即回 Idle —— 关闭进度浮层，且后续 `report()` 因非 InProgress
+  ///    被忽略，避免「已请求取消 → 浮层销毁前」竞态窗口内进度重新上屏；
+  /// 3. 无在途导出时为幂等 no-op。
+  void cancel() {
+    _activeToken?.cancel();
+    _activeToken = null;
+    if (state is ExportInProgressState) {
+      state = const ExportIdleState();
+    }
   }
 
   /// Terminal-state guarantee 包装器（PR-4 状态机硬化）。
@@ -165,13 +197,21 @@ class ExportProgressNotifier extends StateNotifier<ExportState> {
       final result = await body().timeout(timeout);
       complete(format);
       return result;
+    } on ExportCancelledException {
+      // issue #323：用户取消 ≠ 失败。不进 onError / 不置 Failed；清理共享
+      // WebView 渲染中间产物后原样上抛（调用方 EditorExportActions 吞掉），
+      // 状态交给 finally 归 Idle。
+      debugPrint('[ExportProgress] export cancelled by user');
+      await ExportService.cleanupRenderArtifacts();
+      rethrow;
     } catch (e, st) {
       onError?.call(e, st);
       fail(format, classify(e));
       rethrow;
     } finally {
-      // 无论 success / fail / throw，最终都回 Idle —— 防止"导出完成
-      // 但状态栏永久存在"（Bug4）。
+      // 无论 success / fail / cancel / throw，最终都回 Idle —— 防止"导出完成
+      // 但状态栏永久存在"（Bug4），也保证取消后无孤儿 InProgress 残留。
+      _activeToken = null;
       reset();
     }
   }
