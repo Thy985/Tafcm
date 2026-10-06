@@ -1,8 +1,8 @@
 """ADI (Agent Diagnostic Interface) wrapper — delegates to adi.dart.
 
-The wrapper resolves the adi.dart entry point and runs it with the correct
-working directory so that `.adi/` is always found regardless of where the
-caller invokes `ffx` from.
+The wrapper resolves the adi.dart entry point and runs it with the project
+root as working directory, so `ffx adi *` reads the same `<root>/.adi` store
+as the App, `dart run tools/adi/adi.dart` and the MCP server (issue #325).
 """
 from __future__ import annotations
 
@@ -17,9 +17,12 @@ from typing import Any, Optional
 def _find_adi_cwd(root: Optional[str] = None) -> tuple[list[str], str]:
     """Locate adi.dart and return (command, cwd).
 
-    The .adi/ storage lives in tools/adi/.adi, so adi.dart must run with
-    cwd = tools/adi/ directory. We resolve relative to the script's own
-    location first (works when installed), then fall back to parent dirs.
+    The command runs adi.dart; cwd is the project root, because adi.dart
+    resolves its storage as Directory.current/.adi (issue #325). This matches
+    the App, `dart run tools/adi/adi.dart` and the MCP server, which all read
+    <root>/.adi. The script itself is still located via tools/adi/adi.dart,
+    resolved relative to the wrapper's own location first (works when
+    installed), then falling back to parent dirs.
     """
     dart_bin = shutil.which("dart")
     if not dart_bin:
@@ -46,7 +49,11 @@ def _find_adi_cwd(root: Optional[str] = None) -> tuple[list[str], str]:
     for base in candidates:
         p = Path(base) / "tools" / "adi"
         if p.is_dir() and (p / "adi.dart").is_file():
-            return [dart_bin, "run", str(p / "adi.dart")], str(p)
+            # Issue #325: run from the project root (NOT tools/adi) so that
+            # Directory.current/.adi points at <root>/.adi like every other
+            # ADI consumer. resolve() keeps the subprocess cwd deterministic
+            # even when the caller passes a relative --root.
+            return [dart_bin, "run", str(p / "adi.dart")], str(Path(base).resolve())
 
     raise RuntimeError(
         "tools/adi/adi.dart not found. Run ffx from the project root.\n"
@@ -73,8 +80,47 @@ def _run_adi(args: list[str], cwd: Optional[str] = None) -> dict[str, Any]:
 
 # ── public API ─────────────────────────────────────────────────────────
 
+def _storage_candidates(root: str) -> dict[str, Any]:
+    """Report the two historical .adi/ locations under the project root.
+
+    Issue #325: older ffx versions pinned adi.dart's cwd to tools/adi/, so
+    diagnostic data could diverge between <root>/.adi (App / dart run / MCP)
+    and <root>/tools/adi/.adi (legacy ffx). Surfacing both locations makes
+    such divergence visible; ffx never migrates data automatically.
+    """
+    root_p = Path(root)
+    primary = root_p / ".adi"
+    legacy = root_p / "tools" / "adi" / ".adi"
+    primary_exists = primary.is_dir()
+    legacy_exists = legacy.is_dir()
+    hint: Optional[str] = None
+    if not primary_exists and legacy_exists:
+        hint = (
+            f"No .adi/ found at project root ({primary}), but a legacy store "
+            f"exists at {legacy}. Older ffx versions wrote diagnostics there; "
+            "data is NOT migrated automatically — copy it to <root>/.adi "
+            "manually if still needed."
+        )
+    return {
+        "candidates": [
+            {"label": "project_root", "path": str(primary), "exists": primary_exists},
+            {"label": "tools/adi (legacy)", "path": str(legacy), "exists": legacy_exists},
+        ],
+        "migration_hint": hint,
+    }
+
+
 def doctor(cwd: Optional[str] = None) -> dict[str, Any]:
-    return _run_adi(["doctor"], cwd=cwd)
+    """Run adi.dart doctor and augment it with .adi/ storage candidates.
+
+    The augmentation lists both <root>/.adi and the legacy
+    <root>/tools/adi/.adi (with exists markers) so divergent data stores are
+    discoverable from `ffx adi doctor` output (issue #325).
+    """
+    result = _run_adi(["doctor"], cwd=cwd)
+    _, root = _find_adi_cwd(cwd)  # resolved project root == subprocess cwd
+    result["storage_candidates"] = _storage_candidates(root)
+    return result
 
 
 def latest_error(cwd: Optional[str] = None) -> dict[str, Any]:

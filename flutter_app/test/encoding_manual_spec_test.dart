@@ -7,13 +7,17 @@
 /// - FileRepository 声明感知读端：GBK 原件解码正确、utf8 容错不受影响
 /// - FileRepository 声明保持写端：GBK 原件编辑后字节仍为 GBK（不漂移 UTF-8）
 ///
-/// GB18030 依赖运行时 `Encoding.getByName`（flutter_test 环境
-/// dart:io 下可用），与 file_service_decode_test 同前提。
+/// GBK 字节构造：`Encoding.getByName('gb18030'/'gbk')` 在 Dart VM / Flutter
+/// 均返回 null（#320 探针证实，dart:convert 不内置）——本文件 GBK 字节一律
+/// 用 fast_gbk（与生产 `TextEncoding.gb18030` 同一 codec）构造，所有用例
+/// **真实执行**；#320 之前本文件的 GBK 用例因 getByName null 全部静默 skip，
+/// 守门是空的。
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:fast_gbk/fast_gbk.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -31,22 +35,11 @@ class _MockPathProvider extends PathProviderPlatform
   Future<String?> getApplicationDocumentsPath() async => root;
 }
 
-/// GBK 编码助手：测试环境 `Encoding.getByName` 可能不提供 GBK
-/// （file_service_decode_test 先例：不可用即 skip 该用例）。
-/// 返回 null 表示环境不支持，调用方 skip。
-Encoding? _gbkEncoder() =>
-    Encoding.getByName('gb18030') ?? Encoding.getByName('gbk');
-
 void main() {
   group('TextEncoding 原语', () {
     test('gb18030 解码 GBK 字节正确', () {
-      final enc = _gbkEncoder();
-      if (enc == null) {
-        // 编码器不可用即 skip（同 file_service_decode_test 先例）。
-        return;
-      }
       const text = '矩阵的逆与定积分';
-      final decoded = TextEncoding.gb18030.decode(enc.encode(text));
+      final decoded = TextEncoding.gb18030.decode(gbk.encode(text));
       expect(decoded, text);
     });
 
@@ -57,8 +50,6 @@ void main() {
       final l1Bytes = TextEncoding.latin1.encode(sample);
       expect(l1Bytes, everyElement(isA<int>()));
       expect(TextEncoding.latin1.decode(l1Bytes), startsWith('Abc'));
-      final enc = _gbkEncoder();
-      if (enc == null) return; // 环境不支持 GBK 则 skip
       expect(
           TextEncoding.gb18030.decode(TextEncoding.gb18030.encode(sample)),
           sample);
@@ -120,10 +111,7 @@ void main() {
     });
 
     /// 构造 GBK 原件（声明 + GBK 编码的正文，模拟外部 GBK 文件导入）。
-    /// 环境无 GBK 编码器时返回 null（调用方 skip）。
-    Future<File?> _writeGbkFixture(String name, String body) async {
-      final enc = _gbkEncoder();
-      if (enc == null) return null;
+    Future<File> writeGbkFixture(String name, String body) async {
       final f = File('${tmp.path}${Platform.pathSeparator}$name');
       final md = FrontMatterParser.build(
         id: 'gbk-$name',
@@ -133,13 +121,12 @@ void main() {
         content: body,
         encoding: 'gb18030',
       );
-      await f.writeAsBytes(enc.encode(md));
+      await f.writeAsBytes(gbk.encode(md));
       return f;
     }
 
     test('读端：GBK 原件按声明解码正确（绕过自动链）', () async {
-      final f = await _writeGbkFixture('a.md', '矩阵与行列式');
-      if (f == null) return; // 环境不支持 GBK 编码器则 skip
+      final f = await writeGbkFixture('a.md', '矩阵与行列式');
       final repo = FileRepository();
       final doc = await repo.readDocument(f.path);
       expect(doc.title, 'GBK 文档');
@@ -147,8 +134,7 @@ void main() {
     });
 
     test('写端：GBK 原件编辑后字节仍为 GBK（声明保持，不漂移 UTF-8）', () async {
-      final f = await _writeGbkFixture('b.md', '原始内容');
-      if (f == null) return; // 环境不支持 GBK 编码器则 skip
+      final f = await writeGbkFixture('b.md', '原始内容');
       final repo = FileRepository();
 
       await repo.writeDocument(f.path, title: 'GBK 文档', content: '编辑后的内容');
@@ -156,7 +142,6 @@ void main() {
       final bytes = await f.readAsBytes();
       // 字节级断言：按声明 GBK 解码应还原"编辑后的内容"（若已漂移成
       // UTF-8，GBK 解码会得到乱码而非目标串）。
-      final gbk = _gbkEncoder()!;
       expect(gbk.decode(bytes), contains('编辑后的内容'),
           reason: '按声明 GBK 写回');
       // 声明行保留。

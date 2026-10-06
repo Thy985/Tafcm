@@ -1,15 +1,33 @@
-/// EditorPage 文档加载辅助函数（P1 B-4 / P1 B-5）。
+/// EditorPage 文档加载辅助函数（P1 B-4 / P1 B-5 / #319）。
 ///
 /// 从 editor_page.dart 抽取，保持单一职责（AGENTS.md §1.2）。
-/// 提供文件加载失败的用户反馈与 MarkdownParser 行级降级的 observability 上报。
+/// 提供文件加载失败的用户反馈、MarkdownParser 行级降级的 observability 上报、
+/// 以及种子文档构造（EditorPage 行数控制，TC-ARCH-7）。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import '../../core/parser/markdown_parser.dart';
 import '../../providers/editor_providers.dart';
+import 'in_memory_document_editor.dart';
+import 'seed_documents.dart';
+
+/// 构造种子 [InMemoryDocumentEditor]（演示 / 加载失败回退路径）。
+///
+/// 自 EditorPage 抽取（#319 顺带，EditorPage 行数贴 400 上限）。
+InMemoryDocumentEditor buildSeedEditor(int selector) {
+  switch (selector) {
+    case 0:
+      return SeedDocuments.createDemo1();
+    case 1:
+      return SeedDocuments.createDemo2();
+    case 2:
+      return SeedDocuments.createDemo3();
+    default:
+      return SeedDocuments.createDemo1();
+  }
+}
 
 /// P1 B-4：文件加载失败的 SnackBar 反馈。
 ///

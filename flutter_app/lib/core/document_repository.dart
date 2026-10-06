@@ -41,6 +41,13 @@ abstract class DocumentRepository {
   /// 返回首非空行 ≤ 40 字符；文件不存在返回空字符串 `''`（不抛异常）。
   Future<String> getDocumentPreview(String id);
 
+  /// 文档 .md 文件当前是否存在于磁盘（#319）。
+  ///
+  /// 编辑器用于「文件意外消失」检测：外部删除 / 清理工具 / 同步冲突可能
+  /// 让活动文档的落盘文件消失而应用毫不知情。存在性检查必须是 O(1) 的
+  /// stat 调用而非读全文，故独立成端口方法而不复用 [readDocument]。
+  Future<bool> documentFileExists(String path);
+
   /// 全文搜索：标题 + 正文（大小写不敏感），按 updatedAt 降序。
   ///
   /// P0-1 搜索接线（EXTERNAL-PROJECTS-EMPOWERMENT-PLAN §4.1）。
