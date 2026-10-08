@@ -11,7 +11,10 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tafcm/data/models/document.dart';
+import 'package:tafcm/domain/services/exporters/pdf_exporter.dart';
 import 'package:tafcm/domain/services/exporters/word_exporter.dart';
+import 'package:tafcm/domain/services/exporters/word_ooxml_builder.dart';
 
 /// 语义模型：从 document.xml 提取的计数。
 class DocxSemanticModel {
@@ -140,6 +143,129 @@ void main() {
       expect(m1.listCount, m2.listCount);
       expect(m1.textChecksum, m2.textChecksum,
           reason: '同源导出语义模型应稳定: $m1 vs $m2');
+    });
+  });
+
+  group('#326 displayMode 复合 key（builder 级回归）', () {
+    test('同一 latex 行内+块级各解析为独立 rel，不共用同一张 PNG', () {
+      // 文档：第一段含行内公式 $x$，第二段含块级公式 $$x$$（latex 同为 'x'）。
+      final elements = <DocumentElement>[
+        const ParagraphElement(children: [
+          TextElement('行内: '),
+          FormulaElement(latex: 'x', displayMode: false),
+        ]),
+        const ParagraphElement(children: [
+          FormulaElement(latex: 'x', displayMode: true),
+        ]),
+      ];
+      // 手构 formulaRels：行内 rIdImage1（小尺寸）、块级 rIdImage2（大尺寸）。
+      // 复合 key（formulaRelKey，`I:`/`B:` 前缀）让两者在 Map 中共存；
+      // 旧实现按 latex 单键索引时第二个会覆盖第一个，Map 只剩 rIdImage2，
+      // 行内公式被错误地引用块级图——本测试在旧代码下第一个 expect 失败。
+      final formulaRels = <String, FormulaImageInfo?>{
+        formulaRelKey(false, 'x'): const FormulaImageInfo(
+            relId: 'rIdImage1', widthEmu: 100000, heightEmu: 50000),
+        formulaRelKey(true, 'x'): const FormulaImageInfo(
+            relId: 'rIdImage2', widthEmu: 200000, heightEmu: 100000),
+      };
+      final docXml = WordOoxmlBuilder.buildDocumentXml(
+        elements,
+        null,
+        formulaRels,
+        const <String, MermaidImageInfo>{},
+      );
+      // 两个公式都应解析为各自的图片引用（widthEmu>0 不走 latex fallback）。
+      expect(docXml, contains('r:embed="rIdImage1"'),
+          reason: '行内公式必须引用 rIdImage1（行内图），不能被块级图覆盖');
+      expect(docXml, contains('r:embed="rIdImage2"'),
+          reason: '块级公式必须引用 rIdImage2（块级图）');
+      // 两处都应是 drawing（图片），而非 latex 文本回退。
+      expect(
+        RegExp(r'<w:drawing>').allMatches(docXml).length,
+        2,
+        reason: '两个公式都应渲染为 drawing（图片），而非 latex 文本回退',
+      );
+    });
+
+    test('渲染失败的公式（widthEmu=0）仍走 latex fallback，不丢内容', () {
+      // 复合 key 与 fallback 路径不冲突：widthEmu<=0 的条目走 _formulaFallback。
+      final elements = <DocumentElement>[
+        const ParagraphElement(children: [
+          FormulaElement(latex: 'y', displayMode: false),
+        ]),
+      ];
+      final formulaRels = <String, FormulaImageInfo?>{
+        formulaRelKey(false, 'y'): const FormulaImageInfo(
+            relId: 'rIdImage1', widthEmu: 0, heightEmu: 0),
+      };
+      final docXml = WordOoxmlBuilder.buildDocumentXml(
+        elements,
+        null,
+        formulaRels,
+        const <String, MermaidImageInfo>{},
+      );
+      // 渲染失败 → 不应有 drawing，而应出现 latex 文本回退（'y'）。
+      expect(docXml, isNot(contains('r:embed="rIdImage1"')),
+          reason: '渲染失败的公式不应生成图片引用');
+      expect(docXml, contains('>y<'),
+          reason: '渲染失败应走 latex 文本回退，保留公式源文本');
+    });
+
+    test('review P2：Heading/TaskListItem 内公式被收集器覆盖', () {
+      // #326 顺带补 P2（pre-existing 缺口）：_collectFormulas 与
+      // collectAllFormulasByDisplayMode 此前只覆盖 Paragraph/List/Table/
+      // Blockquote，标题/任务项内公式不进 allFormulas → 不预渲染 → 文本回退。
+      // 用 pdf 侧 public API 守门两侧收集口径。
+      // round-3 扩展：同时覆盖 ADR-0029 嵌套列表（ListElement.nested）深层公式。
+      final elements = <DocumentElement>[
+        const HeadingElement(level: 1, children: [
+          FormulaElement(latex: 'h'),
+        ]),
+        const TaskListItemElement(children: [
+          FormulaElement(latex: 't'),
+        ]),
+        const ListElement(
+          children: [FormulaElement(latex: 'n')],
+          nested: [
+            ListElement(
+              children: [FormulaElement(latex: 'n2')],
+              nested: [
+                ListElement(children: [FormulaElement(latex: 'n3')]),
+              ],
+            ),
+          ],
+        ),
+      ];
+      final grouped = PdfExporter.collectAllFormulasByDisplayMode(elements);
+      expect(grouped.inline, containsAll(['h', 't', 'n', 'n2', 'n3']),
+          reason: 'Heading/TaskListItem + 嵌套列表任意深度行内公式必须被收集');
+    });
+
+    test('review round-2：italic 内渲染失败公式(widthEmu=0)走 fallback，不写 dangling drawing', () {
+      // _renderItalicInline / _renderStrikeInline 此前只查 info!=null，
+      // widthEmu=0 仍写 drawing 引空 PNG → buildImageRelsXml 跳过 → dangling。
+      // 与 _renderInlineRuns 同口径加 widthEmu>0 guard。
+      final elements = <DocumentElement>[
+        const ParagraphElement(children: [
+          ItalicElement(children: [
+            FormulaElement(latex: 'z', displayMode: false),
+          ]),
+        ]),
+      ];
+      final formulaRels = <String, FormulaImageInfo?>{
+        formulaRelKey(false, 'z'): const FormulaImageInfo(
+            relId: 'rIdImage1', widthEmu: 0, heightEmu: 0),
+      };
+      final docXml = WordOoxmlBuilder.buildDocumentXml(
+        elements,
+        null,
+        formulaRels,
+        const <String, MermaidImageInfo>{},
+      );
+      expect(docXml, isNot(contains('r:embed="rIdImage1"')),
+          reason: 'italic 内渲染失败公式不应写 drawing 引用');
+      expect(docXml, contains('>z<'),
+          reason: '应走 fallback latex 文本，保留公式源文本');
     });
   });
 }

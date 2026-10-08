@@ -30,6 +30,14 @@ class FormulaImageInfo {
   });
 }
 
+/// 公式注册表的复合 key：`B:$latex`（块级）/ `I:$latex`（行内）。
+///
+/// #326：同一段 latex 在文档中既行内又块级时，OOXML 需要两张不同排版的图片
+/// （各占一个 relId + media 文件），按 latex 单键索引会共用同一张 PNG。
+/// 注册与查询必须共用本函数，保证两侧 key 形态一致。
+String formulaRelKey(bool displayMode, String latex) =>
+    '${displayMode ? 'B' : 'I'}:$latex';
+
 /// Mermaid 图片注册表 entry：关联 ID + SVG 数据。
 class MermaidImageInfo {
   final String relId;
@@ -380,7 +388,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
           '''<w:r>$style<w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
         );
       } else if (c is FormulaElement) {
-        final info = formulaRels[c.latex];
+        final info = formulaRels[formulaRelKey(c.displayMode, c.latex)];
         // BUG-WORD-001 修复：widthEmu<=0 表示渲染失败（无 PNG 落盘），
         // 走 fallback latex 文本而非空图片引用——否则 Word/WPS 打开时
         // rels 指向不存在的 media/formula_N.png → 公式空白丢失。
@@ -420,8 +428,10 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
           '''<w:r><w:rPr><w:i/><w:sz w:val="$sz"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
         );
       } else if (c is FormulaElement) {
-        final info = formulaRels[c.latex];
-        if (info != null) {
+        final info = formulaRels[formulaRelKey(c.displayMode, c.latex)];
+        // BUG-WORD-001（review round-2）：与 _renderInlineRuns 同口径，
+        // widthEmu<=0 走 fallback，否则写 dangling drawing 引空 PNG。
+        if (info != null && info.widthEmu > 0) {
           runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
         } else {
           runs.write(_formulaFallback(c.latex));
@@ -444,8 +454,10 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
           '''<w:r><w:rPr><w:strike/><w:sz w:val="$sz"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
         );
       } else if (c is FormulaElement) {
-        final info = formulaRels[c.latex];
-        if (info != null) {
+        final info = formulaRels[formulaRelKey(c.displayMode, c.latex)];
+        // BUG-WORD-001（review round-2）：与 _renderInlineRuns 同口径，
+        // widthEmu<=0 走 fallback，否则写 dangling drawing 引空 PNG。
+        if (info != null && info.widthEmu > 0) {
           runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
         } else {
           runs.write(_formulaFallback(c.latex));
