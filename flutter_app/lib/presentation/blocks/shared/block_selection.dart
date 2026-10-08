@@ -12,6 +12,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 
 import '../../../core/editing/block_types.dart';
@@ -45,6 +46,14 @@ class BlockSelectionChrome extends StatefulWidget {
 class _BlockSelectionChromeState extends State<BlockSelectionChrome> {
   bool _hovering = false;
   Timer? _longPressTimer;
+
+  /// 按下位置与「本次触摸已判定为滑动」标记（#328）。
+  ///
+  /// 旧实现只要触摸持续 500ms 就触发长按选中——**慢速横向滑动表格途中也
+  /// 会触发**（QA 实测：工具条在滑动中弹出、块状态重建打断横滚手势）。
+  /// 移动超过 touch slop 即判定为滑动，取消本次长按计时。
+  Offset? _downPosition;
+  bool _longPressCancelled = false;
 
   bool get _isTouchDevice => MediaQuery.of(context).size.shortestSide < 600;
 
@@ -86,7 +95,18 @@ class _BlockSelectionChromeState extends State<BlockSelectionChrome> {
           // R-C1 修复：仅触屏指针启动长按定时器，桌面鼠标点击/拖动不触发。
           if (!_isTouchDevice) return;
           _longPressTimer?.cancel();
+          _downPosition = event.position;
+          _longPressCancelled = false;
           _longPressTimer = Timer(const Duration(milliseconds: 500), _onLongPress);
+        },
+        onPointerMove: (event) {
+          // #328：手指移动超过 touch slop = 滑动而非长按——取消计时，
+          // 让横向滑动（如表格横滚）不被滑动途中的选中/工具条重建打断。
+          if (_longPressCancelled || _downPosition == null) return;
+          if ((event.position - _downPosition!).distance > kTouchSlop) {
+            _longPressCancelled = true;
+            _longPressTimer?.cancel();
+          }
         },
         onPointerUp: (_) {
           _longPressTimer?.cancel();
