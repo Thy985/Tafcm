@@ -27,7 +27,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/observability/observability_service.dart';
+import '../../core/services/mermaid_service.dart';
 import '../../data/models/document.dart';
+import 'export_cancel_token.dart';
 import 'exporters/pdf_exporter.dart';
 import 'exporters/text_exporter.dart';
 import 'exporters/word_exporter.dart';
@@ -106,6 +108,8 @@ class MarkdownExporter {
   ///
   /// [onProgress]（3.4.4 Slice 7）：在阶段切换（解析 → 公式预渲染 → block 渲染 → 拼装）
   /// 与公式预渲染每个公式完成时被调用。默认 `null` 时静默（保持旧行为）。
+  /// [cancelToken]（issue #323）：协作式取消，管线在阶段边界检查并抛出
+  /// [ExportCancelledException]；null = 不可取消（旧行为）。
   static Future<Uint8List> exportToPdf(
     String markdown, {
     String? title,
@@ -113,6 +117,7 @@ class MarkdownExporter {
     bool isDark = false,
     ExportProgressCallback? onProgress,
     ObservabilityService? observability,
+    ExportCancelToken? cancelToken,
   }) {
     return _pdfExporter.export(
       markdown,
@@ -121,6 +126,7 @@ class MarkdownExporter {
       isDark: isDark,
       onProgress: onProgress,
       observability: observability,
+      cancelToken: cancelToken,
     );
   }
 
@@ -132,12 +138,14 @@ class MarkdownExporter {
     String? title,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   }) {
     return _wordExporter.export(
       markdown,
       title: title,
       isDark: isDark,
       onProgress: onProgress,
+      cancelToken: cancelToken,
     );
   }
 
@@ -148,8 +156,10 @@ class MarkdownExporter {
   static Future<Uint8List> exportToTxt(
     String markdown, {
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   }) {
-    return _textExporter.export(markdown, onProgress: onProgress);
+    return _textExporter.export(markdown,
+        onProgress: onProgress, cancelToken: cancelToken);
   }
 }
 
@@ -160,6 +170,7 @@ class MarkdownExporter {
 /// PDF 导出接口。
 ///
 /// [onProgress]（3.4.4 Slice 7）：可选进度回调，阶段切换 + 公式逐个完成时调用。
+/// [cancelToken]（issue #323）：可选协作式取消令牌，实现在阶段边界检查。
 abstract interface class PdfExporterInterface {
   Future<Uint8List> export(
     String markdown, {
@@ -168,6 +179,7 @@ abstract interface class PdfExporterInterface {
     bool isDark,
     ExportProgressCallback? onProgress,
     ObservabilityService? observability,
+    ExportCancelToken? cancelToken,
   });
 }
 
@@ -178,6 +190,7 @@ abstract interface class WordExporterInterface {
     String? title,
     bool isDark,
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   });
 }
 
@@ -186,6 +199,7 @@ abstract interface class TextExporterInterface {
   Future<Uint8List> export(
     String markdown, {
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   });
 }
 
@@ -201,6 +215,7 @@ class DefaultPdfExporter implements PdfExporterInterface {
     bool isDark = false,
     ExportProgressCallback? onProgress,
     ObservabilityService? observability,
+    ExportCancelToken? cancelToken,
   }) {
     return PdfExporter.export(
       markdown,
@@ -209,6 +224,7 @@ class DefaultPdfExporter implements PdfExporterInterface {
       isDark: isDark,
       onProgress: onProgress,
       observability: observability,
+      cancelToken: cancelToken,
     );
   }
 }
@@ -223,12 +239,14 @@ class DefaultWordExporter implements WordExporterInterface {
     String? title,
     bool isDark = false,
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   }) {
     return WordExporter.export(
       markdown,
       title: title,
       isDark: isDark,
       onProgress: onProgress,
+      cancelToken: cancelToken,
     );
   }
 }
@@ -241,8 +259,10 @@ class DefaultTextExporter implements TextExporterInterface {
   Future<Uint8List> export(
     String markdown, {
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   }) {
-    return TextExporter.export(markdown, onProgress: onProgress);
+    return TextExporter.export(markdown,
+        onProgress: onProgress, cancelToken: cancelToken);
   }
 }
 
@@ -523,6 +543,20 @@ class ExportService {
 
   static const _shareTimeout = Duration(seconds: 60);
   static const _exportTimeout = Duration(seconds: 120);
+
+  /// 清理导出渲染中间产物（共享 WebView DOM 里的 payload 元素）。
+  ///
+  /// issue #323：正常导出路径在 PdfExporter.export 末尾清理；**取消路径**
+  /// 由 ExportProgressNotifier.runWithGuard 在 rethrow 前调用本方法，
+  /// 保证取消后共享 WebView 不残留渲染 payload 占用内存。
+  /// best-effort：无 WebView（TXT 导出 / 测试环境）时为 no-op，失败静默。
+  static Future<void> cleanupRenderArtifacts() async {
+    try {
+      await MermaidService.cleanupPayloads();
+    } catch (_) {
+      // 清理失败不影响取消流程本身。
+    }
+  }
 
   /// 把字节写到临时文件，返回绝对路径。
   ///

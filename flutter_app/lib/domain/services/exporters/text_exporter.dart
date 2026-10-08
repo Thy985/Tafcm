@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show debugPrint;
 import '../../../core/parser/markdown_parser.dart';
 import '../../../data/models/document.dart';
+import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 
 class TextExporter {
@@ -20,13 +21,16 @@ class TextExporter {
   ///
   /// [onProgress]（3.4.4 Slice 7）：纯文本无公式预渲染阶段，仅
   /// [ExportStage.renderingBlocks] 块级进度；通常较快。
+  /// [cancelToken]（issue #323）：协作式取消令牌，逐块边界检查。
   static Future<Uint8List> export(
     String markdown, {
     ExportProgressCallback? onProgress,
+    ExportCancelToken? cancelToken,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+    cancelToken?.throwIfCancelled();
 
     final elements = MarkdownParser.parse(
       markdown,
@@ -45,6 +49,8 @@ class TextExporter {
       total: total,
     ));
     for (final element in elements) {
+      // issue #323：逐块边界取消检查点。
+      cancelToken?.throwIfCancelled();
       final line = _elementToText(element);
       if (line.isNotEmpty) {
         sb.writeln(line);

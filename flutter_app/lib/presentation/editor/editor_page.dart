@@ -32,13 +32,14 @@ import '../../providers/file_repository_provider.dart';
 import '../../providers/last_opened_path_provider.dart';
 import '../widgets/export_progress_overlay.dart';
 import 'autosave_service.dart';
+import 'doc_file_resume_guard.dart';
 import 'editor_coordinator.dart';
 import 'editor_export_actions.dart';
 import 'editor_load_helpers.dart';
 import 'editor_scope.dart';
 import 'editor_shell.dart';
+import 'export_guard_pop_scope.dart';
 import 'in_memory_document_editor.dart';
-import 'seed_documents.dart';
 
 /// Phase 3.0 顶层编辑器页面（Route 入口）。
 ///
@@ -75,6 +76,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late final EditorCoordinator _coordinator;
   AutosaveService? _autosave;
 
+  /// #319：resume 时校验活动文档落盘文件仍在，消失则从内存重建（见
+  /// [doc_file_resume_guard] 文档——事件背景与拆分理由）。
+  late final ResumeGuardObserver _resumeGuardObserver =
+      ResumeGuardObserver(_guardDocFileOnResume);
+
   EditorExportActions get _exportActions => EditorExportActions(
         ref: ref,
         coordinator: _coordinator,
@@ -90,6 +96,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(_resumeGuardObserver);
     // 优先级：externalUri > filePath > seedSelector。
     // externalUri（外部应用打开）和 filePath（文件树）不能并存。
     if (widget.externalUri != null) {
@@ -108,7 +115,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   /// 构造种子 [InMemoryDocumentEditor] 并启动自动保存（演示 / 回退路径）。
   void _initSeed(int selector) {
-    final editor = _buildSeedEditor(selector);
+    final editor = buildSeedEditor(selector);
     final history = EditorHistory(maxHistorySize: 200);
     _coordinator = EditorCoordinator(
       editor: editor,
@@ -307,23 +314,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     return true;
   }
 
-  /// 根据 [selector] 构造种子 [InMemoryDocumentEditor]。
-  InMemoryDocumentEditor _buildSeedEditor(int selector) {
-    switch (selector) {
-      case 0:
-        return SeedDocuments.createDemo1();
-      case 1:
-        return SeedDocuments.createDemo2();
-      case 2:
-        return SeedDocuments.createDemo3();
-      default:
-        return SeedDocuments.createDemo1();
-    }
-  }
-
   @override
   void dispose() {
     _autosave?.stop();
+    WidgetsBinding.instance.removeObserver(_resumeGuardObserver);
     // ADR-0013：释放 DirtyStateTracker 的 StreamController（Level 3 评审 R1）。
     // [_coordinator] 可能尚未初始化（异步加载完成前已 dispose），需守卫避免
     // LateInitializationError。
@@ -331,6 +325,19 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // Phase 3.0：InMemoryDocumentEditor / EditorHistory 持有的是纯内存数据，
     // 无需显式释放。Phase 3.1+ 接入真实 .md 文件时需补充资源清理。
     super.dispose();
+  }
+
+  /// #319：resume 时校验活动文档落盘文件仍在；消失则从内存重建并 SnackBar
+  /// 告知（事件背景 / 上报 / 异常语义见 doc_file_resume_guard.dart）。
+  Future<void> _guardDocFileOnResume() async {
+    if (!_coordinatorReady || !_ready) return;
+    final recreated = await guardAndReportDocFileOnResume(
+      ref: ref,
+      path: ref.read(currentPathProvider),
+      title: _coordinator.title,
+      content: _coordinator.editor.serializedContent,
+    );
+    if (recreated && mounted) showDocFileRecreatedSnackBar(context);
   }
 
   @override
@@ -355,11 +362,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go('/home');
-      },
+    // issue #323：返回拦截抽到 [ExportGuardPopScope] —— 导出进行中 BACK
+    // 先弹确认，确认退出即协作式取消并随路由销毁浮层；非导出态行为不变。
+    return ExportGuardPopScope(
       child: ExportProgressOverlay(
         child: EditorScope(
           coordinator: _coordinator,

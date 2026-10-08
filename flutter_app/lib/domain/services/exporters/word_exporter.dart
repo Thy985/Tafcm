@@ -17,6 +17,7 @@ import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/formula_svg_service.dart';
 import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
+import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
 import 'pdf_exporter.dart';
 import 'word_ooxml_builder.dart';
@@ -32,16 +33,19 @@ class WordExporter {
   /// 入口：把 Markdown 文本导出为 docx 字节流。
   ///
   /// [onProgress]（3.4.4 Slice 7）：阶段切换 + 公式/图片资源预渲染每项完成时回调。
+  /// [cancelToken]（issue #323）：协作式取消令牌，在阶段边界检查。
   static Future<Uint8List> export(
     String markdown, {
     String? title,
     bool isDark = false,
     ExportProgressCallback? onProgress,
     MermaidSvgRenderer? renderMermaid,
+    ExportCancelToken? cancelToken,
   }) async {
     if (markdown.isEmpty) {
       throw ExportException('Cannot export empty content');
     }
+    cancelToken?.throwIfCancelled();
     // PR-C：导出开始前清空 telemetry，聚合报告只含本次导出样本。
     FormulaSvgService.clearTelemetry();
     // PR-3：导出级质量计数器清零（success/timeout/error 分布）。
@@ -97,6 +101,7 @@ class WordExporter {
 
     if (allFormulas.isNotEmpty) {
       // Word 导出走独立的 cache key 维度，避免与 PDF 像素密度不同导致的互相覆盖
+      cancelToken?.throwIfCancelled();
       await FormulaPdfRenderer.preRenderAll(
         allFormulas.toSet(),
         fontSize: 16,
@@ -118,6 +123,7 @@ class WordExporter {
     // #250：一次性并发派发全部图表，由 MermaidService 内部并发池
     //（max 4）限流。旧实现逐条 `await`，把共享 WebView 池退化为
     // 严格串行（N × 单图时间），是 Word 大文档导出慢的根因之一。
+    cancelToken?.throwIfCancelled();
     if (allMermaids.isNotEmpty) {
       final renderer = renderMermaid ?? MermaidService.renderToSvg;
       await Future.wait(
@@ -190,6 +196,8 @@ class WordExporter {
     const rootRelsXml = WordOoxmlTemplates.rootRelsXml;
 
     // Phase 4: 拼装/归档为 zip 字节流。
+    // issue #323：拼装前取消检查点——取消时不产出任何字节/临时文件。
+    cancelToken?.throwIfCancelled();
     onProgress?.call(const ExportProgress(
       stage: ExportStage.assembling,
       completed: 0,

@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tafcm/core/observability/observability_service.dart';
 import 'package:tafcm/domain/providers/export_progress_provider.dart';
+import 'package:tafcm/domain/services/export_cancel_token.dart';
 import 'package:tafcm/domain/services/export_service.dart';
 
 /// 假 PDF exporter：仅发出预定 onProgress 序列并返回最小字节（验证
@@ -33,6 +34,7 @@ class _ProgressPdfExporter implements PdfExporterInterface {
     bool isDark = false,
     ExportProgressCallback? onProgress,
     ObservabilityService? observability,
+    ExportCancelToken? cancelToken,
   }) async {
     // 模拟至少 3 次回调：collecting → preRender → rendering → assembling（0/1 → 1/1）。
     onProgress?.call(const ExportProgress(

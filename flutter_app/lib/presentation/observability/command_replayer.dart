@@ -138,6 +138,7 @@ class CommandReplayer implements ReplayCommandExecutor {
       'SplitBlockCommand' => SplitBlockCommand(
         blockId: _parseBlockId(p['blockId']),
         offset: p['offset'] as int,
+        newBlockType: _parseBlockType(p['newBlockType']),
         origin: origin,
       ),
       'MergeWithPreviousCommand' => MergeWithPreviousCommand(
@@ -233,9 +234,12 @@ class CommandReplayer implements ReplayCommandExecutor {
   /// 提取 Command 参数为可序列化 Map。
   static Map<String, Object?> _serializeParams(EditorCommand command) {
     return switch (command) {
-      SplitBlockCommand(:final blockId, :final offset) => {
+      SplitBlockCommand(:final blockId, :final offset, :final newBlockType) => {
         'blockId': _serializeBlockId(blockId),
         'offset': offset,
+        // issue #329：新块类型 override 随事件落盘，保证 heading Enter 回放
+        // 仍产出段落新块（与实时执行一致）。null 不落盘 = 继承源块类型。
+        if (newBlockType != null) 'newBlockType': newBlockType.name,
       },
       MergeWithPreviousCommand(:final blockId) => {
         'blockId': _serializeBlockId(blockId),
@@ -348,6 +352,17 @@ class CommandReplayer implements ReplayCommandExecutor {
       (o) => o.name == name,
       orElse: () => CommandOrigin.keyboard,
     );
+  }
+
+  /// BlockType 反序列化（issue #329：SplitBlockCommand.newBlockType）。
+  ///
+  /// 缺失 / 非法值回退 null = 继承源块类型（兼容旧事件流）。
+  static BlockType? _parseBlockType(Object? value) {
+    if (value is! String) return null;
+    for (final t in BlockType.values) {
+      if (t.name == value) return t;
+    }
+    return null;
   }
 
   /// TextSelection 序列化。
