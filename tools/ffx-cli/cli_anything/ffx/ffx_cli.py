@@ -27,6 +27,28 @@ def _effective_json(ctx: click.Context) -> bool:
     return False
 
 
+def _resolve_root(ctx: click.Context, override: str | None = None) -> str:
+    """Resolve the project root directory.
+
+    Precedence (issue #331 §2 — make global ``--root`` actually thread through):
+      1. A command-local ``--root`` override (the ``adi`` subgroup's own option)
+      2. The global ``--root`` recorded on the root group's ctx.obj
+      3. ``find_flutter_root()`` (walk up from cwd to the nearest pubspec.yaml)
+      4. ``Path.cwd()`` as a last resort
+
+    No existence check is performed here: a non-existent ``--root`` is passed
+    through so downstream commands surface a natural error instead of silently
+    falling back to cwd (which was the bug — AGENTS.md §15.1 documented usage
+    was a no-op).
+    """
+    if override:
+        return override
+    global_root = ctx.obj.get("project_root") if ctx.obj else None
+    if global_root:
+        return global_root
+    return find_flutter_root() or str(Path.cwd())
+
+
 # ── main group ────────────────────────────────────────────────────────
 
 @click.group(invoke_without_command=True)
@@ -117,7 +139,8 @@ def set_field(ctx, project_path, key, value):
 @click.argument("inject_type", required=False, default=None,
                 type=click.Choice(["formula", "heading", "paragraph", "code", "mermaid", "table", "image"]))
 @click.option("--latex", default=None, help="LaTeX formula content")
-@click.option("--display", is_flag=True, default=True, help="Display mode ($$) vs inline ($)")
+@click.option("--display", is_flag=True, default=False,
+              help="Display/block mode ($$...$$); default is inline ($...$)")
 @click.option("--text", default=None, help="Heading or paragraph text")
 @click.option("--level", type=int, default=1, help="Heading level (1-6)")
 @click.option("--code", default=None, help="Code block content")
@@ -324,7 +347,7 @@ def file(ctx, path):
 def adr(ctx):
     """List and analyze all ADRs in docs/decisions/ADR/."""
     try:
-        root = find_flutter_root() or str(Path.cwd())
+        root = _resolve_root(ctx)
         # 3.12 信息架构迁移后 ADR 位于 docs/decisions/ADR/（旧 docs/ADR 已移动）
         adr_dir = Path(root) / "docs" / "decisions" / "ADR"
         if not adr_dir.is_dir():
@@ -356,7 +379,7 @@ def adr(ctx):
 def structure(ctx):
     """Show project directory structure summary."""
     try:
-        root = find_flutter_root() or str(Path.cwd())
+        root = _resolve_root(ctx)
         root_p = Path(root)
         summary = {
             "root": root,
@@ -452,7 +475,7 @@ def adi():
 def doctor(ctx, project_root):
     """ADI self-check."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.doctor(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -466,7 +489,7 @@ def doctor(ctx, project_root):
 def latest_error(ctx, project_root):
     """Get the latest error observation."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.latest_error(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -481,7 +504,7 @@ def latest_error(ctx, project_root):
 def trace_show(ctx, trace_id, project_root):
     """Show a trace chain by ID."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.trace_show(trace_id, cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -496,7 +519,7 @@ def trace_show(ctx, trace_id, project_root):
 def replay(ctx, session_id, project_root):
     """Replay a session."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.replay(session_id, cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -510,7 +533,7 @@ def replay(ctx, session_id, project_root):
 def agent_context(ctx, project_root):
     """Generate Agent context Markdown."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.agent_context(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -524,7 +547,7 @@ def agent_context(ctx, project_root):
 def failures(ctx, project_root):
     """List recent failures."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.failures_list(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -539,7 +562,7 @@ def failures(ctx, project_root):
 def failure_show(ctx, failure_id, project_root):
     """Show failure details."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.failure_show(failure_id, cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -557,7 +580,7 @@ def failure_show(ctx, failure_id, project_root):
 def validate(ctx, session_id, after_fix, project_root):
     """Validate after fix (replay + invariant)."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.validate_after_fix(session_id, cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -571,7 +594,7 @@ def validate(ctx, session_id, after_fix, project_root):
 def aggregate(ctx, project_root):
     """Aggregate observations into failures."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.aggregate_failures(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -587,7 +610,7 @@ def aggregate(ctx, project_root):
 def import_cmd(ctx, source, output_dir, project_root):
     """Import an ExportPipeline package (.zip/dir) into .adi/."""
     try:
-        root = project_root or find_flutter_root()
+        root = _resolve_root(ctx, project_root)
         result = adi_mod.import_zip(source, output_dir=output_dir, cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -607,7 +630,7 @@ def diag():
 def health(ctx):
     """Overall project health summary."""
     try:
-        root = find_flutter_root() or str(Path.cwd())
+        root = _resolve_root(ctx)
         root_p = Path(root)
         dart = _which("dart")
         flutter = _which("flutter")
@@ -641,7 +664,7 @@ def version(ctx):
         result = {
             "ffx_cli_version": ffx_version,
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-            "project_root": str(Path.cwd()),
+            "project_root": _resolve_root(ctx),
         }
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -654,7 +677,7 @@ def version(ctx):
 def traces(ctx):
     """List trace IDs in .adi/traces/."""
     try:
-        root = find_flutter_root() or str(Path.cwd())
+        root = _resolve_root(ctx)
         result = adi_mod.list_traces(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
@@ -667,7 +690,7 @@ def traces(ctx):
 def sessions(ctx):
     """List session IDs in .adi/sessions/."""
     try:
-        root = find_flutter_root() or str(Path.cwd())
+        root = _resolve_root(ctx)
         result = adi_mod.list_sessions(cwd=root)
         pretty_print(result, _effective_json(ctx))
     except Exception as e:
