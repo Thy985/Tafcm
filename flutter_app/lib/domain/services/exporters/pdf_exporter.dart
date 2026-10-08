@@ -154,6 +154,7 @@ class PdfExporter {
       fontSize: 16,
       isDark: false,
       format: FormulaPdfRenderer.formatPdf,
+      displayMode: displayMode,
     );
     if (cached != null) {
       return FormulaRenderPlan.png(cached, latex);
@@ -490,7 +491,8 @@ class PdfExporter {
   }
 
   /// 递归收集文档中所有唯一的 LaTeX 公式字符串（去重）。
-  /// 覆盖 ParagraphElement / ListElement / TableElement（headers + 每个 cell）。
+  /// 覆盖 ParagraphElement / ListElement / TableElement（headers + 每个 cell）/
+  /// BlockquoteElement / HeadingElement / TaskListItemElement。
   ///
   /// 注意：MermaidElement / CodeElement 中的内容不是 LaTeX 公式，跳过。
   static Set<String> collectAllFormulas(List<DocumentElement> elements) {
@@ -501,11 +503,19 @@ class PdfExporter {
       }
     }
 
+    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归（review round-3）。
+    void walkList(ListElement list) {
+      walkInline(list.children);
+      for (final n in list.nested) {
+        walkList(n);
+      }
+    }
+
     for (final e in elements) {
       if (e is ParagraphElement) {
         walkInline(e.children);
       } else if (e is ListElement) {
-        walkInline(e.children);
+        walkList(e);
       } else if (e is TableElement) {
         // PR-2：TableElement 已持有 InlineElement cell（解析只发生一次），
         // 直接 walkInline 收集公式，不再需要字符串兜底扫描。
@@ -522,6 +532,11 @@ class PdfExporter {
         // 离屏 toImage（真机不稳定）→ 导出永久卡死。_pdfBlockquote 是 async
         // 内部 await _pdfBlockquoteContent 走段落渲染，公式走 buildFormulaPlan。
         walkInline(e.children);
+      } else if (e is HeadingElement) {
+        // review P2：标题 inline AST 内可含公式，不收集则预渲染 miss。
+        walkInline(e.children);
+      } else if (e is TaskListItemElement) {
+        walkInline(e.children);
       }
     }
     return out;
@@ -532,6 +547,9 @@ class PdfExporter {
   /// 返回 `(inlineSet, blockSet)`。缓存 key 含 displayMode 维度
   /// （`I|` vs `B|`），预渲染必须与 [buildFormulaPlan] 的 `c.displayMode`
   /// 一致，否则块级公式预渲染缓存永远 miss（导出时逐公式重新异步渲染）。
+  ///
+  /// 覆盖与 [collectAllFormulas] 一致：Paragraph / List / Table
+  /// （headers + cells）/ Blockquote / Heading / TaskListItem。
   static ({Set<String> inline, Set<String> block}) collectAllFormulasByDisplayMode(
     List<DocumentElement> elements,
   ) {
@@ -545,11 +563,19 @@ class PdfExporter {
       }
     }
 
+    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归（review round-3）。
+    void walkList(ListElement list) {
+      walkInline(list.children);
+      for (final n in list.nested) {
+        walkList(n);
+      }
+    }
+
     for (final e in elements) {
       if (e is ParagraphElement) {
         walkInline(e.children);
       } else if (e is ListElement) {
-        walkInline(e.children);
+        walkList(e);
       } else if (e is TableElement) {
         for (final h in e.headers) {
           walkInline(h);
@@ -562,6 +588,11 @@ class PdfExporter {
       } else if (e is BlockquoteElement) {
         // R3 修复（实测bugX）：引用块内公式也需预渲染（与 collectAllFormulas 一致），
         // 否则块级公式缓存 key miss → PNG 兜底 → 离屏 toImage 真机卡死。
+        walkInline(e.children);
+      } else if (e is HeadingElement) {
+        // review P2：标题 inline AST 内可含公式，与 collectAllFormulas 同口径。
+        walkInline(e.children);
+      } else if (e is TaskListItemElement) {
         walkInline(e.children);
       }
     }

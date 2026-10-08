@@ -297,8 +297,10 @@ class _OffscreenCaptureState extends State<_OffscreenCapture> {
 
 /// 公式 PDF 渲染缓存管理器（LRU 实现）。
 ///
-/// 缓存 key 维度：`$format|$fontSize|$isDark|$latex`
+/// 缓存 key 维度：`$format|$displayMode|$fontSize|$isDark|$latex`
 ///   - [format] 区分 PDF / Word 等不同导出路径（防止不同像素密度的渲染互相覆盖）
+///   - [displayMode] 块级（display）/ 行内（text）——同一段 latex 两种模式
+///     渲染结果不同（上下限位置、字号），key 必须含此维度，否则行内块级互相覆盖
 ///   - [fontSize] 字号
 ///   - [isDark] 深色 / 浅色主题（深色导出需要白字+深底）
 ///   - [latex] LaTeX 源文本
@@ -325,13 +327,21 @@ class FormulaPdfRenderer {
   /// 命中后会把这个 entry 移到 LRU 最近位置。
   ///
   /// [format] 默认 [formatPdf]。Word 导出应传 [formatWord]，避免与 PDF 缓存互相覆盖。
+  /// [displayMode] 必须与预渲染时一致（块级 true / 行内 false），否则永远 miss。
   static Uint8List? cachedBytes(
     String latex, {
     double fontSize = 16,
     bool isDark = false,
     String format = formatPdf,
+    required bool displayMode,
   }) {
-    final key = _keyOf(latex, fontSize: fontSize, isDark: isDark, format: format);
+    final key = _keyOf(
+      latex,
+      fontSize: fontSize,
+      isDark: isDark,
+      format: format,
+      displayMode: displayMode,
+    );
     final hit = _cache.remove(key);
     if (hit != null) {
       _cache[key] = hit;
@@ -343,7 +353,9 @@ class FormulaPdfRenderer {
   /// 预渲染所有唯一公式。会调用全局 [FormulaRenderHost] 离屏渲染。
   /// [fontSize] 用于统一字号。并发数限制为 [_maxConcurrent]。
   ///
-  /// [format] / [isDark] 进入缓存 key 维度，确保不同导出格式/主题不互相覆盖。
+  /// [format] / [isDark] / [displayMode] 进入缓存 key 维度，确保不同导出格式/
+  /// 主题/公式模式不互相覆盖。[displayMode] 取自 AST（块级 `$$` / 行内 `$`），
+  /// **不可**用长度启发式判定（短块级公式会被误判为行内）。
   ///
   /// 单个公式渲染卡死时会被 [_offscreenCaptureTimeout] 兜底跳过（不抛错），
   /// 调用方后续命中 [cachedBytes] 返回 null 时会走 fallback 路径。
@@ -352,13 +364,20 @@ class FormulaPdfRenderer {
     double fontSize = 16,
     bool isDark = false,
     String format = formatPdf,
+    required bool displayMode,
     // 3.4.4 Slice 7：每个公式完成（含成功/失败/缓存命中）时回调，参数为
     // `(completed, total)`，调用方用于更新 LinearProgressIndicator。
     void Function(int completed, int total)? onEachCompleted,
   }) async {
     final pending = <String>[];
     for (final latex in formulas) {
-      final key = _keyOf(latex, fontSize: fontSize, isDark: isDark, format: format);
+      final key = _keyOf(
+        latex,
+        fontSize: fontSize,
+        isDark: isDark,
+        format: format,
+        displayMode: displayMode,
+      );
       if (!_cache.containsKey(key)) pending.add(latex);
     }
     if (pending.isEmpty) return;
@@ -377,6 +396,7 @@ class FormulaPdfRenderer {
             fontSize: fontSize,
             isDark: isDark,
             format: format,
+            displayMode: displayMode,
           ),
         ),
         eagerError: false,
@@ -406,11 +426,17 @@ class FormulaPdfRenderer {
     required double fontSize,
     required bool isDark,
     required String format,
+    required bool displayMode,
   }) async {
-    final key = _keyOf(latex, fontSize: fontSize, isDark: isDark, format: format);
+    final key = _keyOf(
+      latex,
+      fontSize: fontSize,
+      isDark: isDark,
+      format: format,
+      displayMode: displayMode,
+    );
     if (_cache.containsKey(key)) return true;
 
-    final displayMode = latex.contains('\n') || latex.length > 50;
     final bytes = await FormulaRenderHost.render(
       latex: latex,
       fontSize: fontSize,
@@ -443,11 +469,14 @@ class FormulaPdfRenderer {
     required double fontSize,
     required bool isDark,
     required String format,
+    required bool displayMode,
   }) {
     // P0-4：LaTeX → Normalized Key（与 FormulaSvgService 同一归一化），
     // 「同一公式不同 Unicode 写法」命中同一 PNG 缓存条目，跨格式复用。
+    // #326：displayMode 维度（`B`/`I`）——同一段 latex 行内与块级渲染结果不同，
+    // 必须分槽，否则后渲染覆盖先渲染，导出排版与预览不一致。
     final normalized = FormulaExtractor.normalizeLatex(latex);
-    return '$format|${fontSize.toStringAsFixed(2)}|${isDark ? 'D' : 'L'}|$normalized';
+    return '$format|${displayMode ? 'B' : 'I'}|${fontSize.toStringAsFixed(2)}|${isDark ? 'D' : 'L'}|$normalized';
   }
 
   static void _evictIfNeeded() {

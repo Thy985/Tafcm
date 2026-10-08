@@ -204,17 +204,17 @@ $$E=mc^2$$
       // 通过反射式注入：直接走 _keyOf 不可能（私有），改为走公开 API
       // 用 cachedBytes 验证不同 format 互不命中
       // 这里我们通过 cachedBytes 的语义验证：第一次返回 null，注入后返回 bytes
-      expect(FormulaPdfRenderer.cachedBytes('test-latex'), isNull,
+      expect(FormulaPdfRenderer.cachedBytes('test-latex', displayMode: false), isNull,
           reason: '空 cache 应返回 null');
       // 由于没有公开注入 API，我们验证 cache 维度参数的存在：
       // 不同 format 调用不会互相覆盖（同一个 latex 在 pdf/word 是不同 entry）
       // 这条断言通过两次连续的 cachedBytes 都不会抛异常来证明
       expect(
-        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'pdf'),
+        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'pdf', displayMode: false),
         returnsNormally,
       );
       expect(
-        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'word'),
+        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'word', displayMode: false),
         returnsNormally,
       );
       // 引用 fakeBytes 防止 unused warning
@@ -224,11 +224,11 @@ $$E=mc^2$$
     test('isDark 维度：深色与浅色不互相覆盖', () {
       // 通过两次 cachedBytes 验证参数传递正常（不会因格式错而抛错）
       expect(
-        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: true, format: 'pdf'),
+        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: true, format: 'pdf', displayMode: false),
         returnsNormally,
       );
       expect(
-        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'pdf'),
+        () => FormulaPdfRenderer.cachedBytes('l', fontSize: 16, isDark: false, format: 'pdf', displayMode: false),
         returnsNormally,
       );
     });
