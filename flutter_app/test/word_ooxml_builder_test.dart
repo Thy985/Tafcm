@@ -192,7 +192,8 @@ void main() {
         ]),
       ];
       final formulaRels = <String, FormulaImageInfo?>{
-        'x^2 + bx + c = 0': null,
+        // #326：key 用复合 key，与 builder 查询口径一致。
+        formulaRelKey(false, 'x^2 + bx + c = 0'): null,
       };
       final mermaidRels = <String, MermaidImageInfo>{};
 
@@ -214,10 +215,10 @@ void main() {
 
     test('公式 PNG 失败时，document.xml.rels 不写 Relationship', () {
       final formulaRels = <String, FormulaImageInfo?>{
-        // 渲染失败的公式
-        'a^2 + b^2 = c^2': null,
-        // 同时有正常渲染成功的公式，确保不被误跳过
-        'x + y': const FormulaImageInfo(
+        // 渲染失败的公式（#326：复合 key）
+        formulaRelKey(false, 'a^2 + b^2 = c^2'): null,
+        // 同时有正常渲染成功的公式，确保不被误跳过（#326：复合 key）
+        formulaRelKey(false, 'x + y'): const FormulaImageInfo(
           relId: 'rIdImage1',
           widthEmu: 1200000,
           heightEmu: 360000,
@@ -319,8 +320,10 @@ void main() {
     // 图片（w:drawing + a:blip），而不是走 fallback 的 LaTeX 文本。
     // 现有 fallback 测试（formulaRels=null）已覆盖失败分支；本组覆盖其
     // 反例——渲染成功（widthEmu>0）时必须产出 <a:blip>，且不残留 fallback。
+    // #326：formulaRels key 为复合 key formulaRelKey(displayMode, latex)。
+    // FormulaElement displayMode 默认 false → key 前缀 'I:'；裸 latex 查不到。
     final success = <String, FormulaImageInfo?>{
-      'x^2 + bx + c = 0': const FormulaImageInfo(
+      formulaRelKey(false, 'x^2 + bx + c = 0'): const FormulaImageInfo(
         relId: 'rIdImage1',
         widthEmu: 1200000,
         heightEmu: 360000,
