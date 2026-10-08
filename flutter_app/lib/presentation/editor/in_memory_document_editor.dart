@@ -81,6 +81,48 @@ class InMemoryDocumentEditor implements DocumentEditor {
   /// 设置文档标题（用于 EditorPage 接入种子文档元数据）。
   set title(String value) => _title = value;
 
+  /// 从文档内容首个 `# H1` 标题块推导标题；无 H1 或标题为空返回 null。
+  ///
+  /// issue #327：[title] 仅在加载/构造时从存储层文档名设置，用户编辑标题块
+  /// 后不会回写，导致导出文件名 / AppBar 与用户可见标题脱节。需要「用户
+  /// 当前可见标题」的场景（导出文件名、PDF 元数据 title）应优先用本 getter，
+  /// 无 H1 时由调用方 fallback 到 [title]（存储层文档名）。
+  String? get titleFromContent {
+    for (final element in allElements) {
+      if (element is HeadingElement && element.level == 1) {
+        final text = _inlineText(element.children);
+        if (text.isEmpty) return null;
+        return text;
+      }
+    }
+    return null;
+  }
+
+  /// 把 inline AST 拍平为纯文本（标题推导用，丢弃格式标记）。
+  static String _inlineText(List<InlineElement> children) {
+    final buf = StringBuffer();
+    for (final c in children) {
+      if (c is TextElement) {
+        buf.write(c.text);
+      } else if (c is BoldElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is ItalicElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is StrikethroughElement) {
+        buf.write(_inlineText(c.children));
+      } else if (c is InlineCodeElement) {
+        buf.write(c.code);
+      } else if (c is LinkElement) {
+        buf.write(c.text);
+      } else if (c is ImageElement) {
+        buf.write(c.alt);
+      } else if (c is FormulaElement) {
+        buf.write(c.latex);
+      }
+    }
+    return buf.toString();
+  }
+
   /// 是否有未保存修改（ADR-0011 §4：Dirty 归属 Document State）。
   bool get isDirty => _isDirty;
 
