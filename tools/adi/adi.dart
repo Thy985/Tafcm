@@ -505,7 +505,12 @@ void _aggregateFailures(bool json) {
       'total_observations': errors.length,
     }));
   } else {
-    print('Aggregated $errors.length observations into ${byFailureId.length} failures.');
+    final failureIds = byFailureId.keys.toList()..sort();
+    final preview = failureIds.take(5).join(', ');
+    final more = failureIds.length > 5 ? ', +${failureIds.length - 5} more' : '';
+    print('Aggregated ${errors.length} observations '
+        'into ${byFailureId.length} failures.');
+    print('Failures: $preview$more');
     print('Index written to .adi/index.json');
   }
 }
