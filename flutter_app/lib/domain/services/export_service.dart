@@ -558,6 +558,15 @@ class ExportService {
     }
   }
 
+  /// 把文件名中的非法字符替换为 `_`（单一真相源，issue #327）。
+  ///
+  /// 覆盖 Windows / macOS / Linux 通用禁用集：`< > : " / \ | ? *` 及
+  /// 控制字符 `\x00-\x1F`。所有生成文件名的路径都必须经过本方法，
+  /// 否则用户可控 title（如 `qa: export/doc`）会抛 FileSystemException
+  /// 或写出路径穿越文件。
+  static String _sanitizeFileName(String s) =>
+      s.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_');
+
   /// 把字节写到临时文件，返回绝对路径。
   ///
   /// 由 `ExportService` 持有的原因：domain 层（而非 presentation 层）允许
@@ -568,6 +577,10 @@ class ExportService {
   /// Slice 7 用法：EditorPage 调 [MarkdownExporter.exportToXxx] 获得字节后，
   /// 调本方法得临时路径，再把路径交给 `Share.shareXFiles([XFile(path)])`。
   /// 不在 EditorPage 暴露 `File`/`writeAsBytes`（TC-ARCH-1/2）。
+  ///
+  /// issue #327：[fileName] 是用户可控字符串（文档标题块内容），拼路径前
+  /// 必须经 [_sanitizeFileName] 消毒，否则 `:`/`/` 等字符在 Windows 上
+  /// 抛 FileSystemException、导出潜伏失败。null / 空串走默认「Tafcm 文档」。
   static Future<String> writeBytesToTempFile(
     Uint8List bytes,
     ExportFormat format, {
@@ -578,7 +591,10 @@ class ExportService {
       ExportFormat.docx => 'docx',
       ExportFormat.txt => 'txt',
     };
-    final safeName = '${fileName ?? 'Tafcm 文档'}.$ext';
+    final base = (fileName == null || fileName.trim().isEmpty)
+        ? 'Tafcm 文档'
+        : _sanitizeFileName(fileName);
+    final safeName = '$base.$ext';
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$safeName');
     await file.writeAsBytes(bytes, flush: true);
@@ -640,9 +656,11 @@ class ExportService {
     final tempDir = await getTemporaryDirectory();
     final extension = format.name;
     final rawTitle = (title == null || title.trim().isEmpty) ? 'tafcm' : title;
-    final sanitizedTitle = rawTitle
-        .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
-        .replaceAll(RegExp(r'\s+'), '_');
+    // issue #327：非法字符消毒抽到 [_sanitizeFileName]，与
+    // [writeBytesToTempFile] 单一真相源（DRY）。空白折叠与截断仍是本方法
+    // 特有的 share 文件名约定，保留在此。
+    final sanitizedTitle =
+        _sanitizeFileName(rawTitle).replaceAll(RegExp(r'\s+'), '_');
     final safeTitle = _truncate(sanitizedTitle, 30);
     final filename = '${safeTitle}_${DateTime.now().millisecondsSinceEpoch}.$extension';
     final file = File('${tempDir.path}/$filename');
