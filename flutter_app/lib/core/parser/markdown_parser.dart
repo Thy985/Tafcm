@@ -86,7 +86,16 @@ class MarkdownParser {
     if (content.isEmpty) return [];
 
     final List<DocumentElement> elements = [];
-    final lines = content.split('\n');
+
+    // issue #336-1：CRLF 行尾统一归一。`split('\n')` 后行尾残留 `'\r'`，此前
+    // 只在段落路径被 `trimmedLine` 隐式剥离，代码块分支 `codeLines.add(line)`
+    // 用的是原始 line → 代码内容尾部带 `\r`（影响代码高亮 token 与导出文本
+    // 保真）。统一在解析入口去掉每行尾部 `'\r'`，让 CRLF 与 LF 文档产出完全
+    // 一致的 AST。仅去尾部一个，正文内部的 `\r`（罕见）原样保留。
+    final lines = content
+        .split('\n')
+        .map((l) => l.endsWith('\r') ? l.substring(0, l.length - 1) : l)
+        .toList();
 
     bool inCodeBlock = false;
     String? codeLanguage;
@@ -372,8 +381,16 @@ class MarkdownParser {
       }
     }
 
-    if (inCodeBlock && codeLines.isNotEmpty) {
-      elements.add(CodeElement(code: codeLines.join('\n'), language: codeLanguage));
+    // issue #336-3：EOF 时未闭合代码块与闭合路径统一走 flushCodeBlock()。
+    // 旧实现只在内层非空时补一个 CodeElement，导致两处不对称：
+    //   (a) 未闭合的**空**代码块（` ```\n`）整体丢失——而闭合空块
+    //       （` ```mermaid\n``` `）在 flushCodeBlock 里是特意保真的；
+    //   (b) 未闭合的 mermaid 围栏产出 CodeElement(language: mermaid) 而非
+    //       MermaidElement，两个元素走不同渲染路径（解析结果随文件是否
+    //       完整而翻转，违反 round-trip 稳定性）。
+    // 未闭合即视为已闭合：内容已在围栏内收集完毕，EOF 不携带额外语义。
+    if (inCodeBlock) {
+      flushCodeBlock();
     }
     flushParagraph();
     flushListItems();
@@ -383,6 +400,13 @@ class MarkdownParser {
   }
 
   static bool _isTableSeparatorRow(String line) {
+    // issue #336-2：至少需要 `||`（长度 2）才有可切分的内层内容。
+    // 单字符行 `|` 的 `substring(1, line.length - 1)` 即 `substring(1, 0)` →
+    // RangeError，经外层 try/catch 降级后仍会触发 onError 上报，向
+    // observability 注入误报噪音（B-5 兜底虽不崩，但错误流被污染）。
+    // 分隔行本身必然形如 `|-|-|`（≥2 字符），早退不改变任何合法输入的行为。
+    if (line.length < 2) return false;
+
     final inner = line.substring(1, line.length - 1);
     final cells = inner.split('|');
     for (final cell in cells) {
@@ -396,6 +420,11 @@ class MarkdownParser {
   }
 
   static List<String>? _parseTableRow(String line) {
+    // issue #336-2：单字符行 `|` 同时满足 startsWith/endsWith('|')，但
+    // `substring(1, line.length - 1)` 即 `substring(1, 0)` → RangeError。
+    // 与 _isTableSeparatorRow 的守卫同源（合法表格行至少 `||`）。
+    if (line.length < 2) return null;
+
     if (!line.startsWith('|') || !line.endsWith('|')) return null;
     
     final inner = line.substring(1, line.length - 1);
@@ -407,11 +436,12 @@ class MarkdownParser {
     return cells;
   }
 
-  /// 公开的内联解析入口，供导出器在表格 cell 等场景下复用。
+  /// 公开的内联解析入口，供导出器与 cell 渲染复用。
   ///
-  /// 设计动机：`TableElement.headers` / `TableElement.rows` 当前是 `List<String>`，
-  /// 导出器需要把 cell 字符串解析为 inline children 以渲染 cell 内的公式 / 加粗。
-  /// 此方法暴露了 [parseInline] 内部使用的逻辑，但行为完全一致。
+  /// 设计动机：`TableElement.headers` / `TableElement.rows` 在 PR-2 后已统一为
+  /// `List<List<InlineElement>>`（见 data/models/document.dart），cell 字符串在
+  /// 解析器层即转为 Inline AST，使公式 / 加粗等行内语法在表格里与正文一致渲染。
+  /// 此方法暴露 [_parseInline] 同一套逻辑，供外部以单字符串形式复用。
   static List<InlineElement> parseInline(String text) {
     return _parseInline(text);
   }
