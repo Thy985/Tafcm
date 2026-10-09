@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/file_repository_provider.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
+import '../widgets/doc_list_subtitle.dart';
 import '../../data/models/document.dart';
 
 class FileManagerScreen extends ConsumerWidget {
@@ -73,7 +74,9 @@ class FileManagerScreen extends ConsumerWidget {
                     Divider(height: 1, color: tokens.borderDefault.withOpacity(0.5)),
                 itemBuilder: (context, index) {
                   final doc = docs[index];
-                  final preview = _preview(doc);
+                  // issue #333-C：同名碰撞时副标题加创建时间前缀（种子文档
+                  // 标题不重复 → 不触发 → golden 不变；真实同名才出现）。
+                  final subtitle = disambiguatedSubtitle(doc, docs, _preview(doc));
                   return InkWell(
                     onTap: () => _openDoc(ref, doc, context),
                     child: Padding(
@@ -97,7 +100,7 @@ class FileManagerScreen extends ConsumerWidget {
                                       color: tokens.textPrimary,
                                     )),
                                 const SizedBox(height: 2),
-                                Text(preview,
+                                Text(subtitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -141,7 +144,7 @@ class FileManagerScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('删除文件'),
-        content: Text('确定删除「${doc.title}」吗？'),
+        content: Text('确定删除「${doc.title}」（创建于 ${formatDateTimeShort(doc.createdAt)}）吗？'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
           ElevatedButton(

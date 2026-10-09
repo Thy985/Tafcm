@@ -86,6 +86,9 @@ class EditorShell extends ConsumerStatefulWidget {
   /// 接到 AppBar more_vert 菜单；`null` 时菜单项不显示。
   final VoidCallback? onExportDiagnostics;
 
+  /// 重命名文档的回调（issue #333-B）。
+  final VoidCallback? onRename;
+
   const EditorShell({
     super.key,
     required this.coordinator,
@@ -97,6 +100,7 @@ class EditorShell extends ConsumerStatefulWidget {
     this.pickImage,
     this.onExportTo,
     this.onExportDiagnostics,
+    this.onRename,
   });
 
   @override
@@ -246,6 +250,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
                 onCycleTheme: widget.onCycleTheme,
                 onExportTo: widget.onExportTo,
                 onExportDiagnostics: widget.onExportDiagnostics,
+                onRename: widget.onRename,
               ),
             ),
       body: _focusMode

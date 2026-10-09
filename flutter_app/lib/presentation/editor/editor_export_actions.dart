@@ -26,10 +26,17 @@ class EditorExportActions {
   EditorExportActions({
     required this.ref,
     required this.coordinator,
+    this.persistCallback,
   });
 
   final WidgetRef ref;
   final EditorCoordinator coordinator;
+
+  /// 立即落盘回调（issue #333-B：重命名后立即持久化，不等 autosave tick）。
+  ///
+  /// 由 [EditorPage] 注入 `_saveDocument`（`writeDocument(title: coordinator.title)`）。
+  /// null 时重命名仅在内存生效（演示文档无 path，正常）。
+  final Future<bool> Function()? persistCallback;
 
   /// 导出诊断数据 zip（Phase 3.7.3）。
   ///
@@ -174,4 +181,89 @@ class EditorExportActions {
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ExportFormat.txt => 'text/plain',
       };
+
+  /// 重命名文档（issue #333-B）。
+  ///
+  /// 弹对话框输入新标题（默认当前存储层标题），确认后设
+  /// `coordinator.editor.title` 并经 [persistCallback] 立即落盘（否则要等
+  /// autosave 下一个 debounce tick，用户重命名后立刻退出会丢）。
+  /// 空 / 空白输入视为未改（取消）；`barrierDismissible: false` 避免误触
+  /// 关到「输入了但未确认」的中间态。
+  Future<void> handleRename(BuildContext context) async {
+    if (!context.mounted) return;
+    final result = await showDialog<_RenameDialogResult>(
+      context: context,
+      barrierDismissible: false,
+      // 对话框自身持有 TextEditingController（StatefulWidget），在其 dispose
+      // 里释放——若在此处创建并事后 dispose，对话框关闭动画期间的 TextField
+      // 重建会引用已销毁的 controller（"used after being disposed"）。
+      builder: (_) => _RenameDialog(initial: coordinator.title),
+    );
+    if (result == null || !result.saved || !context.mounted) return;
+    final newName = result.name.trim();
+    if (newName.isEmpty || newName == coordinator.title) return;
+    coordinator.editor.title = newName;
+    // 立即刷新 titleNotifier（AppBar 标题跟随）。演示文档 path==null 时
+    // persistCallback（_saveDocument）提前 return 不进 markSaved，不会触发
+    // 同步；真实路径下 markSaved→notifyListeners 是幂等的第二次同步。
+    coordinator.notifyListeners();
+    await persistCallback?.call();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已重命名为「$newName」'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+/// 重命名对话框的内部结果。
+class _RenameDialogResult {
+  const _RenameDialogResult({required this.saved, required this.name});
+  final bool saved;
+  final String name;
+}
+
+/// 重命名对话框：持有的 TextEditingController 随自身 dispose 释放（= 路由
+/// 弹出动画完成后），避免关闭动画期间 TextField 重建引用已销毁的 controller。
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial});
+  final String initial;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _pop(bool saved) =>
+      Navigator.of(context).pop(
+        _RenameDialogResult(saved: saved, name: _controller.text),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('重命名'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: '文档名称'),
+        onSubmitted: (_) => _pop(true),
+      ),
+      actions: [
+        TextButton(onPressed: () => _pop(false), child: const Text('取消')),
+        TextButton(onPressed: () => _pop(true), child: const Text('保存')),
+      ],
+    );
+  }
 }

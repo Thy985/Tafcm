@@ -12,6 +12,7 @@ import '../../providers/editor_providers.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
 import '../widgets/buttons.dart';
+import '../widgets/doc_list_subtitle.dart';
 
 /// 应用首页（对齐设计稿 `home-v3.html`）。
 ///
@@ -271,6 +272,9 @@ class _DocList extends StatelessWidget {
           final doc = docs[i];
           final preview = doc.content.replaceAll('\n', ' ').trim();
           final snippet = preview.length > 40 ? '${preview.substring(0, 40)}…' : preview;
+          // issue #333-C：同名碰撞时副标题加创建时间前缀（种子文档标题不重复
+          // → 不触发 → golden 不变；真实同名才出现）。
+          final subtitle = disambiguatedSubtitle(doc, docs, snippet);
           return InkWell(
             onTap: () => onTap(doc),
             child: Container(
@@ -297,7 +301,7 @@ class _DocList extends StatelessWidget {
                               color: tokens.textPrimary,
                             )),
                         const SizedBox(height: 2),
-                        Text(snippet,
+                        Text(subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 12, color: tokens.textSecondary)),
