@@ -314,10 +314,14 @@ class FileRepository implements DocumentRepository {
     final path = await documentPathFor(id);
     final file = File(path);
     if (!await file.exists()) return ''; // 优雅降级
-    // 流式读取，找到首非空行即停止（避免大文件全量加载）
-    final stream = file.openRead().transform(utf8.decoder).transform(const LineSplitter());
+    // issue #336-6（AGENTS §4.3）：外部字节流必须走 decodeBytesAuto
+    // （容错链：BOM → 严格 UTF-8 → 容错 UTF-8/GBK → Latin-1，永不抛错）。
+    // 旧实现直接对流套 strict `utf8.decoder`，GBK 文件在第一个非法字节上就抛
+    // `FormatException: Missing extension byte`，预览直接崩。整文件 readAsBytes
+    // 与本文件 _readDecoded（:258）一致——预览只取首非空行，文件已是全文档对象。
+    final raw = decodeBytesAuto(await file.readAsBytes());
     String? firstLine;
-    await for (final line in stream) {
+    for (final line in const LineSplitter().convert(raw)) {
       if (line.trim().isNotEmpty) {
         firstLine = line;
         break;

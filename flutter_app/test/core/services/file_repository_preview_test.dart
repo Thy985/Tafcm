@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tafcm/core/services/file_repository.dart';
+import 'package:tafcm/core/services/file_service.dart';
 
 void main() {
   late Directory _tmpDir;
@@ -62,5 +63,31 @@ void main() {
   test('文件不存在 → 返回空字符串（优雅降级）', () async {
     final preview = await _repo.getDocumentPreview('nonexistent');
     expect(preview, '');
+  });
+
+  group('#336-6 GBK 编码文件预览（AGENTS §4.3 编码兜底）', () {
+    // 「中文测试」的 GBK 字节序列（与 file_service_gbk_test 同源样本）。
+    // 这些字节在 UTF-8 下是非法序列，strict `utf8.decoder` 会在首个非法
+    // 字节上抛 `FormatException: Missing extension byte`（旧实现的崩溃形态）。
+    const gbkTitle = <int>[
+      0xD6, 0xD0, // 中
+      0xCE, 0xC4, // 文
+      0xB2, 0xE2, // 测
+      0xCA, 0xD4, // 试
+    ];
+
+    test('decodeBytesAuto 对 GBK 标题字节产出中文（兜底判定前提）', () {
+      expect(decodeBytesAuto(gbkTitle), '中文测试');
+    });
+
+    test('GBK 文件预览返回标题，不抛 FormatException', () async {
+      final path = '${_tmpDir.path}/gbk.md';
+      // 标题行 + 空行 + 正文行，模拟真实 .md 结构。
+      await File(path).writeAsBytes(
+        <int>[...gbkTitle, 0x0A, 0x0A, ...gbkTitle],
+      );
+      final preview = await _repo.getDocumentPreview('gbk');
+      expect(preview, '中文测试');
+    });
   });
 }
