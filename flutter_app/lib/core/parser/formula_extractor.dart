@@ -155,6 +155,29 @@ class FormulaExtractor {
       final matchedText = match.group(0)!;
       final hasBackslash = match.start > 0 && text[match.start - 1] == r'\';
 
+      // issue #336-5：隐式 **括号** 形式 + 实参含逗号或空白时，按散文处理，
+      // 不提取。
+      //
+      // 隐式提取本身是刻意特性（`vec{n}` → `\vec{n}`，见
+      // formula_extractor_test「隐式公式识别」组），故只对括号形式收窄，
+      // 花括号形式一律保留。理由：
+      //   - `max{a,b}` / `vec{n}` 无歧义，是 LaTeX 惯用写法；
+      //   - `max(a,b)` 是散文里函数调用的常态形态（`we compute max(a,b)`），
+      //     且 LaTeX 双参数函数的标准写法是 `\max_{a}` 而非括号，
+      //     含逗号的括号形式误判率极高；
+      //   - `\([^)]*\)` 遇嵌套括号本就提前截断（`max(f(x),y)` 只取到 `(`），
+      //     逗号 / 空白守卫顺带把这类破损匹配一并排除。
+      //
+      // 关于 `hasBackslash`：上方 regex 的 lookbehind `(?<![A-Za-z0-9\\])`
+      // 已把反斜杠前缀排除在外，故本分支（隐式提取）里 `hasBackslash` 恒为
+      // false，`\max(a,b)` 从来不走这里（带反斜杠的命令经 `$...\$` /
+      // normalizeLatex 路径处理）。它仍保留在下方 latex 拼装处，仅作为
+      // 防御性分支存在——不要据此断言 `\max(a,b)` 的行为。
+      if (!hasBackslash && matchedText.contains('(')) {
+        final args = matchedText.substring(1, matchedText.length - 1);
+        if (args.contains(',') || RegExp(r'\s').hasMatch(args)) continue;
+      }
+
       String latex;
       if (hasBackslash) {
         latex = matchedText;
