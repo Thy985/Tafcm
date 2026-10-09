@@ -115,7 +115,11 @@ check_no_nested_git() {
   local root found
   root="$(guard_repo_root)"
 
-  found="$(find "$root" -mindepth 2 -name .git -not -path "$root/.git/*" 2>/dev/null)"
+  # 只认 .git **目录**：真实的嵌套仓库（`git init` 独立仓库、gitlink submodule）
+  # 其 .git 是目录。git worktree 的 `.wt/<name>/.git` 是 `gitdir:` 指向文件
+  # （ENVIRONMENT.md §1 的 worktree 工作流，已 .gitignore 入库），按 `-name .git`
+  # 通配会把它误判成冒牌仓库——21 个 worktree 会把全仓 push 堵死。
+  found="$(find "$root" -mindepth 2 -type d -name .git -not -path "$root/.git/*" 2>/dev/null)"
 
   if [ -n "$found" ]; then
     echo "[guard] ❌ 检测到嵌套 .git（冒牌仓库，2026-07-30 同款事故）:" >&2
