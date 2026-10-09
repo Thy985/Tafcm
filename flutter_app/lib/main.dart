@@ -49,61 +49,68 @@ const bool kMermaidHostEnabled =
 final ObservabilityService globalObservability = ObservabilityService.light();
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // P0 修复（2026-08-04）：B-3 设置 App 环境信息（dart:io Platform）。
-  // 不引入 device_info_plus，用 Platform API 获取基本 OS 信息即可。
-  // 完整设备型号（如"Redmi K30"）留待 Phase 3+ 接入 device_info_plus。
-  globalObservability.errorSnapshotter?.setAppInfo(
-    version: kAppVersion,
-    device: Platform.operatingSystem,
-    os: '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-  );
-
-  // P1 修复（2026-08-04, B-6）：注入 WebView 渲染错误回调。
-  // MermaidService / FormulaSvgService 是 core 层静态类，不能直接 import
-  // observability（AGENTS.md §6.1.1）。这里通过 attachErrorCallback 把
-  // globalObservability.captureError 注入到两个服务，让 Mermaid / LaTeX
-  // 渲染失败可观测。
-  void reportWebViewError(
-    String type,
-    String message,
-    Map<String, Object?>? params,
-  ) {
-    globalObservability.captureError(
-      type: type,
-      message: message,
-      commandName: 'WebViewRenderer',
-      commandParams: params,
-    );
-    debugPrint('[OBS] WebView error: $type | $message | params=$params');
-  }
-
-  MermaidService.attachErrorCallback(reportWebViewError);
-  FormulaSvgService.attachErrorCallback(reportWebViewError);
-
-
-  // P0 修复（2026-08-04）：B-2 安装全局错误钩子（Flutter 框架异常）。
-  // 捕获 widget build / layout / painting 异常，release 模式下不再静默丢失。
-  // 仍调用 FlutterError.presentError 保持默认红屏行为（debug 模式可见）。
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    globalObservability.captureError(
-      type: 'GlobalError',
-      message: details.exceptionAsString(),
-    );
-    debugPrint('[OBS] Global FlutterError: ${details.exception}'
-        '\n${details.stack}');
-  };
-
-  // P0 修复（2026-08-04）：B-2 安装全局错误钩子（async / Isolate 异常）。
-  // runZonedGuarded 捕获：
-  // - 未 await 的 Future 异常
-  // - Zone 内未捕获的同步异常
-  // - Isolate 异常（通过 PlatformDispatcher.onError 转发）
-  // 原main() 中的 await 调用移入 zone 内，确保其异常也被捕获。
+  // P0 修复（2026-08-04）：B-2 安装全局错误钩子（Flutter 框架异常 +
+  // async / Isolate 异常，后者由 runZonedGuarded 捕获：未 await 的 Future
+  // 异常、zone 内未捕获的同步异常、Isolate 异常经 PlatformDispatcher.onError
+  // 转发）。原 main() 中的 await 调用移入 zone 内，确保其异常也被捕获。
+  //
+  // ⚠️ #334（2026-10-09）：runZonedGuarded 必须包裹**整个**启动流程，
+  // 包括 WidgetsFlutterBinding.ensureInitialized() 与 runApp。旧实现把
+  // ensureInitialized 留在 zone 外、只把 runApp 放进 zone——binding 记录的
+  // 初始化 zone 与实际使用的 zone 不一致，导致每次冷启动 Flutter 框架都
+  // 抛 "Zone mismatch" 警告，经下方 FlutterError.onError 打进 observability
+  // 错误流（`[OBS] Global FlutterError: Zone mismatch`，main.dart:119），
+  // 污染 ADI latest-error 等诊断信号的质量。现在两者同 zone，警告消失。
   runZonedGuarded<Future<void>>(
     () async {
+      // B-2 安装全局错误钩子（Flutter 框架异常）。捕获 widget build /
+      // layout / painting 异常，release 模式下不再静默丢失。
+      // 仍调用 FlutterError.presentError 保持默认红屏行为（debug 模式可见）。
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        globalObservability.captureError(
+          type: 'GlobalError',
+          message: details.exceptionAsString(),
+        );
+        debugPrint(
+          '[OBS] Global FlutterError: ${details.exception}\n${details.stack}',
+        );
+      };
+
+      // 必须在 zone 内：见上方 #334 注释。
+      WidgetsFlutterBinding.ensureInitialized();
+
+      // P0 修复（2026-08-04）：B-3 设置 App 环境信息（dart:io Platform）。
+      // 不引入 device_info_plus，用 Platform API 获取基本 OS 信息即可。
+      // 完整设备型号（如"Redmi K30"）留待 Phase 3+ 接入 device_info_plus。
+      globalObservability.errorSnapshotter?.setAppInfo(
+        version: kAppVersion,
+        device: Platform.operatingSystem,
+        os: '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      );
+
+      // P1 修复（2026-08-04, B-6）：注入 WebView 渲染错误回调。
+      // MermaidService / FormulaSvgService 是 core 层静态类，不能直接 import
+      // observability（AGENTS.md §6.1.1）。这里通过 attachErrorCallback 把
+      // globalObservability.captureError 注入到两个服务，让 Mermaid / LaTeX
+      // 渲染失败可观测。
+      void reportWebViewError(
+        String type,
+        String message,
+        Map<String, Object?>? params,
+      ) {
+        globalObservability.captureError(
+          type: type,
+          message: message,
+          commandName: 'WebViewRenderer',
+          commandParams: params,
+        );
+        debugPrint('[OBS] WebView error: $type | $message | params=$params');
+      }
+
+      MermaidService.attachErrorCallback(reportWebViewError);
+      FormulaSvgService.attachErrorCallback(reportWebViewError);
+
       // P0 修复（2026-08-04）：注册外部文件 MethodChannel 并查询冷启动 URI。
       // 必须 await：内部会反向调用 getInitialUri 取回 MainActivity 缓存的
       // pendingUri，填充到 ExternalFileService.instance.initialUri 供
