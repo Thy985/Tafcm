@@ -19,7 +19,6 @@ import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
 import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
-import 'pdf_exporter.dart';
 import 'word_ooxml_builder.dart';
 import '../word_ooxml_templates.dart';
 
@@ -64,11 +63,11 @@ class WordExporter {
           debugPrint('[WordExporter] parse line $lineIndex failed: $error'),
     );
 
-    // 收集所有公式（paragraph / list / table cell 走 PdfExporter.collectAllFormulas）
-    final allFormulasSet = PdfExporter.collectAllFormulas(elements);
-
-    // 保持 Word 端原有的有序列表（保持生成文件名 / relId 顺序稳定）
-    final allFormulas = <String>[];
+    // 收集所有公式（paragraph / list / table cell / blockquote）。
+    // #326：allFormulas 记录 (latex, displayMode)，formulaRels 按复合 key
+    // （`B:`/`I:` 前缀，见 formulaRelKey）索引——同一段 latex 行内与块级
+    // 各占一个 rel + media 文件，不再共用同一张 PNG。
+    final allFormulas = <({String latex, bool displayMode})>[];
     final formulaRels = <String, FormulaImageInfo>{};
     final allMermaids = <String>[];
     final mermaidRels = <String, MermaidImageInfo>{};
@@ -76,18 +75,6 @@ class WordExporter {
     for (final e in elements) {
       _collectFormulas(e, allFormulas, formulaRels);
       _collectMermaids(e, allMermaids, mermaidRels);
-    }
-    // 把 set 里多出来的公式（来自 table cell 字符串扫描）也补到有序列表中
-    for (final latex in allFormulasSet) {
-      if (!formulaRels.containsKey(latex)) {
-        final idx = allFormulas.length + 1;
-        allFormulas.add(latex);
-        formulaRels[latex] = FormulaImageInfo(
-          relId: 'rIdImage$idx',
-          widthEmu: 0,
-          heightEmu: 0,
-        );
-      }
     }
 
     // 报告 Phase 2 开始；total = 公式数 + Mermaid 数。
@@ -100,23 +87,59 @@ class WordExporter {
     ));
 
     if (allFormulas.isNotEmpty) {
-      // Word 导出走独立的 cache key 维度，避免与 PDF 像素密度不同导致的互相覆盖
+      // Word 导出走独立的 cache key 维度，避免与 PDF 像素密度不同导致的互相覆盖。
+      // #326：按 displayMode 分两批预渲染（行内 false / 块级 true），缓存 key
+      // 含 displayMode 维度，与下方 cachedBytes 查询严格对齐。phase2Done 贯穿
+      // 公式→Mermaid 两阶段（inline 数 → +block 数 → +mermaid 数），total 用
+      // phase2Total（公式+Mermaid 总数），保持进度不回退。
+      final inline = allFormulas
+          .where((r) => !r.displayMode)
+          .map((r) => r.latex)
+          .toSet();
+      final block = allFormulas
+          .where((r) => r.displayMode)
+          .map((r) => r.latex)
+          .toSet();
       cancelToken?.throwIfCancelled();
-      await FormulaPdfRenderer.preRenderAll(
-        allFormulas.toSet(),
-        fontSize: 16,
-        isDark: isDark,
-        format: FormulaPdfRenderer.formatWord,
-        // 3.4.4 Slice 7：逐公式完成回调，更新 Pre-render 进度。
-        onEachCompleted: (completed, total) {
-          phase2Done = completed;
-          onProgress?.call(ExportProgress(
-            stage: ExportStage.preRenderingFormulaSvg,
-            completed: phase2Done,
-            total: phase2Total,
-          ));
-        },
-      );
+      if (inline.isNotEmpty) {
+        await FormulaPdfRenderer.preRenderAll(
+          inline,
+          fontSize: 16,
+          isDark: isDark,
+          format: FormulaPdfRenderer.formatWord,
+          displayMode: false,
+          // 3.4.4 Slice 7：逐公式完成回调，更新 Pre-render 进度。
+          onEachCompleted: (completed, total) {
+            phase2Done = completed;
+            onProgress?.call(ExportProgress(
+              stage: ExportStage.preRenderingFormulaSvg,
+              completed: phase2Done,
+              total: phase2Total,
+            ));
+          },
+        );
+      }
+      cancelToken?.throwIfCancelled();
+      if (block.isNotEmpty) {
+        await FormulaPdfRenderer.preRenderAll(
+          block,
+          fontSize: 16,
+          isDark: isDark,
+          format: FormulaPdfRenderer.formatWord,
+          displayMode: true,
+          onEachCompleted: (completed, total) {
+            // 与 inline 批口径一致：回调先把 phase2Done 同步到当前完成数，
+            // 否则 Mermaid 阶段从旧值 ++，进度曲线先跳再回退（review P1）。
+            phase2Done = inline.length + completed;
+            onProgress?.call(ExportProgress(
+              stage: ExportStage.preRenderingFormulaSvg,
+              completed: phase2Done,
+              total: phase2Total,
+            ));
+          },
+        );
+        phase2Done = inline.length + block.length;
+      }
     }
 
     // 渲染 Mermaid 为 SVG。
@@ -158,19 +181,21 @@ class WordExporter {
       completed: 0,
       total: 1,
     ));
-    for (final latex in allFormulas) {
+    for (final formula in allFormulas) {
       final bytes = FormulaPdfRenderer.cachedBytes(
-        latex,
+        formula.latex,
         fontSize: 16,
         isDark: isDark,
         format: FormulaPdfRenderer.formatWord,
+        displayMode: formula.displayMode,
       );
       if (bytes != null) {
         final dims = parsePngDimensions(bytes);
         if (dims != null) {
-          final info = formulaRels[latex];
+          final key = formulaRelKey(formula.displayMode, formula.latex);
+          final info = formulaRels[key];
           if (info != null) {
-            formulaRels[latex] = FormulaImageInfo(
+            formulaRels[key] = FormulaImageInfo(
               relId: info.relId,
               widthEmu: dims.width * 9525,
               heightEmu: dims.height * 9525,
@@ -241,13 +266,14 @@ class WordExporter {
         'word/numbering.xml', numberingBytes.length, numberingBytes));
 
     int i = 0;
-    for (final latex in allFormulas) {
+    for (final formula in allFormulas) {
       i++;
       final bytes = FormulaPdfRenderer.cachedBytes(
-        latex,
+        formula.latex,
         fontSize: 16,
         isDark: isDark,
         format: FormulaPdfRenderer.formatWord,
+        displayMode: formula.displayMode,
       );
       if (bytes != null) {
         final name = 'word/media/formula_$i.png';
@@ -291,25 +317,59 @@ class WordExporter {
 
   static void _collectFormulas(
     DocumentElement element,
-    List<String> allFormulas,
+    List<({String latex, bool displayMode})> allFormulas,
     Map<String, FormulaImageInfo> formulaRels,
   ) {
-    int register(String latex) {
-      if (formulaRels.containsKey(latex)) return 0;
+    void register(String latex, bool displayMode) {
+      final key = formulaRelKey(displayMode, latex);
+      if (formulaRels.containsKey(key)) return;
       final idx = allFormulas.length + 1;
-      allFormulas.add(latex);
-      formulaRels[latex] = FormulaImageInfo(relId: 'rIdImage$idx', widthEmu: 0, heightEmu: 0);
-      return idx;
+      allFormulas.add((latex: latex, displayMode: displayMode));
+      formulaRels[key] = FormulaImageInfo(
+        relId: 'rIdImage$idx',
+        widthEmu: 0,
+        heightEmu: 0,
+      );
+    }
+
+    void walkInline(List<InlineElement> children) {
+      for (final c in children) {
+        if (c is FormulaElement) register(c.latex, c.displayMode);
+      }
+    }
+
+    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归，
+    // 不遍历则深层列表项内公式漏收集 → cachedBytes miss（review round-3）。
+    void walkList(ListElement list) {
+      walkInline(list.children);
+      for (final n in list.nested) {
+        walkList(n);
+      }
     }
 
     if (element is ParagraphElement) {
-      for (final c in element.children) {
-        if (c is FormulaElement) register(c.latex);
-      }
+      walkInline(element.children);
     } else if (element is ListElement) {
-      for (final c in element.children) {
-        if (c is FormulaElement) register(c.latex);
+      walkList(element);
+    } else if (element is TableElement) {
+      // #326：与 PdfExporter.collectAllFormulas 同口径覆盖 table headers + cells，
+      // 不再依赖 set 兜底（原 set 丢失 displayMode 维度）。
+      for (final h in element.headers) {
+        walkInline(h);
       }
+      for (final row in element.rows) {
+        for (final cell in row) {
+          walkInline(cell);
+        }
+      }
+    } else if (element is BlockquoteElement) {
+      walkInline(element.children);
+    } else if (element is HeadingElement) {
+      // review P2：标题 inline AST 内可含公式，不收集则 cachedBytes miss →
+      // Word 导出文本 fallback。
+      walkInline(element.children);
+    } else if (element is TaskListItemElement) {
+      walkInline(element.children);
     }
   }
 

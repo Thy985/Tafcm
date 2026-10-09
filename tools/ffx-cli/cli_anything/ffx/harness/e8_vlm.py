@@ -150,9 +150,21 @@ def describe_structure(screenshot_path: str):
         inputs = _qwen2vl_processor(
             text=[prompt], images=[image], return_tensors="pt"
         )
-        import torch
+        # torch is imported lazily inside _init_qwen2vl (line above). A stub
+        # backend (tests, or envs without torch) injects _qwen2vl_model
+        # directly and never triggers that import, so no_grad is only wrapped
+        # when torch is genuinely importable — otherwise generate runs bare,
+        # which is correct for fake/stub models and degrades naturally for a
+        # real model whose deps were somehow stripped after load.
+        try:
+            import torch
 
-        with torch.no_grad():
+            ctx_mgr = torch.no_grad()
+        except ImportError:
+            from contextlib import nullcontext
+
+            ctx_mgr = nullcontext()
+        with ctx_mgr:
             generated = _qwen2vl_model.generate(
                 **inputs, max_new_tokens=512, do_sample=False
             )

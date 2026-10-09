@@ -82,7 +82,12 @@ class EditorExportActions {
   Future<void> handleExport(BuildContext context, ExportFormat format) async {
     final notifier = ref.read(exportProgressProvider.notifier);
     final markdown = coordinator.editor.allSources.join('\n');
-    final title = coordinator.title;
+    // issue #327：导出文件名（及 PDF 元数据 title / 分享 subject）跟随用户
+    // 当前可见的标题块内容，而非加载时从存储层文档名取的 coordinator.title
+    // 快照——标题块改为 `qa: export/doc` 后旧值仍是「未命名文档」。
+    // 无 H1 标题块时 fallback 到存储层文档名（新文档为「未命名文档」）。
+    final title =
+        coordinator.editor.titleFromContent ?? coordinator.title;
     final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
 
     try {
