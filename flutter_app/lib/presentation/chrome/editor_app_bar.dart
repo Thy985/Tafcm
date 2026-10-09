@@ -63,6 +63,11 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 结果（zip 路径）通过 SnackBar 展示。`null` 时不显示菜单项。
   final VoidCallback? onExportDiagnostics;
 
+  /// 重命名文档的回调（issue #333-B）。
+  ///
+  /// 接到 [EditorPage] 时由该回调弹重命名对话框并持久化。`null` 时不显示菜单项。
+  final VoidCallback? onRename;
+
   /// 当前主题模式（Phase 3.4.3 / ADR-0015：3 值 light/dark/sepia）。
   ///
   /// 仅用于渲染切换按钮的图标 / tooltip，反映**当前**主题；
@@ -83,6 +88,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onExportTo,
     this.onOpenFileTree,
     this.onExportDiagnostics,
+    this.onRename,
     this.themeMode = AppThemeMode.light,
     this.onCycleTheme,
   });
@@ -244,6 +250,16 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
+            if (onRename != null)
+              const PopupMenuItem<String>(
+                value: 'rename',
+                child: ListTile(
+                  leading: Icon(Icons.drive_file_rename_outline),
+                  title: Text('重命名'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
             if (onExportDiagnostics != null)
               const PopupMenuItem<String>(
                 value: 'export_diagnostics',
@@ -300,6 +316,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 处理 PopupMenu 选择。
   ///
   /// - `about`：显示 AboutDialog（Phase 3.1-A PR #2 占位实现）
+  /// - `rename`：触发重命名对话框（issue #333-B，经 [onRename] 回调）
   /// - `export_diagnostics`：触发诊断数据导出（Phase 3.7.3）
   /// - `legacy`：跳转到 `/editor-legacy`（旧 EditorScreen fallback）
   void _onMenuSelected(BuildContext context, String value) {
@@ -311,6 +328,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
           applicationVersion: 'Phase 3.3',
           applicationLegalese: 'WYSIWYG 编辑器 · Phase 3.0+',
         );
+        break;
+      case 'rename':
+        onRename?.call();
         break;
       case 'export_diagnostics':
         onExportDiagnostics?.call();

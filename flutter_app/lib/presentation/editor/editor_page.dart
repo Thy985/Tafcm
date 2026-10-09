@@ -84,6 +84,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   EditorExportActions get _exportActions => EditorExportActions(
         ref: ref,
         coordinator: _coordinator,
+        persistCallback: _saveDocument,
       );
 
   /// 文档是否就绪（文件异步加载完成前显示加载态）。
@@ -178,7 +179,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       if (mounted) setState(() => _ready = true);
     }
   }
-
 
   /// 异步加载外部 URI 指向的 .md 文件（P0 修复 2026-08-04）。
   ///
@@ -353,7 +353,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // - StatusBar → EditorStatusBar 内 ValueListenableBuilder(blockCount/wordCount/undoRedo)
     // - Workspace / MarkdownToolbar → EditorShell 内 AnimatedBuilder（结构变化）
     // - TocPanel → 内部 ListenableBuilder（仅抽屉打开时）
-    final currentPath = ref.watch(currentPathProvider);
     // Phase 3.4.3 / ADR-0015：主题模式从 provider 读取，透传给 EditorShell → EditorAppBar。
     // chrome/ 保持 Riverpod-free，主题状态在此（唯一持 ref 的层）解析后向下传递。
     // 主题切换会由 main.dart（watch themeModeProvider）触发整个 MaterialApp 重建，
@@ -362,15 +361,16 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // ADR-0014：文档存储基目录用于解析相对资源路径（assets/img_xxx.png）。
     // 由持有 ref 的页面层解析后透传，保持 chrome / blocks 层 Riverpod-free。
     final baseDir = ref.watch(docsDirProvider).value;
-    // issue #323：返回拦截抽到 [ExportGuardPopScope] —— 导出进行中 BACK
-    // 先弹确认，确认退出即协作式取消并随路由销毁浮层；非导出态行为不变。
+    // #323 + #333-A：返回拦截 —— 导出中 BACK 先确认（确认退出即协作取消并
+    // 随路由销毁浮层）；非导出态但有未落盘内容时弹「放弃未保存的更改」。
     return ExportGuardPopScope(
+      isDirtyGetter: () => _coordinator.isDirty,
       child: ExportProgressOverlay(
         child: EditorScope(
           coordinator: _coordinator,
           child: EditorShell(
             coordinator: _coordinator,
-            currentPath: currentPath,
+            currentPath: ref.watch(currentPathProvider),
             onOpenFile: _openFile,
             themeMode: mode,
             onCycleTheme: () => ref.read(themeModeProvider.notifier).cycle(),
@@ -382,12 +382,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             onExportTo: (format) => _exportActions.handleExport(context, format),
             // Phase 3.7.3：诊断数据导出，AppBar more_vert 菜单触发。
             onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
+            // issue #333-B：重命名入口（⋮ 菜单 → 重命名对话框 → 立即落盘）。
+            onRename: () => _exportActions.handleRename(context),
           ),
         ),
       ),
     );
   }
-
 
   /// 文件树点击：记忆"上次打开文件"路径（契约链3 强制"打开文件一致"），
   /// 并导航到该文件。用 [context.go] 替换整个栈，使 /editor 脱离
