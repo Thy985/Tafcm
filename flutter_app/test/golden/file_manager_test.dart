@@ -58,8 +58,8 @@ void main() {
 
       // 结构性断言：布局回归守护
       expect(find.text('文件'), findsWidgets, reason: 'AppBar 应显示「文件」标题');
-      expect(find.text('暂无保存的文档'), findsWidgets,
-          reason: '空状态应显示「暂无保存的文档」');
+      expect(find.text('暂无保存的文件'), findsWidgets,
+          reason: '空状态应显示「暂无保存的文件」（#338 起与页名措辞统一）');
       expect(find.byIcon(Icons.folder_open_outlined), findsWidgets,
           reason: '空状态应显示 folder_open_outlined 图标');
 

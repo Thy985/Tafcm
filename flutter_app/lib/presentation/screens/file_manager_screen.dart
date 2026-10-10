@@ -14,6 +14,7 @@ import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
 import '../widgets/doc_list_subtitle.dart';
 import '../../data/models/document.dart';
+import 'doc_actions.dart';
 
 class FileManagerScreen extends ConsumerWidget {
   const FileManagerScreen({super.key});
@@ -33,6 +34,25 @@ class FileManagerScreen extends ConsumerWidget {
               fontWeight: FontWeight.w600,
               color: tokens.textPrimary,
             )),
+        // issue #338：文件页是应用的主实体列表页，却不能在自身发起新建/导入，
+        // 用户必须跨 Tab 回首页才能发起。补 AppBar 操作入口（与首页 _Header 一致）。
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '搜索',
+            onPressed: () => context.go('/search'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: '导入 .md 文件',
+            onPressed: () => openAnyMd(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: '新建文档',
+            onPressed: () => newDoc(ref, context),
+          ),
+        ],
       ),
       body: docsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -57,10 +77,10 @@ class FileManagerScreen extends ConsumerWidget {
                     Icon(Icons.folder_open_outlined,
                         size: 56, color: tokens.textSecondary.withOpacity(0.6)),
                     const SizedBox(height: 14),
-                    Text('暂无保存的文档',
+                    Text('暂无保存的文件',
                         style: TextStyle(color: tokens.textSecondary, fontSize: 15)),
                     const SizedBox(height: 6),
-                    Text('在编辑器中保存文档后将显示在此处',
+                    Text('点右上角按钮新建，或导入已有的 .md',
                         style: TextStyle(color: tokens.textSecondary, fontSize: 13)),
                   ],
                 ),
