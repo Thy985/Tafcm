@@ -127,10 +127,10 @@ class HomeScreen extends ConsumerWidget {
     if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
 
-  // 搜索入口（#242 呼应）：P0-1 搜索功能落地（/search 路由 + SearchScreen），
-  // 空壳占位缺陷已消除，入口恢复——指向真实搜索功能而非 SnackBar 占位。
+  // 搜索入口：/search + SearchScreen 自 P0-1（#286）就在，但 #242 删掉的
+  // Icons.search 按钮从未被恢复（P0-1 只补回 onSearch 字段未补渲染），#338 接上。
 }
-/// 头部：serif 品牌字标 + 搜索 / 新建 / 主题 圆形按钮。
+/// 头部：serif 品牌字标 + 搜索 / 主题 / 新建 圆形按钮。
 class _Header extends StatelessWidget {
   final VoidCallback onSearch;
   final VoidCallback onNew;
@@ -159,6 +159,13 @@ class _Header extends StatelessWidget {
               )),
           Row(
             children: [
+              GhostButton(
+                icon: Icons.search,
+                onTap: onSearch,
+                tooltip: '搜索',
+                semanticLabel: '搜索',
+              ),
+              const SizedBox(width: 4),
               GhostButton(
                 icon: Icons.brightness_6,
                 onTap: onThemeCycle,

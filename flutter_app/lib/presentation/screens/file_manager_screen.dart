@@ -38,6 +38,11 @@ class FileManagerScreen extends ConsumerWidget {
         // 用户必须跨 Tab 回首页才能发起。补 AppBar 操作入口（与首页 _Header 一致）。
         actions: [
           IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: '搜索',
+            onPressed: () => context.go('/search'),
+          ),
+          IconButton(
             icon: const Icon(Icons.file_upload_outlined),
             tooltip: '导入 .md 文件',
             onPressed: () => openAnyMd(ref, context),

@@ -96,6 +96,12 @@ void main() {
           builder: (context, state) =>
               const Scaffold(body: Center(child: Text('editor-stub'))),
         ),
+        GoRoute(
+          path: '/search',
+          // SearchScreen 真实搜索要读库，测试只验证「入口是否可达」。
+          builder: (context, state) =>
+              const Scaffold(body: Center(child: Text('search-stub'))),
+        ),
       ],
     );
 
@@ -205,6 +211,24 @@ void main() {
           reason: '选非 .md 文件不应导航到 /editor');
       // 仍停在 HomeScreen。
       expect(find.byType(HomeScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('issue #338 首页搜索入口', () {
+    testWidgets('header 渲染搜索入口，点击进入 /search', (tester) async {
+      final mockPicker = _MockFilePicker(null);
+      FilePicker.platform = mockPicker;
+      await _pumpHomeWithRouter(tester, mockPicker);
+
+      // #242 删除按钮后，P0-1 只恢复了 onSearch 字段与注释，按钮从未重新渲染
+      // —— 断言入口真实存在于 widget 树，防同类「能力落地但一键未接线」复发。
+      expect(find.byTooltip('搜索'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('搜索'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('search-stub'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
