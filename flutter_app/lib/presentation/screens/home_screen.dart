@@ -1,7 +1,3 @@
-import 'dart:async';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +9,7 @@ import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
 import '../widgets/buttons.dart';
 import '../widgets/doc_list_subtitle.dart';
+import 'doc_actions.dart';
 
 /// 应用首页（对齐设计稿 `home-v3.html`）。
 ///
@@ -77,7 +74,7 @@ class HomeScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _Header(
                   onSearch: () => context.go('/search'),
-                  onNew: () => _newDoc(ref, context),
+                  onNew: () => newDoc(ref, context),
                   onThemeCycle: () => ref.read(themeModeProvider.notifier).cycle(),
                 ),
               ),
@@ -94,7 +91,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               SliverToBoxAdapter(
-                child: _OpenAnyMdEntry(onTap: () => _openAnyMd(ref, context)),
+                child: _OpenAnyMdEntry(onTap: () => openAnyMd(ref, context)),
               ),
               if (docs.isEmpty)
                 const SliverToBoxAdapter(child: _EmptyHint())
@@ -126,45 +123,6 @@ class HomeScreen extends ConsumerWidget {
   static Future<void> _openDoc(WidgetRef ref, Document doc, BuildContext context) async {
     final repo = ref.read(fileRepositoryProvider);
     final path = await repo.documentPathFor(doc.id);
-    // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
-    if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
-  }
-
-  static Future<void> _openAnyMd(WidgetRef ref, BuildContext context) async {
-    // P0 修复（2026-08-04 真机定位）：原用 FileType.custom + allowedExtensions:['md']，
-    // file_picker 8.3.7 会把它转成 Intent(type='*/*', EXTRA_MIME_TYPES=['text/markdown'])。
-    // 小米 HyperOS 的 SAF 实现对该配置过滤异常 → 弹窗完全空白（logcat 仅记录
-    // "User cancelled the picker request"，无错误抛出）。改用 FileType.any 让 SAF
-    // 显示所有文件，Dart 层校验 .md 扩展名：非 .md 时提示用户并中止。
-    // 验证：am start -a OPEN_DOCUMENT -t 'text/markdown' 能正常显示 .md 文件，
-    // 但 -t '*/*' --esa EXTRA_MIME_TYPES 'text/markdown' 在小米上完全空白。
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
-    final path = result?.files.single.path;
-    if (path == null) return; // 用户取消
-    if (!path.toLowerCase().endsWith('.md')) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('仅支持 .md 文件'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
-    if (context.mounted) {
-      // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
-      // #330：外部导入不可写回原文件（file_picker 在 Android 返回的是应用
-      // 私有缓存副本），按只读查看打开，避免"可编辑但退出即丢"假象。
-      context.go('/editor?path=${Uri.encodeComponent(path)}&readOnly=1');
-    }
-  }
-
-  static Future<void> _newDoc(WidgetRef ref, BuildContext context) async {
-    final repo = ref.read(fileRepositoryProvider);
-    final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
     // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
     if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
   }
