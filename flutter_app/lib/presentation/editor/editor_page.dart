@@ -9,11 +9,6 @@
 /// - **Phase 3.4 Slice2（ADR-0013）**：持有并驱动 [AutosaveService]（显式 DI，
 ///   无全局单例）；save 回调与手动保存共用同一落盘路径
 /// - dispose 时释放 Coordinator + 停止 AutosaveService
-///
-/// **Feature Flag**（§2.5 旧 UI 并存）：
-/// - Phase 3.0 期间 `kEnableNewEditor` 默认 false（旧 UI 为主入口）
-/// - Phase 3.1 完成后改为 true
-/// - Phase 3.17 完成后删除旧 UI 代码
 library;
 
 import 'package:flutter/material.dart';
@@ -58,11 +53,15 @@ class EditorPage extends ConsumerStatefulWidget {
   /// 打开的真实 .md 文件路径（文件树 / 重启恢复传入）。null = 演示文档。
   final String? filePath;
 
+  /// 是否只读查看（#330：首页「打开任意 .md」导入的外部文件，不可写回）。
+  final bool readOnly;
+
   /// 选择种子文档（0 = demo1, 1 = demo2, 2 = demo3）。
   final int seedSelector;
 
   const EditorPage({
     super.key,
+    this.readOnly = false,
     this.externalUri,
     this.filePath,
     this.seedSelector = 0,
@@ -132,17 +131,16 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 经 [DocumentRepository.readDocument] 读取 → [MarkdownParser.parse] 解析为块 →
   /// 构造 [InMemoryDocumentEditor]。失败则回退种子文档（不阻断编辑器）。
   ///
-  /// P1 修复（2026-08-04, B-4）：原实现 `catch (_) { _initSeed(...); }` 静默
-  /// 吞掉所有异常（FileNotFound / 权限拒绝 / GBK 解码失败 / 解析崩溃），用户
-  /// 看到的是"打开后变成演示文档"，完全不知发生了什么。修复后：
-  /// - 错误进 observability（captureError，含 path / error 类型）
-  /// - SnackBar 向用户反馈"无法打开文件 X，已加载演示文档"
+  /// P1 修复（2026-08-04, B-4）：加载失败不再静默回退演示文档——错误进
+  /// observability（captureError，含 path / error 类型），SnackBar 向用户反馈
+  /// "无法打开文件 X，已加载演示文档"。
   Future<void> _loadFromFile(String path) async {
     try {
       final repo = ref.read(fileRepositoryProvider);
       final doc = await repo.readDocument(path);
       // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改 provider）。
-      ref.read(currentPathProvider.notifier).state = path;
+      // #330：只读文件不写 currentPathProvider，自动保存对非库内文件 inert。
+      if (!widget.readOnly) ref.read(currentPathProvider.notifier).state = path;
       final elements = MarkdownParser.parse(
         doc.content,
         onError: buildParserErrorHandler(ref, path),
@@ -161,6 +159,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         history: EditorHistory(maxHistorySize: 200),
         observability: ref.read(observabilityProvider),
       );
+      // #330：外部导入文件只读——编辑命令 no-op + UI 只读横幅（同 #240 路径）。
+      if (widget.readOnly) _coordinator.isReadOnly = true;
       _coordinatorReady = true;
       _startAutosave();
     } catch (e, st) {

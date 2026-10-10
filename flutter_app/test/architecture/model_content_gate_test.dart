@@ -22,16 +22,18 @@ void main() {
       const knownOffenders = <String>[
         // 行号维护史：#323 导出 BACK 拦截接线（+1 行）139→140；
         // merge main（#352 resume 守护接线 +6 行）140→146；
-        // #333 接线（persistCallback +2 行）146→147。
+        // #333 接线（persistCallback +2 行）146→147；
+        // #330 压缩 _loadFromFile 注释（-2 行）147→145。
         // 违规行为未变（MarkdownParser.parse 加载方向豁免），仅位置维护。
-        'lib/presentation/editor/editor_page.dart:147',
+        'lib/presentation/editor/editor_page.dart:145',
         // #333-C 同名消歧（itemBuilder +3 行）125→128。违规行为未变，仅位置维护。
         'lib/presentation/screens/file_manager_screen.dart:128',
         // 行号维护史：#242 删搜索按钮（-11 行）282→269；P0-1 恢复搜索按钮
         // （+10 行）269→279；merge origin/main（#283 入口删除冲突消解）→272；
-        // #333-C 同名消歧（+1 行，274 前插 subtitle 计算）272→273。
+        // #333-C 同名消歧（+1 行，274 前插 subtitle 计算）272→273；
+        // #330 _openAnyMd 只读说明注释（+2 行）273→275。
         // 违规行为未变，仅位置维护。
-        'lib/presentation/screens/home_screen.dart:273',
+        'lib/presentation/screens/home_screen.dart:275',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');

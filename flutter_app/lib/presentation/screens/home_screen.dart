@@ -156,7 +156,9 @@ class HomeScreen extends ConsumerWidget {
     }
     if (context.mounted) {
       // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
-      context.go('/editor?path=${Uri.encodeComponent(path)}');
+      // #330：外部导入不可写回原文件（file_picker 在 Android 返回的是应用
+      // 私有缓存副本），按只读查看打开，避免"可编辑但退出即丢"假象。
+      context.go('/editor?path=${Uri.encodeComponent(path)}&readOnly=1');
     }
   }
 

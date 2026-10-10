@@ -71,10 +71,13 @@ final appRouter = GoRouter(
       builder: (context, state) {
         final path = state.uri.queryParameters['path'];
         final externalUri = state.uri.queryParameters['externalUri'];
+        // #330：首页「打开任意 .md」导入的外部文件按只读查看（不可写回原文件）。
+        final readOnly = state.uri.queryParameters['readOnly'] == '1';
         final seedSelector = state.extra is int ? state.extra as int : 0;
         return EditorPage(
           filePath: path,
           externalUri: externalUri,
+          readOnly: readOnly,
           seedSelector: seedSelector,
         );
       },
