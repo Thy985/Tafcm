@@ -1,12 +1,16 @@
 /// P1 验收补充（2026-08-04）：HomeScreen「打开任意 .md 文件」交互测试。
 ///
-/// 覆盖 home_screen.dart 中 `_openAnyMd` 的两条关键路径：
-/// 1. 用户取消选择（FilePicker.pickFiles 返回 null）→ 不导航，无异常。
-/// 2. 用户选择有效 .md 路径 → 调用 `context.push('/editor?path=...')`（P1 修复 2026-08-06：
-///    原 `context.go` 替换整个栈导致编辑器返回按钮无页可 pop，改 `push` 保留返回栈）。
+/// 实现自 #338 起位于 `doc_actions.openAnyMd`（首页与文件页共用），覆盖四条路径：
+/// 1. 入口可被识别（InkWell + 文案）。
+/// 2. 用户取消选择（FilePicker.pickFiles 返回 null）→ 不导航，无异常。
+/// 3. 用户选择有效 .md → `context.go('/editor?path=...&readOnly=1')`（P1 修复
+///    2026-08-09：用 `go` 脱离 ShellRoute 消除编辑器底部常驻导航栏；#330 追加
+///    `readOnly=1`，外部文件不可回写原文件，按只读查看打开）。
+/// 4. 用户选择非 .md → SnackBar「仅支持 .md 文件」并中止导航。
 ///
-/// 同时锁定调用 `FilePicker.platform.pickFiles` 时传入的 `type` / `allowedExtensions`
-/// 参数（防止回归到 `FileType.any` 导致非 .md 文件可选）。
+/// 选择器**刻意**使用 `FileType.any` + Dart 层扩展名校验：P0 修复（2026-08-04
+/// 真机定位）发现 `FileType.custom` + `allowedExtensions:['md']` 在小米 HyperOS
+/// 的 SAF 实现下过滤异常 → 弹窗完全空白，故不用 allowedExtensions 断言。
 ///
 /// FilePicker 通过 `PlatformInterface` 暴露静态 `platform` setter，
 /// 可在测试中注入 mock 子类（见 file_picker 8.3.7 `src/file_picker.dart:30-42`）。
@@ -34,9 +38,8 @@ class _MockFilePicker extends FilePicker {
 
   final FilePickerResult? _result;
 
-  /// 最近一次 pickFiles 调用的参数（用于断言 type / allowedExtensions）。
+  /// 最近一次 pickFiles 调用的 type（用于断言未回归到 FileType.custom）。
   FileType? lastType;
-  List<String>? lastAllowedExtensions;
 
   @override
   Future<FilePickerResult?> pickFiles({
@@ -54,7 +57,6 @@ class _MockFilePicker extends FilePicker {
     bool readSequential = false,
   }) async {
     lastType = type;
-    lastAllowedExtensions = allowedExtensions;
     return _result;
   }
 }
@@ -119,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('P1 验收 HomeScreen._openAnyMd', () {
+  group('P1 验收 openAnyMd（#338 起为 doc_actions 共享实现）', () {
     testWidgets('点击「打开任意 .md 文件」入口可被识别（存在 InkWell + 文案）',
         (tester) async {
       final mockPicker = _MockFilePicker(null);

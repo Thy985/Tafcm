@@ -30,7 +30,7 @@ Future<void> newDoc(WidgetRef ref, BuildContext context) async {
 /// SAF 实现对该配置过滤异常 → 弹窗完全空白。改用 FileType.any 让 SAF 显示
 /// 所有文件，Dart 层校验 .md 扩展名：非 .md 时提示用户并中止。
 /// #330：外部文件不可回写原文件，按只读查看打开（readOnly=1）。
-Future<void> openAnyMd(WidgetRef ref, BuildContext context) async {
+Future<void> openAnyMd(BuildContext context) async {
   final result = await FilePicker.platform.pickFiles(type: FileType.any);
   final path = result?.files.single.path;
   if (path == null) return; // 用户取消

@@ -45,7 +45,7 @@ class FileManagerScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.file_upload_outlined),
             tooltip: '导入 .md 文件',
-            onPressed: () => openAnyMd(ref, context),
+            onPressed: () => openAnyMd(context),
           ),
           IconButton(
             icon: const Icon(Icons.add),

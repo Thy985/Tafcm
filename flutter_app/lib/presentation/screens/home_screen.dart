@@ -91,7 +91,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               SliverToBoxAdapter(
-                child: _OpenAnyMdEntry(onTap: () => openAnyMd(ref, context)),
+                child: _OpenAnyMdEntry(onTap: () => openAnyMd(context)),
               ),
               if (docs.isEmpty)
                 const SliverToBoxAdapter(child: _EmptyHint())
