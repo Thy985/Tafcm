@@ -88,4 +88,7 @@ abstract final class EditorStrings {
 
   /// 链接模板菜单标签。
   static const String templateMenuLink = '链接';
+
+  /// 块级公式模板菜单标签（issue #358：补公式插入入口）。
+  static const String templateMenuFormula = '块级公式';
 }

@@ -52,7 +52,7 @@ void main() {
       expect(find.byTooltip(EditorStrings.templateMenuTooltip), findsOneWidget);
     });
 
-    testWidgets('PopupMenu 展开后显示 8 个模板项', (tester) async {
+    testWidgets('PopupMenu 展开后显示 9 个模板项', (tester) async {
       final id = editor.addParagraph('hello');
       coordinator.setFocus(id);
       await tester.pumpWidget(buildTestWidget());
@@ -62,7 +62,7 @@ void main() {
       await tester.tap(find.byTooltip(EditorStrings.templateMenuTooltip));
       await tester.pumpAndSettle();
 
-      // 验证 8 个模板标签均出现
+      // 验证 9 个模板标签均出现（issue #358 追加块级公式）
       const labels = [
         EditorStrings.templateMenuTable,
         EditorStrings.templateMenuMermaid,
@@ -72,13 +72,14 @@ void main() {
         EditorStrings.templateMenuHorizontalRule,
         EditorStrings.templateMenuImage,
         EditorStrings.templateMenuLink,
+        EditorStrings.templateMenuFormula,
       ];
       for (final label in labels) {
         expect(find.text(label), findsOneWidget, reason: '应显示模板: $label');
       }
     });
 
-    test('8 个模板标签字符串均非空', () {
+    test('9 个模板标签字符串均非空', () {
       const labels = [
         EditorStrings.templateMenuTable,
         EditorStrings.templateMenuMermaid,
@@ -88,6 +89,7 @@ void main() {
         EditorStrings.templateMenuHorizontalRule,
         EditorStrings.templateMenuImage,
         EditorStrings.templateMenuLink,
+        EditorStrings.templateMenuFormula,
       ];
       for (final label in labels) {
         expect(label, isNotEmpty, reason: '模板标签不应为空');
@@ -96,7 +98,7 @@ void main() {
   });
 
   group('Phase 3.3 PR #2C §2.5.1 Templates 常量', () {
-    test('8 个模板常量均非空 + 内容结构正确', () {
+    test('9 个模板常量均非空 + 内容结构正确', () {
       expect(Templates.tableDefault, isNotEmpty);
       expect(Templates.tableDefault, contains('|---|---|'));
       expect(Templates.mermaidDefault, startsWith('```mermaid'));

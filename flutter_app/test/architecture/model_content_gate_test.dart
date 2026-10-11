@@ -23,9 +23,10 @@ void main() {
         // 行号维护史：#323 导出 BACK 拦截接线（+1 行）139→140；
         // merge main（#352 resume 守护接线 +6 行）140→146；
         // #333 接线（persistCallback +2 行）146→147；
-        // #330 压缩 _loadFromFile 注释（-2 行）147→145。
+        // #330 压缩 _loadFromFile 注释（-2 行）147→145；
+        // #340 抽 _attachCoordinator/_importElements 复用（+23 行）145→168。
         // 违规行为未变（MarkdownParser.parse 加载方向豁免），仅位置维护。
-        'lib/presentation/editor/editor_page.dart:145',
+        'lib/presentation/editor/editor_page.dart:168',
         // #338：AppBar 补搜索/导入/新建入口（+20 行）128→148。违规行为未变，仅位置维护。
         'lib/presentation/screens/file_manager_screen.dart:148',
         // 行号维护史：#242 删搜索按钮（-11 行）282→269；P0-1 补回 onSearch 字段
