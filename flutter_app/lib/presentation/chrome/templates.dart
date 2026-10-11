@@ -67,4 +67,23 @@ abstract final class Templates {
   ///
   /// 保持为 ParagraphElement（链接语法为 inline,不触发 Block 转换）。
   static const String linkDefault = '[文本](url)';
+
+  // ============ insert 模式：inline / display 公式（issue #358）============
+
+  /// 块级公式模板（`$$...$$`，display mode）。
+  ///
+  /// issue #358：WYSIWYG 工具栏此前无公式插入入口，用户只能手输 `$$`。
+  /// 走 [TemplateInsertMode.insert]（与图片同理）：insert 经
+  /// `updateSource → TextOperation → toElement → parseInline`，把 `$$...$$`
+  /// 解析为单个 [FormulaElement]（displayMode=true）；[ParagraphBlock]
+  /// `_isPureBlockFormula` 据此委派 [FormulaBlock] 做 Typora 化渲染。
+  ///
+  /// **为何不走 newBlock**：newBlock 把模板包成裸 [TextElement] 后 tryTransform
+  /// 对 `$$` 不触发（无 BlockType.formula 规则），残留为字面文本不渲染
+  /// （见 image_insert_command_test.dart:83-101 的同型回归守门）。
+  ///
+  /// 模板带示例 `E=mc^2`，便于用户感知"光标在此处输入 LaTeX"；清空即为空公式。
+  /// [cursorOffset] = -2 把光标从模板末尾（索引 10）前移到索引 8，
+  /// 即落在 `E=mc^2` 末尾、闭合 `$$` 之前（公式体内）。
+  static const String formulaDisplayDefault = '\$\$E=mc^2\$\$';
 }

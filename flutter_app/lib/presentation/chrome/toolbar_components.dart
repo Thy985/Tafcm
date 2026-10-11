@@ -20,6 +20,7 @@ enum TemplateMenuItem {
   horizontalRule,
   image,
   link,
+  formula,
 }
 
 /// 模板配置（label + template + mode + cursorOffset 聚合,消除冗余 switch）。
@@ -31,7 +32,7 @@ typedef TemplateConfig = ({
   int cursorOffset,
 });
 
-/// 8 种模板的配置清单（§6.3）。
+/// 9 种模板的配置清单（§6.3；issue #358 追加块级公式）。
 const List<TemplateConfig> kTemplateConfigs = [
   (item: TemplateMenuItem.table, label: EditorStrings.templateMenuTable, template: Templates.tableDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
   (item: TemplateMenuItem.mermaid, label: EditorStrings.templateMenuMermaid, template: Templates.mermaidDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
@@ -41,6 +42,10 @@ const List<TemplateConfig> kTemplateConfigs = [
   (item: TemplateMenuItem.horizontalRule, label: EditorStrings.templateMenuHorizontalRule, template: Templates.horizontalRuleDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
   (item: TemplateMenuItem.image, label: EditorStrings.templateMenuImage, template: Templates.imageDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
   (item: TemplateMenuItem.link, label: EditorStrings.templateMenuLink, template: Templates.linkDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
+  // issue #358：块级公式。insert 模式经 parseInline 产出 FormulaElement
+  // (displayMode=true)，段落渲染走 _isPureBlockFormula → FormulaBlock。
+  // cursorOffset -2：光标落在 'E=mc^2' 末尾（索引 8，$$闭合符之前）。
+  (item: TemplateMenuItem.formula, label: EditorStrings.templateMenuFormula, template: Templates.formulaDisplayDefault, mode: TemplateInsertMode.insert, cursorOffset: -2),
 ];
 
 /// 单个格式按钮（紧凑 TextButton + Tooltip）。
