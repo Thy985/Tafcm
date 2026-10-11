@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/constants/app_constants.dart';
 import 'core/observability/observability_service.dart';
 import 'core/router/app_router.dart';
 import 'core/services/external_file_service.dart';
@@ -14,16 +15,6 @@ import 'core/services/storage_migration.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mermaid_host.dart';
 import 'providers/editor_providers.dart';
-
-/// App 版本号（与 pubspec.yaml `version` 保持一致）。
-///
-/// P0 修复（2026-08-04）：用于 [ErrorSnapshotter.setAppInfo]。
-/// 不引入 package_info_plus 依赖（避免包体积增长），版本号变更时
-/// 同步更新此处即可。Phase 3+ 接入动态版本读取时替换为
-/// `await PackageInfo.fromPlatform()`。
-/// ⚠️ 双真相源（pubspec.yaml ↔ 本常量）；Issue #238：每逢发布必须同步，
-/// 建议后续自动从 pubspec 生成 / 加 CI 断言防漂移。
-const String kAppVersion = '0.1.1+2';
 
 /// 是否挂载 Mermaid WebView 渲染宿主（默认开启，产品行为不变）。
 ///
