@@ -38,6 +38,7 @@ import '../../core/editing/block_types.dart';
 import '../../domain/services/export_service.dart';
 import '../../providers/file_repository_provider.dart';
 import '../../providers/providers.dart';
+import 'autosave_service.dart';
 import '../chrome/editor_app_bar.dart';
 import '../theme/app_theme.dart';
 import '../chrome/editor_status_bar.dart';
@@ -89,6 +90,10 @@ class EditorShell extends ConsumerStatefulWidget {
   /// 重命名文档的回调（issue #333-B）。
   final VoidCallback? onRename;
 
+  /// 自动保存服务（issue #340-B）。非空时底栏显示真实保存状态
+  /// （保存中 / 已保存 / 重试中）；null 时不显示保存项（测试 / golden 场景）。
+  final AutosaveService? autosave;
+
   const EditorShell({
     super.key,
     required this.coordinator,
@@ -101,6 +106,7 @@ class EditorShell extends ConsumerStatefulWidget {
     this.onExportTo,
     this.onExportDiagnostics,
     this.onRename,
+    this.autosave,
   });
 
   @override
@@ -273,6 +279,7 @@ class _EditorShellState extends ConsumerState<EditorShell> {
               onZoomIn: _zoomIn,
               onZoomOut: _zoomOut,
               onZoomReset: _zoomReset,
+              autosave: widget.autosave,
             ),
     );
   }

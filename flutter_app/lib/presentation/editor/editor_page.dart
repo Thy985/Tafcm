@@ -28,6 +28,7 @@ import '../../providers/last_opened_path_provider.dart';
 import '../widgets/export_progress_overlay.dart';
 import 'autosave_service.dart';
 import 'doc_file_resume_guard.dart';
+import 'editor_autofocus.dart';
 import 'editor_coordinator.dart';
 import 'editor_export_actions.dart';
 import 'editor_load_helpers.dart';
@@ -93,52 +94,74 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 避免 LateInitializationError：用户在加载完成前导航离开）。
   bool _coordinatorReady = false;
 
+  /// issue #340-C：是否待执行「加载后自动聚焦首块」。
+  /// 三条加载路径置位此标志，待 widget 树与 coordinator 皆就绪
+  /// （[WidgetsBindingObserver.didChangeDependencies]）后触发一次。
+  bool _autoFocusPending = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(_resumeGuardObserver);
-    // 优先级：externalUri > filePath > seedSelector。
-    // externalUri（外部应用打开）和 filePath（文件树）不能并存。
+    // 优先级：externalUri > filePath > seedSelector（不能并存）。
     if (widget.externalUri != null) {
-      // P0 修复（2026-08-04）：外部应用通过 ACTION_VIEW 打开 .md 文件。
-      // 通过 MethodChannel 反向调用 MainActivity.readUriBytes 读取字节流，
-      // 用 decodeBytesAuto 解码（兼容 GBK / UTF-8 BOM），再走正常解析流程。
+      // 外部应用 ACTION_VIEW 打开 .md，经 MethodChannel 读取字节流 + decodeBytesAuto。
       _loadFromExternalUri(widget.externalUri!);
     } else if (widget.filePath != null) {
-      // Phase 3.4.2：接入真实 .md 路径（ADR-0016 / Slice6），激活自动保存落盘。
+      // 真实 .md 路径（ADR-0016 文件树），激活自动保存落盘。
       _loadFromFile(widget.filePath!);
     } else {
       _initSeed(widget.seedSelector);
       _ready = true;
+      _scheduleAutoFocus(); // issue #340-C：同步路径首帧后聚焦。
     }
   }
 
+  /// issue #340-C：加载完成后首帧自动聚焦首块（见 [autoFocusFirstBlockIfPending]）。
+  /// 用 postFrameCallback 等 widget 树构建完成，initState 直接聚焦会被丢弃。
+  void _scheduleAutoFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      autoFocusFirstBlockIfPending(
+        coordinator: _coordinator,
+        pending: _autoFocusPending,
+        setPending: (v) => _autoFocusPending = v,
+      );
+    });
+  }
+
   /// 构造种子 [InMemoryDocumentEditor] 并启动自动保存（演示 / 回退路径）。
-  void _initSeed(int selector) {
-    final editor = buildSeedEditor(selector);
-    final history = EditorHistory(maxHistorySize: 200);
+  void _initSeed(int selector) => _attachCoordinator(buildSeedEditor(selector));
+
+  /// 构造 [EditorCoordinator] + 启动 autosave + 挂起「加载后聚焦首块」（#340-C）。
+  void _attachCoordinator(InMemoryDocumentEditor editor) {
     _coordinator = EditorCoordinator(
       editor: editor,
-      history: history,
+      history: EditorHistory(maxHistorySize: 200),
       observability: ref.read(observabilityProvider),
     );
     _coordinatorReady = true;
+    _autoFocusPending = true;
     _startAutosave();
+  }
+
+  /// 导入解析出的块（跳过 EmptyLineElement 分隔符，BlockRenderer 不支持）。
+  void _importElements(InMemoryDocumentEditor editor, List<DocumentElement> elements) {
+    for (final element in elements) {
+      if (element is EmptyLineElement) continue;
+      editor.insertBlock(editor.blockCount, element);
+    }
   }
 
   /// 异步加载真实 .md 文件（Phase 3.4.2）。
   ///
-  /// 经 [DocumentRepository.readDocument] 读取 → [MarkdownParser.parse] 解析为块 →
-  /// 构造 [InMemoryDocumentEditor]。失败则回退种子文档（不阻断编辑器）。
-  ///
   /// P1 修复（2026-08-04, B-4）：加载失败不再静默回退演示文档——错误进
-  /// observability（captureError，含 path / error 类型），SnackBar 向用户反馈
-  /// "无法打开文件 X，已加载演示文档"。
+  /// observability，SnackBar 向用户反馈"无法打开文件 X，已加载演示文档"。
   Future<void> _loadFromFile(String path) async {
     try {
       final repo = ref.read(fileRepositoryProvider);
       final doc = await repo.readDocument(path);
-      // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改 provider）。
+      // 当前路径需在首帧之后写入 provider（Riverpod 禁止在 build/initState 同步改）。
       // #330：只读文件不写 currentPathProvider，自动保存对非库内文件 inert。
       if (!widget.readOnly) ref.read(currentPathProvider.notifier).state = path;
       final elements = MarkdownParser.parse(
@@ -146,23 +169,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         onError: buildParserErrorHandler(ref, path),
       );
       final editor = InMemoryDocumentEditor(title: doc.title);
-      for (final element in elements) {
-        // EmptyLineElement 是 MarkdownParser 产出的「块分隔符」（空行辅助），
-        // 不是可编辑块。BlockRenderer / LiveEditingState.wordCount 均不支持它，
-        // 若插入会导致打开含空行的 .md 直接崩溃（见 BlockRenderer.build 注释
-        // "EmptyLineElement 不应到达此处"）。加载时直接跳过分隔符。
-        if (element is EmptyLineElement) continue;
-        editor.insertBlock(editor.blockCount, element);
-      }
-      _coordinator = EditorCoordinator(
-        editor: editor,
-        history: EditorHistory(maxHistorySize: 200),
-        observability: ref.read(observabilityProvider),
-      );
+      _importElements(editor, elements);
+      _attachCoordinator(editor);
       // #330：外部导入文件只读——编辑命令 no-op + UI 只读横幅（同 #240 路径）。
       if (widget.readOnly) _coordinator.isReadOnly = true;
-      _coordinatorReady = true;
-      _startAutosave();
     } catch (e, st) {
       // P1 B-4：用户打开文件失败不再静默。
       debugPrint('[EditorPage] _loadFromFile failed: $e\n$st');
@@ -176,63 +186,28 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       if (!mounted) return;
       showFileLoadFailureSnackBar(context, path: path, error: e);
     } finally {
-      if (mounted) setState(() => _ready = true);
+      if (mounted) {
+        setState(() => _ready = true);
+        _scheduleAutoFocus(); // issue #340-C：异步加载完成后首帧聚焦。
+      }
     }
   }
 
   /// 异步加载外部 URI 指向的 .md 文件（P0 修复 2026-08-04）。
-  ///
-  /// 流程：[ExternalFileService.readContent] 通过 MethodChannel 反向调用
-  /// [MainActivity.readUriBytes] 读取字节流 → [decodeBytesAuto] 解码（兼容
-  /// GBK / UTF-8 BOM）→ [MarkdownParser.parse] 解析 → 构造
-  /// [InMemoryDocumentEditor]。
-  ///
-  /// **不设置 [currentPathProvider]**：外部 URI（content://）不可写，
-  /// 自动保存 [_saveDocument] 检测到 path == null 会返回 false（inert），
-  /// 避免向不可写的 URI 写盘导致崩溃。
-  ///
-  /// P1 修复（2026-08-04, B-4）：原 `catch (_) { _initSeed(...); }` 静默吞掉
-  /// MethodChannel 失败 / ContentResolver 读取失败 / 解析崩溃等。修复后：
-  /// - 错误进 observability（captureError，含 uri / error 类型）
-  /// - SnackBar 向用户反馈"无法打开外部文件，已加载演示文档"
+  /// **不设 [currentPathProvider]**（content:// 不可写，autosave inert），
+  /// #240 进入只读查看模式；P1 B-4 加载失败进 observability + SnackBar 告知。
   Future<void> _loadFromExternalUri(String uri) async {
     try {
       final content = await ref.read(externalFileServiceProvider).readContent(uri);
-      // 从 URI 推导标题：取最后一段路径，去掉扩展名。失败兜底"未命名文档"。
-      String title = '未命名文档';
-      try {
-        final decoded = Uri.decodeFull(uri);
-        final lastSegment = decoded.split('/').last;
-        if (lastSegment.isNotEmpty) {
-          // 去掉 query string（content:// URI 可能带 ?xxx=yyy）
-          final name = lastSegment.split('?').first;
-          final dotIndex = name.lastIndexOf('.');
-          title = dotIndex > 0 ? name.substring(0, dotIndex) : name;
-        }
-      } catch (e) {
-        // P1 B-4：标题推导是 best-effort，不影响主流程，仅记录日志。
-        debugPrint('[EditorPage] title derivation failed: $e');
-      }
+      final title = _deriveTitleFromUri(uri);
       final elements = MarkdownParser.parse(
         content,
         onError: buildParserErrorHandler(ref, uri),
       );
       final editor = InMemoryDocumentEditor(title: title);
-      for (final element in elements) {
-        if (element is EmptyLineElement) continue;
-        editor.insertBlock(editor.blockCount, element);
-      }
-      _coordinator = EditorCoordinator(
-        editor: editor,
-        history: EditorHistory(maxHistorySize: 200),
-        observability: ref.read(observabilityProvider),
-      );
-      // #240 P1-B（2026-09-12）：外部 URI（content://）无持久化路径，
-      // 自动保存 inert——若放任编辑，用户误以为已保存、退出即静默丢失。
-      // 进入只读查看模式：编辑命令统一 no-op（isReadOnly），UI 显式提示。
-      _coordinator.isReadOnly = true;
-      _coordinatorReady = true;
-      _startAutosave();
+      _importElements(editor, elements);
+      _attachCoordinator(editor);
+      _coordinator.isReadOnly = true; // 外部 URI 只读查看模式。
     } catch (e, st) {
       // P1 B-4：外部 URI 加载失败不再静默。
       debugPrint('[EditorPage] _loadFromExternalUri failed: $e\n$st');
@@ -246,7 +221,27 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       if (!mounted) return;
       showFileLoadFailureSnackBar(context, path: null, error: e);
     } finally {
-      if (mounted) setState(() => _ready = true);
+      if (mounted) {
+        setState(() => _ready = true);
+        _scheduleAutoFocus(); // issue #340-C：异步加载完成后首帧聚焦。
+      }
+    }
+  }
+
+  /// 从 URI 推导文档标题：取最后一段路径，去掉扩展名。失败兜底"未命名文档"。
+  /// 标题推导是 best-effort，不影响主流程。
+  String _deriveTitleFromUri(String uri) {
+    try {
+      final decoded = Uri.decodeFull(uri);
+      final lastSegment = decoded.split('/').last;
+      if (lastSegment.isEmpty) return '未命名文档';
+      // 去掉 query string（content:// URI 可能带 ?xxx=yyy）
+      final name = lastSegment.split('?').first;
+      final dotIndex = name.lastIndexOf('.');
+      return dotIndex > 0 ? name.substring(0, dotIndex) : name;
+    } catch (e) {
+      debugPrint('[EditorPage] title derivation failed: $e');
+      return '未命名文档';
     }
   }
 
@@ -384,6 +379,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             onExportDiagnostics: () => _exportActions.handleExportDiagnostics(context),
             // issue #333-B：重命名入口（⋮ 菜单 → 重命名对话框 → 立即落盘）。
             onRename: () => _exportActions.handleRename(context),
+            // issue #340-B：注入自动保存服务，底栏显示真实保存状态。
+            autosave: _autosave,
           ),
         ),
       ),

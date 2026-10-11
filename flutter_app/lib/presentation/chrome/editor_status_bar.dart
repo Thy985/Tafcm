@@ -17,8 +17,11 @@
 /// 不 import blocks/ / panels/。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../editor/autosave_service.dart';
 import '../editor/editor_coordinator.dart';
 import '../editor/editor_coordinator_notifiers.dart';
 import '../themes/editor_tokens.dart';
@@ -36,6 +39,11 @@ class EditorStatusBar extends StatefulWidget {
   final VoidCallback? onZoomOut;
   final VoidCallback? onZoomReset;
 
+  /// 自动保存服务（issue #340-B）。非空时底栏显示真实保存状态
+  /// （未保存 / 保存中 / 已保存 / 重试中）；null 时不显示保存项
+  /// （测试 / golden 场景，保持既有渲染不变）。
+  final AutosaveService? autosave;
+
   const EditorStatusBar({
     super.key,
     required this.coordinator,
@@ -43,6 +51,7 @@ class EditorStatusBar extends StatefulWidget {
     this.onZoomIn,
     this.onZoomOut,
     this.onZoomReset,
+    this.autosave,
   });
 
   @override
@@ -85,6 +94,17 @@ class _EditorStatusBarState extends State<EditorStatusBar> {
                     _buildItem('字数: $wordCount'),
                 valueListenable: widget.coordinator.wordCountNotifier,
               ),
+              // issue #340-B：真实保存状态（已保存 / 保存中 / 未保存 / 重试中）。
+              // 此前底栏只有「可撤销/—」「可重做/—」，其中的 `—` 被误读为
+              // 坏掉的保存指示；现显示真实落盘状态，消除"编辑是否安全"的焦虑。
+              // 仅注入 autosave 时渲染（golden / 测试场景保持原渲染不变）。
+              if (widget.autosave != null) ...[
+                const SizedBox(width: 16),
+                _SaveStatusItem(
+                  coordinator: widget.coordinator,
+                  autosave: widget.autosave!,
+                ),
+              ],
               const SizedBox(width: 16),
               // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
               // #246：订阅 undoRedoNotifier，仅 Undo/Redo 可用性变化时重建
@@ -157,6 +177,74 @@ class _EditorStatusBarState extends State<EditorStatusBar> {
       style: const TextStyle(
         fontSize: EditorTokens.statusBarFontSize,
         fontFamily: 'monospace',
+      ),
+    );
+  }
+}
+
+/// 保存状态指示项（issue #340-B）。
+///
+/// 订阅 [AutosaveService.status] 流 + [EditorCoordinator.dirtyNotifier]，
+/// 将两个信号合成真实状态：idle 时需结合 dirty 判断「已保存」还是「未保存」
+/// （idle 本身仅表示"无待处理保存"，不表示"已落盘"）。
+///
+/// 未注入 autosave 时不渲染（null），保持测试 / golden 场景的既有渲染不变。
+class _SaveStatusItem extends StatefulWidget {
+  final EditorCoordinator coordinator;
+  final AutosaveService autosave;
+
+  const _SaveStatusItem({
+    required this.coordinator,
+    required this.autosave,
+  });
+
+  @override
+  State<_SaveStatusItem> createState() => _SaveStatusItemState();
+}
+
+class _SaveStatusItemState extends State<_SaveStatusItem> {
+  AutosaveStatus _status = AutosaveStatus.idle;
+  StreamSubscription<AutosaveStatus>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = widget.autosave.status.listen((s) {
+      if (mounted) setState(() => _status = s);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.coordinator.dirtyNotifier,
+      builder: (context, isDirty, _) => _buildLabel(context, isDirty),
+    );
+  }
+
+  Widget _buildLabel(BuildContext context, bool isDirty) {
+    final tokens = EditorTokens.of(context);
+    final (text, color) = switch (_status) {
+      AutosaveStatus.saving => ('保存中…', tokens.textSecondary),
+      AutosaveStatus.saved => ('已保存', tokens.textSecondary),
+      AutosaveStatus.error => ('保存失败', Theme.of(context).colorScheme.error),
+      AutosaveStatus.retrying => ('重试中…', Theme.of(context).colorScheme.error),
+      AutosaveStatus.idle => isDirty
+          ? ('未保存', tokens.textSecondary)
+          : ('已保存', tokens.textSecondary),
+    };
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: EditorTokens.statusBarFontSize,
+        fontFamily: 'monospace',
+        color: color,
       ),
     );
   }
