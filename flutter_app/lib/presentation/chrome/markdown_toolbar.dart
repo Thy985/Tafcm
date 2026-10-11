@@ -22,6 +22,7 @@ import '../editor/editor_coordinator.dart';
 import '../editor/editor_coordinator_notifiers.dart';
 import '../editor/editor_intent.dart';
 import 'editor_strings.dart';
+import 'formula_insert_flow.dart';
 import 'templates.dart';
 import 'toolbar_components.dart';
 
@@ -166,7 +167,7 @@ class _ToolbarButtons extends StatelessWidget {
       // ADR-0012：以 templateEnabled（lastFocusedId）为准,失焦后仍可插入。
       TemplateMenuButton(
         enabled: templateEnabled,
-        onSelected: templateEnabled ? _handleTemplateSelect : null,
+        onSelected: templateEnabled ? (item) => _handleTemplateSelect(context, item) : null,
       ),
       // 二级：⋯ 溢出菜单收纳次要动作
       _OverflowButton(
@@ -214,11 +215,18 @@ class _ToolbarButtons extends StatelessWidget {
   ///
   /// 图片项在 [pickImage] 已注入时走异步资源导入流程（ADR-0014，
   /// 见 [_handleInsertImage]）；未注入时回退纯模板插入 `![alt](url)`。
-  void _handleTemplateSelect(TemplateMenuItem item) {
+  /// 公式项（issue #358 遗留项）走 [FormulaInsertDialog]：12 预设 + 实时预览 +
+  /// 语法错误提示，避免用户手输 `$$` 定界符出错（见 [showFormulaInsertFlow]）。
+  void _handleTemplateSelect(BuildContext context, TemplateMenuItem item) {
     if (item == TemplateMenuItem.image && pickImage != null) {
       // 异步：选图 → 复制到 assets/ → 插入相对路径。
       // 不 await（onSelected 为 void 回调），用 unawaited 抑制 lint。
       unawaited(_handleInsertImage(pickImage!));
+      return;
+    }
+    if (item == TemplateMenuItem.formula) {
+      // 异步：弹公式插入对话框（预设 + 预览 + 错误态）。
+      unawaited(showFormulaInsertFlow(context, coordinator));
       return;
     }
     // ADR-0012 §Editor Context Preservation：打开模板弹层会抢走编辑器焦点,

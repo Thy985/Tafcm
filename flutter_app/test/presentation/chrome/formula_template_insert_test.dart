@@ -10,6 +10,10 @@
 /// 若误用 newBlock，模板会包成裸 [TextElement] 残留为字面文本、不渲染公式
 /// （见 [image_insert_command_test.dart] 的同型回归守门）。
 ///
+/// **issue #358 遗留项**：`+` 菜单选「块级公式」改为弹 [FormulaInsertDialog]
+/// （12 预设 + 实时预览 + 语法错误提示），确认后才插入——避免手输 `$$`
+/// 定界符出错；插入语义仍为 insert 模式（见上文守门点）。
+///
 /// 独立成文件（非并入 template_menu_test.dart）以守 TC-ARCH-7 单文件 ≤ 400 行。
 library;
 
@@ -26,6 +30,7 @@ import 'package:tafcm/presentation/commands/commands.dart';
 import 'package:tafcm/presentation/editor/editor_coordinator.dart';
 import 'package:tafcm/presentation/editor/editor_intent.dart';
 import 'package:tafcm/presentation/editor/in_memory_document_editor.dart';
+import 'package:tafcm/presentation/widgets/formula_insert_dialog.dart';
 
 void main() {
   late InMemoryDocumentEditor editor;
@@ -119,7 +124,7 @@ void main() {
           equals(1));
     });
 
-    testWidgets(r'`+` 菜单选择「块级公式」→ 插入 $$ 并产生 FormulaElement',
+    testWidgets(r'`+` 菜单选择「块级公式」→ 弹对话框 → 选预设 → 插入 $$ 并产生 FormulaElement',
         (tester) async {
       final id = editor.addParagraph('');
       coordinator.setFocus(id);
@@ -131,16 +136,28 @@ void main() {
       await tester.tap(find.text(EditorStrings.templateMenuFormula));
       await tester.pumpAndSettle();
 
-      // 仍为单块（insert 不新建块），source 含公式定界符。
-      expect(coordinator.blockCount, equals(1));
-      expect(coordinator.sourceOf(id), contains(r'$$E=mc^2$$'));
+      // issue #358 遗留项：公式项弹 FormulaInsertDialog（预设 + 实时预览 + 错误态）。
+      expect(find.byType(FormulaInsertDialog), findsOneWidget,
+          reason: r'公式项应弹插入对话框（替代直接插模板）');
+      // 点击「分数」预设 → 输入框填入 \frac{a}{b} 并显示实时预览。
+      await tester.tap(find.text('分数'));
+      await tester.pumpAndSettle();
+      // 点击「插入」提交。
+      await tester.tap(find.text('插入'));
+      await tester.pumpAndSettle();
 
-      // 光标落在公式体内：$$E=mc^2|$$
-      // template.length=10, 空块 insertOffset=0, cursorOffset=-2 → offset 8
+      // 对话框关闭，公式以 $$ 定界形式插入当前块（仍为单块）。
+      expect(find.byType(FormulaInsertDialog), findsNothing);
+      expect(coordinator.blockCount, equals(1));
+      expect(coordinator.sourceOf(id), contains(r'$$\frac{a}{b}$$'));
+
+      // 光标落在公式体内：$$\frac{a}{b}|$$
+      // template.length=15（$$\frac{a}{b}$$，\frac{a}{b}=11 字符），
+      // 空块 insertOffset=0, cursorOffset=-2 → offset 13
       final sel = coordinator.viewStateOf(id)?.selection;
       expect(sel, isNotNull);
-      expect(sel!.baseOffset, equals(0 + Templates.formulaDisplayDefault.length + (-2)),
-          reason: r'光标应在公式体内（E=mc^2 末尾，闭合 $$ 之前）');
+      expect(sel!.baseOffset, equals(13),
+          reason: r'光标应在公式体内（\frac{a}{b} 末尾，闭合 $$ 之前）');
       expect(sel.extentOffset, equals(sel.baseOffset));
 
       // 渲染契约：纯块级公式段落只含一个 displayMode=true 的 FormulaElement，
