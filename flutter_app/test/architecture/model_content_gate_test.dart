@@ -27,8 +27,9 @@ void main() {
         // #340 抽 _attachCoordinator/_importElements 复用（+23 行）145→168。
         // 违规行为未变（MarkdownParser.parse 加载方向豁免），仅位置维护。
         'lib/presentation/editor/editor_page.dart:168',
-        // #338：AppBar 补搜索/导入/新建入口（+20 行）128→148。违规行为未变，仅位置维护。
-        'lib/presentation/screens/file_manager_screen.dart:148',
+        // #338：AppBar 补搜索/导入/新建入口（+20 行）128→148；
+        // #341 术语统一注释（+1 行）148→149。违规行为未变，仅位置维护。
+        'lib/presentation/screens/file_manager_screen.dart:149',
         // 行号维护史：#242 删搜索按钮（-11 行）282→269；P0-1 补回 onSearch 字段
         // 与注释（+10 行）269→279，注意该 commit 声称「按钮恢复」但 Icons.search
         // 从未重新渲染，故 #242 的关闭理由不成立（详见 #338）；
@@ -36,9 +37,9 @@ void main() {
         // #333-C 同名消歧（+1 行，274 前插 subtitle 计算）272→273；
         // #330 _openAnyMd 只读说明注释（+2 行）273→275；
         // #338 抽 doc_actions.dart 删除 _openAnyMd/_newDoc（-42 行）275→233；
-        // #338 _Header 真正补回 Icons.search 按钮（+7 行）233→240。
-        // 违规行为未变，仅位置维护。
-        'lib/presentation/screens/home_screen.dart:240',
+        // #338 _Header 真正补回 Icons.search 按钮（+7 行）233→240；
+        // #341 术语统一注释（+1 行）240→241。违规行为未变，仅位置维护。
+        'lib/presentation/screens/home_screen.dart:241',
       ];
       final hits = <String>[];
       final dir = Directory('lib/presentation');

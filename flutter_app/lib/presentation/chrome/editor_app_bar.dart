@@ -143,7 +143,8 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Phase 3.4.1：目录（大纲）抽屉开关
         IconButton(
           icon: const Icon(Icons.list_alt),
-          tooltip: '目录',
+          // issue #341：目录 → 大纲（术语三义统一：文件/大纲）。
+          tooltip: '大纲',
           visualDensity: VisualDensity.compact,
           constraints: const BoxConstraints(
             minWidth: 40,
@@ -267,7 +268,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: ListTile(
                   leading: Icon(Icons.bug_report),
                   title: Text('导出诊断数据'),
-                  subtitle: Text('调试用 zip'),
+                  // issue #341：不暴露 zip / 可观测性等工程术语——明示为排查问题用、
+                  // 含运行日志的高级入口（避免与正式功能混排且术语难懂）。
+                  subtitle: Text('排查问题用 · 含运行日志'),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -277,7 +280,9 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: ListTile(
                 leading: Icon(Icons.history),
                 title: Text('切换到旧版编辑器'),
-                subtitle: Text('fallback · 迁移期保留'),
+                // issue #341：删除 "fallback" 工程术语，改平实用户语言
+                //（是否移除该入口属产品决策，见 #341 备注）。
+                subtitle: Text('临时保留的旧版界面 · 后续版本移除'),
                 dense: true,
                 contentPadding: EdgeInsets.zero,
               ),

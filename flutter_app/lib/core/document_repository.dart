@@ -17,7 +17,7 @@ abstract class DocumentRepository {
   /// 读取指定路径的文档。
   Future<Document> readDocument(String path);
 
-  /// 新建文档：生成 uuid 文件名，返回路径。
+  /// 新建文件：生成 uuid 文件名，返回路径。
   Future<String> createDocument(String title, String content);
 
   /// 写入（upsert）：保留已有 id / createdAt，刷新 updatedAt。

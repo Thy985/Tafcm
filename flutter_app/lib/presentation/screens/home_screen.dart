@@ -176,8 +176,9 @@ class _Header extends StatelessWidget {
               GhostButton(
                 icon: Icons.add,
                 onTap: onNew,
-                tooltip: '新建文档',
-                semanticLabel: '新建文档',
+                // issue #341：新建文档 → 新建文件（与「文件」Tab 术语统一）。
+                tooltip: '新建文件',
+                semanticLabel: '新建文件',
               ),
             ],
           ),

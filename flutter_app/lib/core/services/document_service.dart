@@ -40,7 +40,7 @@ class DocumentService {
     final now = DateTime.now();
     final doc = Document(
       id: _uuid.v4(),
-      title: title.isEmpty ? '未命名文档' : title,
+      title: title.isEmpty ? '未命名文件' : title,
       content: content,
       createdAt: now,
       updatedAt: now,
