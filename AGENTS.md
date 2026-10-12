@@ -54,7 +54,7 @@ main.dart        App 入口
 
 - 服务类构造函数注入，不写 `class.service()` 风格的全局静态方法
 - 例外：现有 `MarkdownExporter` / `PdfExporter` / `WordExporter` 已是 facade 静态，重写前不动
-- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:67-83](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L67-83)）
+- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:70-86](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L70-86)）
 
 ---
 
@@ -125,7 +125,7 @@ import '../../data/models/document.dart';
 
 - 业务级 Provider 放 `domain/providers/`
 - UI 全局状态放 `providers/`
-- **禁止在多个文件定义同名 Provider**——2026-08-30 已修复（PR #282 删除 `providers/providers.dart` 中与 `providers/editor_providers.dart` 重复的 `sharedPreferencesProvider` / `darkModeProvider` 定义；现存唯一源见 [editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart)），由 [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门
+- **禁止在多个文件定义同名 Provider**——2026-08-30 已修复（PR #282 移除 `providers/providers.dart` 中与 `providers/editor_providers.dart` 重复的 `sharedPreferencesProvider` / `darkModeProvider` 两个定义；`providers.dart` 本身**保留**，继续承载 `documentsProvider` / `currentDocumentProvider` 等业务 Provider，仅不再定义这两个重复项；现存唯一源见 [editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart)），由 [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门
 
 ### 3.3 状态不可变性
 
@@ -142,9 +142,9 @@ import '../../data/models/document.dart';
 
 ## 4. 数据访问规范
 
-### 4.1 单一真相源（目标状态，当前未达成）
+### 4.1 单一真相源（已达成）
 
-**目标（已达成）**：`.md` 文件作为文档唯一存储，`formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']` 已废弃。
+`.md` 文件作为文档唯一存储，`formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']` 已废弃。
 
 **理由**：见 [docs/decisions/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)。
 
@@ -157,13 +157,13 @@ import '../../data/models/document.dart';
 
 ### 4.3 编码兜底
 
-- 所有从外部读取的字节流必须走 [file_service.dart:13-41](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L13-41) `decodeBytesAuto`
+- 所有从外部读取的字节流必须走 [file_service.dart:52-79](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L52-79) `decodeBytesAuto`
 - 禁止直接 `utf8.decode(bytes)` —— 中国用户的 .md 常含 GBK 字节
 
 ### 4.4 错误传播
 
 - 服务层抛业务异常（`ExportException` / `FileImportException` 等），不抛 raw `Exception`
-- UI 层通过 [export_service.dart:261-348](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L261-348) `classifyError` 映射到 `ExportFailure` 枚举
+- UI 层通过 [export_service.dart:335-422](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L335-422) `classifyError` 映射到 `ExportFailure` 枚举
 - **禁止把 `detail`（含 source/offset/stack）直接显示给用户** —— 已落地：Phase 1 修复 `f6a73af`（见 [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/error/message_friendly_test.dart)），legacy `EditorScreen._userMessageFor` 现对 `detail` 统一 `_clip(detail, 60)` 脱敏后再展示，不显示异常类名 / 堆栈
 
 ---
@@ -345,7 +345,7 @@ docs/                        四层信息架构（人类入口 / 工程真相 / 
 ├── product/                 产品真相（PRODUCT / UX-GUIDE / TYPORA-GAP / CAPABILITY-STATUS）
 ├── architecture/            架构真相（ARCHITECTURE / EDITOR-MODEL / EXPORT-MODEL / UI-*）
 ├── engineering/             工程真相（BASELINE / GATE-REPORT / DEVELOPMENT-RULES / WORKFLOW / VERIFICATION-POLICY / QA-PIPELINES 等 14 篇）
-├── decisions/               决策真相（INDEX 状态表 + ADR/ 33 篇）
+├── decisions/               决策真相（INDEX + REVIEW-BACKLOG + ADR/ 33 篇，共 35 篇）
 │   └── ADR/                 架构决策记录（每条决策一份；0010 跳号占位，0026/0027 编号预留未创建，0025/0032 存在编号重复待治理）
 ├── contracts/               任务契约
 ├── design/                  设计文档
@@ -895,20 +895,20 @@ D:\Projects\Active\math2\
 │   ├── product/                  # 产品真相（7 篇）
 │   ├── architecture/             # 架构真相（8 篇）
 │   ├── engineering/              # 工程真相（14 篇）
-│   ├── decisions/                # 决策真相（INDEX + ADR/ 33 篇）
+│   ├── decisions/                # 决策真相（INDEX + REVIEW-BACKLOG + ADR/ 33 篇，共 35 篇）
 │   ├── principles/               # 稳定工程原则（4 篇）
 │   ├── guides/                   # 开发指南（3 篇）
 │   ├── contracts/                # 任务契约（16 篇）
 │   ├── design/                   # 设计文档（2 篇）
 │   ├── releases/                 # Release notes（11 篇）
 │   ├── articles/                 # 对外宣传文章（2 篇）
-│   ├── knowledge-inventory/      # 知识盘点（9 篇）
+│   ├── knowledge-inventory/      # 知识盘点（10 篇 md）
 │   ├── agent-audit/              # Maintainer 每日审计（32 篇）
 │   ├── agent-investigations/     # Agent 深度调查（2 篇）
 │   ├── agent-supervision/        # 独立监督者周报（5 篇）
-│   ├── regression/               # 回归用例包（13 篇）
+│   ├── regression/               # 回归用例包（7 篇 md + 6 个 json）
 │   ├── evidence/                 # 证据索引（2 篇）
-│   ├── assets/                   # 文档资产（2 篇）
+│   ├── assets/                   # 文档资产（0 篇 md，2 张截图）
 │   └── archive/                  # 历史档案（58 篇，含 35 篇 RUN 报告）
 ├── formulafix-redesign.design/   # 设计稿（HTML，18 个 tracked）
 ├── skills/                       # Skills 目录（tracked）
@@ -1012,3 +1012,4 @@ python -m pytest cli_anything/ffx/tests/test_core.py -v
 **本文档由首席架构工程师维护，版本 v0.5，生效日期 2026-10-12（本轮对齐 Phase 3.12 信息架构落地、v0.2.0 发布后实况；上版 v0.4 生效 2026-08-17）。**
 <!-- 新增 §12-15：Bug Fix Protocol / Testing / Project Architecture / CLI Conventions -->
 <!-- v0.5：§0 阶段定位（ADR-0026 措辞 / Phase 3.12 / v0.2.0+3）、§3.2 与 §4.1-4.4 编辑器与存储现状、§7 与 §14.1 目录清单与计数、§10 阻塞项收口、§13.1 测试计数 -->
+<!-- v0.5 后续修订（同 PR feb4dac 之后的追加 commit）：§3.2 明确 providers.dart 保留、§4.1 标题与正文一致化（已达成）、§1.3/§4.3/§4.4 三处代码行号引用修正为实测范围、§7 与 §14.1 统一"篇"= md 文件口径（knowledge-inventory 10 / regression 7 md+6 json / assets 0 md / decisions 35 篇） -->

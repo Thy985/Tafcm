@@ -3,6 +3,8 @@
 > **触发**：基于 [EXTERNAL-PROJECTS-EMPOWERMENT-PLAN.md](../product/EXTERNAL-PROJECTS-EMPOWERMENT-PLAN.md) §8-11 的调查结论，Human Owner 要求调研 4 个参考项目（Markor / Markwon / Jota / SoloMD）的测试体系，升级本项目测试体系。
 > **分析基线**：`feat/firebase-appbar-e2e` @ `8f76f51`（2026-09-11）
 > **性质**：规划文档（Analysis + Plan，零代码改动）。执行须按 AGENTS.md 走 PR 流程。
+>
+> **⚠️ 测试计数基线注（2026-10-12 补）**：本文所有"192 个测试文件"均为**分析基线 `8f76f51`（2026-09-11）时口径**，保留以维持论证上下文。截至 2026-10-12，实测已增至 **242 个 `*_test.dart`**（`flutter_app/test`）+ 54 个 integration test；golden 文件 14 → 15（新增 `pixel_region_sampling_test.dart`，U10 试点）。文中"7%"等比例为基线时计算，随基数变化会失效，勿作为当前比例引用。
 
 ---
 

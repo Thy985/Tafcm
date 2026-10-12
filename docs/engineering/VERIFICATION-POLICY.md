@@ -14,10 +14,10 @@
 | 门禁 | 命令 | 备注 |
 |------|------|------|
 | Analyze | `flutter analyze --no-fatal-infos --fatal-warnings` | 裸 analyze 只把 warning 当 info，本地可能漏检 |
-| Test | `flutter test`（全量，~1700 用例） | Windows 本机受 cmd 命令行长度限制 → 分块跑 |
+| Test | `flutter test`（全量，约 2200 用例） | 2026-10-12 实测 `test()`+`testWidgets()` 共 2168 处；Windows 本机受 cmd 命令行长度限制 → 分块跑 |
 | Build | `flutter build apk --debug` + `flutter build web` | 两平台 |
 | Contract Sync | `ffx contract-sync` | contracts/ 与矩阵自洽 |
-| CLI 测试 | `cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/` | 170+ 用例 |
+| CLI 测试 | `cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/` | 165 个 test 函数（2026-10-12 实测） |
 
 ## 证据等级（Evidence Strength，RUN-013 冻结）
 

@@ -8,7 +8,7 @@
 
 ---
 
-## 1. 顶层文档（6 篇 md + 2 篇历史引用锚点）
+## 1. 顶层文档（6 篇 md + 若干历史引用锚点）
 
 > docs/ 根目录下实际 6 篇 md：`README.md` / `INDEX.md` / `ENGINEERING.md` / `ROADMAP.md` / `INFO-ARCHITECTURE-DESIGN.md` / `MIGRATION-MAP.md`。
 > 下方 §1.1-1.5 沿用历史锚点形式列出曾置于顶层、现已按四层信息架构归位到子目录的关键文档（保持链接可达）。
@@ -190,7 +190,7 @@
 
 - 顶层 md：6 篇（README / INDEX / ENGINEERING / ROADMAP / INFO-ARCHITECTURE-DESIGN / MIGRATION-MAP）
 - architecture：8 篇 | product：7 篇 | engineering：14 篇
-- decisions：INDEX 1 篇 + ADR/ 33 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇
+- decisions：INDEX 1 篇 + REVIEW-BACKLOG 1 篇 + ADR/ 33 篇（共 35） | contracts：16 篇 | design：2 篇 | releases：11 篇
 - principles：4 篇 | guides：3 篇 | articles：2 篇 | knowledge-inventory：10 篇
 - agent-audit：32 篇 | agent-investigations：2 篇 | agent-supervision：5 篇
 - regression：7 篇 | evidence：2 篇 | assets：0 篇 md（2 张截图）
