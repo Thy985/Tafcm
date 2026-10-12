@@ -8,7 +8,11 @@
 
 ---
 
-## 决策状态总表（29 篇）
+## 决策状态总表（33 篇 ADR 文件）
+
+> **编号治理提示（2026-10-12 记录，待 Owner 决定）**：
+> - `0026` / `0027` 编号已预留但 ADR 文件尚未创建（0026 原计划为 ADI v0.3 Change Impact Analysis，见 ROADMAP §3.8）。
+> - `0025` 与 `0032` 存在编号重复：按 `0025b` / `0032a` / `0032b` 后缀区分（沿用既有 `0025b` 先例），**未重命名文件**以避免破坏既有链接；是否合并 / 弃用 / 重新编号由 Human Owner 决定。
 
 > **ADR 归档规则**（2026-08-30 治理轮确立）：
 > - `Accepted`（决定当前行为）→ 保留原位。
@@ -50,6 +54,8 @@
 | [0030](ADR/0030-ffx-verification-orchestrator.md) | FFX Verification Orchestrator | Accepted | ✅ VALID | Phase 3.10 根决策 |
 | [0031](ADR/0031-rebrand-tafcm.md) | 品牌改名（FormulaFix → Tafcm） | Superseded by 0033（部分：命名有效，定位叙述以 0033 为准） | ✅ VALID | 取代 ADR-0001 §1；L0+L1+L2 已落地（2026-08-29） |
 | [0033](ADR/0033-product-positioning-convergence.md) | 产品定位收敛（T/F/M 用户侧，A/C 降级工程差异化） | Proposed | ✅ VALID | #243 Human Owner 决策（2026-09-12）；README 五维→三维；合并即 Accepted |
+| [0032a](ADR/0032-export-assembly-finite-guarantee.md) | 导出装配有限保证 | Proposed | ⚪ 待 Owner 审批 | 编号重复项之一（见上方编号治理提示） |
+| [0032b](ADR/0032-audit-frontier-incremental-audit.md) | 审计前沿增量审计（Doubao Supervisor，SUP-03） | Draft | ⚪ 待审 | 编号重复项之一（见上方编号治理提示） |
 
 ---
 

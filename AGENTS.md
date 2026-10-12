@@ -14,10 +14,10 @@
 - 不是"通用笔记 App"，而是 **以公式 / 图表 / 学术写作为特色** 的专业写作工具
 - 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
-**当前阶段定位**：Phase 0-2 及 2.8/2.9 已关闭；Phase 3.0-3.7（EditorShell / WYSIWYG / 输入体验 / TOC·主题·导出·文件树 / 设计系统对齐 / 公式渲染 / E2E / 可观测）已全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 已合入（v0.3 拆至 ADR-0026）；Phase 3.10 FFX Verification Orchestrator 经 Final Gate G0-G12 全通过后关闭；**Phase 3.11 Capability Hardening Loop 已于 2026-08-22 经 Human Owner 判定关闭**。2026-08-25 治理轮（PR #167-#172）完成 .gitignore / preflight / 根目录清理 / 分支审计 / 本清单同步。
-**当前位置**：Phase 3 系列收尾完毕，Phase 4 未启动，处于**阶段间空档期**。产品侧已知缺口以 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](docs/product/TYPORA-GAP-ANALYSIS.md) §3-4 为准（表格单元格可视化编辑 / HTML 导出 / 源码视图切换等）+ 未启动的 3.4.10 选区格式化菜单；下一步立项由 Human Owner 决定。  
+**当前阶段定位**：Phase 0-2 及 2.8/2.9 已关闭；Phase 3.0-3.7（EditorShell / WYSIWYG / 输入体验 / TOC·主题·导出·文件树 / 设计系统对齐 / 公式渲染 / E2E / 可观测）已全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 已合入（v0.3 Change Impact Analysis 待论证——编号 0026 已预留但 ADR 尚未创建，见 [ROADMAP §3.8](docs/ROADMAP.md)）；Phase 3.9 审计收口完成；Phase 3.10 FFX Verification Orchestrator 经 Final Gate G0-G12 全通过后关闭；**Phase 3.11 Capability Hardening Loop 已于 2026-08-22 经 Human Owner 判定关闭**；Phase 3.12 Info Architecture（信息架构收尾：`docs/ENGINEERING.md` 工程手册 + `principles/` / `guides/` + Agent audit / supervision 体系）已于 2026-09 合入 main（设计见 [docs/INFO-ARCHITECTURE-DESIGN.md](docs/INFO-ARCHITECTURE-DESIGN.md)）。2026-08-25 治理轮（PR #167-#172）完成 .gitignore / preflight / 根目录清理 / 分支审计 / 本清单同步；2026-09-26 P0 批次（PR #294）关闭阶段状态矛盾（Issue #287）。
+**当前位置**：Phase 3 系列收尾完毕，Phase 4 未启动，处于**阶段间空档期**。首个对外版本 **v0.2.0+3** 已于 2026-10 发布（用户视角见 [CHANGELOG.md](CHANGELOG.md)）。产品侧已知缺口以 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](docs/product/TYPORA-GAP-ANALYSIS.md) §3-4 为准（表格单元格可视化编辑 / HTML 导出 / 源码视图切换等）+ 未启动的 3.4.10 选区格式化菜单；下一步立项由 Human Owner 决定。  
 **当前阶段禁区**：空档期内不启动新大阶段功能；架构决策一律先落 ADR；UI Prototype Freeze 已随 Phase 3 UI 重写完成而结束（ROADMAP Phase 0 定义"UI 在 Phase 3 重新实现"已发生）。  
-*（本节由 docs/align-phase-status PR 对齐至 2026-08-26 实况；§6.5 等历史阶段条款如与本节冲突，以本节为准。）*
+*（本节最后对齐至 2026-10-12 实况；§6.5 等历史阶段条款如与本节冲突，以本节为准。）*
 
 ---
 
@@ -54,7 +54,7 @@ main.dart        App 入口
 
 - 服务类构造函数注入，不写 `class.service()` 风格的全局静态方法
 - 例外：现有 `MarkdownExporter` / `PdfExporter` / `WordExporter` 已是 facade 静态，重写前不动
-- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:67-83](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L67-83)）
+- 测试时通过 `MarkdownExporter.register({...})` 注入 fake（见 [export_service.dart:70-86](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L70-86)）
 
 ---
 
@@ -125,7 +125,7 @@ import '../../data/models/document.dart';
 
 - 业务级 Provider 放 `domain/providers/`
 - UI 全局状态放 `providers/`
-- **禁止在多个文件定义同名 Provider**（当前 [providers/providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart) 重复定义 `sharedPreferencesProvider` / `darkModeProvider`，是 bug，待 P0 重构修复）
+- **禁止在多个文件定义同名 Provider**——2026-08-30 已修复（PR #282 移除 `providers/providers.dart` 中与 `providers/editor_providers.dart` 重复的 `sharedPreferencesProvider` / `darkModeProvider` 两个定义；`providers.dart` 本身**保留**，继续承载 `documentsProvider` / `currentDocumentProvider` 等业务 Provider，仅不再定义这两个重复项；现存唯一源见 [editor_providers.dart](file:///d:/Projects/Active/math2/flutter_app/lib/providers/editor_providers.dart)），由 [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门
 
 ### 3.3 状态不可变性
 
@@ -136,15 +136,15 @@ import '../../data/models/document.dart';
 ### 3.4 Provider dispose
 
 - 资源持有型 Provider（WebView、Stream、Timer）必须实现 `autoDispose` 或显式清理
-- 当前 [editor_screen.dart:51-65](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L51-65) 在 `dispose` 中清空静态缓存是 hack，待 WYSIWYG 重构后移除
+- 历史遗留：[editor_screen.dart](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart) 在 `dispose` 中清空静态缓存（现 `_clearExportCaches()`）。该文件已于 Phase 3 WYSIWYG 重写后标 `@Deprecated`（legacy 单 TextField 编辑器，DEBT-035，仅经 `/editor-legacy` fallback 路由保留一个 release 周期），正式编辑器为 `EditorPage`——不再投入重构，迁移期结束后随 legacy 路由一并移除
 
 ---
 
 ## 4. 数据访问规范
 
-### 4.1 单一真相源（目标状态，当前未达成）
+### 4.1 单一真相源（已达成）
 
-**目标**：`.md` 文件作为文档唯一存储，废弃 `formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']`。
+`.md` 文件作为文档唯一存储，`formula_fix_documents.json` 与 `SharedPreferences['pref_last_content']` 已废弃。
 
 **理由**：见 [docs/decisions/ADR/0003-storage-single-source-md-files.md](file:///d:/Projects/Active/math2/docs/decisions/ADR/0003-storage-single-source-md-files.md)。
 
@@ -153,18 +153,18 @@ import '../../data/models/document.dart';
 ### 4.2 服务层访问
 
 - UI 不直接调 `DocumentService`，必须通过 `domain/providers/document_provider.dart` 的 Provider
-- 例外：`EditorScreen` 当前直接调 `FileService` 是历史遗留，重构时下沉到 Provider
+- 例外：legacy `EditorScreen`（已 `@Deprecated`，DEBT-035，仅经 `/editor-legacy` fallback 路由保留）仍直接调 `FileService`（`_importFile` / `loadFromPath`）。它不再投入重构，迁移期结束后随 legacy 路由一并移除；新增/正式页面（`EditorPage` 及后续）一律走 Provider，不得新增同类例外
 
 ### 4.3 编码兜底
 
-- 所有从外部读取的字节流必须走 [file_service.dart:13-41](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L13-41) `decodeBytesAuto`
+- 所有从外部读取的字节流必须走 [file_service.dart:52-79](file:///d:/Projects/Active/math2/flutter_app/lib/core/services/file_service.dart#L52-79) `decodeBytesAuto`
 - 禁止直接 `utf8.decode(bytes)` —— 中国用户的 .md 常含 GBK 字节
 
 ### 4.4 错误传播
 
 - 服务层抛业务异常（`ExportException` / `FileImportException` 等），不抛 raw `Exception`
-- UI 层通过 [export_service.dart:261-348](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L261-348) `classifyError` 映射到 `ExportFailure` 枚举
-- **禁止把 `detail`（含 source/offset/stack）直接显示给用户** —— 当前 [editor_screen.dart:230-253](file:///d:/Projects/Active/math2/flutter_app/lib/presentation/screens/editor_screen.dart#L230-253) 违反此规则，待 P1 修复
+- UI 层通过 [export_service.dart:335-422](file:///d:/Projects/Active/math2/flutter_app/lib/domain/services/export_service.dart#L335-422) `classifyError` 映射到 `ExportFailure` 枚举
+- **禁止把 `detail`（含 source/offset/stack）直接显示给用户** —— 已落地：Phase 1 修复 `f6a73af`（见 [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math2/flutter_app/test/error/message_friendly_test.dart)），legacy `EditorScreen._userMessageFor` 现对 `detail` 统一 `_clip(detail, 60)` 脱敏后再展示，不显示异常类名 / 堆栈
 
 ---
 
@@ -317,12 +317,14 @@ PR 描述必须包含：
 
 ```
 .agent/                        AI 工程治理层
+├── CURRENT-STATE.md           ★ 当前阶段状态（Agent 进项目第一站：现在做什么 / 下一步）
 ├── REPO_POLICY.md             ★ 安全层总纲：四层根因模型、文件索引、事故登记
 ├── ENVIRONMENT.md             ★ 仓库物理边界事实（repo root / flutter_app 是子目录）
 ├── GIT_RULES.md               ★ git 红黄绿三级禁令 + 例外授权 + 损坏应急 SOP
 ├── COMMAND_SAFETY.md          ★ 危险命令清单 + 三条强制前置 + 变量展开陷阱
 ├── AI_POLICY.md               Agent 身份、权限、行为协议
 ├── GIT_POLICY.md              分支/PR/merge 权限边界
+├── tafcm-maintainer/          Cline Maintainer Agent 规范与运行配置
 ├── tools/
 │   └── guard.sh               机器强制层：assert_safe_target / nested / doctor
 ├── context/
@@ -335,16 +337,26 @@ docs/                        四层信息架构（人类入口 / 工程真相 / 
 ├── README.md                人类导航（按阅读目的：新人 / 改代码 / 决策 / 验证 / 历史）
 ├── INDEX.md                 全量索引
 ├── ROADMAP.md               路线图（Phase 0-4）
+├── ENGINEERING.md           ★ 工程手册（唯一工程入口）
+├── INFO-ARCHITECTURE-DESIGN.md  信息架构设计（Phase 3.12）
+├── MIGRATION-MAP.md         目录迁移映射
+├── principles/              稳定工程原则（4 篇：engineering / architecture / testing / agent）
+├── guides/                  开发指南（development / testing / debugging）
 ├── product/                 产品真相（PRODUCT / UX-GUIDE / TYPORA-GAP / CAPABILITY-STATUS）
 ├── architecture/            架构真相（ARCHITECTURE / EDITOR-MODEL / EXPORT-MODEL / UI-*）
-├── engineering/             工程真相（BASELINE / GATE-REPORT / RULES / WORKFLOW / VERIFICATION-POLICY）
-├── decisions/               决策真相（INDEX 状态表 + ADR/ 29 篇）
-│   └── ADR/                 架构决策记录（每条决策一份）
+├── engineering/             工程真相（BASELINE / GATE-REPORT / DEVELOPMENT-RULES / WORKFLOW / VERIFICATION-POLICY / QA-PIPELINES 等 14 篇）
+├── decisions/               决策真相（INDEX + REVIEW-BACKLOG + ADR/ 33 篇，共 35 篇）
+│   └── ADR/                 架构决策记录（每条决策一份；0010 跳号占位，0026/0027 编号预留未创建，0025/0032 存在编号重复待治理）
 ├── contracts/               任务契约
 ├── design/                  设计文档
 ├── releases/                11 篇 release notes
+├── articles/                对外宣传文章（csdn / wechat）
+├── knowledge-inventory/     知识盘点（含 re-archaeology / evidence_map）
+├── agent-audit/             Maintainer Agent 每日审计报告
+├── agent-investigations/    Agent 深度调查记录
+├── agent-supervision/       独立监督者周报（W36-W40）
 ├── regression/              回归用例包（BUG-001~003）
-├── evidence/                证据索引（capability / visual / consumer）
+├── evidence/                证据索引（performance 等）
 └── archive/                 历史档案（audits / runs / spikes / investigations / old-designs / governance）
 ```
 
@@ -444,8 +456,10 @@ ADI 复用 Phase 3.7 已建成的采集能力，不重新采集证据。CLI 入�
 
 | 问题 | 修复 Phase | 跟踪 |
 |------|----------|------|
-| 编辑/预览分离模式 | Phase 3 UI Implementation | [ROADMAP 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md) |
-| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](docs/archive/audits/CRITICAL-REVIEW.md) |
+| 编辑/预览分离模式 | Phase 3 UI Implementation（已完成） | ~~[ROADMAP 3.1](file:///d:/Projects/Active/math2/docs/ROADMAP.md)~~ 已由 Phase 3 WYSIWYG 收尾取代——现为单一所见即所得编辑面，无"编辑/预览"双模式（ADR-0033 用户侧 T/F/M 定位）；legacy `EditorScreen`（编辑/预览分离）标 `@Deprecated` 保留 fallback 一个 release 周期 |
+| 静态状态污染测试 | Phase 2（已收尾） | [CRITICAL_REVIEW §8.5](docs/archive/audits/CRITICAL-REVIEW.md)——Phase 3 WYSIWYG 重写后 Provider 化改造完成；残留静态缓存（如 `MermaidService._cache`）已登记为已知遗留，见 §6.1.7 |
+
+> **状态注**（2026-10-12 对齐）：上表两项的宿主阶段（Phase 2 / Phase 3）均已关闭，无新增未修阻塞项；新增债务一律登记到 [ENGINEERING-BASELINE.md](docs/engineering/ENGINEERING-BASELINE.md) 的 DEBT 表，不再累积到本表。
 
 新增代码不得延续以上问题，必须按目标架构编写。
 
@@ -816,9 +830,9 @@ Reproduce → Collect Evidence → Find Root Cause → Fix → Regression Protec
 | 命令 | 用途 | 备注 |
 |------|------|------|
 | `flutter analyze --no-fatal-infos --fatal-warnings` | Analyze 门禁 | 必须用此精确命令，裸 `flutter analyze` 不把 warning 当 error |
-| `flutter test` | 全量 unit/widget test | 185 个 *_test.dart / ~1700+ 用例（2026-08-26 实测），全量需 3-5 min+ |
+| `flutter test` | 全量 unit/widget test | 242 个 `*_test.dart`（2026-10-12 `git ls-files flutter_app/test` 实测），全量需 3-5 min+ |
 | `flutter test test/<dir>/<file>_test.dart` | 单文件测试 | 短耗时，适合迭代验证 |
-| `ffx test` | ffx-cli 测试 | 170+ pytest 用例（与 §14.1 树注一致），改 CLI 后必跑 |
+| `ffx test` | ffx-cli 测试 | `cli_anything/ffx/tests/` 下 pytest 用例（8 个 test 文件，改 CLI 后必跑；用例数为历史口径，以 `python -m pytest cli_anything/ffx/tests/ -q` 输出为准） |
 | `ffx adi doctor` | ADI 自检 | 跑 ADI 前必做 |
 
 ### 13.2 已知超时风险
@@ -843,101 +857,103 @@ cd flutter_app && flutter test 2>&1 | tee /tmp/flutter_test.log
 
 ### 14.1 整体结构
 
-> **同步时间**：2026-08-25（PR-5 `docs/sync-top-level-inventory-2026-08-25`）
-> **依据**：`git ls-tree --name-only HEAD` 实测（2026-08-25 治理轮 PR #167-#172 执行结果为准；原 `REPO_AUDIT_2026-08-25.md` v4 报告未入库，本节以实测与治理轮执行为权威）
-> **tracked 顶层**（17 个）：`.agent` `.arts` `.githooks` `.github` `AGENTS.md` `LICENSE` `README.md` `contracts` `design-system` `docs` `flutter_app` `formulafix-redesign.design` `skills` `tests` `tools` + 2 git 元数据文件 `.gitattributes` `.gitignore`
-> **ignored 顶层**（10 个，gitignore 拦截）：`.adi` `.claude/hooks.log` `.codeartsdoer` `.debug` `.ffx` `.openwiki` `.wt` `.workbuddy` `flutter_app/build/` `flutter_app/.dart_tool/` + 等等
-> **临时 untracked**（通常应忽略）：`.atomcode/memory.md`（preflight Windows fix 备忘，待后续 PR 评估）
+> **同步时间**：2026-10-12（本 PR `docs/fix-doc-drift-2026-10`；上轮同步 2026-08-25 PR-5 `docs/sync-top-level-inventory-2026-08-25`）
+> **依据**：`git ls-tree --name-only HEAD` 实测（2026-10-12）+ Phase 3.12 信息架构落地结果
+> **tracked 顶层**（18 个）：`.agent` `.githooks` `.github` `.gitattributes` `.gitignore` `AGENTS.md` `CHANGELOG.md` `CONTRIBUTING.md` `LICENSE` `README.md` `contracts` `design-system` `docs` `flutter_app` `formulafix-redesign.design` `skills` `tests` `tools`
+> **ignored 顶层**（gitignore 拦截，不入库）：`.adi` `.arts` `.claude/hooks.log` `.codeartsdoer` `.debug` `.ffx` `.openwiki` `.wt` `.workbuddy` `flutter_app/build/` `flutter_app/.dart_tool/` `openwiki/` 等
+> **注意**：上轮清单中的 `.arts/` 实为 gitignore 目录，此处已纠正；`CHANGELOG.md` / `CONTRIBUTING.md` 为 2026-08-30 后新增 tracked 文件
 
 ```
 D:\Projects\Active\math2\
-├── .agent/                       # AI 工程治理层（REPO_POLICY.md 等 6 份规范）
+├── .agent/                       # AI 工程治理层
+│   ├── CURRENT-STATE.md          # 当前阶段状态（Agent 进项目第一站）
 │   ├── AI_POLICY.md              # Agent 身份 / 权限 / 行为协议
 │   ├── COMMAND_SAFETY.md         # 危险命令清单 + 三条强制前置
 │   ├── ENVIRONMENT.md            # 仓库物理边界事实（repo root / flutter_app 是子目录）
 │   ├── GIT_POLICY.md             # 分支/PR/merge 权限边界
 │   ├── GIT_RULES.md              # git 红黄绿三级禁令
 │   ├── REPO_POLICY.md            # 安全层总纲
+│   ├── tafcm-maintainer/         # Cline Maintainer Agent 规范
 │   ├── context/                  # 分级上下文加载规则
 │   ├── templates/                # task-contract / commit message 模板
 │   ├── tools/                    # guard.sh 机器强制层
 │   └── state/                    # 运行时状态（gitignore，不入库）
 ├── .githooks/                    # Git hooks（core.hooksPath 指向）
 ├── .github/
-│   └── workflows/                # CI workflow（ci.yml / branch-cleanup.yml / openwiki-update.yml 等）
-├── .arts/                        # Arts 工具配置（settings.json，gitignore）
-├── .adi/                         # ADI 运行时数据（gitignore）
-├── .ffx/                         # ffx-cli 失败工件 + 缓存（gitignore）
-├── .workbuddy/                   # WorkBuddy 工具产物（gitignore）
-├── .wt/                          # worktree 占位（gitignore）
-├── .codeartsdoer/                # IDE 工具目录（gitignore）
-├── .claude/                      # Claude Code 项目级配置
-│   ├── settings.json             # 项目级 hooks 配置（tracked）
-│   └── hooks.log                 # 运行时日志（gitignore）
+│   └── workflows/                # CI workflow（ci / branch-cleanup / issue-triage / tafcm-maintainer / cline-pr-review）
+├── .gitattributes                # 行尾规范化（LF 优先）
+├── .gitignore                    # 7 类规则（PR-1 起草 + PR-2 增量）
 ├── contracts/                    # 任务契约文件（11 个 tracked）
 ├── design-system/                # 设计 tokens 源（tracked）
 ├── docs/                         # 文档体系（四层信息架构，详见 INFO-ARCHITECTURE-DESIGN.md）
 │   ├── README.md                 # 人类入口导航（按阅读目的）
-│   ├── INDEX.md                  # 全量索引
+│   ├── INDEX.md                  # 全量索引（224 篇 md）
 │   ├── ROADMAP.md                # 路线图（Phase 0-4）
-│   ├── INFO-ARCHITECTURE-DESIGN.md  # 信息架构设计
+│   ├── ENGINEERING.md            # ★ 工程手册（唯一工程入口）
+│   ├── INFO-ARCHITECTURE-DESIGN.md  # 信息架构设计（Phase 3.12）
 │   ├── MIGRATION-MAP.md          # 目录迁移映射
-│   ├── product/                  # 产品真相（PRODUCT / UX-GUIDE / TYPORA-GAP / CAPABILITY-STATUS）
-│   ├── architecture/             # 架构真相（ARCHITECTURE / EDITOR-MODEL / EXPORT-MODEL / UI-*）
-│   ├── engineering/              # 工程真相（BASELINE / GATE-REPORT / RULES / WORKFLOW / VERIFICATION-POLICY）
-│   ├── decisions/                # 决策真相（INDEX 状态表 + ADR/ 29 篇）
-│   ├── contracts/                # 任务契约
-│   ├── design/                   # 设计文档
-│   ├── releases/                 # 11 篇 release notes
-│   ├── regression/               # 回归用例包（BUG-001~003）
-│   ├── evidence/                 # 证据索引（capability / visual / consumer）
-│   ├── assets/                   # 文档资产
-│   └── archive/                  # 历史档案（audits / runs / spikes / investigations / old-designs / governance）
+│   ├── product/                  # 产品真相（7 篇）
+│   ├── architecture/             # 架构真相（8 篇）
+│   ├── engineering/              # 工程真相（14 篇）
+│   ├── decisions/                # 决策真相（INDEX + REVIEW-BACKLOG + ADR/ 33 篇，共 35 篇）
+│   ├── principles/               # 稳定工程原则（4 篇）
+│   ├── guides/                   # 开发指南（3 篇）
+│   ├── contracts/                # 任务契约（16 篇）
+│   ├── design/                   # 设计文档（2 篇）
+│   ├── releases/                 # Release notes（11 篇）
+│   ├── articles/                 # 对外宣传文章（2 篇）
+│   ├── knowledge-inventory/      # 知识盘点（10 篇 md）
+│   ├── agent-audit/              # Maintainer 每日审计（32 篇）
+│   ├── agent-investigations/     # Agent 深度调查（2 篇）
+│   ├── agent-supervision/        # 独立监督者周报（5 篇）
+│   ├── regression/               # 回归用例包（7 篇 md + 6 个 json）
+│   ├── evidence/                 # 证据索引（2 篇）
+│   ├── assets/                   # 文档资产（0 篇 md，2 张截图）
+│   └── archive/                  # 历史档案（58 篇，含 35 篇 RUN 报告）
 ├── formulafix-redesign.design/   # 设计稿（HTML，18 个 tracked）
-├── openwiki/                     # OpenWiki 证据索引（gitignore, 由 GitHub Action 生成）
 ├── skills/                       # Skills 目录（tracked）
 ├── tests/                        # 顶层测试目录（tracked）
 ├── tools/                        # 工具链
-│   ├── ffx-cli/                  # Python CLI（诊断 + ADI wrapper + markdown analysis）
+│   ├── ffx-cli/                  # Python CLI（诊断 + ADI wrapper + markdown analysis，95 个 tracked）
 │   │   └── cli_anything/ffx/
 │   │       ├── ffx_cli.py        # Click 入口，--json/--project/--dry-run/--root
 │   │       ├── core/             # project / adi_wrapper / session / contract_sync / docx_qa
 │   │       ├── harness/          # 验证 / 评估 / 编排 / E8 视觉语义
 │   │       ├── adapters/         # assets / base / formula / markdown / word / serializer
 │   │       ├── utils/            # helpers
-│   │       └── tests/            # 170+ pytest cases passing
+│   │       └── tests/            # pytest 用例（改 CLI 后必跑）
 │   └── adi/                      # Agent Diagnostic Interface（Dart CLI）
 │       └── adi.dart
 ├── flutter_app/                  # Tafcm Flutter App（主项目）
-│   ├── lib/                      # 业务代码（六层架构）
+│   ├── lib/                      # 业务代码（六层架构，196 个 .dart）
 │   │   ├── main.dart
 │   │   ├── core/                 # 基础设施（parser / renderers / services / router / utils）
 │   │   ├── data/                 # 数据模型（Document / Template）
 │   │   ├── domain/               # 业务领域（导出服务 / 业务 Provider）
 │   │   ├── providers/            # 全局 Riverpod Provider
 │   │   └── presentation/         # UI 组件、屏幕、主题
-│   ├── test/                     # Unit + Widget tests（185 个测试文件 / ~1700+ 用例）
-│   ├── integration_test/         # E2E tests（Android 模拟器 + 真机）
+│   ├── test/                     # Unit + Widget tests（242 个 *_test.dart）
+│   ├── integration_test/         # E2E tests（54 个 .dart）
 │   ├── tool/                     # preflight.sh / wsl_golden.sh
 │   ├── docs/                     # Flutter 侧文档
-│   └── pubspec.yaml
+│   └── pubspec.yaml              # tafcm 0.2.0+3
 ├── AGENTS.md                     # AI 协作开发强制规范（本文件）
+├── CHANGELOG.md                  # 用户视角版本记录（Keep a Changelog）
+├── CONTRIBUTING.md               # 贡献指南
 ├── README.md
-├── LICENSE
-├── .gitignore                    # 7 类规则（PR-1 起草 + PR-2 增量）
-└── .gitattributes
+└── LICENSE
 ```
 
 #### 14.1.1 目录治理策略（v3 报告 §0.2 七维标准）
 
 | 类别 | 治理方式 | 当前状态 |
 |------|---------|---------|
-| tracked source（业务代码） | intentional 跟踪 | ✅ main 已跟踪 17 个顶层 |
+| tracked source（业务代码） | intentional 跟踪 | ✅ main 已跟踪 18 个顶层（2026-10-12 实测） |
 | project assets（设计稿 / 契约 / tokens / hooks） | intentional 跟踪 | ✅ design-system / contracts / formulafix-redesign.design / skills / tests / .githooks / .claude/settings.json 全部 tracked |
 | runtime artifacts（.adi / .ffx / .workbuddy / .wt / openwiki / debug） | **gitignore 拦截** | ✅ PR-1 + PR-2 .gitignore 规则覆盖 |
 | one-shot artifacts（ui_dump.xml / 一次性根目录 md） | **删除 + gitignore 防再生** | ✅ PR-2 已 git rm 3 个 + ignore /CLAUDE.md / **/ui_dump.xml |
 | generated artifacts（openwiki/、CI logs） | **明确生成策略 + ignore** | ✅ openwiki/ 由 OpenWiki GitHub Action 生成，已 ignore |
-| docs | current（PR-5 已同步 §14.1） | ✅ 本 PR 提交 |
+| docs | current | ✅ 2026-10-12 本 PR 已同步 §14.1（tracked 18 个顶层 / docs 224 篇 md / ADR 33 篇） |
 | branches | separate governed state | ✅ PR-4 已删 4 本地 + 6 远端 ref |
 
 ### 14.2 技术栈速查
@@ -975,7 +991,7 @@ ffx project info --json -p project.json
 修改 ffx-cli 后**必须**执行：
 
 ```bash
-# 跑全量 CLI 测试（170+ 用例，与 §14.1 一致）
+# 跑全量 CLI 测试（用例数以 pytest 输出为准）
 cd tools/ffx-cli && python -m pytest cli_anything/ffx/tests/ -v
 
 # 或单测某个模块
@@ -993,5 +1009,7 @@ python -m pytest cli_anything/ffx/tests/test_core.py -v
 
 ---
 
-**本文档由首席架构工程师维护，版本 v0.4，生效日期 2026-08-17。**
+**本文档由首席架构工程师维护，版本 v0.5，生效日期 2026-10-12（本轮对齐 Phase 3.12 信息架构落地、v0.2.0 发布后实况；上版 v0.4 生效 2026-08-17）。**
 <!-- 新增 §12-15：Bug Fix Protocol / Testing / Project Architecture / CLI Conventions -->
+<!-- v0.5：§0 阶段定位（ADR-0026 措辞 / Phase 3.12 / v0.2.0+3）、§3.2 与 §4.1-4.4 编辑器与存储现状、§7 与 §14.1 目录清单与计数、§10 阻塞项收口、§13.1 测试计数 -->
+<!-- v0.5 后续修订（同 PR feb4dac 之后的追加 commit）：§3.2 明确 providers.dart 保留、§4.1 标题与正文一致化（已达成）、§1.3/§4.3/§4.4 三处代码行号引用修正为实测范围、§7 与 §14.1 统一"篇"= md 文件口径（knowledge-inventory 10 / regression 7 md+6 json / assets 0 md / decisions 35 篇） -->
