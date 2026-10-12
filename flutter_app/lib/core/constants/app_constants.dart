@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 
+/// App 版本号（关于页 / ErrorSnapshotter 展示用）。
+///
+/// 不引入 package_info_plus 依赖（避免包体积增长），版本号变更时同步更新此处即可。
+/// ⚠️ 双真相源（pubspec.yaml ↔ 本常量）；Issue #238：每逢发布必须同步，
+/// 建议后续自动从 pubspec 生成 / 加 CI 断言防漂移。
+const String kAppVersion = '0.1.1+2';
+
 class AppColors {
   AppColors._();
 

@@ -23,6 +23,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../domain/services/export_service.dart';
 import '../editor/editor_coordinator.dart';
 import '../theme/app_theme.dart';
@@ -315,7 +316,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// 处理 PopupMenu 选择。
   ///
-  /// - `about`：显示 AboutDialog（Phase 3.1-A PR #2 占位实现）
+  /// - `about`：显示 AboutDialog（issue #339：真实版本号 + 中文文案）
   /// - `rename`：触发重命名对话框（issue #333-B，经 [onRename] 回调）
   /// - `export_diagnostics`：触发诊断数据导出（Phase 3.7.3）
   /// - `legacy`：跳转到 `/editor-legacy`（旧 EditorScreen fallback）
@@ -325,8 +326,8 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         showAboutDialog(
           context: context,
           applicationName: 'Tafcm',
-          applicationVersion: 'Phase 3.3',
-          applicationLegalese: 'WYSIWYG 编辑器 · Phase 3.0+',
+          applicationVersion: kAppVersion,
+          applicationLegalese: 'WYSIWYG 编辑器 · 支持公式、图表与学术写作',
         );
         break;
       case 'rename':
