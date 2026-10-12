@@ -1,8 +1,8 @@
 /// issue #338 回归测试：FileManagerScreen 自服务入口。
 ///
 /// 背景：「文件」Tab 是应用的主实体列表页，原实现只有 AppBar 标题 + 列表，
-/// 没有任何新建 / 导入入口 —— 用户必须跨 Tab 回首页才能发起新建文档。
-/// QA 实测（冷启动落点 = 文件 Tab）：新建文档需 3 步（跨 Tab 才能发起）。
+/// 没有任何新建 / 导入入口 —— 用户必须跨 Tab 回首页才能发起新建文件。
+/// QA 实测（冷启动落点 = 文件 Tab）：新建文件需 3 步（跨 Tab 才能发起）。
 ///
 /// 本测试锁定四件事：
 /// 1. AppBar 存在搜索 / 导入 / 新建三个可点入口（tooltip 标签稳定）。
@@ -136,7 +136,7 @@ void main() {
 
       expect(find.byTooltip('搜索'), findsOneWidget);
       expect(find.byTooltip('导入 .md 文件'), findsOneWidget);
-      expect(find.byTooltip('新建文档'), findsOneWidget);
+      expect(find.byTooltip('新建文件'), findsOneWidget);
     });
 
     testWidgets('点搜索入口进 /search', (tester) async {
@@ -158,7 +158,7 @@ void main() {
       // 用户取消选择 → 停留在文件页
       expect(find.text('文件'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('新建文档'));
+      await tester.tap(find.byTooltip('新建文件'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       // 新建成功 → 跳到 /editor 占位
@@ -207,7 +207,7 @@ void main() {
 
       expect(find.byTooltip('搜索'), findsOneWidget);
       expect(find.byTooltip('导入 .md 文件'), findsOneWidget);
-      expect(find.byTooltip('新建文档'), findsOneWidget);
+      expect(find.byTooltip('新建文件'), findsOneWidget);
       // 文档标题正常渲染，入口未把列表挤掉
       expect(find.text('测试文档'), findsOneWidget);
     });

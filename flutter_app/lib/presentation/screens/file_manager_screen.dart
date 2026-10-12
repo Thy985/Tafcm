@@ -49,7 +49,8 @@ class FileManagerScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '新建文档',
+            // issue #341：新建文档 → 新建文件（术语统一）。
+            tooltip: '新建文件',
             onPressed: () => newDoc(ref, context),
           ),
         ],

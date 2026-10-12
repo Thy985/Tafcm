@@ -58,7 +58,7 @@ class StorageMigration {
         final updatedAt = _parseDate(d['updatedAt']) ?? DateTime.now();
         final title = (d['title'] as String?)?.isNotEmpty == true
             ? d['title'] as String
-            : '未命名文档';
+            : '未命名文件';
         final content = (d['content'] as String?) ?? '';
         final md = FrontMatterParser.build(
           id: id,

@@ -91,7 +91,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (path == null) return;
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer(const Duration(milliseconds: 500), () async {
-      final title = _extractTitle(text) ?? '未命名文档';
+      final title = _extractTitle(text) ?? '未命名文件';
       try {
         await ref
             .read(fileRepositoryProvider)
@@ -162,7 +162,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       final repo = ref.read(fileRepositoryProvider);
       var path = ref.read(currentPathProvider);
-      final title = _extractTitle(text) ?? '未命名文档';
+      final title = _extractTitle(text) ?? '未命名文件';
       if (path == null) {
         path = await repo.createDocument(title, text);
         ref.read(currentPathProvider.notifier).state = path;

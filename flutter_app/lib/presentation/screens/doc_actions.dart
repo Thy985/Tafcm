@@ -17,7 +17,7 @@ import '../../providers/file_repository_provider.dart';
 /// 新建库内文档并进入编辑器。
 Future<void> newDoc(WidgetRef ref, BuildContext context) async {
   final repo = ref.read(fileRepositoryProvider);
-  final path = await repo.createDocument('未命名文档', '# 未命名文档\n\n');
+  final path = await repo.createDocument('未命名文件', '# 未命名文件\n\n');
   // P1 修复（2026-08-09）：go 替换路由，脱离 ShellRoute 消除底部导航栏。
   if (context.mounted) context.go('/editor?path=${Uri.encodeComponent(path)}');
 }

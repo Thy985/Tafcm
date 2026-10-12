@@ -67,7 +67,7 @@ class EditorExportActions {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('导出诊断数据失败（可观测性未启用）')),
+        const SnackBar(content: Text('导出诊断数据失败（诊断服务未就绪）')),
       );
     }
   }
@@ -91,8 +91,8 @@ class EditorExportActions {
     final markdown = coordinator.editor.allSources.join('\n');
     // issue #327：导出文件名（及 PDF 元数据 title / 分享 subject）跟随用户
     // 当前可见的标题块内容，而非加载时从存储层文档名取的 coordinator.title
-    // 快照——标题块改为 `qa: export/doc` 后旧值仍是「未命名文档」。
-    // 无 H1 标题块时 fallback 到存储层文档名（新文档为「未命名文档」）。
+    // 快照——标题块改为 `qa: export/doc` 后旧值仍是「未命名文件」。
+    // 无 H1 标题块时 fallback 到存储层文档名（新文档为「未命名文件」）。
     final title =
         coordinator.editor.titleFromContent ?? coordinator.title;
     final isDark = ref.read(themeModeProvider) == AppThemeMode.dark;
@@ -257,7 +257,7 @@ class _RenameDialogState extends State<_RenameDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(hintText: '文档名称'),
+        decoration: const InputDecoration(hintText: '标题'),
         onSubmitted: (_) => _pop(true),
       ),
       actions: [

@@ -228,20 +228,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     }
   }
 
-  /// 从 URI 推导文档标题：取最后一段路径，去掉扩展名。失败兜底"未命名文档"。
+  /// 从 URI 推导文档标题：取最后一段路径，去掉扩展名。失败兜底「未命名文件」。
   /// 标题推导是 best-effort，不影响主流程。
   String _deriveTitleFromUri(String uri) {
     try {
       final decoded = Uri.decodeFull(uri);
       final lastSegment = decoded.split('/').last;
-      if (lastSegment.isEmpty) return '未命名文档';
+      if (lastSegment.isEmpty) return '未命名文件';
       // 去掉 query string（content:// URI 可能带 ?xxx=yyy）
       final name = lastSegment.split('?').first;
       final dotIndex = name.lastIndexOf('.');
       return dotIndex > 0 ? name.substring(0, dotIndex) : name;
     } catch (e) {
       debugPrint('[EditorPage] title derivation failed: $e');
-      return '未命名文档';
+      return '未命名文件';
     }
   }
 

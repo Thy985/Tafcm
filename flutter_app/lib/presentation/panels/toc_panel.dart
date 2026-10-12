@@ -128,7 +128,8 @@ class TocPanel extends StatelessWidget {
         children: [
           DrawerHeader(
             child: Text(
-              '目录',
+              // issue #341：目录 → 大纲（术语三义统一：文件/大纲）。
+              '大纲',
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),

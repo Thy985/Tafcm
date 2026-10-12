@@ -76,7 +76,7 @@ class FileRepository implements DocumentRepository {
         (meta?['id']?.isNotEmpty == true) ? meta!['id']! : _stem(path);
     final createdAt = _parseDate(meta?['createdAt']) ?? fallbackModified;
     final updatedAt = _parseDate(meta?['updatedAt']) ?? fallbackModified;
-    final title = _extractTitle(body) ?? '未命名文档';
+    final title = _extractTitle(body) ?? '未命名文件';
     final doc = Document(
       id: id,
       title: title,
@@ -167,7 +167,7 @@ class FileRepository implements DocumentRepository {
     return _parseEntry(path, raw, stat.modified).doc;
   }
 
-  /// 新建文档：生成 uuid 文件名，写入带 front matter 的 .md，返回路径。
+  /// 新建文件：生成 uuid 文件名，写入带 front matter 的 .md，返回路径。
   @override
   Future<String> createDocument(String title, String content) async {
     final id = const Uuid().v4();
