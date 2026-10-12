@@ -19,6 +19,7 @@ import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
 import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
+import 'formula_collector.dart';
 import 'word_ooxml_builder.dart';
 import '../word_ooxml_templates.dart';
 
@@ -138,6 +139,13 @@ class WordExporter {
             ));
           },
         );
+        // 不变量：公式预渲染结束后 phase2Done 必须等于 inline + block 去重
+        // 总数（= allFormulas.length，因 register 已按复合 key 去重）。
+        // 它当前只在 `if (block.isNotEmpty)` 内赋值是安全的：inline 为空时
+        // 块批必然为空（两者同源派生自 allFormulas），inline.length 为 0 使
+        // 赋值幂等；块批非空时该分支必执行。若将来 block 的派生方式变化
+        // （如按 fontSize 再分批），此不变量随之破坏——请同步调整此处，
+        // 否则 Mermaid 阶段从过期值 ++，进度曲线先跳再回退（review P1）。
         phase2Done = inline.length + block.length;
       }
     }
@@ -332,44 +340,11 @@ class WordExporter {
       );
     }
 
-    void walkInline(List<InlineElement> children) {
-      for (final c in children) {
-        if (c is FormulaElement) register(c.latex, c.displayMode);
-      }
-    }
-
-    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归，
-    // 不遍历则深层列表项内公式漏收集 → cachedBytes miss（review round-3）。
-    void walkList(ListElement list) {
-      walkInline(list.children);
-      for (final n in list.nested) {
-        walkList(n);
-      }
-    }
-
-    if (element is ParagraphElement) {
-      walkInline(element.children);
-    } else if (element is ListElement) {
-      walkList(element);
-    } else if (element is TableElement) {
-      // #326：与 PdfExporter.collectAllFormulas 同口径覆盖 table headers + cells，
-      // 不再依赖 set 兜底（原 set 丢失 displayMode 维度）。
-      for (final h in element.headers) {
-        walkInline(h);
-      }
-      for (final row in element.rows) {
-        for (final cell in row) {
-          walkInline(cell);
-        }
-      }
-    } else if (element is BlockquoteElement) {
-      walkInline(element.children);
-    } else if (element is HeadingElement) {
-      // review P2：标题 inline AST 内可含公式，不收集则 cachedBytes miss →
-      // Word 导出文本 fallback。
-      walkInline(element.children);
-    } else if (element is TaskListItemElement) {
-      walkInline(element.children);
+    // #364：元素类型分派收敛到 blockFormulas（共享 dispatcher）——三处收集器
+    // 曾各维护一份类型分支，#326 的 P2 与 round-3 三次漏补都源于此。本方法
+    // 只保留 Word 专属的 rel 登记逻辑（复合 key 去重 + rIdImageN 顺序编号）。
+    for (final f in blockFormulas(element)) {
+      register(f.latex, f.displayMode);
     }
   }
 
