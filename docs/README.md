@@ -36,8 +36,8 @@
 
 | 目的 | 入口 |
 |------|------|
-| 决策状态总表（含归档规则） | [decisions/INDEX.md](decisions/INDEX.md)（30 篇 ADR 状态：Accepted / Superseded / Proposed） |
-| 具体决策全文 | [decisions/ADR/](decisions/ADR/)（0001-0031） |
+| 决策状态总表（含归档规则） | [decisions/INDEX.md](decisions/INDEX.md)（33 篇 ADR 状态：Accepted / Superseded / Proposed） |
+| 具体决策全文 | [decisions/ADR/](decisions/ADR/)（0001-0033；0026/0027 编号预留未创建，0025/0032 编号重复待治理） |
 
 ## 我需要验证一个功能
 
@@ -79,14 +79,19 @@ docs/
 ├── guides/                ★ Guides 层（怎么做——开发 / 测试 / 调试）
 │   ├── development.md  testing.md  debugging.md
 │
-├── architecture/          Assets 层（系统怎么工作）
-├── decisions/             Assets 层（为什么做这些选择：INDEX + ADR/ 30 篇）
-├── design/  product/      Assets 层（产品定义与设计）
-├── engineering/           Assets 层（工程记录，原则已提炼至 principles/ 后逐步降级）
+├── architecture/          Assets 层（系统怎么工作，8 篇）
+├── decisions/             Assets 层（为什么做这些选择：INDEX + ADR/ 33 篇）
+├── design/  product/      Assets 层（产品定义与设计，2 + 7 篇）
+├── engineering/           Assets 层（工程记录，原则已提炼至 principles/ 后逐步降级，14 篇）
 │
-├── contracts/  regression/  evidence/   L3 证据层
-├── releases/              L3 历史验证报告
-└── archive/               L4 历史档案（runs / audits / spikes / investigations / old-designs / governance）
+├── contracts/  regression/  evidence/   L3 证据层（16 + 7 + 2 篇）
+├── releases/              L3 历史验证报告（11 篇）
+├── articles/              对外宣传文章（2 篇）
+├── knowledge-inventory/   知识盘点（10 篇）
+├── agent-audit/           Maintainer Agent 每日审计（32 篇）
+├── agent-investigations/  Agent 深度调查（2 篇）
+├── agent-supervision/     独立监督者周报（5 篇）
+└── archive/               L4 历史档案（58 篇，含 35 篇 RUN 报告）
 ```
 
 ## 知识层级（L0-L5）

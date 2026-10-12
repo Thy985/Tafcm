@@ -5,7 +5,9 @@
 
 ---
 
-## Phase 0：工程化 + UI Prototype Freeze（当前阶段）
+## Phase 0：工程化 + UI Prototype Freeze（✅ 已完成，2026-07）
+
+> **阶段状态（2026-10-12）**：本阶段全部任务已关闭（见下表 ✅）。UI Prototype Freeze 已随 Phase 3 UI 重写完成而结束——当前 UI 为 Phase 3 重写的正式产品界面，不再是原型。当前项目处于 Phase 3 收尾后的**阶段间空档期**（见 [当前阶段](#当前阶段)）。
 
 **目标**：建立工程基础设施，让项目可构建、可测试、可协作；冻结当前 UI 作为重构基线。
 
@@ -642,7 +644,7 @@ Tafcm 当前状态：
 | 3.8.1 | **v0.1 Core**：4 个核心命令（`adi latest-error` / `adi trace show` / `adi replay` / `adi agent-context`）+ Extract `replay_engine` 到 `core/replay/` | P0 | ✅ PR #133（2026-08-11） |
 | 3.8.2 | **v0.1.1 工程化收尾**：`.adi/` Storage 完整实现 + `schema_version` + 架构守门 + `.gitignore` + LIGHT 隐私守门 + 6 个测试文件 | P0 | ✅ PR #134 |
 | 3.8.3 | **v0.2 验证闭环**：`adi validate --after-fix`（Replay + Invariant）+ `adi failures list`（index.json 索引）+ 保留窗口清理 | P1 | ✅ PR #134 |
-| 3.8.4 | **v0.3 Change Impact Analysis** | P2 | ⏳ 拆为独立 ADR-0026 |
+| 3.8.4 | **v0.3 Change Impact Analysis** | P2 | ⏳ 编号 0026 已预留但 ADR-0026 尚未创建（待立项论证） |
 | 3.8.5 | **真机闭环验证**：真机 APK 采集 + `adi replay` reproduced + `adi validate --after-fix` pass（见 ADR-0024 §9 E2E-ADI-005） | P0 | 🟡 首次执行：v0.1 标准 5 步全 PASS；v0.2 `replay→reproduced` 受 AS-RG.1（replay 证据录制）阻塞，安全网行为验证正确。详见 [E2E-ADI-005 真机闭环验证报告](file:///d:/Projects/Active/math2/docs/releases/adi-e2e-005-realdevice-verification-report.md) |
 
 ### 退出条件
@@ -866,6 +868,34 @@ Golden Loop 逐层覆盖：
 
 ---
 
+## Phase 3.12：Info Architecture（信息架构收尾）
+
+> **状态**：✅ **已关闭（2026-09）**——信息架构设计见 [docs/INFO-ARCHITECTURE-DESIGN.md](INFO-ARCHITECTURE-DESIGN.md)；工程手册与原则/指南分层已合入 main。
+
+**目标**：把 Phase 0-3.11 期间累积的散乱文档收敛为四层信息架构（人类入口 / 工程真相 / 历史档案 / 机器资产），并建立 Agent 监督与审计体系。
+
+### 已完成项
+
+| # | 任务 | 状态 |
+|---|------|------|
+| 3.12.1 | `docs/ENGINEERING.md` 工程手册（唯一工程入口，L0-L5 地图） | ✅ 2026-08-30 |
+| 3.12.2 | `docs/principles/`（4 篇稳定工程原则：engineering / architecture / testing / agent） | ✅ 2026-08-30 |
+| 3.12.3 | `docs/guides/`（3 篇开发指南：development / testing / debugging） | ✅ 2026-08-30 |
+| 3.12.4 | `docs/INFO-ARCHITECTURE-DESIGN.md` 设计文档 | ✅ 2026-08-27（Proposed，随落地追认） |
+| 3.12.5 | Maintainer Agent 每日审计体系（`docs/agent-audit/` + `.agent/tafcm-maintainer/`） | ✅ 2026-09-01 起每日产出 |
+| 3.12.6 | 独立监督者周报（`docs/agent-supervision/`，W36-W40，至 2026-10-02） | ✅ |
+| 3.12.7 | 阶段状态矛盾收口（PR #294 关闭 Issue #287） | ✅ 2026-09-26 |
+| 3.12.8 | 首个对外发布 v0.2.0+3（135 commit，versionCode 2→3） | ✅ 2026-10 |
+
+### 退出条件
+
+- [x] 四层信息架构落地（README 人类入口 / ENGINEERING 工程真相 / archive 历史档案 / .agent 机器资产）
+- [x] Principles + Guides 分层建立，工程文档逐步降级
+- [x] Agent 审计 / 监督体系可追溯产出
+- [x] 阶段状态与当前实况一致（Phase 3 系列全部收尾）
+
+---
+
 ## Phase 4：多平台与高级功能
 
 **目标**：扩展到桌面 / Web，并加入协同等高级功能。
@@ -904,6 +934,6 @@ Golden Loop 逐层覆盖：
 
 ---
 
-**当前阶段**：**Phase 3 系列全部收尾，处于阶段间空档期，Phase 4 未启动。** Phase 3.0-3.7（UI 骨架 / WYSIWYG 迁移 / 移动输入体验 / TOC·自动保存·主题·导出进度·文件树·图片链路 / 设计系统对齐 / 公式渲染系统 / Core+Extended E2E / 可观测系统）✅ 全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 ✅ 合入（v0.3 拆至 ADR-0026）；Phase 3.9 审计收口 ✅；Phase 3.10 FFX Verification Orchestrator ✅ Final Gate G0-G12 全通过后关闭；Phase 3.11 Capability Hardening Loop ✅ 2026-08-22 Owner 判定关闭。产品侧遗留：3.4.10 选区格式化菜单未启动；Typora 差距高 ROI 项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑等）待 Owner 立项（见 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md) §4）。
-**最近更新**：2026-08-26（阶段状态对齐：Phase 3.10 任务表回填收口结果 + 本 footer 同步至 Phase 3.11 关闭后实况；历史：2026-08-06 文档清理轮——Phase 2.7 标记 ✅ 完成（tryTransform 已实现）；Phase 2/2.9 退出条件勾选；Phase 3.7.2/3/4 从 🔶 更正为 ✅）
+**当前阶段**：**Phase 3 系列全部收尾，处于阶段间空档期，Phase 4 未启动。** Phase 3.0-3.7（UI 骨架 / WYSIWYG 迁移 / 移动输入体验 / TOC·自动保存·主题·导出进度·文件树·图片链路 / 设计系统对齐 / 公式渲染系统 / Core+Extended E2E / 可观测系统）✅ 全部完成并合入 main；Phase 3.8 ADI v0.1/v0.2 ✅ 合入（v0.3 Change Impact Analysis 编号 0026 已预留但 ADR-0026 尚未创建，待立项论证）；Phase 3.9 审计收口 ✅；Phase 3.10 FFX Verification Orchestrator ✅ Final Gate G0-G12 全通过后关闭；Phase 3.11 Capability Hardening Loop ✅ 2026-08-22 Owner 判定关闭；Phase 3.12 Info Architecture ✅ 2026-09 收尾（工程手册 + principles/guides + Agent 审计/监督体系）。首个对外版本 v0.2.0+3 已于 2026-10 发布（见 [CHANGELOG.md](../CHANGELOG.md)）。产品侧遗留：3.4.10 选区格式化菜单未启动；Typora 差距高 ROI 项（HTML 导出 / 源码视图切换 / 表格单元格可视化编辑等）待 Owner 立项（见 [PHASE3.10-TYPORA-GAP-ANALYSIS.md](product/TYPORA-GAP-ANALYSIS.md) §4）。下一步立项由 Human Owner 决定。
+**最近更新**：2026-10-12（Phase 0 标注已关闭；Phase 3.12 补入并标注收尾；ADR-0026 措辞修正为"编号预留未创建"；本轮文档漂移同步）
 **维护人**：首席架构工程师

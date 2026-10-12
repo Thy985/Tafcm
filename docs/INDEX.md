@@ -1,12 +1,17 @@
 # Tafcm 文档全量索引（INDEX）
 
-**生成日期**: 2026-08-22（文档整理轮）
+**生成日期**: 2026-10-12（本轮文档漂移同步；上轮 2026-08-22）
 **用途**: docs/ 下全部文档的单页索引——顶层 + 子目录 + RUN 报告分类表。
 **入口**: 新读者从 [README.md](README.md) 进入（分类导航）；本页为全量清单（机器可核对）。
 
+> **计数依据**：2026-10-12 `Get-ChildItem docs -Recurse -Filter *.md -File` 实测，docs/ 共 **224 篇 md**。
+
 ---
 
-## 1. 顶层文档（41 篇）
+## 1. 顶层文档（6 篇 md + 2 篇历史引用锚点）
+
+> docs/ 根目录下实际 6 篇 md：`README.md` / `INDEX.md` / `ENGINEERING.md` / `ROADMAP.md` / `INFO-ARCHITECTURE-DESIGN.md` / `MIGRATION-MAP.md`。
+> 下方 §1.1-1.5 沿用历史锚点形式列出曾置于顶层、现已按四层信息架构归位到子目录的关键文档（保持链接可达）。
 
 ### 1.1 架构与路线图
 
@@ -74,10 +79,10 @@
 
 ## 2. 子目录
 
-### 2.1 ADR（架构决策记录，30 篇）
+### 2.1 ADR（架构决策记录，33 篇）
 
-见 [ADR/](decisions/ADR/) —— 按编号递增（0001 ~ 0031）。状态机 `Proposed → Accepted → Superseded/Deprecated`。
-关键：ADR-0003（存储单一真相源）/ 0024（ADI）/ 0028（CLI before schema）/ 0029（嵌套 AST）/ 0030（Verification Orchestrator）/ 0031（品牌改名 Tafcm，取代 ADR-0001 §1）。
+见 [ADR/](decisions/ADR/) —— 编号 0001 ~ 0033（0010 跳号占位；0026 / 0027 编号已预留但 ADR 文件尚未创建；0025 与 0032 存在编号重复，分别以 `0025b` / `0032a` / `0032b` 区分，状态见 [decisions/INDEX.md](decisions/INDEX.md)，编号治理待 Owner 决定）。
+关键：ADR-0003（存储单一真相源）/ 0024（ADI）/ 0028（CLI before schema）/ 0029（嵌套 AST）/ 0030（Verification Orchestrator）/ 0031（品牌改名 Tafcm，取代 ADR-0001 §1）/ 0033（产品定位收敛 T/F/M）。
 
 ### 2.2 contracts（任务契约，16 篇）
 
@@ -91,23 +96,19 @@
 
 见 [releases/](releases/) —— phase1/2/3 各阶段 Verification Report + 真机验收报告。
 
-### 2.5 archive（已归档，2 篇）
+### 2.5 archive（历史档案，58 篇，含 35 篇 RUN 报告）
 
-见 [archive/](archive/) —— 已过期/被取代的历史文档：
-| 文档 | 说明 |
-|------|------|
-| [REFACTOR_DESIGN.md](archive/REFACTOR_DESIGN.md) | 重构方案设计（被 ADR + Phase 3.10 Baseline 取代，2026-08-22 归档） |
-| [PHASE1_TEST_PLAN.md](archive/PHASE1_TEST_PLAN.md) | Phase 1 测试计划（Phase 1 已完结，2026-08-22 归档） |
+见 [archive/](archive/) —— 已归档/历史文档：audits（CRITICAL-REVIEW / 能力再审计 / 专项审计）/ runs（phase3.11 ×16 + adl ×12 + dogfood ×7）/ spikes（parser / word / officecli / markdown 生态）/ old-designs / governance。
 
-### 2.6 evidence（证据索引）
+### 2.6 evidence（证据索引，2 篇）
 
 见 [evidence/](evidence/) —— 能力 / 视觉 / 消费证据索引（人类可追溯判定）。
 
 ### 2.7 assets（设计资产）
 
 设计稿全量原件见仓库根 [formulafix-redesign.design/](../../formulafix-redesign.design/)（冻结，目录名保留）；
-设计 token 真源见 [design-system/tokens.json](../../design-system/tokens.json)。
-~~旧子集 `docs/assets/ui-prototype/` 已于 2026-08-30 删除（陈旧派生副本，缺 5 个 typora/v3 变体，权威源为原件）。~~
+设计 token 真源见 [design-system/tokens.json](../../design-system/tokens.json)；
+截图资产见 [assets/screenshots/](assets/screenshots/)（2 张 jpeg，无 md）。
 
 ### 2.8 principles（工程原则，4 篇，2026-08-30 新增）
 
@@ -128,10 +129,24 @@
 | [testing.md](guides/testing.md) | 测试指南（怎么跑 / 怎么写） |
 | [debugging.md](guides/debugging.md) | 调试指南（ADI 工作流 + 排查手册） |
 
-### 2.10 agent-audit / agent-investigations（Maintainer Agent 产物，2026-09-01 新增）
+### 2.10 articles（对外宣传文章，2 篇）
 
-见 [agent-audit/](agent-audit/)（每日维护审计，INDEX.md + YYYY-MM-DD.md，CI 自动生成）与 [agent-investigations/](agent-investigations/)（复杂 Issue 深度调查归档）。
-规范见 `.agent/tafcm-maintainer/`（PROMPT / POLICY / SCHEMA）。
+见 [articles/](articles/) —— CSDN / 微信等对外发布版本。
+
+### 2.11 knowledge-inventory（知识盘点，10 篇，2026-09 新增）
+
+见 [knowledge-inventory/](knowledge-inventory/) —— 含 re-archaeology（考古式知识挖掘）、evidence_map（证据地图）、decision_patterns / failure_patterns / knowledge_synthesis 等盘点产物。
+
+### 2.12 agent-audit / agent-investigations / agent-supervision（Agent 产物）
+
+- [agent-audit/](agent-audit/)：Maintainer Agent 每日维护审计（INDEX.md + YYYY-MM-DD.md，CI 自动生成），32 篇。
+- [agent-investigations/](agent-investigations/)：复杂 Issue 深度调查归档，2 篇。
+- [agent-supervision/](agent-supervision/)：独立监督者周报（W36-W40，2026-08 至 2026-10-02），5 篇。
+- 规范见 `.agent/tafcm-maintainer/`（PROMPT / POLICY / SCHEMA）。
+
+### 2.13 regression（回归用例包，7 篇）
+
+见 [regression/](regression/) —— README + BUG-001-hard-break / BUG-002-pipe-line / BUG-003-list-order 三个 case 包（各含 case.json / input.md / expected.json / README）。
 
 ## 3. RUN 报告（35 篇，按类型归档）
 
@@ -171,10 +186,13 @@
 
 ---
 
-## 4. 索引核对
+## 4. 索引核对（2026-10-12 实测）
 
-- 顶层 md：41 篇（含本 INDEX + ENGINEERING.md）
-- ADR：30 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇 | archive：2 篇
-- principles：4 篇 | guides：3 篇（2026-08-30 新增）
-- RUN 报告：35 篇（phase3.11 ×16 + adl ×12 + dogfood ×7）
-- 合计：**144 篇**
+- 顶层 md：6 篇（README / INDEX / ENGINEERING / ROADMAP / INFO-ARCHITECTURE-DESIGN / MIGRATION-MAP）
+- architecture：8 篇 | product：7 篇 | engineering：14 篇
+- decisions：INDEX 1 篇 + ADR/ 33 篇 | contracts：16 篇 | design：2 篇 | releases：11 篇
+- principles：4 篇 | guides：3 篇 | articles：2 篇 | knowledge-inventory：10 篇
+- agent-audit：32 篇 | agent-investigations：2 篇 | agent-supervision：5 篇
+- regression：7 篇 | evidence：2 篇 | assets：0 篇 md（2 张截图）
+- archive：58 篇（含 35 篇 RUN 报告：phase3.11 ×16 + adl ×12 + dogfood ×7）
+- 合计：**224 篇 md**

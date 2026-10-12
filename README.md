@@ -5,7 +5,7 @@
 > 目标：让手机端也能拥有 Typora 级别的排版级写作体验，任意 .md 即开即看。
 
 [![CI](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml/badge.svg)](https://github.com/Thy985/Tafcm/actions/workflows/ci.yml)
-[![Phase](https://img.shields.io/badge/phase-3.12%20Info%20Architecture-blue)](docs/ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-%E9%97%B4%E9%9A%94%E6%9C%9F%20(Phase%203%20done)%20v0.2.0-blue)](docs/ROADMAP.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
