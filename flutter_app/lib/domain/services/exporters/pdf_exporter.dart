@@ -23,6 +23,7 @@ import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
 import '../export_cancel_token.dart';
 import '../export_service.dart' show ExportException, ExportProgress, ExportStage, ExportProgressCallback;
+import 'formula_collector.dart';
 import 'formula_render_plan.dart';
 import 'pdf_mermaid_renderer.dart';
 import 'pdf_page_decoration.dart';
@@ -494,50 +495,14 @@ class PdfExporter {
   /// 覆盖 ParagraphElement / ListElement / TableElement（headers + 每个 cell）/
   /// BlockquoteElement / HeadingElement / TaskListItemElement。
   ///
+  /// #364：元素类型分派收敛到 [formulaElements]（共享 dispatcher），
+  /// 本方法只保留「去重」这一份调用方逻辑。
+  ///
   /// 注意：MermaidElement / CodeElement 中的内容不是 LaTeX 公式，跳过。
   static Set<String> collectAllFormulas(List<DocumentElement> elements) {
     final out = <String>{};
-    void walkInline(List<InlineElement> children) {
-      for (final c in children) {
-        if (c is FormulaElement) out.add(c.latex);
-      }
-    }
-
-    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归（review round-3）。
-    void walkList(ListElement list) {
-      walkInline(list.children);
-      for (final n in list.nested) {
-        walkList(n);
-      }
-    }
-
-    for (final e in elements) {
-      if (e is ParagraphElement) {
-        walkInline(e.children);
-      } else if (e is ListElement) {
-        walkList(e);
-      } else if (e is TableElement) {
-        // PR-2：TableElement 已持有 InlineElement cell（解析只发生一次），
-        // 直接 walkInline 收集公式，不再需要字符串兜底扫描。
-        for (final h in e.headers) {
-          walkInline(h);
-        }
-        for (final row in e.rows) {
-          for (final cell in row) {
-            walkInline(cell);
-          }
-        }
-      } else if (e is BlockquoteElement) {
-        // R3 修复（实测bugX）：引用块内公式也需预渲染，否则块渲染走 PNG 兜底
-        // 离屏 toImage（真机不稳定）→ 导出永久卡死。_pdfBlockquote 是 async
-        // 内部 await _pdfBlockquoteContent 走段落渲染，公式走 buildFormulaPlan。
-        walkInline(e.children);
-      } else if (e is HeadingElement) {
-        // review P2：标题 inline AST 内可含公式，不收集则预渲染 miss。
-        walkInline(e.children);
-      } else if (e is TaskListItemElement) {
-        walkInline(e.children);
-      }
+    for (final f in formulaElements(elements)) {
+      out.add(f.latex);
     }
     return out;
   }
@@ -548,53 +513,16 @@ class PdfExporter {
   /// （`I|` vs `B|`），预渲染必须与 [buildFormulaPlan] 的 `c.displayMode`
   /// 一致，否则块级公式预渲染缓存永远 miss（导出时逐公式重新异步渲染）。
   ///
-  /// 覆盖与 [collectAllFormulas] 一致：Paragraph / List / Table
-  /// （headers + cells）/ Blockquote / Heading / TaskListItem。
+  /// #364：元素类型分派收敛到 [formulaElements]，覆盖范围由共享 dispatcher
+  /// 保证与 [collectAllFormulas] 一致（Paragraph / List / Table / Blockquote /
+  /// Heading / TaskListItem）。
   static ({Set<String> inline, Set<String> block}) collectAllFormulasByDisplayMode(
     List<DocumentElement> elements,
   ) {
     final inline = <String>{};
     final block = <String>{};
-    void walkInline(List<InlineElement> children) {
-      for (final c in children) {
-        if (c is FormulaElement) {
-          (c.displayMode ? block : inline).add(c.latex);
-        }
-      }
-    }
-
-    // ADR-0029 嵌套列表：ListElement.nested 可任意深度递归（review round-3）。
-    void walkList(ListElement list) {
-      walkInline(list.children);
-      for (final n in list.nested) {
-        walkList(n);
-      }
-    }
-
-    for (final e in elements) {
-      if (e is ParagraphElement) {
-        walkInline(e.children);
-      } else if (e is ListElement) {
-        walkList(e);
-      } else if (e is TableElement) {
-        for (final h in e.headers) {
-          walkInline(h);
-        }
-        for (final row in e.rows) {
-          for (final cell in row) {
-            walkInline(cell);
-          }
-        }
-      } else if (e is BlockquoteElement) {
-        // R3 修复（实测bugX）：引用块内公式也需预渲染（与 collectAllFormulas 一致），
-        // 否则块级公式缓存 key miss → PNG 兜底 → 离屏 toImage 真机卡死。
-        walkInline(e.children);
-      } else if (e is HeadingElement) {
-        // review P2：标题 inline AST 内可含公式，与 collectAllFormulas 同口径。
-        walkInline(e.children);
-      } else if (e is TaskListItemElement) {
-        walkInline(e.children);
-      }
+    for (final f in formulaElements(elements)) {
+      (f.displayMode ? block : inline).add(f.latex);
     }
     return (inline: inline, block: block);
   }
