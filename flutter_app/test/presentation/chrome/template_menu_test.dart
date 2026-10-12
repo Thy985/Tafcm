@@ -234,7 +234,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(coordinator.blockCount, equals(1));
-      expect(coordinator.sourceOf(id), contains('---'));
+      expect(coordinator.sourceOf(id), contains('***'));
     });
 
     testWidgets('选择「图片」→ 当前块插入 image 模板', (tester) async {

@@ -289,7 +289,7 @@ void main() {
 
     test('horizontalRule', () {
       const element = HorizontalRuleElement();
-      expect(fromElement(element), equals('---'));
+      expect(fromElement(element), equals('***'));
     });
 
     test('EmptyLineElement throws ArgumentError', () {

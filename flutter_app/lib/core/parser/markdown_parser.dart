@@ -38,7 +38,11 @@ typedef MarkdownParseErrorHandler =
     void Function(int lineIndex, Object error, String line);
 
 /// 行内 token 的语义类型，按 ADR-0004 优先级排列。
-enum _InlineKind { image, link, code, bold, italic, strike }
+///
+/// issue #332：新增 boldItalic（`***text***`）——此前被 [bold] 正则的非贪婪
+/// 匹配误拆成 `**` + `*text` 内层，导致用户看到 `*text`（多余 `*`）。
+/// 粗斜体优先级（2）高于加粗（4），使其在 `***x***` 上优先于 bold 命中。
+enum _InlineKind { image, link, code, bold, boldItalic, italic, strike }
 
 /// 行内 token 命中结果，用于在多个候选中选最早 / 最高优先级的那个。
 class _InlineHit {
@@ -60,9 +64,14 @@ class _InlineHit {
 class MarkdownParser {
   /// 行内语法正则，按 ADR-0004 优先级组织：
   /// 图片 > 链接 > 行内代码 > 加粗 > 斜体 > 删除线。
+  ///
+  /// issue #332：粗斜体（`***text***`）与加粗同为 `*` 起始，需单独正则
+  /// 且优先级高于加粗——否则加粗的非贪婪匹配会吞掉前两个 `*`，把
+  /// `***x***` 误拆为 `**` + 内层 `*x` + 残留 `*`。
   static final RegExp _imageRe = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
   static final RegExp _linkRe = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
   static final RegExp _codeRe = RegExp(r'`([^`]+)`');
+  static final RegExp _boldItalicRe = RegExp(r'\*\*\*(.+?)\*\*\*');
   static final RegExp _boldRe = RegExp(r'\*\*(.+?)\*\*');
   static final RegExp _italicStarRe = RegExp(r'\*([^*\n]+?)\*');
   static final RegExp _italicUnderRe = RegExp(r'_(?=\S)([^\n_]+?)_(?=\s|$)');
@@ -76,6 +85,18 @@ class MarkdownParser {
   /// - 单行解析失败降级为 [ParagraphElement]（保留原文），解析继续
   /// - 通过 [onError] 回调通知调用方（presentation 层送入 observability）
   /// - 不再让一行坏数据让整个文档打不开
+  ///
+  /// issue #332（QA 2026-10-04 边界语法巡检，本批 3 项）：
+  /// - Setext 标题（`==` / `--` 下划线行）：紧随段落的分隔行回填标题级别
+  /// - 四空格缩进代码块：缩进 ≥4 列（tab 计 4 列）的连续行收为 [CodeElement]
+  ///   （language: null），不再被当普通段落衬线体渲染
+  /// - 粗斜体 `***text***`：新增 [_InlineKind.boldItalic]，不再残留多余 `*`
+  ///
+  /// 本批**未含**（另立 follow-up，各自需模型层或产品决策）：嵌套引用 `> >`
+  /// （需 BlockquoteElement 增加 nested 字段，镜像 ListElement.nested）、
+  /// 脚注 `[^1]`（是否纳入支持范围待产品确认，见 #332 备注）、HTML 块与行内
+  /// HTML（渲染方式待产品决策，当前以转义文本兜底，不崩溃）、转义序列 `\_`
+  /// （fuzz 语料含 `\` 但无 `\_` 组合，改动易破坏现有 backslash 用例）。
   ///
   /// [onError]：可选错误回调。core 层不 import observability（AGENTS.md
   /// §6.1.1），由调用方注入 captureError。回调同步调用，确保错误不丢。
@@ -101,6 +122,12 @@ class MarkdownParser {
     String? codeLanguage;
     final List<String> codeLines = [];
 
+    // issue #332：四空格缩进代码块（CommonMark 与围栏 ``` 并列的代码块入口）。
+    // 缩进 ≥4 列（或 ≥1 个 Tab，按 4 列计）的连续行收为一个 CodeElement
+    // （language: null），不再被当普通段落衬线体渲染。
+    bool inIndentedCode = false;
+    final List<String> indentedCodeLines = [];
+
     final List<ListElement> pendingListItems = [];
 
     void flushCodeBlock() {
@@ -113,6 +140,23 @@ class MarkdownParser {
         elements.add(CodeElement(code: code, language: codeLanguage));
       }
       codeLines.clear();
+    }
+
+    void flushIndentedCode() {
+      // 与围栏代码块同理：空内容（纯空白行）不产出元素。
+      if (indentedCodeLines.isEmpty) return;
+      // 内容统一剥掉首个缩进单位（tab 或至多 4 个空格），保留块内相对缩进。
+      final stripped = <String>[];
+      for (final l in indentedCodeLines) {
+        stripped.add(l.startsWith('\t')
+            ? l.substring(1)
+            : l.replaceFirst(RegExp(r'^ {1,4}'), ''));
+      }
+      elements.add(CodeElement(code: stripped.join('\n'), language: null));
+      indentedCodeLines.clear();
+      // 复位：允许空行后的下一个缩进块重新进入入口判定——不复位则第二个块
+      // 因 !inIndentedCode 为假而被拒，退化成带缩进前缀的段落文本。
+      inIndentedCode = false;
     }
 
     ParagraphElement? pendingParagraph;
@@ -201,6 +245,23 @@ class MarkdownParser {
         if (inCodeBlock) {
           codeLines.add(line);
           continue;
+        }
+
+        // issue #332：四空格缩进代码块的**接续 / 收尾**（早判定）。
+        // 缩进 ≥4 列（tab 计 4 列）视为代码块续行；一旦代码块打开，续行必须
+        // 无条件并入（不再走列表/引用/表格分支，避免块内内容被误解析）；
+        // 非缩进行则收尾并放行到后续分支。
+        //
+        // 此处只处理「已打开的块」，故不会劫持缩进列表项——缩进列表项的**入口**
+        // 在下方段落 fall-through 处的晚判定（列表分支若先命中则代码块不启动）。
+        final indentedHere =
+            RegExp(r'^(?: {4,}|\t)').hasMatch(line) && line.trim().isNotEmpty;
+        if (inIndentedCode) {
+          if (indentedHere) {
+            indentedCodeLines.add(line);
+            continue;
+          }
+          flushIndentedCode();
         }
 
         if (line.trim().isEmpty) {
@@ -345,12 +406,57 @@ class MarkdownParser {
           flushTable();
         }
 
+        // issue #332：Setext 标题——分隔行（全为 `=` 或 `-`）紧随段落时，
+        // 把段落提升为标题（`=` → level 1，`-` → level 2）。
+        //
+        // 必须在水平分割线判定**之前**：`===` / `---` 同形于 HR 正则。区分依据是
+        // 块起始前的空行语义——Setext 分隔行紧接段落（`pendingParagraph` 非空且
+        // 未经 flush）；HR 与段落的分隔行则被前一个空行打断（paragraph 已 flush）。
+        // 这是 CommonMark 的实际行为，故无歧义。
+        //
+        // **单行限制（已知 CommonMark 偏差）**：仅当在途段落为**单行**（children
+        // 无内嵌 `\n`）时才升为标题。理由：ATX 序列化 `## a\nb` 会让 `b` 脱出标题，
+        // 破坏 round-trip 不动点；多行 Setext 标题在真实文档中几乎不存在，回退为
+        // 段落 + 分隔线（或 HR）语义无害且往返稳定。issue #332 的用例均为单行。
+        if (RegExp(r'^\s*(=+|-+)\s*$').hasMatch(trimmedLine) &&
+            pendingParagraph != null &&
+            pendingParagraph!.children.isNotEmpty &&
+            !pendingParagraph!.children
+                .any((c) => c is TextElement && c.text.contains('\n'))) {
+          final level = trimmedLine.trim().startsWith('=') ? 1 : 2;
+          elements.add(HeadingElement(
+            level: level,
+            children: pendingParagraph!.children,
+          ));
+          pendingParagraph = null;
+          continue;
+        }
+
         // 水平分割线：--- / *** / ___（3 个及以上）
         if (RegExp(r'^\s*(-{3,}|\*{3,}|_{3,})\s*$').hasMatch(line)) {
           flushParagraph();
           flushListItems();
           flushTable();
           elements.add(const HorizontalRuleElement());
+          continue;
+        }
+
+        // issue #332：四空格缩进代码块的**入口**（晚判定）——缩进 ≥4 列且非空，
+        // 且上方列表 / 任务列表 / 引用 / 表格 / HR 分支均未命中，才收为 CodeElement
+        // （language: null）。置于段落 fall-through 之前，使独立缩进块成为代码，
+        // 而缩进列表项 / 缩进引用已被对应分支先命中，不受影响。
+        //
+        // 段落守卫：CommonMark 规定缩进代码块**不能打断段落**——`text\n    x`
+        // 中 `    x` 应作为段落续行（`<p>text\nx</p>`），仅当无在途段落
+        // （空行已 flush 或位于文档开头）时才可启动缩进代码块。
+        if (indentedHere &&
+            !inIndentedCode &&
+            (pendingParagraph == null || pendingParagraph!.children.isEmpty)) {
+          flushParagraph();
+          flushListItems();
+          flushTable();
+          inIndentedCode = true;
+          indentedCodeLines.add(line);
           continue;
         }
 
@@ -375,6 +481,7 @@ class MarkdownParser {
         flushParagraph();
         flushListItems();
         flushTable();
+        flushIndentedCode();
         elements.add(ParagraphElement(
           children: [TextElement(line)],
         ));
@@ -392,6 +499,7 @@ class MarkdownParser {
     if (inCodeBlock) {
       flushCodeBlock();
     }
+    flushIndentedCode();
     flushParagraph();
     flushListItems();
     flushTable();
@@ -487,7 +595,7 @@ class MarkdownParser {
   }
 
   /// 按 ADR-0004 优先级解析行内样式：
-  /// 图片 > 链接 > 行内代码 > 加粗 > 斜体 > 删除线 > 纯文本。
+  /// 图片 > 链接 > 粗斜体 > 行内代码 > 加粗 > 斜体 > 删除线 > 纯文本。
   ///
   /// 在文本中从左到右扫描所有候选 token，取**最早起始**者；若多个 token
   /// 起始位置相同，按优先级（图片最优先，删除线最低）裁决。命中处
@@ -518,11 +626,14 @@ class MarkdownParser {
 
       consider(_imageRe, 0, _InlineKind.image);
       consider(_linkRe, 1, _InlineKind.link);
-      consider(_codeRe, 2, _InlineKind.code);
-      consider(_boldRe, 3, _InlineKind.bold);
-      consider(_italicStarRe, 4, _InlineKind.italic);
-      consider(_italicUnderRe, 4, _InlineKind.italic);
-      consider(_strikeRe, 5, _InlineKind.strike);
+      // issue #332：粗斜体优先级置于加粗/代码之前——同起点时 boldItalic 必赢，
+      // 否则 `***x***` 被 bold 正则吃掉前两个 `*`（详见 _boldItalicRe 注释）。
+      consider(_boldItalicRe, 2, _InlineKind.boldItalic);
+      consider(_codeRe, 3, _InlineKind.code);
+      consider(_boldRe, 4, _InlineKind.bold);
+      consider(_italicStarRe, 5, _InlineKind.italic);
+      consider(_italicUnderRe, 5, _InlineKind.italic);
+      consider(_strikeRe, 6, _InlineKind.strike);
 
       if (best == null) {
         out.add(TextElement(text.substring(pos)));
@@ -550,6 +661,16 @@ class MarkdownParser {
         return InlineCodeElement(hit.match.group(1) ?? '');
       case _InlineKind.bold:
         return BoldElement(children: _parseInlineStyle(hit.match.group(1) ?? ''));
+      // issue #332：粗斜体 = 内层再套一层加粗，复用既有嵌套能力
+      // （inline_spans.dart 的 Bold → Italic 递归已支持），渲染为粗斜体。
+      // 序列化为 `***x***`（InlineSerializer 的 `**`+`*x*`+`**` 拼接），
+      // round-trip 保真。
+      case _InlineKind.boldItalic:
+        return BoldElement(
+          children: [
+            ItalicElement(children: _parseInlineStyle(hit.match.group(1) ?? '')),
+          ],
+        );
       case _InlineKind.italic:
         return ItalicElement(
             children: _parseInlineStyle(hit.match.group(1) ?? ''));
