@@ -75,7 +75,11 @@ String fromElement(DocumentElement element) {
     case MermaidElement(:final code):
       return '```mermaid\n$code\n```';
     case HorizontalRuleElement():
-      return '---';
+      // issue #332：序列化用 `***` 而非 `---`。`---` 与 Setext 二级标题下划线
+      // 同形——`text\n---` 按 CommonMark 是 Setext 标题而非分隔线，导致
+      // 「HR → 序列化 `---` → 重解析变标题」的 round-trip 翻转；`***` 不属
+      // Setext 下划线字符（仅 `=` / `-`），紧随段落时仍是分隔线，往返稳定。
+      return '***';
     case EmptyLineElement():
       // 不在 BlockEditor 范围（BlockType 不含 emptyLine）。
       // 调用方（Document ↔ List<Block> 层）应过滤 EmptyLineElement。

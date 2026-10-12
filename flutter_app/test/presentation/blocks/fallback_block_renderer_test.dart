@@ -168,12 +168,13 @@ void main() {
       );
     });
 
-    test('HorizontalRuleElement() → "---"', () {
+    test('HorizontalRuleElement() → "***"', () {
       const element = HorizontalRuleElement();
       expect(
         fromElement(element),
-        equals('---'),
-        reason: '水平分割线 → "---"',
+        equals('***'),
+        reason: 'issue #332：水平分割线序列化为 "***"（与 Setext 下划线同形的 '
+            '"---" 会使 text\\n--- 重解析变二级标题）',
       );
     });
   });
