@@ -303,7 +303,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         );
     // 写盘后：若 source 在此期间无新改动，标记已保存；否则保留 dirty，
     // 由 AutosaveService 重新调度下一次保存（ADR-0013 并发保护：禁止误清进行中的编辑）。
-    if (identical(_coordinator.editor.serializedContent, snapshot)) {
+    // #379：mounted 守卫——dispose() 同步执行 stop() + coordinator.dispose()，
+    // 在飞的 save 回调于后续微任务恢复时 mounted 已为 false，跳过 markSaved()
+    // 即可避免对已释放的 ValueNotifier / StreamController 抛 FlutterError / StateError。
+    if (mounted && identical(_coordinator.editor.serializedContent, snapshot)) {
       _coordinator.markSaved();
     }
     return true;

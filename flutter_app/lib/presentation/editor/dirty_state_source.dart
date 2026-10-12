@@ -42,11 +42,17 @@ class DirtyStateTracker {
   Stream<bool> get dirtyChanges => _ctl.stream;
 
   /// 在协调器变更后调用：计算当前脏标记，仅在翻转时发射一次事件。
+  ///
+  /// **dispose 安全**：`_ctl.isClosed` 守卫（与 [AutosaveService._emit] 对称）。
+  /// 防止 `EditorPage.dispose()` 中 `_autosave.stop()` 与 `_coordinator.dispose()`
+  /// 之间时间窗口内，在飞的 save 回调经 `markSaved → notifyListeners` 抵达此处
+  /// 时，对已关闭的广播流调 `add` 抛 `StateError: Cannot add new events after
+  /// calling close`（#341 E2E 定向验收发现的真实异常）。
   void sync() {
     final d = compute();
     if (_notifier.value != d) {
       _notifier.value = d;
-      _ctl.add(d);
+      if (!_ctl.isClosed) _ctl.add(d);
     }
   }
 
