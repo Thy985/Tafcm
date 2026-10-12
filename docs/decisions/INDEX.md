@@ -8,7 +8,7 @@
 
 ---
 
-## 决策状态总表（33 篇 ADR 文件）
+## 决策状态总表（34 篇 ADR 文件）
 
 > **编号治理提示（2026-10-12 记录，待 Owner 决定）**：
 > - `0026` / `0027` 编号已预留但 ADR 文件尚未创建（0026 原计划为 ADI v0.3 Change Impact Analysis，见 ROADMAP §3.8）。
@@ -56,6 +56,7 @@
 | [0033](ADR/0033-product-positioning-convergence.md) | 产品定位收敛（T/F/M 用户侧，A/C 降级工程差异化） | Proposed | ✅ VALID | #243 Human Owner 决策（2026-09-12）；README 五维→三维；合并即 Accepted |
 | [0032a](ADR/0032-export-assembly-finite-guarantee.md) | 导出装配有限保证 | Proposed | ⚪ 待 Owner 审批 | 编号重复项之一（见上方编号治理提示） |
 | [0032b](ADR/0032-audit-frontier-incremental-audit.md) | 审计前沿增量审计（Doubao Supervisor，SUP-03） | Draft | ⚪ 待审 | 编号重复项之一（见上方编号治理提示） |
+| [0034](ADR/0034-windows-desktop-platform.md) | Windows 桌面端首个平台决策（MVP 边界与 CI/测试/降级策略） | Proposed | ⚪ 待 Owner 签字 | 六条子决策 D1-D6；Phase 4.1 立项依据；ADR-0006 的 CI 结论在 Windows 单平台范围内增量修订 |
 
 ---
 
