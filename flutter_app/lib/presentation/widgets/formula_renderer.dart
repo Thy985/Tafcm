@@ -13,6 +13,11 @@
 ///   保真且可经 `currentColor` 着色随主题）；WebView 未挂载 / 渲染失败降级 `flutter_math_fork`。
 /// - 行内：优先 `flutter_math_fork`（纯 Dart、轻量、不占 WebView 并发）；解析失败降级 serif 源码。
 ///
+/// **语法错误反馈（issue #358 遗留项）**：`flutter_math_fork` 解析失败（[Math.tex] 的
+/// `onErrorFallback`）不再静默显示与正常渲染难分辨的源码——块级显示「公式语法错误」
+/// 标签 + 错误色 mono 源码，行内显示错误色 italic 源码 + Tooltip 说明，让用户能定位
+/// "公式为什么不渲染"（未闭合定界符 / 转义错误等）。
+///
 /// 块级公式支持可选 [number]（右对齐 serif italic，如 `(1)`）。自动顺序编号需文档模型支持，
 /// 留作后续（见 ROADMAP 3.5.1 说明）。
 ///
@@ -33,6 +38,7 @@ import '../../../core/parser/formula_extractor.dart';
 import '../../../data/models/document.dart';
 import '../theme/app_typography.dart';
 import '../themes/editor_tokens.dart';
+import 'formula_syntax_error_hint.dart';
 
 /// 块级公式容器垂直留白。
 /// 10 介于 [AppSpacing.sm](8) 与 [AppSpacing.md](12) 之间，无对应 token，
@@ -289,7 +295,8 @@ class _FormulaRendererState extends State<FormulaRenderer> {
     );
   }
 
-  /// 行内公式：无卡片，优先 `flutter_math_fork`，失败降级 serif italic 源码。
+  /// 行内公式：无卡片，优先 `flutter_math_fork`，解析失败显示语法错误提示
+  /// （issue #358 遗留项：不再静默回退与正常渲染难分辨的源码）。
   Widget _buildInline(BuildContext context, EditorTokens tokens) {
     final normalized = FormulaExtractor.normalizeLatex(widget.element.latex);
     return Math.tex(
@@ -301,14 +308,9 @@ class _FormulaRendererState extends State<FormulaRenderer> {
         fontSize: AppSpacing.formulaInline,
         color: tokens.textPrimary,
       ),
-      onErrorFallback: (_) => Text(
-        '\$${widget.element.latex}\$',
-        style: TextStyle(
-          fontFamily: AppTypography.serif,
-          fontStyle: FontStyle.italic,
-          fontSize: AppSpacing.formulaInline,
-          color: tokens.textPrimary,
-        ),
+      onErrorFallback: (_) => FormulaSyntaxErrorHint(
+        source: '\$${widget.element.latex}\$',
+        displayMode: false,
       ),
     );
   }
@@ -362,7 +364,8 @@ class _FormulaRendererState extends State<FormulaRenderer> {
     );
   }
 
-  /// 块级 SVG 未就绪 / 失败时的降级：用 `flutter_math_fork` 真实渲染（二次失败才回退 serif 源码）。
+  /// 块级 SVG 未就绪 / 失败时的降级：用 `flutter_math_fork` 真实渲染；
+  /// 二次失败（LaTeX 解析错误）显示语法错误提示而非静默源码（issue #358）。
   Widget _flutterMathFallback(EditorTokens tokens) {
     final normalized = FormulaExtractor.normalizeLatex(widget.element.latex);
     return Math.tex(
@@ -374,10 +377,9 @@ class _FormulaRendererState extends State<FormulaRenderer> {
         fontSize: AppSpacing.formulaDisplay,
         color: tokens.textPrimary,
       ),
-      onErrorFallback: (_) => Text(
-        widget.element.latex,
-        style: AppTypography.formula(color: tokens.textPrimary),
-        textAlign: TextAlign.center,
+      onErrorFallback: (_) => FormulaSyntaxErrorHint(
+        source: '\$\$${widget.element.latex}\$\$',
+        displayMode: true,
       ),
     );
   }

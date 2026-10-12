@@ -32,7 +32,13 @@ typedef TemplateConfig = ({
   int cursorOffset,
 });
 
-/// 9 种模板的配置清单（§6.3；issue #358 追加块级公式）。
+/// 8 种直接插入模板的配置清单（§6.3）。
+///
+/// **issue #358 遗留项**：块级公式不在此登记——它经 [showFormulaInsertFlow]
+/// 对话框流程插入（预设 + 实时预览 + 错误态），不走 `_handleTemplateSelect`
+/// fallthrough 的"配置 → 直接插入"路径。若登记在此，其 template/mode/
+/// cursorOffset 三字段将永不可达（死数据），故公式菜单项在
+/// [TemplateMenuButton.itemBuilder] 单独渲染。
 const List<TemplateConfig> kTemplateConfigs = [
   (item: TemplateMenuItem.table, label: EditorStrings.templateMenuTable, template: Templates.tableDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
   (item: TemplateMenuItem.mermaid, label: EditorStrings.templateMenuMermaid, template: Templates.mermaidDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
@@ -42,10 +48,6 @@ const List<TemplateConfig> kTemplateConfigs = [
   (item: TemplateMenuItem.horizontalRule, label: EditorStrings.templateMenuHorizontalRule, template: Templates.horizontalRuleDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
   (item: TemplateMenuItem.image, label: EditorStrings.templateMenuImage, template: Templates.imageDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
   (item: TemplateMenuItem.link, label: EditorStrings.templateMenuLink, template: Templates.linkDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
-  // issue #358：块级公式。insert 模式经 parseInline 产出 FormulaElement
-  // (displayMode=true)，段落渲染走 _isPureBlockFormula → FormulaBlock。
-  // cursorOffset -2：光标落在 'E=mc^2' 末尾（索引 8，$$闭合符之前）。
-  (item: TemplateMenuItem.formula, label: EditorStrings.templateMenuFormula, template: Templates.formulaDisplayDefault, mode: TemplateInsertMode.insert, cursorOffset: -2),
 ];
 
 /// 单个格式按钮（紧凑 TextButton + Tooltip）。
@@ -115,10 +117,11 @@ class DisabledBar extends StatelessWidget {
   }
 }
 
-/// `+` 模板菜单按钮（PopupMenu,8 模板,§6.3）。
+/// `+` 模板菜单按钮（PopupMenu，8 直接插入模板 + 1 公式对话框入口，§6.3）。
 ///
 /// 使用 [TemplateMenuItem] enum 作为 PopupMenuItem value,
-/// 避免字符串业务判断（§2.5.1 Hard Rule）。
+/// 避免字符串业务判断（§2.5.1 Hard Rule）。公式项单独登记（见 itemBuilder），
+/// 因其经对话框流程插入、不在 [kTemplateConfigs] 直插清单内。
 class TemplateMenuButton extends StatelessWidget {
   final bool enabled;
   final ValueChanged<TemplateMenuItem>? onSelected;
@@ -139,6 +142,12 @@ class TemplateMenuButton extends StatelessWidget {
       itemBuilder: (context) => [
         for (final c in kTemplateConfigs)
           PopupMenuItem(value: c.item, child: Text(c.label)),
+        // issue #358 遗留项：公式经对话框流程（showFormulaInsertFlow）插入，
+        // 不走 kTemplateConfigs 的直接插入路径，故在此单独登记菜单项。
+        const PopupMenuItem(
+          value: TemplateMenuItem.formula,
+          child: Text(EditorStrings.templateMenuFormula),
+        ),
       ],
     );
   }

@@ -5,15 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tafcm/data/models/document.dart';
 import 'package:tafcm/presentation/theme/app_theme.dart';
 import 'package:tafcm/presentation/theme/app_typography.dart';
-import 'package:tafcm/presentation/themes/editor_tokens.dart';
 import 'package:tafcm/presentation/widgets/formula_renderer.dart';
 
 /// T1-3 FormulaRenderer 降级链路测试（Phase 3.5.1 / TEST_GAP_PLAN Tier 1）。
 ///
 /// 降级链（widget 测试无 WebView，SVG 服务必然未就绪）：
-/// - 块级：MathJax SVG（不可用）→ flutter_math_fork → serif italic 源码
-/// - 行内：flutter_math_fork → serif italic `$...$` 源码
-/// 颜色断言按三主题各自的 [EditorTokens.textPrimary]。
+/// - 块级：MathJax SVG（不可用）→ flutter_math_fork → **语法错误提示**
+/// - 行内：flutter_math_fork → **语法错误提示**
+///
+/// issue #358 遗留项：解析失败不再静默回退难辨的源码——块级显示「公式语法错误」
+/// 标签 + 错误色 mono 源码，行内显示错误色 italic 源码 + Tooltip。错误色取
+/// `Theme.of(context).colorScheme.error`（Material 语义色，随主题）。
 void main() {
   /// 明确非法的 LaTeX（未闭合分组必然解析失败 → onErrorFallback）。
   const badLatex = r'\frac{1}{';
@@ -39,7 +41,7 @@ void main() {
         reason: '应降级 flutter_math_fork 真实渲染');
   });
 
-  testWidgets('块级非法 LaTeX → 二次降级 serif italic 源码（AppTypography.formula）',
+  testWidgets('块级非法 LaTeX → 「公式语法错误」标签 + 错误色 mono 源码',
       (tester) async {
     await tester.pumpWidget(host(
       FormulaRenderer(
@@ -48,20 +50,21 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // onErrorFallback → Text(widget.element.latex)，样式 AppTypography.formula
-    final fallback = find.text(badLatex);
-    expect(fallback, findsOneWidget,
-        reason: '非法 LaTeX 应回退为源码文本');
-    final text = tester.widget<Text>(fallback);
-    expect(text.style?.fontFamily, AppTypography.serif,
-        reason: '降级样式须来自 AppTypography.formula（serif）');
-    expect(text.style?.fontStyle, FontStyle.italic,
-        reason: '降级样式须为 italic（ui-spec §7）');
-    expect(text.style?.color, EditorTokens.light.textPrimary,
-        reason: '降级色须经 EditorTokens 取色（ADR-0017）');
+    // issue #358 遗留项：可理解的错误提示而非静默源码。
+    expect(find.text('公式语法错误'), findsOneWidget,
+        reason: '非法 LaTeX 应显示可理解的语法错误提示，不再静默');
+
+    final src = find.text(r'$$\frac{1}{$$');
+    expect(src, findsOneWidget,
+        reason: r'块级错误态应展示 $$...$$ 定界源码（含定界符便于定位）');
+    final text = tester.widget<Text>(src);
+    expect(text.style?.fontFamily, AppTypography.mono,
+        reason: '错误态源码用 mono 字体（与正常 serif 渲染区分）');
+    expect(text.style?.color, AppTheme.lightTheme.colorScheme.error,
+        reason: '错误态颜色应为该主题 colorScheme.error（ADR-0017 语义取色）');
   });
 
-  testWidgets('行内非法 LaTeX → 降级 serif italic \$源码\$', (tester) async {
+  testWidgets('行内非法 LaTeX → 错误色 \$源码\$ + Tooltip 说明', (tester) async {
     await tester.pumpWidget(host(
       FormulaRenderer(
         element: const FormulaElement(latex: badLatex),
@@ -69,23 +72,34 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final fallback = find.text('\$$badLatex\$');
+    final fallback = find.text(r'$\frac{1}{$');
     expect(fallback, findsOneWidget,
         reason: '行内非法 LaTeX 应回退为 \$...\$ 源码');
     final text = tester.widget<Text>(fallback);
     expect(text.style?.fontFamily, AppTypography.serif);
     expect(text.style?.fontStyle, FontStyle.italic);
-    expect(text.style?.color, EditorTokens.light.textPrimary);
+    expect(text.style?.color, AppTheme.lightTheme.colorScheme.error,
+        reason: '行内错误态源码应为错误色（与正常 textPrimary 渲染区分）');
+
+    // Tooltip 承载错误说明（行内紧凑场景不放标签）。
+    expect(
+      tester
+          .widgetList<Tooltip>(find.byType(Tooltip))
+          .map((t) => t.message)
+          .contains('公式语法错误'),
+      isTrue,
+      reason: '行内错误态应以 Tooltip 说明错误原因',
+    );
   });
 
-  testWidgets('三主题下块级降级文本颜色 = 各自 EditorTokens.textPrimary',
+  testWidgets('三主题下块级错误提示颜色 = 各自 colorScheme.error',
       (tester) async {
-    final cases = <(ThemeData, EditorTokens, String)>[
-      (AppTheme.lightTheme, EditorTokens.light, 'light'),
-      (AppTheme.darkTheme, EditorTokens.dark, 'dark'),
-      (AppTheme.sepiaTheme, EditorTokens.sepia, 'sepia'),
+    final cases = <(ThemeData, String)>[
+      (AppTheme.lightTheme, 'light'),
+      (AppTheme.darkTheme, 'dark'),
+      (AppTheme.sepiaTheme, 'sepia'),
     ];
-    for (final (theme, tokens, name) in cases) {
+    for (final (theme, name) in cases) {
       await tester.pumpWidget(host(
         FormulaRenderer(
           element: const FormulaElement(latex: badLatex, displayMode: true),
@@ -94,9 +108,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      final text = tester.widget<Text>(find.text(badLatex));
-      expect(text.style?.color, tokens.textPrimary,
-          reason: '$name 主题降级色应为该主题 textPrimary');
+      expect(find.text('公式语法错误'), findsOneWidget,
+          reason: '$name 主题也应显示语法错误提示');
+      final text = tester.widget<Text>(find.text(r'$$\frac{1}{$$'));
+      expect(text.style?.color, theme.colorScheme.error,
+          reason: '$name 主题错误色应为该主题 colorScheme.error');
     }
   });
 }

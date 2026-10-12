@@ -5,6 +5,9 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/parser/formula_extractor.dart';
 
+/// 预览解析失败提示（issue #358 遗留项：语法错误要有可理解反馈）。
+const String _previewErrorLabel = '公式语法错误';
+
 class FormulaInsertDialog extends StatefulWidget {
   final bool displayMode;
   final bool isDark;
@@ -213,13 +216,28 @@ class _FormulaInsertDialogState extends State<FormulaInsertDialog> {
                     : AppSpacing.formulaInline,
                 color: textColor,
               ),
-              onErrorFallback: (err) => Text(
-                raw,
-                style: const TextStyle(
-                  color: AppColors.error,
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
+              onErrorFallback: (err) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    _previewErrorLabel,
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    raw,
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
