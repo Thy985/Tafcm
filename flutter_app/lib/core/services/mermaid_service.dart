@@ -178,6 +178,15 @@ class MermaidService {
     _rendererResetCallbacks.add(cb);
   }
 
+  /// #380：反注册 renderer 重置通知回调。
+  ///
+  /// [MermaidRendererHost] 在 [State.dispose] 中调用——否则 widget 被移除后
+  /// 本列表仍持有已 dispose 的 callback，`resetRenderer()` 触发时会对已释放
+  /// 的 [InAppWebViewController] 调 `reload()` 抛 FlutterError。
+  static void removeRendererResetCallback(MermaidRendererResetCallback cb) {
+    _rendererResetCallbacks.remove(cb);
+  }
+
   /// 异步等待页面真正加载完成。已有 completer 则复用，否则创建一个。
   /// 等待超时上限是 [_pageLoadWaitTimeout]（8s）。
   ///

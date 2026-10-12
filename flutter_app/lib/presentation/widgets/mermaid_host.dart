@@ -33,6 +33,10 @@ class _MermaidRendererHostState extends State<MermaidRendererHost> {
   void _handleRendererReset() {
     final controller = _controller;
     if (controller == null) return;
+    // #380：widget 已 dispose 时跳过——否则 reload() 对已释放的
+    // InAppWebViewController 调 debugAssertNotDisposed 抛 FlutterError。
+    // try/catch 拦不住（assertion 不抛 Dart exception）。
+    if (!mounted) return;
     debugPrint('MermaidRendererHost: renderer reset, re-attaching + reloading WebView...');
     try {
       // D2：先恢复 controller/isReady（reload 不会重新触发 onWebViewCreated）。
@@ -42,6 +46,15 @@ class _MermaidRendererHostState extends State<MermaidRendererHost> {
     } catch (e) {
       debugPrint('MermaidRendererHost: reset recovery failed: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    // #380：反注册 renderer reset 回调——否则 widget dispose 后
+    // MermaidService.resetRenderer() 仍会调用本 callback，
+    // 对已释放的 controller 调 reload() 抛 FlutterError。
+    MermaidService.removeRendererResetCallback(_handleRendererReset);
+    super.dispose();
   }
 
   @override

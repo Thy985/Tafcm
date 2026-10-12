@@ -35,8 +35,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.list_alt));
       await tester.pumpAndSettle();
 
-      // 抽屉标题「目录」可见
-      expect(find.text('目录'), findsWidgets);
+      // 抽屉标题「大纲」可见
+      // issue #341：目录 → 大纲（术语三义统一：文件/大纲）。
+      expect(find.text('大纲'), findsWidgets);
 
       // 取首个标题块 id，点击其 TOC 条目（key = 'toc_<BlockId>'）
       final targetId = headingIds.first;

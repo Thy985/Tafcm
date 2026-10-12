@@ -79,6 +79,19 @@ class AutosaveService {
   StreamSubscription<bool>? _sub;
   StreamController<AutosaveStatus>? _statusCtl;
 
+  /// 「已启动且未停止」标志（生命周期防线）。
+  ///
+  /// `stop()` 后置 false，防止**在飞的 [Future] 在 dispose 间隙完成时**调度新
+  /// Timer（泄漏）或重试（对已释放的 source 重复保存）。
+  ///
+  /// 典型触发路径：`EditorPage.dispose()` 先调 `stop()`（同步，不 await 在飞的
+  /// [_fire]），再调 `_coordinator.dispose()`（关闭 [DirtyStateSource] 的广播流）。
+  /// 在飞的 save 回调于 `await writeDocument` 完成后继续执行 →
+  /// `markSaved → notifyListeners → sync` → 广播流已关闭。
+  /// 本标志与 [DirtyStateTracker.sync] 的 `isClosed` 守卫配合，构成两层防线：
+  /// 前者防止调度泄漏，后者防止 `add` 抛异常。
+  bool _running = false;
+
   /// 失败重试退避间隔（指数增长，封顶 [_maxRetryDelay]）。
   /// [Duration.zero] 表示当前处于正常编辑窗口（非重试态）。
   Duration _retryDelay = Duration.zero;
@@ -108,6 +121,7 @@ class AutosaveService {
 
   /// 启动：订阅脏状态流；若启动时已脏则立即调度一次。
   void start() {
+    _running = true;
     _statusCtl ??= StreamController<AutosaveStatus>.broadcast();
     _sub = _source.dirtyChanges.listen(_onDirtyChange);
     if (_source.isDirty) _schedule(); // 用户编辑窗口：退避归零
@@ -116,6 +130,7 @@ class AutosaveService {
   /// 停止：取消订阅 + 定时器 + 关闭状态流。应在 owner dispose 时调用。
   /// 之后可再次调用 [start] 复用本实例。
   void stop() {
+    _running = false;
     _sub?.cancel();
     _sub = null;
     _timer?.cancel();
@@ -131,14 +146,23 @@ class AutosaveService {
   }
 
   /// 正常 debounce 调度（用户编辑驱动）：退避归零，按 [_debounce] 计时。
+  ///
+  /// [_running] 守卫：`stop()` 后不再创建 Timer。防止在飞的 save 回调于
+  /// dispose 间隙完成时，对本已停止的服务调度下一轮 debounce（Timer 泄漏）。
   void _schedule() {
+    if (!_running) return;
     _retryDelay = Duration.zero;
     _timer?.cancel();
     _timer = _timerFactory(_debounce, _fire);
   }
 
   /// 失败重试调度：指数退避（首次 = [_debounce]，之后 ×2，封顶 [_maxRetryDelay]）。
+  ///
+  /// [_running] 守卫：`stop()` 后不再创建 Timer。防止在飞的 save 回调于
+  /// dispose 间隙完成时，对已释放的 source 排入退避重试（数据已落盘，重试
+  /// 会对已释放的 source 重复保存，语义错误且泄漏 Timer）。
   void _scheduleRetry() {
+    if (!_running) return;
     _retryDelay =
         _retryDelay == Duration.zero ? _debounce : _retryDelay * 2;
     if (_retryDelay > _maxRetryDelay) _retryDelay = _maxRetryDelay;
