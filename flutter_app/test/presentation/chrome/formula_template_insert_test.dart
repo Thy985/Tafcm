@@ -14,6 +14,10 @@
 /// （12 预设 + 实时预览 + 语法错误提示），确认后才插入——避免手输 `$$`
 /// 定界符出错；插入语义仍为 insert 模式（见上文守门点）。
 ///
+/// **死数据守门（review #374）**：公式项不再登记在 [kTemplateConfigs]——
+/// 对话框流程使其 template/mode/cursorOffset 配置字段不可达，仅保留菜单
+/// 渲染（item/label），故断言其不在直插配置清单内。
+///
 /// 独立成文件（非并入 template_menu_test.dart）以守 TC-ARCH-7 单文件 ≤ 400 行。
 library;
 
@@ -24,7 +28,6 @@ import 'package:tafcm/core/editing/editor_history.dart';
 import 'package:tafcm/data/models/document.dart';
 import 'package:tafcm/presentation/chrome/editor_strings.dart';
 import 'package:tafcm/presentation/chrome/markdown_toolbar.dart';
-import 'package:tafcm/presentation/chrome/templates.dart';
 import 'package:tafcm/presentation/chrome/toolbar_components.dart';
 import 'package:tafcm/presentation/commands/commands.dart';
 import 'package:tafcm/presentation/editor/editor_coordinator.dart';
@@ -55,14 +58,9 @@ void main() {
     );
   }
 
-  group('issue #358 模板常量结构', () {
-    test('公式模板为 display 定界符包裹的 LaTeX 示例', () {
-      expect(Templates.formulaDisplayDefault, isNotEmpty);
-      expect(Templates.formulaDisplayDefault, startsWith(r'$$'));
-      expect(Templates.formulaDisplayDefault, endsWith(r'$$'));
-      expect(Templates.formulaDisplayDefault, contains('E=mc^2'));
-    });
-  });
+  /// 公式插入模板（对话框返回 LaTeX 后由 showFormulaInsertFlow 包裹定界符；
+  /// 本组 Intent 测试直接使用最终插入形态的常量字面量）。
+  const formulaDisplayTemplate = r'$$E=mc^2$$';
 
   group('issue #358 插入语义（Intent 层，无 widget 树）', () {
     test(r'公式 insert 模式把 $$ 解析为 display FormulaElement（非字面文本）', () {
@@ -71,7 +69,7 @@ void main() {
       final sel = coordinator.focusedSelection;
       coordinator.intents.dispatch(InsertTemplateIntent(
         id,
-        Templates.formulaDisplayDefault,
+        formulaDisplayTemplate,
         mode: TemplateInsertMode.insert,
         selection: sel,
         cursorOffset: -2,
@@ -98,7 +96,7 @@ void main() {
       coordinator.setFocus(id);
       coordinator.intents.dispatch(InsertTemplateIntent(
         editor.allIds.last,
-        Templates.formulaDisplayDefault,
+        formulaDisplayTemplate,
         mode: TemplateInsertMode.newBlock,
         cursorOffset: 0,
       ));
@@ -112,16 +110,15 @@ void main() {
   });
 
   group('issue #358 `+` 模板菜单入口', () {
-    test('模板常量：公式项登记在 kTemplateConfigs 且为 insert 模式', () {
+    test('公式项不在 kTemplateConfigs（对话框流程，无直接插入配置死数据）', () {
       const configs = kTemplateConfigs;
-      final formulaConfig =
-          configs.firstWhere((c) => c.item == TemplateMenuItem.formula);
-      expect(formulaConfig.label, EditorStrings.templateMenuFormula);
-      expect(formulaConfig.template, Templates.formulaDisplayDefault);
-      expect(formulaConfig.mode, TemplateInsertMode.insert);
-      // 唯一公式项，不重复登记。
-      expect(configs.where((c) => c.item == TemplateMenuItem.formula).length,
-          equals(1));
+      expect(
+        configs.where((c) => c.item == TemplateMenuItem.formula),
+        isEmpty,
+        reason: r'公式经 showFormulaInsertFlow 对话框流程插入，若登记在 '
+            r'kTemplateConfigs，其 template/mode/cursorOffset 三字段将永不可达'
+            r'（review #374 死数据清理）；菜单项在 TemplateMenuButton 单独渲染',
+      );
     });
 
     testWidgets(r'`+` 菜单选择「块级公式」→ 弹对话框 → 选预设 → 插入 $$ 并产生 FormulaElement',

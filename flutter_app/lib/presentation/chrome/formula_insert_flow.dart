@@ -30,6 +30,11 @@ Future<void> showFormulaInsertFlow(
 ) async {
   final blockId = coordinator.lastFocusedId;
   if (blockId == null) return;
+  // §2.7.1 强一致：在弹模态前快照选区。await showDialog 期间用户可能经系统手势
+  // / 外部交互切走焦点，届时 coordinator.focusedSelection 会返回 null，使
+  // InsertTemplateIntent 退化为单光标 insert（落点非预期、静默偏离）。
+  // 预先捕获规避该竞态——模态期间焦点不应改变插入目标的光标基准。
+  final selection = coordinator.focusedSelection;
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final latex = await showDialog<String>(
     context: context,
@@ -42,7 +47,7 @@ Future<void> showFormulaInsertFlow(
     blockId,
     '\$\$$latex\$\$',
     mode: TemplateInsertMode.insert,
-    selection: coordinator.focusedSelection,
+    selection: selection,
     // cursorOffset -2：光标落在 LaTeX 末尾、闭合 $$ 之前。
     cursorOffset: -2,
   ));
