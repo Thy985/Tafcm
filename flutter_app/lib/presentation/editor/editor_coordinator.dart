@@ -44,19 +44,6 @@ class EditorCoordinator extends ChangeNotifier
   /// ADR-0012 §Editor Context Preservation：不随 clearFocus 清空。
   BlockId? _lastFocusedId;
   late final DirtyStateTracker _dirty;
-  /// dispose 标志（在 [notifyListeners] 中检查）。
-  ///
-  /// `ChangeNotifier` 的内部 `_disposed` 不对外暴露，但 `notifyListeners()`
-  /// 在 [dispose] 后被调用时，内部先执行 `_dirty.sync()` / `changes.syncAll()`
-  /// / `super.notifyListeners()` 三步——其中后两步在已 dispose 的 `ValueNotifier`
-  /// 和 `ChangeNotifier` 上都会抛 `FlutterError`。
-  ///
-  /// 典型触发路径：`EditorPage.dispose()` 先调 `_autosave.stop()`（同步，
-  /// 不 await 在飞的 _fire），再调 `_coordinator.dispose()`。在飞的 save 回调
-  /// 于 `await writeDocument` 完成后继续执行 → `markSaved()` → 抵达此处。
-  /// 本标志短路整个通知链；[DirtyStateTracker.sync] 的 `isClosed` 守卫是
-  /// 第二层冗余保护。
-  bool _disposed = false;
   /// ADR-0021：可观测服务（可选，LIGHT 模式下默认开启）。
   final ObservabilityService? observability;
 
@@ -254,11 +241,6 @@ class EditorCoordinator extends ChangeNotifier
 
   @override
   void notifyListeners() {
-    // dispose 后短路：防止在飞的 save 回调于 dispose 间隙完成时，
-    // 经 markSaved → notifyListeners 抵达此处后，对已释放的 ValueNotifier
-    // 调 .value setter 抛 FlutterError（误分类为持久化失败并触发重试）。
-    // 详见 [_disposed] 字段文档。
-    if (_disposed) return;
     _dirty.sync();
     // #246：全量同步（值未变则不通知）
     changes.syncAll(
@@ -267,7 +249,6 @@ class EditorCoordinator extends ChangeNotifier
   }
   @override
   void dispose() {
-    _disposed = true;
     _dirty.dispose();
     changes.dispose(); // #246：释放全部 notifier
     super.dispose();

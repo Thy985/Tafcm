@@ -9,15 +9,23 @@
 /// 3. 在飞的 save 回调继续执行 → `markSaved()` → `notifyListeners()`
 ///    → `DirtyStateTracker.sync()` → 对已关闭的 `_ctl` 调 `add`
 ///    → **StateError: Cannot add new events after calling close**
+///    → `changes.syncAll()` 对已释放的 `ValueNotifier` 调 setter
+///    → **FlutterError: A ValueNotifier<bool> was used after being disposed**
 ///
 /// **数据影响**：无——`await writeDocument` 已成功返回，异常发生在写盘**之后**
 /// 的脏标记簿记。但异常被 `_saveOnce` 的 catch 误分类为"持久化失败"，
 /// 触发 `_scheduleRetry()` 在已 stopped 的服务上创建新 Timer（泄漏）。
 ///
-/// **修复**：
+/// **修复（三层防御）**：
 /// - Fix 1 — `DirtyStateTracker.sync()`：`_ctl.isClosed` 守卫（防 `add` 抛异常）
 /// - Fix 2 — `AutosaveService._running`：`_schedule` / `_scheduleRetry` 早退
 ///  （防 Timer 泄漏）
+/// - Fix 3 — `EditorPage._saveDocument()`：`mounted` 守卫——save 回调恢复时若
+///  Widget 已 dispose，跳过 `markSaved()`，从**调用方**阻断整条通知链。
+///  这是根层修复：放在 EditorPage（coordinator 的 owner）而非 coordinator 内部，
+///  既避免给 God Object 新增字段（TC-ARCH-UI-4 守门 ≤ 260 行），也符合
+///  「owner 负责生命周期」的原则。`mounted` 是 StatefulWidget 内建属性，
+///  `dispose()` 同步置 false，无需新增状态。
 ///
 /// **验证**：用真实 `EditorCoordinator`（含真实 `DirtyStateTracker`）构造竞态，
 /// 确认修复后无异常、无 Timer 泄漏、onError 不被误触发。
@@ -70,16 +78,22 @@ void main() {
       final timers = FakeTimerFactory();
       final saveGate = Completer<void>();
       final errors = <Object>[];
+      // 模拟 EditorPage.mounted：dispose() 同步置 false，后续微任务中恢复的
+      // save 回调读取到 false 即跳过 markSaved（#379 修复所在层）。
+      var mounted = true;
 
       final service = AutosaveService(
         source: coordinator,
         save: () async {
           // 与 EditorPage._saveDocument 同语义：起始同步捕获快照，
           // 写盘后若 source 无新改动则 markSaved。
+          // #379：mounted 守卫（对应 EditorPage 的 mounted 检查）。
           final snap = editor.serializedContent;
           writes.add(snap);
           await saveGate.future; // 模拟写盘耗时，制造 dispose 竞态窗口
-          if (editor.serializedContent == snap) coordinator.markSaved();
+          if (mounted && editor.serializedContent == snap) {
+            coordinator.markSaved();
+          }
           return true;
         },
         debounce: kDebounce,
@@ -101,7 +115,10 @@ void main() {
       final timerCountBeforeDispose = timers.timers.length;
 
       // 模拟 EditorPage.dispose() 时序：stop() + coordinator.dispose()
+      // 注：EditorPage.dispose() 同步执行这两步，之后 mounted 置 false。
+      // 在飞的 save 回调于后续微任务恢复时读取 mounted=false → 跳过 markSaved。
       service.stop();
+      mounted = false;
       coordinator.dispose();
 
       final timerCountAfterStop = timers.timers.length;
