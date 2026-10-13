@@ -356,6 +356,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       device: ${{ steps.filter.outputs.device }}
+      windows: ${{ steps.filter.outputs.windows }}  # ADR-0034 D2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -369,6 +370,12 @@ jobs:
               - 'flutter_app/android/**'
               - 'flutter_app/integration_test/**'
               - 'flutter_app/test_driver/**'
+              - 'flutter_app/pubspec.yaml'
+              - 'flutter_app/pubspec.lock'
+              - '.github/workflows/ci.yml'
+            # ADR-0034 D2：build-windows job 仅 Windows 平台相关路径变更时才有意义
+            windows:
+              - 'flutter_app/windows/**'
               - 'flutter_app/pubspec.yaml'
               - 'flutter_app/pubspec.lock'
               - '.github/workflows/ci.yml'
@@ -524,6 +531,64 @@ jobs:
         with:
           name: web-build
           path: flutter_app/build/web/
+
+  # Windows 桌面端构建 job（ADR-0034 D2）
+  #
+  # 触发策略沿用 android-device 的 C 方案：移出 PR 门禁，仅 workflow_dispatch
+  # 手动触发 + changes job 的 windows 路径过滤双条件。理由见 ADR-0034 D2：
+  # windows-latest runner 无 Flutter 预热缓存，单 job 预计 10-15min；ADR 立项期
+  # 几乎每个相关 PR 都必然触发，等于每 PR 都跑，把 CI 总时长从 ~8min 推到 ~20min，
+  # 代价与收益不成比例。构建价值是"合并前/发布前抽检确认 Windows 产物可构建"，
+  # 不是每个 PR 当场证明（与 android-device 同构）。
+  #
+  # 运行期能力（WebView2 公式/Mermaid 渲染、file_picker / share_plus 实测、
+  # 本地手动冒烟）不在此 job 范围：见 ADR-0034 D3（Windows 不接管
+  # integration_test）与 M5（本地手动冒烟验证报告）。
+  #
+  # 手动触发：Actions 页 → CI → Run workflow（选本分支）；PR 阶段可用
+  # gh workflow run ci.yml -f update_goldens=false 对该分支触发（路径过滤仍把关）。
+  build-windows:
+    name: Build Windows Release
+    runs-on: windows-latest
+    needs: [test, changes]
+    if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.windows == 'true'
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          # Windows 默认 PUB_CACHE 位置（GitHub 官方 Flutter Windows 缓存写法）
+          path: |
+            C:\Users\runneradmin\AppData\Local\Pub\Cache
+            flutter_app/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml', 'flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Download dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        run: flutter build windows --release --no-pub
+
+      - name: Upload Windows build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: flutter_app/build/windows/x64/runner/Release/
 
   # Issue Triage 工作流架构守门（ADR-0025 D1/D6/D10）
   # 拦截方式：任何 issue-triage.yml 的权限/依赖/并发结构越界都让 CI 失败。
