@@ -2,6 +2,28 @@
 
 > 正式版本历史（用户视角：发生了什么）。详细发布证据、验证记录见 [docs/releases/](docs/releases/)（工程师视角：这次发布是怎么证明的）。
 
+## [0.3.0] - 2026-10-13（tag v0.3.0，`versionCode` 3 → 4）
+
+首个多平台版本：Windows 桌面端 MVP 上线。累计 6 个 commit（v0.2.0 → v0.3.0）。
+
+### 新增
+
+- **Windows 桌面端**：`tafcm.exe` 可独立运行的 Windows x64 桌面应用，基于 WebView2 Runtime（Windows 10 1803+ / Windows 11 默认内置）。详见 [ADR-0034](docs/decisions/ADR/0034-windows-desktop-platform.md)。
+- **Windows 构建 CI**：`build-windows` CI job，路径过滤 + 手动触发（`workflow_dispatch`），避免每次 PR 跑全量 Windows 构建。
+- **Windows 安装节**：`README.md` 新增 Windows 安装指南。
+
+### 已知问题（Windows）
+
+- **编辑器内公式实时 SVG 渲染降级**：Windows 上公式块显示为 `flutter_math_fork` 渲染结果（可用但非 MathJax SVG 原始质量）。根因：`flutter_inappwebview_windows 0.6.0` 的 CDP `Runtime.consoleAPICalled` 事件不回传 Dart，导致 SVG 结果无法通过 `console.log` 协议回传。修复路径明确（Dart 端轮询 DOM 替代等待 console 消息），已登记为 BUG-004，属 Phase 4.2 功能增强。详见 [验证报告 §4.7](docs/releases/phase4.1-windows-mvp-verification-report.md)。
+- **Mermaid 图表显示源码占位**：同上根因，Mermaid 图表在 Windows 编辑器内显示源码文本而非渲染后的图表。
+- **导出 PDF/DOCX/TXT 不受影响**：导出管线走离屏 canvas 捕获，不依赖 WebView，Windows 上导出功能完整可用。
+
+### 兼容性
+
+- **Android**：`versionCode` 3 → 4 单调递增，已有 Android 安装可直接覆盖升级，本地文档数据不受影响。
+- **Web / iOS**：未受影响，平台代码零变更。
+- **Windows**：需安装 [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)（Windows 10 1803+ / Windows 11 默认已内置）。
+
 ## [0.2.0] - 2026-10-12（tag v0.2.0，`versionCode` 2 → 3）
 
 首个 pre-1.0 里程碑：写作与导出能力增强。累计 135 个 commit（v0.1.1 → v0.2.0）。
