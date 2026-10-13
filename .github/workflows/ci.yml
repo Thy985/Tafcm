@@ -373,13 +373,17 @@ jobs:
               - 'flutter_app/pubspec.yaml'
               - 'flutter_app/pubspec.lock'
               - '.github/workflows/ci.yml'
-            # ADR-0034 D2：build-windows job 仅 Windows 平台相关路径变更时才有意义
+            # ADR-0034 D2：build-windows job 仅 Windows 平台相关路径变更时才有意义。
+            # 注：pubspec.yaml / pubspec.lock 任何一行改动（如加 Android-only 依赖）都会让
+            # windows output=true，与 device filter 完全同构（共享同一对 pubspec 路径）。
+            # 这是有意的宽触发：依赖锁定（M2 补锁 url_launcher_windows 等）本就该驱动
+            # Windows 原生构建复核；job 已移出 PR 门禁（仅 workflow_dispatch 手动触发），
+            # 多触发代价只是手动跑一次 10-15min，不影响门禁总时长。
             windows:
               - 'flutter_app/windows/**'
               - 'flutter_app/pubspec.yaml'
               - 'flutter_app/pubspec.lock'
               - '.github/workflows/ci.yml'
-
   # 在 Android 模拟器执行 Tafcm 已存在的 device 级 integration_test
   # （IntegrationTestWidgetsFlutterBinding，Tier 4 真机冒烟设计）。
   # 目标：验证"CI 能真正构建并运行 APK"这一架构决策，补齐 emulator_runtime 空白。
