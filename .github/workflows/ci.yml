@@ -551,9 +551,20 @@ jobs:
   #
   # 手动触发：Actions 页 → CI → Run workflow（选本分支）；PR 阶段可用
   # gh workflow run ci.yml -f update_goldens=false 对该分支触发（路径过滤仍把关）。
+  #
+  # **Runner pin：windows-2022 而非 windows-latest**
+  # `windows-latest` 镜像已升级到 Visual Studio 2026（MSVC 14.51.36231），
+  # flutter_inappwebview_windows 0.6.0（2024 stable，仍在用 C++11 老
+  # `<experimental/coroutine>` 头）在 MSVC 14.51 下触发 STL1011 废弃断言
+  # error C2338，`flutter build windows` 直接编译失败（CI run 38322448267 实测）。
+  # pin 到 windows-2022（VS2022 / MSVC 14.4x）后该插件可编译，且与本地开发
+  # 环境（VS Build Tools 2022 / MSVC 14.44）一致，避免 CI 与本地工具链漂移。
+  # 后续迁回 windows-latest 的前置条件：flutter_inappwebview_windows 升级到
+  # 能过 MSVC 14.51 的版本（0.7.0-beta+），并同步解除 pubspec.yaml 的
+  # dependency_overrides 锁定（见 flutter_app/pubspec.yaml 的 override 注释）。
   build-windows:
     name: Build Windows Release
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: [test, changes]
     if: github.event_name == 'workflow_dispatch' && needs.changes.outputs.windows == 'true'
     defaults:
