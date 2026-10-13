@@ -212,6 +212,70 @@ ADR:130 的 MVP 判据第二项要求"打开种子文档 → 编辑 → **导出
 
 **未验证项（诚实声明）**：本节只完成了**代码级**的依赖隔离确认，未在 Windows 上实际执行一次导出并检查产物。导出走的是同一套跨平台 Flutter 逻辑（与 Android 端已验证路径同源），但 Windows 上未跑，故标记为"代码级确认，运行时未测"。
 
+### 4.7 BUG-004 根因定位（插件层，源码级）
+
+M5 之后继续下钻 BUG-004，读 `flutter_inappwebview_windows 0.6.0` 的 C++ 源码后，**定位到 Windows 平台的 `evaluateJavascript` 实现走的是 Chrome DevTools Protocol，而非 WebView2 的 `ExecuteScriptAsync`**——这与缺陷形态吻合，但需要实验区分两条假设。
+
+#### 调用链
+
+```
+Dart  in_app_webview_controller.dart:1944   channel?.invokeMethod('evaluateJavascript', args)
+  → C++ webview_channel_delegate.cpp:148-154   "evaluateJavascript" 分支（get_optional_fl_map_value 取 contentWorld，缺失回落 ContentWorld::page()）
+    → C++ in_app_webview.cpp:1206-1257        InAppWebView::evaluateJavascript
+      → user_content_controller.cpp:301-334    createContentWorld
+      → in_app_webview.cpp:1227             CallDevToolsProtocolMethod(L"Runtime.evaluate", ...)
+```
+
+#### 关键事实
+
+1. **`pageLoaded=true` 不是 JS 探测结果**：`mermaid_service.dart:145` 的 `markPageLoaded()` 由 WebView2 `onLoadStop` 事件触发，与 `evaluateJavascript` 无关。因此**本项目当前没有任何一个 `evaluateJavascript` 调用被证实成功过**，`pageLoaded=true` 不构成"JS 可用"的证据。
+2. **`Runtime.enable` 是 fire-and-forget，从不等待**：`in_app_webview.cpp:215-249` 对 `Runtime.enable` / `Page.enable` / `Network.enable` / `Fetch.enable` 四个 CDP 域调用，回调内仅 `failedLog(errorCode)`，既不保存结果也不 Future 等待。注释明确写 `// required to make Runtime events work`，即作者知道这是 `Runtime.evaluate` 的前提，但没有保证它先完成。
+3. **超时不可能来自 content world 创建**：`createContentWorld`（`user_content_controller.cpp:301-308`）对 page world **同步短路**——`ContentWorld::isPage(contentWorld)` 为真时直接 `completionHandler(-1)` 返回。故挂起点只能是 `Runtime.evaluate` 的 completion callback 未触发。
+4. **插件自带的就绪探针也走同一条坏路径**：`in_app_webview.cpp:537` 在 `NavigationCompleted` 时调用 `evaluateJavascript(PLATFORM_READY_JS_SOURCE, ContentWorld::page(), nullptr)`，而 `completionHandler` 传了 `nullptr`——即使完全失败也**静默无输出**。这解释了该缺陷为何长期未被发现：插件自己的就绪检测同样不工作，且无任何日志。
+5. **已排除"DevTools 未启用"**：`isInspectable` 默认 `true`（`in_app_webview_settings.h:21`），`in_app_webview.cpp:197` 因此 `put_AreDevToolsEnabled(true)`，CDP 应可用。`javaScriptEnabled` 同默认 `true`。
+6. **已排除"参数解析崩溃"**：`webview_channel_delegate.cpp:152-153` 用 `get_optional_fl_map_value` 读取 `contentWorld`，缺失时回落 `ContentWorld::page()`，不抛异常。Dart 侧 `in_app_webview_controller.dart:1942-1943` 的 `putIfAbsent('contentWorld', () => contentWorld?.toMap())` 在 `contentWorld` 为 null 时会插入**显式 null 值**，但 C++ 侧 `get_optional_fl_map_value` 对显式 null 的处理不会崩溃。
+
+#### 两条待判定假设
+
+| # | 假设 | 依据 | 判定方式 |
+|---|------|------|----------|
+| **H1** | **CDP 域未就绪竞态**：`Runtime.enable` 未生效即发起 `Runtime.evaluate`，或 CDP 域启用本身失败 | `in_app_webview.cpp:215-249` fire-and-forget；注释自称必需 | `evaluateJavascript(source: '1+1')` 超时 → CDP 通道本身不通 |
+| **H2** | **缺少 `contextId`**：`in_app_webview.cpp:1218-1225` 在 `contextId == -1`（page world）时不传 `contextId`，依赖默认 execution context，而该 context 由 `Runtime.enable` 触发的 `ExecutionCreated` 事件建立 | CDP 规范下 `Runtime.evaluate` 未指定 `contextId` 时需默认 context | `1+1` 有返回但 `renderLatex` 调用超时 → 指向页面上下文问题 |
+
+两条假设**同时成立**：H1 是必要条件（`Runtime.enable` 未 await），H2 放大了影响（page world 时连 `contextId` 都不给）。
+
+**最小判定实验**（5 分钟，Windows integration test 内）：
+
+```dart
+final c = MermaidService.attachedController!;
+debugPrint('jsEnabled=${await c.isJavaScriptEnabled()}');                    // 前置排除
+debugPrint('probe=${await c.evaluateJavascript(source: '1+1').timeout(8)}'); // 区分死锁 vs 返回
+debugPrint('bridge=${await c.evaluateJavascript(source: "typeof window.flutter_inappwebview").timeout(8)}');
+// bridge == 'undefined' 即证实：插件自带的 Runtime.evaluate 探针也未工作 → 缺陷在插件层，非本项目 Dart 层
+```
+
+#### 关于升级插件版本：0.7.0-beta.3 **不修复此问题**
+
+核查上游 changelog（[0.7.0-beta.3](https://pub.dev/packages/flutter_inappwebview_windows/versions/0.7.0-beta.3/changelog)），beta.1/beta.2/beta.3 全部条目中**没有任何 `evaluateJavascript` 修复**：
+
+- beta.1 相关项：`Fixed get_optional_fl_map_value implementation in utils/flutter.h`（参数解析工具函数，与 `Runtime.evaluate` 通道无关）、`onReceivedRenderProcessGone` 等事件
+- beta.2 相关项：`Fixed onPermissionRequest ... crash`、`Fixed getCookies return empty list`
+- beta.3 相关项：`getFrameId` / `getFavicon` / `showSaveAsUI` 等新方法、FindInteractionController、`WebViewEnvironment dispose crash`
+
+且 beta 系列硬依赖 `flutter_inappwebview_platform_interface ^1.4.0-beta.3`，会连锁拉动整个 inappwebview 全家桶版本，违反 AGENTS.md §6.2.9（保留 stable override 锁定）。**故"升级插件"不是可行缓解项。**
+
+#### 可行缓解项
+
+| # | 方案 | 成本 | 可行性 |
+|---|------|------|--------|
+| 1 | 重写协议：改用 `postMessage` + `addCallHandlerFunction` 回传 SVG | 中 | ⚠️ **待探针确认**——JS 桥的注入用的是**另一个 CDP 方法** `Page.addScriptToEvaluateOnNewDocument`（`user_content_controller.cpp:360`），与 `Runtime.evaluate` 是不同 CDP 方法。**但它同属需要 domain 启用的 CDP 调用**：若 H1 成立（CDP 域整体不就绪），桥注入同样失败，此方案一并失效。故可行性完全取决于上面的 `bridge` 探针结果——`bridge === 'object'` 才可行，`'undefined'` 则需先解决 CDP 域就绪。代价是重写 `formula_svg_service.dart` 与 `mermaid_service.dart` 的渲染协议（从"发起 → 直接返回字符串"拆成"发起 → 监听 handler 回调"） |
+| 2 | 锁定降级为最终状态 | 低 | ✅ 公式走 `flutter_math_fork`（§4.4 已验证可用），Mermaid 走源码占位。导出 PDF/DOCX 不受影响（§4.6） |
+| 3 | 向上游提交 PR（把 `Runtime.enable` 等改为 await） | 高 | ⚠️ 需理解 WebView2 CDP 生命周期，且上游修复周期不可控 |
+
+**方案 1 的判定依赖**：先跑 §4.7 的三行探针。若 `bridge === 'object'`（桥已注入，说明 `Page.addScriptToEvaluateOnNewDocument` 路径可用），则改写 `postMessage` 协议即可恢复 SVG 渲染；若 `bridge === 'undefined'`，说明 WebView2 CDP 域整体未就绪，问题更深，需回到上游 PR（方案 3）。
+
+**建议**：短期走方案 2（已在 ADR-0034 D5 登记为降级路径，且降级链路经 §4.4 验证可用），MVP 可带此降级关闭；方案 1 作为 Phase 4.2 的功能增强任务单独立项，前置条件是先跑探针确认 CDP Page 域可用。
+
 ---
 
 ## 5. M3 插件 Windows 行为确认
