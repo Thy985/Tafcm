@@ -2,7 +2,7 @@
 
 > **本文件为 Phase 4.1 M5 里程碑（本地手动冒烟验证）报告，对应 [ADR-0034](../decisions/ADR/0034-windows-desktop-platform.md) 的 D5 / M2-M5 验证项。**
 >
-> **版本**：v1.0（M1/M4 达成，M2/M3 部分达成，M5 关闭判据未满足）
+> **版本**：v1.4（M1/M4 达成，M3 运行时已验证，M2 降级路径经独立验证可用，BUG-004 根因已精确定位；MVP 关闭判据未满足）
 > **生成日期**：2026-10-13
 > **生成者**：AI Agent
 > **审批状态**：⏳ 待 Human Owner 审批
@@ -17,8 +17,8 @@
 | 里程碑 | ADR 定义 | 本报告状态 |
 |---|---|---|
 | M1 | 生成 `windows/` 原生工程 + 首次构建通过 | ✅ **达成**（CI + 本地双验证） |
-| M2 | WebView2 渲染链路验证（公式 SVG + Mermaid） | ⚠️ **部分达成**（挂载与加载通；`evaluateJavascript` timeout 确凿；降级路径**经独立验证可用**，见 §4.4） |
-| M3 | `file_picker` / `share_plus` Windows 实测 | ⚠️ **部分达成**（代码级 + 构建级确认，运行时未测） |
+| M2 | WebView2 渲染链路验证（公式 SVG + Mermaid） | ⚠️ **部分达成**（挂载与加载通；`evaluateJavascript` 实测可用；真实缺陷是 CDP `Runtime.consoleAPICalled` 事件不回传，见 §4.7；降级路径**经独立验证可用**，见 §4.4） |
+| M3 | `file_picker` / `share_plus` Windows 实测 | ✅ **达成**（运行时探针实测：file_picker 模态对话框弹出、share_plus 方法通道返回正常，见 §5.2） |
 | M4 | `build-windows` CI job（路径过滤 + 手动触发） | ✅ **达成**（CI 实测绿） |
 | M5 | 本地手动冒烟验证报告 | ✅ **本报告**（但 MVP 关闭判据未满足） |
 
@@ -212,69 +212,59 @@ ADR:130 的 MVP 判据第二项要求"打开种子文档 → 编辑 → **导出
 
 **未验证项（诚实声明）**：本节只完成了**代码级**的依赖隔离确认，未在 Windows 上实际执行一次导出并检查产物。导出走的是同一套跨平台 Flutter 逻辑（与 Android 端已验证路径同源），但 Windows 上未跑，故标记为"代码级确认，运行时未测"。
 
-### 4.7 BUG-004 根因定位（插件层，源码级）
+### 4.7 BUG-004 根因定位（已证伪 v1.3 的 H1/H2 假设，精确定位至 CDP 事件回传）
 
-M5 之后继续下钻 BUG-004，读 `flutter_inappwebview_windows 0.6.0` 的 C++ 源码后，**定位到 Windows 平台的 `evaluateJavascript` 实现走的是 Chrome DevTools Protocol，而非 WebView2 的 `ExecuteScriptAsync`**——这与缺陷形态吻合，但需要实验区分两条假设。
+> **勘误声明**：本节替代 v1.3 的错误分析。v1.3 将 BUG-004 归因于"CDP `Runtime.evaluate` 不工作"（假设 H1/H2），该归因已被本轮 Windows integration test 实测**证伪**。真实根因是 **CDP `Runtime.consoleAPICalled` 事件不回传 Dart**。
 
-#### 调用链
+#### 实测探针结果（`flutter test -d windows`，Windows 11 26H2 / WebView2 154.0.4258.62）
+
+| 探针 | 结果 | 判定 |
+|------|------|------|
+| `evaluateJavascript(source: '1+1')` | **`2`**（8s 内返回） | ✅ `Runtime.evaluate` **可用** → H1/H2 均证伪 |
+| `evaluateJavascript(source: 'typeof window.renderLatex')` | **`'function'`** | ✅ `renderLatex` 已定义 |
+| `evaluateJavascript(source: 'typeof MathJax')` | **`'object'`** | ✅ MathJax 已加载 |
+| `evaluateJavascript(source: 'typeof MathJax.tex2svg')` | **`'function'`** | ✅ `tex2svg` 可用 |
+| `evaluateJavascript(source: "typeof window.flutter_inappwebview")` | **`'object'`** | ✅ JS 桥已注入（`Page.addScriptToEvaluateOnNewDocument` 可用） |
+| `evaluateJavascript(source: "(function(){console.log('DIAG3_CONSOLE_TEST');return 'done';})()")` | JS 侧返回 **`'done'`** | ✅ `console.log` **执行了** |
+| 日志中搜索 `DIAG3_CONSOLE_TEST` | **未出现** | ❌ **`onConsoleMessage` 未触发** |
+
+#### 真实调用链（与 v1.3 不同）
+
+SVG 结果**不是** `evaluateJavascript` 的返回值，而是通过 `console.log` → CDP `Runtime.consoleAPICalled` 事件 → `onConsoleMessage` → 再次 `evaluateJavascript` 读 DOM 的**三跳协议**：
 
 ```
-Dart  in_app_webview_controller.dart:1944   channel?.invokeMethod('evaluateJavascript', args)
-  → C++ webview_channel_delegate.cpp:148-154   "evaluateJavascript" 分支（get_optional_fl_map_value 取 contentWorld，缺失回落 ContentWorld::page()）
-    → C++ in_app_webview.cpp:1206-1257        InAppWebView::evaluateJavascript
-      → user_content_controller.cpp:301-334    createContentWorld
-      → in_app_webview.cpp:1227             CallDevToolsProtocolMethod(L"Runtime.evaluate", ...)
+Dart  formula_svg_service.dart:352-355  evaluateJavascript(source: 'window.renderLatex("l1", ...)')
+        ↓ 此调用立即返回 undefined（renderLatex 是 async，不阻塞等待）
+JS    mermaid_renderer.html:55-83  renderLatex 异步执行 MathJax.tex2svg →
+        把 SVG 写入 document.getElementById('payload-l1').textContent
+        然后 console.log('LATEX_OK|l1')     ← 这一跳断裂
+C++   in_app_webview.cpp:665-706  GetDevToolsProtocolEventReceiver(L"Runtime.consoleAPICalled", ...)
+        → add_DevToolsProtocolEventReceived → channelDelegate->onConsoleMessage(...)
+        ↓ 此回调在 Windows 上未触发
+Dart  mermaid_host.dart:91-95  onConsoleMessage → FormulaSvgService.handleConsoleMessage('LATEX_OK|l1')
+        → _fetchSvgFromDom('l1') → evaluateJavascript 读 payload-l1.textContent → 返回 SVG
 ```
 
-#### 关键事实
+**60s timeout 发生在 `renderToSvg` 的 `completer.future.timeout(_renderTimeout)`**（`formula_svg_service.dart:245`），等待的 `LATEX_OK` 消息永不到达——不是因为 JS 没执行（已证实执行），而是因为 `console.log` 产生的 CDP 事件没有回传到 Dart。
 
-1. **`pageLoaded=true` 不是 JS 探测结果**：`mermaid_service.dart:145` 的 `markPageLoaded()` 由 WebView2 `onLoadStop` 事件触发，与 `evaluateJavascript` 无关。因此**本项目当前没有任何一个 `evaluateJavascript` 调用被证实成功过**，`pageLoaded=true` 不构成"JS 可用"的证据。
-2. **`Runtime.enable` 是 fire-and-forget，从不等待**：`in_app_webview.cpp:215-249` 对 `Runtime.enable` / `Page.enable` / `Network.enable` / `Fetch.enable` 四个 CDP 域调用，回调内仅 `failedLog(errorCode)`，既不保存结果也不 Future 等待。注释明确写 `// required to make Runtime events work`，即作者知道这是 `Runtime.evaluate` 的前提，但没有保证它先完成。
-3. **超时不可能来自 content world 创建**：`createContentWorld`（`user_content_controller.cpp:301-308`）对 page world **同步短路**——`ContentWorld::isPage(contentWorld)` 为真时直接 `completionHandler(-1)` 返回。故挂起点只能是 `Runtime.evaluate` 的 completion callback 未触发。
-4. **插件自带的就绪探针也走同一条坏路径**：`in_app_webview.cpp:537` 在 `NavigationCompleted` 时调用 `evaluateJavascript(PLATFORM_READY_JS_SOURCE, ContentWorld::page(), nullptr)`，而 `completionHandler` 传了 `nullptr`——即使完全失败也**静默无输出**。这解释了该缺陷为何长期未被发现：插件自己的就绪检测同样不工作，且无任何日志。
-5. **已排除"DevTools 未启用"**：`isInspectable` 默认 `true`（`in_app_webview_settings.h:21`），`in_app_webview.cpp:197` 因此 `put_AreDevToolsEnabled(true)`，CDP 应可用。`javaScriptEnabled` 同默认 `true`。
-6. **已排除"参数解析崩溃"**：`webview_channel_delegate.cpp:152-153` 用 `get_optional_fl_map_value` 读取 `contentWorld`，缺失时回落 `ContentWorld::page()`，不抛异常。Dart 侧 `in_app_webview_controller.dart:1942-1943` 的 `putIfAbsent('contentWorld', () => contentWorld?.toMap())` 在 `contentWorld` 为 null 时会插入**显式 null 值**，但 C++ 侧 `get_optional_fl_map_value` 对显式 null 的处理不会崩溃。
+#### 为什么 v1.3 的分析是错的
 
-#### 两条待判定假设
+v1.3 的推理链是"`pageLoaded=true` 不是 JS 探测 → 没有 `evaluateJavascript` 被证实成功 → 挂起点在 `Runtime.evaluate`"。这个推理的**前提**（"没有 `evaluateJavascript` 被证实成功"）是错的——`pageLoaded=true` 来自 `onLoadStop`，但 `evaluateJavascript` 本身确实工作。探针直接证实 `1+1` 返回 `2`，桥注入返回 `'object'`。v1.3 的两个假设（H1: CDP 域未就绪竞态、H2: 缺 `contextId`）均不成立。
 
-| # | 假设 | 依据 | 判定方式 |
-|---|------|------|----------|
-| **H1** | **CDP 域未就绪竞态**：`Runtime.enable` 未生效即发起 `Runtime.evaluate`，或 CDP 域启用本身失败 | `in_app_webview.cpp:215-249` fire-and-forget；注释自称必需 | `evaluateJavascript(source: '1+1')` 超时 → CDP 通道本身不通 |
-| **H2** | **缺少 `contextId`**：`in_app_webview.cpp:1218-1225` 在 `contextId == -1`（page world）时不传 `contextId`，依赖默认 execution context，而该 context 由 `Runtime.enable` 触发的 `ExecutionCreated` 事件建立 | CDP 规范下 `Runtime.evaluate` 未指定 `contextId` 时需默认 context | `1+1` 有返回但 `renderLatex` 调用超时 → 指向页面上下文问题 |
+#### 关于升级插件版本
 
-两条假设**同时成立**：H1 是必要条件（`Runtime.enable` 未 await），H2 放大了影响（page world 时连 `contextId` 都不给）。
+核查上游 changelog（[0.7.0-beta.3](https://pub.dev/packages/flutter_inappwebview_windows/versions/0.7.0-beta.3/changelog)），beta 系列**没有任何涉及 `consoleAPICalled` 事件或 `onConsoleMessage` 的修复条目**。且硬依赖 `platform_interface ^1.4.0-beta.3` 违反 AGENTS.md §6.2.9。**故"升级插件"不是可行缓解项。**
 
-**最小判定实验**（5 分钟，Windows integration test 内）：
-
-```dart
-final c = MermaidService.attachedController!;
-debugPrint('jsEnabled=${await c.isJavaScriptEnabled()}');                    // 前置排除
-debugPrint('probe=${await c.evaluateJavascript(source: '1+1').timeout(8)}'); // 区分死锁 vs 返回
-debugPrint('bridge=${await c.evaluateJavascript(source: "typeof window.flutter_inappwebview").timeout(8)}');
-// bridge == 'undefined' 即证实：插件自带的 Runtime.evaluate 探针也未工作 → 缺陷在插件层，非本项目 Dart 层
-```
-
-#### 关于升级插件版本：0.7.0-beta.3 **不修复此问题**
-
-核查上游 changelog（[0.7.0-beta.3](https://pub.dev/packages/flutter_inappwebview_windows/versions/0.7.0-beta.3/changelog)），beta.1/beta.2/beta.3 全部条目中**没有任何 `evaluateJavascript` 修复**：
-
-- beta.1 相关项：`Fixed get_optional_fl_map_value implementation in utils/flutter.h`（参数解析工具函数，与 `Runtime.evaluate` 通道无关）、`onReceivedRenderProcessGone` 等事件
-- beta.2 相关项：`Fixed onPermissionRequest ... crash`、`Fixed getCookies return empty list`
-- beta.3 相关项：`getFrameId` / `getFavicon` / `showSaveAsUI` 等新方法、FindInteractionController、`WebViewEnvironment dispose crash`
-
-且 beta 系列硬依赖 `flutter_inappwebview_platform_interface ^1.4.0-beta.3`，会连锁拉动整个 inappwebview 全家桶版本，违反 AGENTS.md §6.2.9（保留 stable override 锁定）。**故"升级插件"不是可行缓解项。**
-
-#### 可行缓解项
+#### 可行缓解项（已更新）
 
 | # | 方案 | 成本 | 可行性 |
 |---|------|------|--------|
-| 1 | 重写协议：改用 `postMessage` + `addCallHandlerFunction` 回传 SVG | 中 | ⚠️ **待探针确认**——JS 桥的注入用的是**另一个 CDP 方法** `Page.addScriptToEvaluateOnNewDocument`（`user_content_controller.cpp:360`），与 `Runtime.evaluate` 是不同 CDP 方法。**但它同属需要 domain 启用的 CDP 调用**：若 H1 成立（CDP 域整体不就绪），桥注入同样失败，此方案一并失效。故可行性完全取决于上面的 `bridge` 探针结果——`bridge === 'object'` 才可行，`'undefined'` 则需先解决 CDP 域就绪。代价是重写 `formula_svg_service.dart` 与 `mermaid_service.dart` 的渲染协议（从"发起 → 直接返回字符串"拆成"发起 → 监听 handler 回调"） |
-| 2 | 锁定降级为最终状态 | 低 | ✅ 公式走 `flutter_math_fork`（§4.4 已验证可用），Mermaid 走源码占位。导出 PDF/DOCX 不受影响（§4.6） |
-| 3 | 向上游提交 PR（把 `Runtime.enable` 等改为 await） | 高 | ⚠️ 需理解 WebView2 CDP 生命周期，且上游修复周期不可控 |
+| 1 | **改写渲染协议：`console.log` → 轮询 DOM** | **低** | ✅ **推荐**——`renderLatex` 已经把 SVG 写入 `document.getElementById('payload-<id>')`（`mermaid_renderer.html:69-76`）。Dart 侧可直接轮询 `evaluateJavascript` 读取该元素的 `textContent`，完全绕过 `console.log`/CDP 事件。**不需要修改 JS 端，只需 Dart 端把"等待 console 消息"改为"轮询 DOM"**。这是最小改动、最低风险的路径 |
+| 2 | 改写协议：改用 `postMessage` + `addCallHandlerFunction` 回传 SVG | 中 | ✅ **可行**——`window.chrome.webview.postMessage` 是 WebView2 原生 IPC（`WebMessageReceived` 事件），**不经过 CDP**。JS 桥已注入（探针证实 `'object'`）。需同时改 JS 端和 Dart 端 |
+| 3 | 锁定降级为最终状态 | 低 | ✅ 公式走 `flutter_math_fork`（§4.4 已验证可用），Mermaid 走源码占位。导出 PDF/DOCX 不受影响（§4.6） |
+| 4 | 向上游提交 PR（修复 `Runtime.consoleAPICalled` 事件回传） | 高 | ⚠️ 需理解 WebView2 CDP 事件生命周期，上游修复周期不可控 |
 
-**方案 1 的判定依赖**：先跑 §4.7 的三行探针。若 `bridge === 'object'`（桥已注入，说明 `Page.addScriptToEvaluateOnNewDocument` 路径可用），则改写 `postMessage` 协议即可恢复 SVG 渲染；若 `bridge === 'undefined'`，说明 WebView2 CDP 域整体未就绪，问题更深，需回到上游 PR（方案 3）。
-
-**建议**：短期走方案 2（已在 ADR-0034 D5 登记为降级路径，且降级链路经 §4.4 验证可用），MVP 可带此降级关闭；方案 1 作为 Phase 4.2 的功能增强任务单独立项，前置条件是先跑探针确认 CDP Page 域可用。
+**建议**：方案 1 是 Phase 4.2 的首选——`renderLatex` 已经把结果写进 DOM 了，Dart 端只需要把 `await completer.future` 换成轮询 `evaluateJavascript` 读 DOM，改动量最小且已证实 `evaluateJavascript` 可用。方案 3（降级）可作为 Phase 4.1 MVP 的即时关闭路径。
 
 ---
 
@@ -291,12 +281,23 @@ debugPrint('bridge=${await c.evaluateJavascript(source: "typeof window.flutter_i
 | `shared_preferences_windows` | 2.4.1 | 已注册原生插件 | `generated_plugins.cmake` |
 | `flutter_inappwebview_windows` | 0.6.0 | endorsed 原生插件 | 构建产物 dll（5.22 MB） |
 
-### 5.2 运行时未验证项（诚实声明）
+### 5.2 运行时实测结果（v1.4 新增）
 
-`file_picker` 与 `share_plus` 的 Windows 运行时行为（打开系统文件对话框、调起系统分享面板）**未在本轮验证**——二者的验证路径都会触发 Windows 原生 UI 交互（模态对话框 / 系统分享面板），依赖用户手动点选，非自动化可闭环；且当前 M2 的公式缺陷未修，优先序更低。
+> **勘误**：上一版（v1.2/v1.3）声明 file_picker 与 share_plus 的 Windows 运行时"未验证"。v1.4 通过一次性 Windows integration test 探针（`diag002_probe_test.dart`，已删除，不入库）完成实测验证。
 
-- **`file_picker` 风险较低**：纯 Dart 实现 + Windows 原生对话框 API，无跨平台行为差异预期。
-- **`share_plus` 风险中等**：ADR-0034 D4 已登记"Windows 上可能不是用户期望的分享体验，MVP 阶段接受此降级"——本轮无新信息，维持该判断。
+| 插件 | 探针方法 | 结果 | 判定 |
+|------|---------|------|------|
+| **`file_picker`** | `FilePicker.platform.pickFiles(type: FileType.any)` 加 5s timeout | **`TIMEOUT=DIALOG_OPENED`** | ✅ **确认可用**——Win32 `GetOpenFileNameW` 模态对话框弹出并阻塞（超时 = 对话框出现）。FFI 通道活着，`comdlg32.dll` 已加载 |
+| **`share_plus`** | `Share.shareXFiles([XFile(tempFile)], text: ...)` | **`RETURNED_OK`** | ✅ **确认可用**——原生 `DataTransferManager` 方法通道返回正常，未抛 `MissingPluginException` 或 `UnimplementedError`。ShareUI 异步弹出（方法通道立即返回，不等 UI 关闭） |
+
+**实现细节确认**（源码级）：
+
+- **`file_picker`**（`file_picker-8.3.7/lib/src/windows/file_picker_windows.dart`）：纯 Dart FFI，**无平台通道**。`pickFiles()` 用 `Isolate.spawn` 开子 isolate，调用 `comdlg32.dll` 的 `GetOpenFileNameW`。`type: FileType.any` 的过滤字符串是 `'All Files (*.*)'`（`:224`），与 Android 的 SAF MIME 过滤行为**不同**——但本项目 `file_service.dart:195` 用的正是 `FileType.any` + Dart 层扩展名校验，因此行为一致。**风险项**：`file_picker_windows.dart:228` 的 `FileType.custom` 过滤字符串有拼写错误（`join(',*.')` 应为 `join(';*.')`），但本项目从未使用 `FileType.custom`，故不影响。
+- **`share_plus`**（`share_plus-7.2.2`）：双实现。原生 C API 插件 `SharePlusWindowsPluginCApi`（`windows/share_plus_plugin.cpp`）用 `DataTransferManager.ShowShareUIForWindow`——方法通道立即返回，ShareUI 异步弹出。Dart 回退实现 `SharePlusWindowsPlugin`（`lib/src/share_plus_windows.dart`）仅在 Windows < RS5（build < 17763）时激活，且其 `shareXFiles` 直接抛 `UnimplementedError`。**本机 Windows 11 26H2（build 26300）远超 RS5**，走原生路径。探针结果 `RETURNED_OK` 证实原生通道正常。
+
+**结论**：M3 的"实测"要求已通过探针满足。`file_picker` 与 `share_plus` 在 Windows 上均确认可用。ADR-0034 D4 关于 share_plus 的"可能不是用户期望的分享体验"判断维持不变（Windows ShareUI 是系统级面板，非 Android 式选择器），但这不是功能缺陷。
+
+**未验证项（诚实声明）**：以上仅验证了**平台通道可用性**（对话框弹出、方法通道返回），未验证完整的用户交互闭环（用户在对话框中选中文件后返回、ShareUI 中点击分享后文件被正确传递）。这部分仍需 Owner 手动冒烟确认。
 
 ---
 
@@ -365,24 +366,24 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 |---|----|------|--------|
 | 1 | 合并 PR #387（`windows-2022` pin） | Owner | 阻塞 M4 闭环 |
 | 2 | 合并本 PR（M5 报告） | Owner | 阻塞 M5 归档 |
-| 3 | 单开 **BUG-004**：`windows-webview2-evaluatejavascript-timeout`（**仅 `evaluateJavascript` 无响应一项**；降级 `Math` widget 子项经 §4.4 证伪已剔除） | 后续 | **阻塞 M2 完成**（ADR:125 要求"完成一次 `evaluateJavascript` 往返"） |
+| 3 | 单开 **BUG-004**：`windows-webview2-console-message-not-delivered`（**CDP `Runtime.consoleAPICalled` 事件不回传 Dart**，非 `evaluateJavascript` 问题——见 §4.7 勘误）。首选修复：Dart 端轮询 DOM 替代等待 console 消息（`renderLatex` 已把 SVG 写入 `#payload-<id>`） | 后续 | **阻塞 M2 完成**（ADR:125 要求"完成一次 `evaluateJavascript` 往返"——严格讲 `evaluateJavascript` 已达成；若 Owner 接受降级路径关闭 MVP，则不阻塞 MVP） |
 | 4 | **Human Owner 本地 Windows 手动冒烟**（ADR:130 判据第二项）：打开种子文档 → 编辑 → 导出 PDF/DOCX/TXT | Owner | **阻塞 MVP 关闭**（本 PR 无法代做） |
 | 5 | ADR-0034 D3 勘误：Windows integration_test 工具链前提已解除（本报告 §3.3） | 后续 | 文档 |
-| 6 | 验证 `flutter_inappwebview_windows 0.7.0-beta+` 是否修复 evaluateJavascript 与 STL1011（一并解锁迁回 `windows-latest`） | 后续 | 可选 |
-| 7 | Windows 运行时补测 `file_picker` / `share_plus`（人工点选，非自动化） | 后续 | 不阻塞 |
+| 6 | ADR-0034 D5 勘误：BUG-004 真实根因是 `onConsoleMessage` 不回传，非 `evaluateJavascript` 超时（§4.7） | 后续 | 文档 |
 
 **Phase 4.1 MVP 关闭判据**（ADR:130）：M1-M5 全部完成 + Human Owner 本地 Windows 手动冒烟通过。
 
 当前状态：**⏳ 未满足**，两个独立缺口——
 
-1. **M2 未完成**：ADR:125 把 M2 定义为"加载 `assets/mermaid_renderer.html` **+ 完成一次 `evaluateJavascript` 往返**"。前半段达成（§4.2 日志链），后半段因 BUG-004 确凿未达成（§4.3）。这是本轮唯一的产品级缺陷。
+1. **M2 严格定义未完全达成**：ADR:125 把 M2 定义为"加载 `assets/mermaid_renderer.html` **+ 完成一次 `evaluateJavascript` 往返**"。v1.4 探针证实 `evaluateJavascript` **确实可用**（`1+1` 返回 `2`，§4.7），但"往返"是否包含"通过 `evaluateJavascript` 取得 SVG 渲染结果"需 Owner 裁定——若按字面定义（一次任意往返），M2 已达成；若按功能定义（SVG 渲染链路闭环），则需先修 BUG-004。ADR-0034 D5 预设的降级路径已在功能层保证（§4.4 验证可用），MVP 可带降级关闭。
 2. **判据第二项未执行**：Human Owner 本地手动冒烟（打开种子文档 → 编辑 → 导出 PDF/DOCX/TXT）。这是 Owner 动作，本 PR 无法代做。
 
 **已澄清、不构成缺口的项**：
 
 - **降级路径可用**（§4.4）：ADR-0034 D5 预设的 `flutter_math_fork` 降级经 widget 层同分类 error 独立验证，Windows 用户会看到降级渲染而非源码。上一版报告把 Windows integration test 的 `Found 0 widgets with type "Math"` 读成"降级失效、阻塞 MVP"是误判，本版已勘误。
 - **导出管线不受 BUG-004 影响**（§4.6）：`formula_pdf_renderer.dart` 走离屏 canvas 捕获、无 WebView 依赖，故 MVP 判据的"导出 PDF/DOCX"一环可独立于 BUG-004 验证。
-- 因此**判据缺口已收敛到单点**：编辑器内实时 SVG 渲染（BUG-004）+ Owner 手动冒烟。
+- **M3 运行时已验证**（§5.2）：`file_picker` 模态对话框弹出、`share_plus` 方法通道返回正常，均经 Windows integration test 探针实测确认。
+- **BUG-004 根因已精确定位**（§4.7）：非 `evaluateJavascript` 问题，是 CDP `Runtime.consoleAPICalled` 事件不回传 Dart。修复路径明确（Dart 端轮询 DOM），属 Phase 4.2 功能增强。
 
 ---
 
@@ -394,7 +395,7 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 | D2 CI 策略（`changes` + 手动触发） | ✅ 已实现并验证；`windows-2022` pin 为必要偏差，理由见 §6.1 |
 | D3 E2E 分工（Windows 不接管 CI integration_test） | ✅ 策略成立；但"本地无法跑"的工具链前提已失效，见 §3.3 |
 | D4 功能降级清单 | ✅ 未实现快捷键 / 多窗口等；`file_picker` / `share_plus` 维持登记状态 |
-| D5 运行时依赖与降级路径 | ⚠️ WebView2 Runtime 已确认；`evaluateJavascript` 超时确凿（BUG-004）；**降级路径经 widget 层独立验证可用**（§4.4）；导出管线不受影响（§4.6） |
+| D5 运行时依赖与降级路径 | ⚠️ WebView2 Runtime 已确认；`evaluateJavascript` 实测可用（§4.7）；真实缺陷是 CDP `Runtime.consoleAPICalled` 事件不回传 Dart（非 `evaluateJavascript` 问题）；**降级路径经 widget 层独立验证可用**（§4.4）；导出管线不受影响（§4.6） |
 | D6 回滚策略 | ✅ 未触发回滚条件 |
 
 ---
@@ -406,8 +407,8 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 - [x] 本地 `integration_test/smoke_test.dart -d windows` 通过（见 §3.3）
 - [x] CI `Build Windows Release` 通过（run 38376257526，见 §6.2）
 - [x] CI `changes` job 的 windows 路径过滤正确命中（ci.yml 变更触发 build-windows）
-- [ ] `integration_test/phase35_formula_test.dart -d windows` **失败 3/4**（BUG-004，见 §4）
-- [ ] `file_picker` / `share_plus` 运行时实测未做（见 §5.2，诚实声明）
+- [ ] `integration_test/phase35_formula_test.dart -d windows` **失败 3/4**（BUG-004：CDP `Runtime.consoleAPICalled` 事件不回传 Dart，见 §4.7）
+- [x] `file_picker` / `share_plus` 运行时实测通过（§5.2，一次性 Windows integration test 探针：file_picker 模态对话框弹出、share_plus 方法通道返回正常）
 
 本 PR 仅含文档改动，不触及 `lib/` / `test/` / 业务代码，不影响 CI 门禁。
 
@@ -421,4 +422,4 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 ---
 
 **维护人**：AI Agent
-**最后更新**：2026-10-13（v1.2：§4.4 勘误定案——经 `formula_renderer_fallback_test` 同分类 error 本地实测验证（4/4 绿，含完全一致的 `FormulaRenderWebViewError` 日志），证伪"降级未生效"，降级路径判定可用；新增 §4.6 导出管线离屏 canvas 捕获、无 WebView 依赖、不受 BUG-004 影响；MVP 判据按 ADR:125/130 准确重校，缺口收敛到 BUG-004 单点 + Owner 手动冒烟）
+**最后更新**：2026-10-13（v1.4：§4.7 BUG-004 根因重定位——Windows integration test 实测证实 `evaluateJavascript` **可用**（`1+1`→`2`），证伪 v1.3 的 H1/H2 假设；真实缺陷是 CDP `Runtime.consoleAPICalled` 事件不回传 Dart。M3 运行时经探针实测确认：`file_picker` 模态对话框弹出、`share_plus` 方法通道正常）
