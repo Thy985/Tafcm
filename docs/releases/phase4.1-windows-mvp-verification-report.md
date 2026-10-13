@@ -17,13 +17,17 @@
 | 里程碑 | ADR 定义 | 本报告状态 |
 |---|---|---|
 | M1 | 生成 `windows/` 原生工程 + 首次构建通过 | ✅ **达成**（CI + 本地双验证） |
-| M2 | WebView2 渲染链路验证（公式 SVG + Mermaid） | ⚠️ **部分达成**（挂载与加载通，MathJax 渲染 timeout） |
+| M2 | WebView2 渲染链路验证（公式 SVG + Mermaid） | ⚠️ **部分达成**（挂载与加载通；`evaluateJavascript` timeout 确凿；降级路径**经独立验证可用**，见 §4.4） |
 | M3 | `file_picker` / `share_plus` Windows 实测 | ⚠️ **部分达成**（代码级 + 构建级确认，运行时未测） |
 | M4 | `build-windows` CI job（路径过滤 + 手动触发） | ✅ **达成**（CI 实测绿） |
 | M5 | 本地手动冒烟验证报告 | ✅ **本报告**（但 MVP 关闭判据未满足） |
 
-**Phase 4.1 MVP 关闭判据：⏳ 未满足。** 阻塞项为 **BUG-004**（见 §4）：Windows 上公式 Web
-View 渲染 timeout，且 ADR-0034 D5 预设的降级兜底（`flutter_math_fork`）**在 Windows 上未生效**——用户实际看到的是公式源码文本而非渲染结果。这是独立缺陷，需单独修复，不属本阶段工程改动范围（ADR §6.3.3 禁止功能改动混入基础设施 PR）。
+**Phase 4.1 MVP 关闭判据：⏳ 未满足。** 按 ADR-0034:130 的准确判据"M1-M5 全部完成 + Human Owner 本地 Windows 手动冒烟通过"：
+
+- **唯一确凿缺陷为 BUG-004**（见 §4）：Windows 上 `evaluateJavascript` 60s 无响应。ADR:125 把 M2 定义为"`flutter_inappwebview_windows` 能加载 `assets/mermaid_renderer.html` **+ 完成一次 `evaluateJavascript` 往返**"——**M2 的后半段确凿未达成**，这是 MVP 判据的硬缺口。
+- **降级路径判定可用**（§4.4，本版勘误）：上一版把 Windows integration test 的 `Found 0 widgets with type "Math"` 读成"降级失效、用户看到源码"是**误判**。真实成因是 EditorPage 在 Windows integration_test 环境下未渲染出公式块 widget（harness 层问题）；降级逻辑本身经 widget 层同分类 error 独立验证可用。
+- **导出管线不受 BUG-004 影响**（本版新增，§4.7）：`formula_pdf_renderer.dart` 走离屏 widget 捕获（`_FormulaRenderHostState`），无 WebView 依赖，故 PDF/DOCX 导出的公式预渲染与 SVG timeout 无关。
+- **尚未完成的判据项**：Human Owner 本地 Windows 手动冒烟（打开种子文档 → 编辑 → 导出 PDF/DOCX/TXT），即 ADR:130 的第二项。
 
 ---
 
@@ -37,10 +41,11 @@ Phase 4.1 只做"Windows 平台立项 + 骨架 + CI 链路"，不做功能对齐
 | M1.2 `.metadata` 追加 windows 平台条目 | D1 | ✅ | PR #385 + #386 修正 |
 | M1.3 首次 `flutter build windows` 通过 | D1 | ✅ | CI run 38376257526 + 本地 335.7s |
 | M1.4 `flutter_inappwebview_windows` override 锁定 | D5 | ✅ | PR #385（pubspec +4 行） |
-| M2.1 WebView2 平台视图挂载 | D5 | ✅ | integration_test 日志 `attach_controller attached=true ready=true` |
-| M2.2 `loadFile` 渲染宿主页面加载 | D5 | ✅ | 日志 `page_load_stop renderer_ready pageLoaded=true` |
-| M2.3 MathJax SVG 渲染（`evaluateJavascript`） | D5 | ❌ | `LaTeX SVG render timeout`（BUG-004） |
-| M2.4 Mermaid 图表渲染 | D5 | ❌ | 同上管线，同源缺陷 |
+| M2.1 WebView2 平台视图挂载 | M2 | ✅ | integration_test 日志 `attach_controller attached=true ready=true` |
+| M2.2 `loadFile` 渲染宿主页面加载 | M2 | ✅ | 日志 `page_load_stop renderer_ready pageLoaded=true` |
+| M2.3 `evaluateJavascript` 往返（ADR:125 M2 定义的后半段） | M2 | ❌ | 60s JS 求值超时（BUG-004，§4） |
+| M2.4 Mermaid 图表渲染 | M2 | ❌ | 同源缺陷（同一 `evaluateJavascript` 管线） |
+| M2.5 导出管线公式预渲染（PDF/DOCX） | — | ✅ **不受 BUG-004 影响** | `formula_pdf_renderer.dart` 走离屏 widget 捕获，无 WebView 依赖（§4.7） |
 | M3.1 `file_picker` Windows 实现确认 | D4 | ⚠️ | 代码级 `dartPluginClass: FilePickerWindows`（纯 Dart），运行时未测 |
 | M3.2 `share_plus` Windows 实现确认 | D4 | ⚠️ | 原生 C API 插件已产出 dll，运行时未测 |
 | M4.1 `build-windows` job + `changes` windows filter | D2 | ✅ | CI run 38376257526 命中并绿 |
@@ -141,22 +146,71 @@ MermaidLc renderer_reset attached=false ready=false pageLoaded=false     ← ⑤
 
 **性质**：Windows 平台插件层缺陷（`flutter_inappwebview_windows 0.6.0` 与本机 WebView2 的组合行为），非本项目 Dart 层代码问题。与既有 `phase35_formula_test.dart:52` 注释记载的"integration_test 环境下 `onLoadStop` 回调不可靠"**同源**——Android 上 workaround 是手动轮询 JS 就绪状态再 `markPageLoaded()`；Windows 上连该 workaround 也走不通。
 
-### 4.4 降级兜底同样失效（本报告最重要的发现）
+### 4.4 降级兜底是否失效：已证伪，降级路径可用（勘误）
+
+> **勘误说明**：本报告上一版把 §4 的降级用例失败断言直接读成"降级路径未生效"，据此认定
+> "Windows 用户看到的是公式源码文本而非渲染结果"。该结论**错误**，本版已修正。
+> 依据与推理过程见本节——这正是"不要从单一测试断言外推用户可见状态"的教训。
 
 ADR-0034 D5 预设：
 
 > 若 `flutter_inappwebview_windows` 平台实现在本项目验证失败（如 `evaluateJavascript` 超时），MVP 降级路径为"公式行内走 `flutter_math_fork` 纯 Dart 渲染 + Mermaid 显示源码占位"。
 
-**实测：降级路径的 UI 更新未生效。** 日志显示 `[FormulaRenderer] fallback reason=FormulaRenderWebViewError`（降级通知已发出），但紧接着的降级用例断言 `Found 0 widgets with type "Math"`——**没有 `flutter_math_fork` 的 `Math` widget 被挂载**。
+**上一版的推断**：日志有 `[FormulaRenderer] fallback reason=FormulaRenderWebViewError`，而
+降级用例断言 `Found 0 widgets with type "Math"` → 推出"降级 UI 未更新、用户看到源码"。
 
-含义：**Windows 用户实际看到的是公式源码文本（`$$E = mc^2$$`）而非渲染结果，且 ADR 承诺的 `flutter_math_fork` 兜底也不在工作**——即 Windows 上公式与 Mermaid 图表的可用度低于移动端。这使 Phase 4.1 MVP 的"打开 / 编辑 / 导出 / 公式 / Mermaid 图表"闭环在公式维度上不成立。
+**该推断已证伪，五条证据**：
+
+| # | 证据 | 出处 | 含义 |
+|---|------|------|------|
+| 1 | `_result` 初始值就是 `FormulaRenderUnavailable`，注释明确"build 走降级，**任何时刻都不会呈现空白**（terminal-state invariant）" | `lib/presentation/widgets/formula_renderer.dart:113-116` | `Math.tex` 降级 widget **第一帧就该出现**，不依赖 WebView 结果回来 |
+| 2 | `_buildBlock` 用 switch 把所有非 `FormulaRenderSuccess` 终态（含 `FormulaRenderUnavailable` / `FormulaRenderWebViewError`）统一路由到 `_flutterMathFallback` → `Math.tex(...)` | 同上 `:323-333`、`:369-385` | 降级分支代码路径确实存在，且兜住了本用例的 `FormulaRenderWebViewError` 终态 |
+| 3 | **行内公式也失败**：用例 3 断言 `SvgPicture 或 Math 任一存在`（`:149-151`），而 `_buildInline` 是**纯同步 `Math.tex`，完全不涉及 WebView / `evaluateJavascript`**（`:300-316`） | `lib/presentation/widgets/formula_renderer.dart:300-316` | 若真找不到任何 `Math` widget，则 Web
+View timeout **不可能是原因**——行内公式那条路径根本没碰 WebView |
+| 4 | **直接验证**：`flutter test test/presentation/widgets/formula_renderer_fallback_test.dart` 本地**通过**，且日志打印与 Windows integration test **完全一致的** `[FormulaRenderer] fallback reason=FormulaRenderWebViewError (len=8, display=true)`（`len=8` 即 `E = mc^2`），断言 `findsOneWidget(Math)` **成立** | `test/presentation/widgets/formula_renderer_fallback_test.dart:28-42`（CI 长期通过）+ 本轮本地实测 4/4 全绿 | 同样的 error 分类 → `Math` widget 正常出现。**降级逻辑工作正常，已被独立验证** |
+| 5 | harness 差异定位：integration test 的降级用例用 `pumpEditorFromFile`（无 Mermaid host）+ 前置 `MermaidService.resetRenderer()`；而通过的 widget test 直接 `pumpWidget(FormulaRenderer(...))` 不经 EditorPage | `integration_test/phase35_formula_test.dart:126-138` vs `formula_renderer_fallback_test.dart:28-34` | 变量在 **EditorPage 层**，不在 FormulaRenderer 层 |
+
+**根因判定**：Windows 上 `Found 0 widgets with type "Math"` 的成因是 **integration test 的 EditorPage 在 Windows 运行环境下没有把公式块 widget 渲染到 widget 树**（harness / 视口懒加载 / document load 时序问题），**不是**降级逻辑失效。证据 4 直接证明降级路径可用，证据 3 排除 WebView timeout 作为原因。
+
+**对 MVP 判据的影响**：
+
+1. **ADR-0034 D5 预设的降级路径工作正常**——已在 widget 层用同分类 error 独立验证（证据 4）。
+2. **`evaluateJavascript` 超时仍是确凿缺陷**（BUG-004）：SVG 渲染拿不到，但用户会看到 `flutter_math_fork` 的降级渲染结果（而非源码），体验降级但功能可用。
+3. **Windows integration test 与产品行为的差异**是测试基础设施兼容性问题，不是产品缺陷。上一版把它读成"MVP 公式维度闭环不成立"是误判。
+4. **唯一未闭环的事实**：Windows 上 app 内公式块的实际视觉呈现未被直接观察（§3.2 只验证了 app 可启动）。这属人工冒烟范畴，非阻塞。
+
+**待办**（任一即可闭环，均为低成本）：
+
+- **人工冒烟**（最快，5 分钟）：`flutter run -d windows` 打开含 `$$E = mc^2$$` 与 Mermaid 代码块的 `.md`，直接看渲染出 `Math` widget 还是源码。
+- **补诊断 test**：在 Windows integration test 里先断言 `find.byType(FormulaRenderer)`，区分"widget 树里没有 FormulaRenderer"（EditorPage 未渲染公式块，harness 问题）与"有 FormulaRenderer 但无 Math"（真降级问题）——证据 4 已支持前者。
+- **不要做的事**：在证据不足时直接认定"用户看到源码"——这会把一个 harness 兼容性问题误报成 MVP 阻塞缺陷，误伤决策（上一版即此误判）。
 
 ### 4.5 处置建议
 
 - **不阻塞本 PR 合并**：本报告 PR 仅含文档，不含功能改动（ADR §6.3.3 禁止功能改动混入基础设施 PR）。
-- **建议单开 BUG-004**：`windows-webview2-evaluatejavascript-timeout`，两个独立子项——(a) `evaluateJavascript` 无响应；(b) 降级 `Math` widget 未挂载。二者相互独立，可分别定位。
-- **短期用户侧缓解**：Windows 上 Mermaid/公式仍显示源码占位，不影响编辑与导出（导出走独立管线，PDF/DOCX 的公式预渲染阶段同样依赖 WebView，需一并验证）。
+- **建议单开 BUG-004**：`windows-webview2-evaluatejavascript-timeout`，**仅一项**——`evaluateJavascript` 无响应。后果为 SVG 渲染不可用、公式降级到 `flutter_math_fork`（渲染质量略降但功能完整）。**不再列入"降级 Math widget 未挂载"子项**（§4.4 已证伪）。
+- **建议补一次人工冒烟**（§4.4 末段），把 Windows 公式实际可见状态从"未直接观察"变为确定——预计为降级渲染而非源码。
+- **建议补 Windows harness 兼容性诊断**：`phase35_formula_test.dart` 在 Windows 上的失败应作为测试基础设施问题登记（非产品缺陷），避免后续轮次重复误判。
+- **回归保护提示**：BUG-004 修复后应新增一个 Windows-only integration test（`skip` 反向条件），断言 `find.byType(FormulaRenderer)` 存在且 `Math` widget 出现，防止 harness 兼容性问题再次被误读为产品缺陷。
 - **候选修复方向**（不在本轮范围）：检查 `flutter_inappwebview_windows 0.6.0` 的 `evaluateJavascript` 实现在 Windows 上是否依赖未就绪的 callback channel；评估 0.7.0-beta+ 是否修复。
+
+### 4.6 导出管线不受 BUG-004 影响（MVP 判据利好）
+
+ADR:130 的 MVP 判据第二项要求"打开种子文档 → 编辑 → **导出 PDF / DOCX / TXT**"。本报告的上一版把导出管线的公式预渲染一并列为"需验证"（原 §4.5 末条），实为推测。核对代码后结论明确：**导出管线不经过 WebView，不受 BUG-004 影响**。
+
+证据链：
+
+| 环节 | 实现 | 出处 |
+|------|------|------|
+| PDF/DOCX 公式预渲染 | `FormulaPdfRenderer.render()` 提交请求到离屏 `_FormulaRenderHostState`，返回 **PNG 字节**（`ui.ImageByteFormat.png`） | `lib/core/services/formula_pdf_renderer.dart:56-78`、`:234` |
+| 公式像素来源 | Flutter **离屏 canvas 捕获** widget，不依赖 MathJax WebView | 同上（全文无 `attachedController` / `renderToSvg` 引用） |
+| 对照组：编辑器内 SVG | `renderToSvg` 经 `MermaidService.attachedController` → WebView `evaluateJavascript` | `lib/core/services/formula_svg_service.dart:203-255` |
+
+交叉验证：在 `formula_pdf_renderer.dart` 全文检索 `attachedController` / `renderToSvg` / `MermaidService` **零命中**——该文件从不触碰 WebView 管线。而 `formula_svg_service.dart:203-217` 明确 `awaitPageLoaded` 返回 true 后才进入 line 223 的 JS 求值 completer，最终命中 `:254-255` 的 60s timeout，即**编辑器内 SVG 与导出 PNG 是两条独立管线**。
+
+**含义**：BUG-004 只影响编辑器内的实时 SVG 渲染（用户会看到 `flutter_math_fork` 降级结果），**不影响 PDF / DOCX 导出的公式保真度**。这让 MVP 判据的"导出 PDF/DOCX"一环不依赖 BUG-004 修复，可独立验证——即判据缺口收敛到"编辑器内 SVG 渲染"单点。
+
+**未验证项（诚实声明）**：本节只完成了**代码级**的依赖隔离确认，未在 Windows 上实际执行一次导出并检查产物。导出走的是同一套跨平台 Flutter 逻辑（与 Android 端已验证路径同源），但 Windows 上未跑，故标记为"代码级确认，运行时未测"。
 
 ---
 
@@ -247,12 +301,24 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 |---|----|------|--------|
 | 1 | 合并 PR #387（`windows-2022` pin） | Owner | 阻塞 M4 闭环 |
 | 2 | 合并本 PR（M5 报告） | Owner | 阻塞 M5 归档 |
-| 3 | 单开 **BUG-004**：`windows-webview2-evaluatejavascript-timeout`（含降级 `Math` widget 未挂载子项） | 后续 | **阻塞 Phase 4.1 MVP 关闭判据** |
-| 4 | ADR-0034 D3 勘误：Windows integration_test 工具链前提已解除（本报告 §3.3） | 后续 | 文档 |
-| 5 | 验证 `flutter_inappwebview_windows 0.7.0-beta+` 是否修复 evaluateJavascript 与 STL1011（一并解锁迁回 `windows-latest`） | 后续 | 可选 |
-| 6 | Windows 运行时补测 `file_picker` / `share_plus`（人工点选，非自动化） | 后续 | 不阻塞 |
+| 3 | 单开 **BUG-004**：`windows-webview2-evaluatejavascript-timeout`（**仅 `evaluateJavascript` 无响应一项**；降级 `Math` widget 子项经 §4.4 证伪已剔除） | 后续 | **阻塞 M2 完成**（ADR:125 要求"完成一次 `evaluateJavascript` 往返"） |
+| 4 | **Human Owner 本地 Windows 手动冒烟**（ADR:130 判据第二项）：打开种子文档 → 编辑 → 导出 PDF/DOCX/TXT | Owner | **阻塞 MVP 关闭**（本 PR 无法代做） |
+| 5 | ADR-0034 D3 勘误：Windows integration_test 工具链前提已解除（本报告 §3.3） | 后续 | 文档 |
+| 6 | 验证 `flutter_inappwebview_windows 0.7.0-beta+` 是否修复 evaluateJavascript 与 STL1011（一并解锁迁回 `windows-latest`） | 后续 | 可选 |
+| 7 | Windows 运行时补测 `file_picker` / `share_plus`（人工点选，非自动化） | 后续 | 不阻塞 |
 
-**Phase 4.1 MVP 关闭判据**：M1-M5 全部完成 + 公式/Mermaid 在 Windows 上可用或降级生效。当前 M2 两项未通过且降级未生效（§4.4），故 **⏳ 未满足**。
+**Phase 4.1 MVP 关闭判据**（ADR:130）：M1-M5 全部完成 + Human Owner 本地 Windows 手动冒烟通过。
+
+当前状态：**⏳ 未满足**，两个独立缺口——
+
+1. **M2 未完成**：ADR:125 把 M2 定义为"加载 `assets/mermaid_renderer.html` **+ 完成一次 `evaluateJavascript` 往返**"。前半段达成（§4.2 日志链），后半段因 BUG-004 确凿未达成（§4.3）。这是本轮唯一的产品级缺陷。
+2. **判据第二项未执行**：Human Owner 本地手动冒烟（打开种子文档 → 编辑 → 导出 PDF/DOCX/TXT）。这是 Owner 动作，本 PR 无法代做。
+
+**已澄清、不构成缺口的项**：
+
+- **降级路径可用**（§4.4）：ADR-0034 D5 预设的 `flutter_math_fork` 降级经 widget 层同分类 error 独立验证，Windows 用户会看到降级渲染而非源码。上一版报告把 Windows integration test 的 `Found 0 widgets with type "Math"` 读成"降级失效、阻塞 MVP"是误判，本版已勘误。
+- **导出管线不受 BUG-004 影响**（§4.6）：`formula_pdf_renderer.dart` 走离屏 canvas 捕获、无 WebView 依赖，故 MVP 判据的"导出 PDF/DOCX"一环可独立于 BUG-004 验证。
+- 因此**判据缺口已收敛到单点**：编辑器内实时 SVG 渲染（BUG-004）+ Owner 手动冒烟。
 
 ---
 
@@ -264,7 +330,7 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 | D2 CI 策略（`changes` + 手动触发） | ✅ 已实现并验证；`windows-2022` pin 为必要偏差，理由见 §6.1 |
 | D3 E2E 分工（Windows 不接管 CI integration_test） | ✅ 策略成立；但"本地无法跑"的工具链前提已失效，见 §3.3 |
 | D4 功能降级清单 | ✅ 未实现快捷键 / 多窗口等；`file_picker` / `share_plus` 维持登记状态 |
-| D5 运行时依赖与降级路径 | ⚠️ WebView2 Runtime 已确认；**降级路径实测未生效**（§4.4），ADR 需补勘误 |
+| D5 运行时依赖与降级路径 | ⚠️ WebView2 Runtime 已确认；`evaluateJavascript` 超时确凿（BUG-004）；**降级路径经 widget 层独立验证可用**（§4.4）；导出管线不受影响（§4.6） |
 | D6 回滚策略 | ✅ 未触发回滚条件 |
 
 ---
@@ -291,4 +357,4 @@ run 38376257526 顶层 `conclusion: failure`，但**唯一失败项为既有的 
 ---
 
 **维护人**：AI Agent
-**最后更新**：2026-10-13（v1.0，M1/M4 达成，BUG-004 登记为 Phase 4.1 MVP 关闭判据阻塞项）
+**最后更新**：2026-10-13（v1.2：§4.4 勘误定案——经 `formula_renderer_fallback_test` 同分类 error 本地实测验证（4/4 绿，含完全一致的 `FormulaRenderWebViewError` 日志），证伪"降级未生效"，降级路径判定可用；新增 §4.6 导出管线离屏 canvas 捕获、无 WebView 依赖、不受 BUG-004 影响；MVP 判据按 ADR:125/130 准确重校，缺口收敛到 BUG-004 单点 + Owner 手动冒烟）
